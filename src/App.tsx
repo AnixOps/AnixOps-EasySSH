@@ -2,17 +2,15 @@ import { useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Header } from './components/Header';
 import { MainContent } from './components/MainContent';
+import { RightPanel } from './components/RightPanel';
 import { Sidebar } from './components/Sidebar';
-import { SectionLabel, Surface } from './components/design-system';
-import { getProductModeMeta, type ProductMode } from './productModes';
+import { getProductModeMeta } from './productModes';
 import { useServerStore } from './stores/serverStore';
-import { useSessionStore } from './stores/sessionStore';
 import { useUiStore } from './stores/uiStore';
 
 function App() {
   const { productMode } = useUiStore();
   const { fetchServers, fetchGroups, isLoading, error, servers, groups } = useServerStore();
-  const { terminalSessions } = useSessionStore();
 
   // Initialize database on app start
   useEffect(() => {
@@ -66,55 +64,9 @@ function App() {
             <h2 className="text-sm font-semibold text-slate-50">{mode.subtitle}</h2>
           </div>
           <div className="flex-1 overflow-auto p-4">
-            <RightPanel productMode={productMode} serverCount={servers.length} groupCount={groups.length} sessionCount={terminalSessions.length} />
+            <RightPanel />
           </div>
         </aside>
-      </div>
-    </div>
-  );
-}
-
-function RightPanel({
-  productMode,
-  serverCount,
-  groupCount,
-  sessionCount,
-}: {
-  productMode: ProductMode;
-  serverCount: number;
-  groupCount: number;
-  sessionCount: number;
-}) {
-  const mode = getProductModeMeta(productMode);
-
-  return (
-    <div className="space-y-4">
-      <Surface className="p-4">
-        <SectionLabel>Product mode</SectionLabel>
-        <h3 className="mt-2 text-base font-semibold text-slate-50">{mode.title}</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{mode.description}</p>
-      </Surface>
-
-      <Surface className="p-4">
-        <SectionLabel>Activity</SectionLabel>
-        <div className="mt-4 space-y-3 text-sm text-slate-300">
-          <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-2 last:border-b-0 last:pb-0">
-            <span className="text-slate-500">Servers</span>
-            <span className="font-medium text-slate-200">{serverCount}</span>
-          </div>
-          <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-2 last:border-b-0 last:pb-0">
-            <span className="text-slate-500">Groups</span>
-            <span className="font-medium text-slate-200">{groupCount}</span>
-          </div>
-          <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-2 last:border-b-0 last:pb-0">
-            <span className="text-slate-500">Sessions</span>
-            <span className="font-medium text-slate-200">{sessionCount}</span>
-          </div>
-        </div>
-      </Surface>
-
-      <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950 p-4 text-sm text-slate-500">
-        This panel will eventually host selected server details, connection actions, and contextual tools.
       </div>
     </div>
   );
