@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { Button, type ButtonSize, type ButtonVariant } from './design-system/Button';
+import { Input, type InputSize } from './design-system/Input';
 
 export { Button, type ButtonSize, type ButtonVariant };
-
-export type InputSize = 'sm' | 'md' | 'lg';
+export { Input, type InputSize };
 
 export function Surface({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
@@ -67,7 +67,6 @@ export function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Design token for status colors
 const STATUS_COLORS = {
   online: 'bg-green-500',
   offline: 'bg-red-500',
@@ -133,28 +132,6 @@ export function RadioButton({
         {description && <p className="text-xs text-slate-500">{description}</p>}
       </div>
     </label>
-  );
-}
-
-export function Input({
-  inputSize = 'md',
-  className = '',
-  ...props
-}: {
-  inputSize?: InputSize;
-  className?: string;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'>) {
-  const sizeClasses: Record<InputSize, string> = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-3 py-2 text-sm',
-    lg: 'px-4 py-2.5 text-base',
-  };
-
-  return (
-    <input
-      className={`w-full rounded-xl border border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none transition ${sizeClasses[inputSize]} ${className}`}
-      {...props}
-    />
   );
 }
 
