@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWS9S92E8ZFVY44RWWX4JF0",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000008:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/SplitScreen.tsx",
+      "src/components/design-system.tsx"
+    ],
+    "done": false,
+    "nextStep": "Address Terminal.tsx useEffect dependency array (historyUp, historyDown, loadHistory missing from deps); then align ServerList styling (gray-700 vs slate-800) with design-system conventions",
+    "step": "Fixed SplitScreen empty state overlay pointer-events and added missing Input component to design-system.tsx",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T12:40:16.291Z",
+  "finishedAt": "2026-03-29T12:40:16.291Z",
+  "value": {
+    "changed": [
+      "src/components/SplitScreen.tsx",
+      "src/components/design-system.tsx"
+    ],
+    "done": false,
+    "nextStep": "Address Terminal.tsx useEffect dependency array (historyUp, historyDown, loadHistory missing from deps); then align ServerList styling (gray-700 vs slate-800) with design-system conventions",
+    "step": "Fixed SplitScreen empty state overlay pointer-events and added missing Input component to design-system.tsx",
+    "typecheckPassed": true
+  }
+}

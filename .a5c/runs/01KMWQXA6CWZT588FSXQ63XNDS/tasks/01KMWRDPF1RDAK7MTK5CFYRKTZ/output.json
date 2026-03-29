@@ -1,0 +1,1 @@
+{"step":"Aligned AddGroupModal styling to use design-system slate/cyan color tokens instead of legacy gray/blue colors","changed":["src/components/AddGroupModal.tsx"],"typecheckPassed":true,"done":false,"nextStep":"Continue aligning styling: AddServerModal (gray->slate), ProSettings (gray->slate), ServerList (gray->slate) to match design-system"}

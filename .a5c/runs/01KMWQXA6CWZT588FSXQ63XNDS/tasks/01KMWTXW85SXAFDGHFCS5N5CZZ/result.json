@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWTXW85SXAFDGHFCS5N5CZZ",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000014:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/AddServerModal.tsx",
+      "src/components/Sidebar.tsx",
+      "src/components/ServerList.tsx",
+      "src/components/ProSettings.tsx"
+    ],
+    "done": false,
+    "nextStep": "Terminal.tsx and SplitScreen.tsx toolbar buttons use gray color theme instead of slate - they are internally consistent but could be evaluated for design alignment. The SplitScreen empty state overlay positioning (rule 8) could also be reviewed.",
+    "step": "Aligned button styling across components to use design-system Button component",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:06:44.267Z",
+  "finishedAt": "2026-03-29T13:06:44.267Z",
+  "value": {
+    "changed": [
+      "src/components/AddServerModal.tsx",
+      "src/components/Sidebar.tsx",
+      "src/components/ServerList.tsx",
+      "src/components/ProSettings.tsx"
+    ],
+    "done": false,
+    "nextStep": "Terminal.tsx and SplitScreen.tsx toolbar buttons use gray color theme instead of slate - they are internally consistent but could be evaluated for design alignment. The SplitScreen empty state overlay positioning (rule 8) could also be reviewed.",
+    "step": "Aligned button styling across components to use design-system Button component",
+    "typecheckPassed": true
+  }
+}

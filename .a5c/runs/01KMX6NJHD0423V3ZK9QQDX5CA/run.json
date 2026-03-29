@@ -1,0 +1,14 @@
+{
+  "runId": "01KMX6NJHD0423V3ZK9QQDX5CA",
+  "request": "easyssh-iterative-refactor",
+  "processId": "easyssh-iterative-refactor",
+  "entrypoint": {
+    "importPath": "../../processes/easyssh-iterative-refactor.js",
+    "exportName": "process"
+  },
+  "processPath": "../../processes/easyssh-iterative-refactor.js",
+  "layoutVersion": "2026.01-storage-preview",
+  "createdAt": "2026-03-29T16:26:10.394Z",
+  "prompt": "Continue EasySSH refactor to 50 iterations - foreground babysitter",
+  "completionProof": "a427bfed143e827717457d91e7154619"
+}

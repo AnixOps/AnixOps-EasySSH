@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWVT9FZSHZMFJMZ75QZ4MRR",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000018:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/App.tsx",
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": true,
+    "nextStep": "Refactor appears complete. All stores are split, design-system is in place, product modes are defined, and terminal workspace is wired up. Remaining work would be adding missing design-system components (e.g., RadioButton for AddServerModal) if needed, but no critical issues remain.",
+    "step": "Fixed SectionLabel in App.tsx (was duplicating mode.title) and simplified closeAll in SplitScreen.tsx to use store+effect pattern",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:22:51.052Z",
+  "finishedAt": "2026-03-29T13:22:51.052Z",
+  "value": {
+    "changed": [
+      "src/App.tsx",
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": true,
+    "nextStep": "Refactor appears complete. All stores are split, design-system is in place, product modes are defined, and terminal workspace is wired up. Remaining work would be adding missing design-system components (e.g., RadioButton for AddServerModal) if needed, but no critical issues remain.",
+    "step": "Fixed SectionLabel in App.tsx (was duplicating mode.title) and simplified closeAll in SplitScreen.tsx to use store+effect pattern",
+    "typecheckPassed": true
+  }
+}

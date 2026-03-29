@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWRWPY74EMC8KAR70VADM4R",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000005:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue aligning remaining components with design-system colors: SplitScreen.tsx (bg-gray-800), Sidebar.tsx (inline styles/gray colors), ServerList.tsx (bg-gray-700), ProSettings.tsx (gray colors)",
+    "step": "Fixed Terminal.tsx to use design-system slate colors (bg-slate-800/bg-slate-700/bg-slate-900) instead of hardcoded gray colors",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T12:27:50.648Z",
+  "finishedAt": "2026-03-29T12:27:50.648Z",
+  "value": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue aligning remaining components with design-system colors: SplitScreen.tsx (bg-gray-800), Sidebar.tsx (inline styles/gray colors), ServerList.tsx (bg-gray-700), ProSettings.tsx (gray colors)",
+    "step": "Fixed Terminal.tsx to use design-system slate colors (bg-slate-800/bg-slate-700/bg-slate-900) instead of hardcoded gray colors",
+    "typecheckPassed": true
+  }
+}

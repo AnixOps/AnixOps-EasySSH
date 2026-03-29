@@ -1,0 +1,15 @@
+{
+  "type": "RUN_CREATED",
+  "recordedAt": "2026-03-29T12:08:15.408Z",
+  "data": {
+    "runId": "01KMWQXA6CWZT588FSXQ63XNDS",
+    "processId": "easyssh-iterative-refactor",
+    "entrypoint": {
+      "importPath": "../../processes/easyssh-iterative-refactor.js",
+      "exportName": "process"
+    },
+    "inputsRef": "inputs.json",
+    "prompt": "Continue the EasySSH refactor in the approved order: design system, split domain stores, redefine product modes, then terminal workspace. Each time you run, inspect current repo state, make the next safe implementation step, run typecheck for the changed area, and report concise progress. Stop if you need user input. Max 100 iterations."
+  },
+  "checksum": "0937f57424b8854fb5b377796a8293d5f935abdef8a78d2fabb7b3ad73bb6768"
+}

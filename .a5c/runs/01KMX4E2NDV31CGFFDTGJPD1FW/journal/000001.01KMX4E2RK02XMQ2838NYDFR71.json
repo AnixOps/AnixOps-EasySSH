@@ -1,0 +1,15 @@
+{
+  "type": "RUN_CREATED",
+  "recordedAt": "2026-03-29T15:47:07.667Z",
+  "data": {
+    "runId": "01KMX4E2NDV31CGFFDTGJPD1FW",
+    "processId": "easyssh-iterative-refactor",
+    "entrypoint": {
+      "importPath": "../../processes/easyssh-iterative-refactor.js",
+      "exportName": "process"
+    },
+    "inputsRef": "inputs.json",
+    "prompt": "Continue EasySSH refactor - run until all features are successfully implemented. 50 iterations."
+  },
+  "checksum": "b1a7f642860dd4be2b96c2f374c013a85ea29c46b73d80e24d58d3a0b6064776"
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWTD55AS5G4EFZN7F3DEEVN",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000012:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/AddGroupModal.tsx"
+    ],
+    "done": false,
+    "nextStep": "Fix AddServerModal to use Button from design-system instead of custom styled buttons",
+    "step": "Fixed AddGroupModal to use Input component from design-system instead of native input element",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T12:54:38.738Z",
+  "finishedAt": "2026-03-29T12:54:38.738Z",
+  "value": {
+    "changed": [
+      "src/components/AddGroupModal.tsx"
+    ],
+    "done": false,
+    "nextStep": "Fix AddServerModal to use Button from design-system instead of custom styled buttons",
+    "step": "Fixed AddGroupModal to use Input component from design-system instead of native input element",
+    "typecheckPassed": true
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWVMV4JBA3YF87MEGJA6DBF",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000017:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/AddGroupModal.tsx",
+      "src/components/AddServerModal.tsx"
+    ],
+    "done": false,
+    "nextStep": "Fix Terminal.tsx callback dependency issues in useEffect (focusTerminal depends on onActivate which changes on every render)",
+    "step": "Aligned AddServerModal and AddGroupModal to use design-system Modal component instead of inline modal styling",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:16:29.501Z",
+  "finishedAt": "2026-03-29T13:16:29.501Z",
+  "value": {
+    "changed": [
+      "src/components/AddGroupModal.tsx",
+      "src/components/AddServerModal.tsx"
+    ],
+    "done": false,
+    "nextStep": "Fix Terminal.tsx callback dependency issues in useEffect (focusTerminal depends on onActivate which changes on every render)",
+    "step": "Aligned AddServerModal and AddGroupModal to use design-system Modal component instead of inline modal styling",
+    "typecheckPassed": true
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWYYB7BV29473W2H2KAX5QD",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000011:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue SplitScreen cleanup - the destroyContainerRoots() still unmounts all roots after layout.destroy() may have already triggered close events. Consider reordering cleanup or making it more selective.",
+    "step": "Extracted handleTabClose from inside useEffect callback to a factory function createHandleTabClose outside the component. This prevents stale closure issues and makes the function dependency on sshDisconnect explicit in the effect's dependency array.",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T14:24:24.203Z",
+  "finishedAt": "2026-03-29T14:24:24.203Z",
+  "value": {
+    "changed": [
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue SplitScreen cleanup - the destroyContainerRoots() still unmounts all roots after layout.destroy() may have already triggered close events. Consider reordering cleanup or making it more selective.",
+    "step": "Extracted handleTabClose from inside useEffect callback to a factory function createHandleTabClose outside the component. This prevents stale closure issues and makes the function dependency on sshDisconnect explicit in the effect's dependency array.",
+    "typecheckPassed": true
+  }
+}

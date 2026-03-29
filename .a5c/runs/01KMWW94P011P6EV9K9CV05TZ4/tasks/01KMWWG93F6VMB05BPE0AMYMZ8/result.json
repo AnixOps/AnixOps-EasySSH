@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWWG93F6VMB05BPE0AMYMZ8",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000002:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": false,
+    "step": "Fixed SplitScreen.tsx session ID bug: splitHorizontal and splitVertical were using session.sessionId (SSH session ID) instead of session.id (terminal session ID)",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:30:56.557Z",
+  "finishedAt": "2026-03-29T13:30:56.557Z",
+  "value": {
+    "changed": [
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": false,
+    "step": "Fixed SplitScreen.tsx session ID bug: splitHorizontal and splitVertical were using session.sessionId (SSH session ID) instead of session.id (terminal session ID)",
+    "typecheckPassed": true
+  }
+}

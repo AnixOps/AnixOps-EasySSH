@@ -1,0 +1,1 @@
+{"step":"Aligned Sidebar search input to use design-system Input component instead of raw HTML input","changed":["src/components/Sidebar.tsx"],"typecheckPassed":true,"done":false,"nextStep":"Continue aligning remaining components - SplitScreen and Terminal toolbars still use raw HTML buttons instead of design-system Button component"}

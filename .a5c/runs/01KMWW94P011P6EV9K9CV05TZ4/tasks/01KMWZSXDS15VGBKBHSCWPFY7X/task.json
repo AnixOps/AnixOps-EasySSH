@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "2026.01.tasks-v1",
+  "effectId": "01KMWZSXDS15VGBKBHSCWPFY7X",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000013:easyssh-refactor-step",
+  "stepId": "S000013",
+  "kind": "agent",
+  "title": "EasySSH refactor step 13",
+  "io": {
+    "inputJsonPath": "tasks/01KMWZSXDS15VGBKBHSCWPFY7X/input.json",
+    "outputJsonPath": "tasks/01KMWZSXDS15VGBKBHSCWPFY7X/result.json"
+  },
+  "inputs": {
+    "iteration": 13,
+    "maxIterations": 25
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMX5CR78EBBK2HVQ98E316E8",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000005:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [],
+    "done": false,
+    "nextStep": "Continue",
+    "step": "Typecheck passed",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T16:04:43.419Z",
+  "finishedAt": "2026-03-29T16:04:43.419Z",
+  "value": {
+    "changed": [],
+    "done": false,
+    "nextStep": "Continue",
+    "step": "Typecheck passed",
+    "typecheckPassed": true
+  }
+}

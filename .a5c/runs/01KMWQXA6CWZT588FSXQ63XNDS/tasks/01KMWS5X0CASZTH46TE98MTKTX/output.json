@@ -1,0 +1,1 @@
+{"step":"Refactored AddGroupModal to use Button component from design-system instead of inline styled buttons","changed":["src/components/AddGroupModal.tsx"],"typecheckPassed":true,"done":false,"nextStep":"Continue aligning AddServerModal buttons with design-system Button component"}

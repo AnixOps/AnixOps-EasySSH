@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMX5A8GGN0NHG01DNSFJ0TTZ",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000004:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [],
+    "done": false,
+    "nextStep": "Note: private key auth is feature addition, not refactor. Continue checking other areas.",
+    "step": "Checked SSH backend - ssh_execute and ssh_disconnect complete, ssh_connect missing private key auth (userauth_pubkey_file)",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T16:03:51.618Z",
+  "finishedAt": "2026-03-29T16:03:51.618Z",
+  "value": {
+    "changed": [],
+    "done": false,
+    "nextStep": "Note: private key auth is feature addition, not refactor. Continue checking other areas.",
+    "step": "Checked SSH backend - ssh_execute and ssh_disconnect complete, ssh_connect missing private key auth (userauth_pubkey_file)",
+    "typecheckPassed": true
+  }
+}

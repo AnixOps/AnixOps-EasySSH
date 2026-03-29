@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMX24GXCE57W7ZT65EGTTYCC",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000006:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "nextStep": "The refactor appears largely complete. All stores are properly split, design-system.tsx is comprehensive, productModes.ts is properly defined. Minor remaining items: 1) console.error in sessionStore.ts are legitimate error handlers and should stay, 2) @ts-ignore comments in SplitScreen.tsx are required due to incomplete golden-layout types.",
+    "step": "Removed duplicate ref assignment in Terminal.tsx (fitAddonRef.current was assigned twice)",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T15:12:06.683Z",
+  "finishedAt": "2026-03-29T15:12:06.683Z",
+  "value": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "nextStep": "The refactor appears largely complete. All stores are properly split, design-system.tsx is comprehensive, productModes.ts is properly defined. Minor remaining items: 1) console.error in sessionStore.ts are legitimate error handlers and should stay, 2) @ts-ignore comments in SplitScreen.tsx are required due to incomplete golden-layout types.",
+    "step": "Removed duplicate ref assignment in Terminal.tsx (fitAddonRef.current was assigned twice)",
+    "typecheckPassed": true
+  }
+}

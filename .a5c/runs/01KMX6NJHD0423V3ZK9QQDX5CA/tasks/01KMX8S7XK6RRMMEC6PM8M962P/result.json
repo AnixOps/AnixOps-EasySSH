@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMX8S7XK6RRMMEC6PM8M962P",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000040:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [],
+    "done": true,
+    "nextStep": null,
+    "step": "Iteration 40: npm run typecheck",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T17:03:40.125Z",
+  "finishedAt": "2026-03-29T17:03:40.125Z",
+  "value": {
+    "changed": [],
+    "done": true,
+    "nextStep": null,
+    "step": "Iteration 40: npm run typecheck",
+    "typecheckPassed": true
+  }
+}

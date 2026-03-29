@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWZSXDS15VGBKBHSCWPFY7X",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000013:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue analyzing SplitScreen - the forceUpdate pattern and inline onActivate/onClose callbacks in the registerComponent handler could still cause unnecessary re-renders. Consider memoizing the onActivate/onClose callbacks using useCallback to prevent Terminal from re-rendering when SplitScreen re-renders due to forceUpdate.",
+    "step": "Fixed stale closure in SplitScreen.tsx - replaced module-level createHandleTabClose factory with a ref (sshDisconnectRef) that always accesses the current sshDisconnect. This ensures the close event handler always calls the current sshDisconnect rather than a stale closure from a previous effect run.",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T14:31:09.202Z",
+  "finishedAt": "2026-03-29T14:31:09.202Z",
+  "value": {
+    "changed": [
+      "src/components/SplitScreen.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue analyzing SplitScreen - the forceUpdate pattern and inline onActivate/onClose callbacks in the registerComponent handler could still cause unnecessary re-renders. Consider memoizing the onActivate/onClose callbacks using useCallback to prevent Terminal from re-rendering when SplitScreen re-renders due to forceUpdate.",
+    "step": "Fixed stale closure in SplitScreen.tsx - replaced module-level createHandleTabClose factory with a ref (sshDisconnectRef) that always accesses the current sshDisconnect. This ensures the close event handler always calls the current sshDisconnect rather than a stale closure from a previous effect run.",
+    "typecheckPassed": true
+  }
+}

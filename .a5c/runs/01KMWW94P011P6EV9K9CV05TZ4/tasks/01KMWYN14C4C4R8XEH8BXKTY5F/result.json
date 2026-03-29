@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWYN14C4C4R8XEH8BXKTY5F",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000010:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/AddServerModal.tsx",
+      "src/stores/appStore.ts"
+    ],
+    "done": false,
+    "step": "Refactored AddServerModal to use RadioButton from design-system, deleted orphaned appStore.ts barrel export",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T14:11:08.035Z",
+  "finishedAt": "2026-03-29T14:11:08.035Z",
+  "value": {
+    "changed": [
+      "src/components/AddServerModal.tsx",
+      "src/stores/appStore.ts"
+    ],
+    "done": false,
+    "step": "Refactored AddServerModal to use RadioButton from design-system, deleted orphaned appStore.ts barrel export",
+    "typecheckPassed": true
+  }
+}

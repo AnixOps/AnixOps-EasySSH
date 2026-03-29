@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWV8E0FGTC3CAE5FJXF4EQX",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000015:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/SplitScreen.tsx",
+      "src/components/ServerList.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue styling alignment - check AddServerModal, AddGroupModal for similar gray color inconsistencies and align them with design-system slate palette",
+    "step": "Fixed gray color scheme inconsistencies in SplitScreen.tsx and ServerList.tsx to use design-system slate palette",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:10:58.390Z",
+  "finishedAt": "2026-03-29T13:10:58.390Z",
+  "value": {
+    "changed": [
+      "src/components/SplitScreen.tsx",
+      "src/components/ServerList.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue styling alignment - check AddServerModal, AddGroupModal for similar gray color inconsistencies and align them with design-system slate palette",
+    "step": "Fixed gray color scheme inconsistencies in SplitScreen.tsx and ServerList.tsx to use design-system slate palette",
+    "typecheckPassed": true
+  }
+}

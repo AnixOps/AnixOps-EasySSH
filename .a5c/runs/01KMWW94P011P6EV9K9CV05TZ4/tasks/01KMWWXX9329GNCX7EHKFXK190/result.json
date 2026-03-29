@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWWXX9329GNCX7EHKFXK190",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000004:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "step": "Fixed Terminal.tsx SSH session ID bug - ssh_execute and ssh_reconnect were passing terminalSessionId instead of sshSessionId",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:41:50.520Z",
+  "finishedAt": "2026-03-29T13:41:50.520Z",
+  "value": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "step": "Fixed Terminal.tsx SSH session ID bug - ssh_execute and ssh_reconnect were passing terminalSessionId instead of sshSessionId",
+    "typecheckPassed": true
+  }
+}

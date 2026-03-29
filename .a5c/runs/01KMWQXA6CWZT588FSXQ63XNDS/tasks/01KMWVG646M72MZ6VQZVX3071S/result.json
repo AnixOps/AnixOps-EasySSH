@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWVG646M72MZ6VQZVX3071S",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000016:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/Sidebar.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue aligning remaining components - SplitScreen and Terminal toolbars still use raw HTML buttons instead of design-system Button component",
+    "step": "Aligned Sidebar search input to use design-system Input component instead of raw HTML input",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:13:30.983Z",
+  "finishedAt": "2026-03-29T13:13:30.983Z",
+  "value": {
+    "changed": [
+      "src/components/Sidebar.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue aligning remaining components - SplitScreen and Terminal toolbars still use raw HTML buttons instead of design-system Button component",
+    "step": "Aligned Sidebar search input to use design-system Input component instead of raw HTML input",
+    "typecheckPassed": true
+  }
+}

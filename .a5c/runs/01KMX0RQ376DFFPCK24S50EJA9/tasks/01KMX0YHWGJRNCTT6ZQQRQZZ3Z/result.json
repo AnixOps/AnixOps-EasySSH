@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMX0YHWGJRNCTT6ZQQRQZZ3Z",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000002:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/ServerList.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue checking other components for hardcoded status colors or duplicate patterns. The Terminal.tsx already uses StatusDot correctly (line 308). Next areas to check: SplitScreen.tsx empty state overlay positioning, and verifying productModes naming consistency across uiStore.",
+    "step": "Replaced hardcoded status colors in ServerList.tsx with the StatusDot component from design-system. Removed the local statusColors object (lines 15-20) and replaced the inline span (line 36) with <StatusDot variant={server.status} />.",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T14:47:49.449Z",
+  "finishedAt": "2026-03-29T14:47:49.449Z",
+  "value": {
+    "changed": [
+      "src/components/ServerList.tsx"
+    ],
+    "done": false,
+    "nextStep": "Continue checking other components for hardcoded status colors or duplicate patterns. The Terminal.tsx already uses StatusDot correctly (line 308). Next areas to check: SplitScreen.tsx empty state overlay positioning, and verifying productModes naming consistency across uiStore.",
+    "step": "Replaced hardcoded status colors in ServerList.tsx with the StatusDot component from design-system. Removed the local statusColors object (lines 15-20) and replaced the inline span (line 36) with <StatusDot variant={server.status} />.",
+    "typecheckPassed": true
+  }
+}

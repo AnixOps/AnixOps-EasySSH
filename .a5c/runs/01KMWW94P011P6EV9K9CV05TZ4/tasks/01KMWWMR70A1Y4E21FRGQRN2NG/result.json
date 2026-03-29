@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "2026.01.results-v1",
+  "effectId": "01KMWWMR70A1Y4E21FRGQRN2NG",
+  "taskId": "easyssh-refactor-step",
+  "invocationKey": "easyssh-iterative-refactor:S000003:easyssh-refactor-step",
+  "status": "ok",
+  "result": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "step": "Fixed Terminal.tsx: removed redundant isNewTerminal state, added proper addon disposal, removed invalid setIsNewTerminal in handleReconnect",
+    "typecheckPassed": true
+  },
+  "startedAt": "2026-03-29T13:35:56.649Z",
+  "finishedAt": "2026-03-29T13:35:56.649Z",
+  "value": {
+    "changed": [
+      "src/components/Terminal.tsx"
+    ],
+    "done": false,
+    "step": "Fixed Terminal.tsx: removed redundant isNewTerminal state, added proper addon disposal, removed invalid setIsNewTerminal in handleReconnect",
+    "typecheckPassed": true
+  }
+}

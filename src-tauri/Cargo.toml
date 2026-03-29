@@ -1,0 +1,49 @@
+[package]
+name = "easyssh"
+version = "0.2.0"
+description = "全功能跨平台SSH客户端"
+authors = ["EasySSH Team"]
+edition = "2021"
+
+[lib]
+name = "easyssh_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["devtools"] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+keyring = "3"
+argon2 = "0.5"
+aes-gcm = "0.10"
+rand = "0.8"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["full"] }
+log = "0.4"
+env_logger = "0.11"
+thiserror = "1"
+dirs = "5"
+base64 = "0.21"
+ssh2 = "0.9"
+portable-pty = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+lazy_static = "1.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

@@ -1,0 +1,15 @@
+{
+  "type": "EFFECT_REQUESTED",
+  "recordedAt": "2026-03-29T16:17:43.418Z",
+  "data": {
+    "effectId": "01KMX663EBMQ3E2H1NSQ1H2G39",
+    "invocationKey": "easyssh-iterative-refactor:S000020:easyssh-refactor-step",
+    "invocationHash": "a2b43a14cab7c2b090a5773441147dd2cc607ce94b36949aad3727573d65937d",
+    "stepId": "S000020",
+    "taskId": "easyssh-refactor-step",
+    "kind": "agent",
+    "label": "EasySSH refactor step 20",
+    "taskDefRef": "tasks/01KMX663EBMQ3E2H1NSQ1H2G39/task.json"
+  },
+  "checksum": "654d9443ae970dd36a83aa05586729d67de22861701e384ea7ad54beb0922a87"
+}
