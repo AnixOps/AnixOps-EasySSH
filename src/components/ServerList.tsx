@@ -55,8 +55,8 @@ export const ServerItem: React.FC<ServerItemProps> = ({
 };
 
 export const ServerList: React.FC = () => {
-  const { servers, groups, deleteServer, deleteGroup, connectServerNative } = useServerStore();
-  const { searchQuery, productMode } = useUiStore();
+  const { servers, groups, deleteServer, deleteGroup, connectServerNative, searchQuery } = useServerStore();
+  const { productMode } = useUiStore();
   const { sshConnect } = useSessionStore();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['ungrouped']));
   const [editingServer, setEditingServer] = useState<Server | null>(null);

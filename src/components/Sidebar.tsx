@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { useServerStore } from '../stores/serverStore';
-import { useUiStore } from '../stores/uiStore';
 import { ServerList } from './ServerList';
 import { AddServerModal } from './AddServerModal';
 import { AddGroupModal } from './AddGroupModal';
 import { Button, Input } from './design-system';
 
 export const Sidebar: React.FC = () => {
-  const { searchQuery, setSearchQuery } = useUiStore();
-  const { servers, groups } = useServerStore();
+  const { servers, groups, searchQuery, setSearchQuery } = useServerStore();
   const [showAddServer, setShowAddServer] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
