@@ -7,6 +7,8 @@ interface ServerState {
   groups: Group[];
   isLoading: boolean;
   error: string | null;
+  searchQuery: string;
+  selectedServerId: string | null;
   fetchServers: () => Promise<void>;
   fetchGroups: () => Promise<void>;
   addServer: (server: NewServer) => Promise<void>;
@@ -16,6 +18,8 @@ interface ServerState {
   addGroup: (group: NewGroup) => Promise<void>;
   updateGroup: (group: UpdateGroup) => Promise<void>;
   deleteGroup: (id: string) => Promise<void>;
+  setSearchQuery: (query: string) => void;
+  setSelectedServerId: (id: string | null) => void;
 }
 
 export const useServerStore = create<ServerState>((set, get) => ({
@@ -23,6 +27,8 @@ export const useServerStore = create<ServerState>((set, get) => ({
   groups: [],
   isLoading: false,
   error: null,
+  searchQuery: '',
+  selectedServerId: null,
 
   fetchServers: async () => {
     set({ isLoading: true, error: null });
@@ -108,4 +114,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
       set({ error: String(e) });
     }
   },
+
+  setSearchQuery: (query: string) => set({ searchQuery: query }),
+  setSelectedServerId: (id: string | null) => set({ selectedServerId: id }),
 }));
