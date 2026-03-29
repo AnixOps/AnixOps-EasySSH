@@ -1,8 +1,8 @@
-import { useUiStore } from '../stores/uiStore';
-import { useServerStore } from '../stores/serverStore';
-import { useSessionStore } from '../stores/sessionStore';
-import { getProductModeMeta } from '../productModes';
-import { SectionLabel, Surface } from './design-system';
+import { useUiStore } from '../../stores/uiStore';
+import { useServerStore } from '../../stores/serverStore';
+import { useSessionStore } from '../../stores/sessionStore';
+import { getProductModeMeta } from '../../productModes';
+import { SectionLabel, Surface } from '../design-system';
 
 export function RightPanel() {
   const { productMode } = useUiStore();

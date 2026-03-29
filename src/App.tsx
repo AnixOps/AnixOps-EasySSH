@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Header } from './components/Header';
-import { MainContent } from './components/MainContent';
-import { RightPanel } from './components/RightPanel';
-import { Sidebar } from './components/Sidebar';
+import { MainContent, RightPanel, Sidebar } from './components/layout';
 import { getProductModeMeta } from './productModes';
 import { useServerStore } from './stores/serverStore';
 import { useUiStore } from './stores/uiStore';

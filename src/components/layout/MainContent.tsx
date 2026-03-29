@@ -1,9 +1,9 @@
-import { useServerStore } from '../stores/serverStore';
-import { useSessionStore } from '../stores/sessionStore';
-import { useUiStore } from '../stores/uiStore';
-import { getProductModeMeta } from '../productModes';
-import { ActionCard, InfoRow, SectionLabel, StatCard, Surface, StatusPill } from './design-system';
-import { SplitScreen } from './SplitScreen';
+import { useServerStore } from '../../stores/serverStore';
+import { useSessionStore } from '../../stores/sessionStore';
+import { useUiStore } from '../../stores/uiStore';
+import { getProductModeMeta } from '../../productModes';
+import { ActionCard, InfoRow, SectionLabel, StatCard, Surface, StatusPill } from '../design-system';
+import { SplitScreen } from '../SplitScreen';
 
 export function MainContent() {
   const { productMode } = useUiStore();

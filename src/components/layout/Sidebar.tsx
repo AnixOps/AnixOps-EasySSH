@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useServerStore } from '../stores/serverStore';
-import { ServerList } from './ServerList';
-import { AddServerModal } from './AddServerModal';
-import { AddGroupModal } from './AddGroupModal';
-import { Button, Input } from './design-system';
+import { useServerStore } from '../../stores/serverStore';
+import { ServerList } from '../ServerList';
+import { AddServerModal } from '../AddServerModal';
+import { AddGroupModal } from '../AddGroupModal';
+import { Button, Input } from '../design-system';
 
 export const Sidebar: React.FC = () => {
   const { servers, groups, searchQuery, setSearchQuery } = useServerStore();
