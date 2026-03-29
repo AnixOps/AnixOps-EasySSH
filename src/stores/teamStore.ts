@@ -1,19 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export interface Team {
-  id: string;
-  name: string;
-  memberCount: number;
-  role: 'owner' | 'admin' | 'member' | 'viewer';
-}
-
 export interface AuditLog {
   id: string;
   action: string;
   user: string;
   target: string;
   timestamp: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  memberCount: number;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
 }
 
 interface TeamState {
