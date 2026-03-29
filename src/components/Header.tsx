@@ -1,9 +1,10 @@
 import { useUiStore } from '../stores/uiStore';
-import { getProductModeMeta, PRODUCT_MODES } from '../productModes';
+import { getProductModeMeta } from '../productModes';
 import { SectionLabel } from './design-system';
+import { ProductModeSelector } from './controls/ProductModeSelector';
 
 export function Header() {
-  const { productMode, setProductMode, theme, toggleTheme } = useUiStore();
+  const { productMode, theme, toggleTheme } = useUiStore();
 
   const mode = getProductModeMeta(productMode);
 
@@ -27,24 +28,7 @@ export function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/80 p-1 shadow-inner shadow-black/20">
-        {PRODUCT_MODES.map((meta) => {
-          const active = productMode === meta.id;
-          return (
-            <button
-              key={meta.id}
-              onClick={() => setProductMode(meta.id)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                active
-                  ? 'bg-cyan-500 text-slate-950'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-              }`}
-            >
-              {meta.subtitle}
-            </button>
-          );
-        })}
-      </div>
+      <ProductModeSelector />
 
       <div className="flex items-center gap-2">
         <button
