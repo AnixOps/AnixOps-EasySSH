@@ -11,23 +11,6 @@ name = "EasySSH"
 path = "src/main.rs"
 
 [dependencies]
-# WinUI 3 - Windows App SDK (modern WinUI)
-windows-app-sdk = { version = "0.2", optional = true }
-
-# Windows API bindings
-windows = { version = "0.52", features = [
-    "UI_Xaml",
-    "UI_Xaml_Controls",
-    "UI_Xaml_Navigation",
-    "UI_Xaml_Media",
-    "ApplicationModel_Activation",
-    "Foundation_Collections",
-    "System",
-] }
-windows-core = "0.52"
-
-# Win32 for native window handling
-windows-sys = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging", "Win32_System_Threading"] }
 easyssh-core = { path = "../../../core" }
 
 # Cross-platform UI - egui + winit
