@@ -13,32 +13,18 @@ path = "src/main.rs"
 [dependencies]
 easyssh-core = { path = "../../../core" }
 
-# Windows bindings
-windows = { version = "0.52", features = [
-    "UI_Core",
-    "UI_Xaml",
-    "UI_Xaml_Controls",
-    "UI_Xaml_Input",
-    "UI_Xaml_Media",
-    "UI_Xaml_Navigation",
-    "UI_Xaml_Data",
-    "UI_Xaml_Hosting",
-    "ApplicationModel_Activation",
-    "Foundation_Collections",
-    "Foundation_Numerics",
-    "Graphics",
-    "System",
-    "Win32_Foundation",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_System_Com",
-    "Win32_UI_Shell",
-    "implement",
-]}
-
-windows-core = "0.52"
+# Windows bindings (simplified for now - using core directly)
+# Full WinUI 3 integration requires windows-app-sdk crate
 
 # Async
 tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+anyhow = "1"
 
 # Logging
 tracing = "0.1"
@@ -52,3 +38,6 @@ panic = "abort"
 lto = true
 opt-level = 3
 strip = true
+
+# Standalone workspace (not part of main workspace)
+[workspace]

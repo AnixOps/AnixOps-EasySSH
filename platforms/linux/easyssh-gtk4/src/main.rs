@@ -4,6 +4,7 @@ use std::env;
 use tracing::{info, warn};
 
 mod app;
+mod bridge;
 mod models;
 mod views;
 mod widgets;
