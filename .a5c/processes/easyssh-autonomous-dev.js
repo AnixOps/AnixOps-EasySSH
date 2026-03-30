@@ -18,8 +18,8 @@ const TEST_POINTS = {
     id: 'build',
     name: '构建测试',
     commands: [
-      { cmd: 'cargo check --lib', cwd: 'src-tauri' },
-      { cmd: 'cargo build --bin easyssh --release', cwd: 'src-tauri', timeout: 300000 },
+      { cmd: 'cargo check --lib', cwd: 'core' },
+      { cmd: 'cargo build --bin easyssh --release', cwd: '.', timeout: 300000 },
     ],
     mustPass: true,
   },
@@ -29,7 +29,7 @@ const TEST_POINTS = {
     id: 'core',
     name: '核心库测试',
     commands: [
-      { cmd: 'cargo test --lib', cwd: 'src-tauri', optional: true },
+      { cmd: 'cargo test --lib -p easyssh-core', cwd: '.', optional: true },
     ],
     preCondition: (ctx) => ctx.state.buildPassed,
     mustPass: true,
@@ -40,8 +40,8 @@ const TEST_POINTS = {
     id: 'cli',
     name: 'CLI测试',
     commands: [
-      { cmd: 'src-tauri/target/release/easyssh.exe --help', cwd: '.', validation: 'contains:help' },
-      { cmd: 'src-tauri/target/release/easyssh.exe list', cwd: '.', optional: true },
+      { cmd: 'target/release/easyssh.exe --help', cwd: '.', validation: 'contains:EasySSH Core CLI' },
+      { cmd: 'target/release/easyssh.exe list', cwd: '.', optional: true },
     ],
     preCondition: (ctx) => ctx.state.buildPassed,
     mustPass: true,
@@ -52,7 +52,7 @@ const TEST_POINTS = {
     id: 'debug_ws',
     name: 'WebSocket调试接口',
     commands: [
-      { cmd: 'src-tauri/target/release/easyssh.exe debug-server --help', cwd: '.', validation: 'contains:debug' },
+      { cmd: 'target/release/easyssh.exe debug-server --help', cwd: '.', validation: 'contains:debug-server' },
     ],
     preCondition: (ctx) => ctx.state.buildPassed,
     mustPass: false,
@@ -63,8 +63,8 @@ const TEST_POINTS = {
     id: 'quality',
     name: '代码质量测试',
     commands: [
-      { cmd: 'cargo clippy --all-targets -- -D warnings', cwd: 'src-tauri', optional: true },
-      { cmd: 'cargo fmt -- --check', cwd: 'src-tauri', optional: true },
+      { cmd: 'cargo clippy -p easyssh-core -- -D warnings', cwd: '.', optional: true },
+      { cmd: 'cargo fmt -p easyssh-core -- --check', cwd: '.', optional: true },
     ],
     mustPass: false,
   },

@@ -27,6 +27,10 @@ fn run_cli(args: &[String]) -> Result<(), Box<dyn Error>> {
         "import-ssh" | "import" => import_ssh_config(&db),
         "connect" => connect_server(&db, args),
         "debug-server" => start_debug_server(args),
+        "version" | "-v" | "--version" => {
+            println!("EasySSH {} (Lite)", env!("CARGO_PKG_VERSION"));
+            Ok(())
+        }
         "help" | "-h" | "--help" => {
             print_help();
             Ok(())
@@ -187,7 +191,7 @@ fn start_debug_server(args: &[String]) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_help() {
-    println!("EasySSH Core CLI");
+    println!("EasySSH Core CLI v{}", env!("CARGO_PKG_VERSION"));
     println!();
     println!("Commands:");
     println!("  easyssh add-server <name> <host> <username> [port] [auth]");
@@ -196,6 +200,7 @@ fn print_help() {
     println!("  easyssh import-ssh");
     println!("  easyssh connect <server-id>");
     println!("  easyssh debug-server [host] [port]");
+    println!("  easyssh version");
 }
 
 fn validate_server(

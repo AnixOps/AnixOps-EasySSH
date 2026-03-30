@@ -99,7 +99,7 @@ async fn handle_connection(stream: TcpStream, peer_addr: SocketAddr) -> Result<(
     });
 
     writer
-        .send(Message::Text(welcome.to_string().into()))
+        .send(Message::Text(welcome.to_string()))
         .await
         .map_err(|e| format!("发送欢迎消息失败: {e}"))?;
 
@@ -184,8 +184,7 @@ where
     writer
         .send(Message::Text(
             serde_json::to_string(&response)
-                .map_err(|e| format!("序列化响应失败: {e}"))?
-                .into(),
+                .map_err(|e| format!("序列化响应失败: {e}"))?,
         ))
         .await
         .map_err(|e| format!("发送响应失败: {e}"))
