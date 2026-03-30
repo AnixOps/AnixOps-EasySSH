@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["core", "tui", "platforms/linux/easyssh-gtk4"]
+members = ["core", "tui", "platforms/linux/easyssh-gtk4", "platforms/windows/easyssh-winui"]
 
 [workspace.package]
 version = "0.3.0"

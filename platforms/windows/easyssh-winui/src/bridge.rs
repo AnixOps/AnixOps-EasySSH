@@ -1,4 +1,4 @@
-use std::ffi::{c_char, c_int, c_void, CStr, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 use serde::{Deserialize, Serialize};
 
 pub struct BridgeHandle {
@@ -26,7 +26,7 @@ extern "C" {
     fn easyssh_destroy(handle: *mut c_void);
     fn easyssh_get_servers(handle: *mut c_void) -> *mut c_char;
     fn easyssh_free_string(s: *mut c_char);
-    fn easyssh_connect_native(handle: *mut c_void, id: *const c_char) -> c_int;
+    fn easyssh_connect_native(handle: *mut c_void, id: *const c_char) -> i32;
 }
 
 impl BridgeHandle {

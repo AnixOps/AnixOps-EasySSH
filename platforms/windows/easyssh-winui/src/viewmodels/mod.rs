@@ -1,9 +1,10 @@
 use std::sync::Mutex;
 use std::sync::Arc;
 use tracing::{info, error};
+use crate::bridge::ServerViewModel as BridgeServer;
 
 pub struct AppViewModel {
-    core_state: Arc<Mutex<easyssh_core::AppState>>,
+    _core_state: Arc<Mutex<easyssh_core::AppState>>,
 }
 
 impl AppViewModel {
@@ -20,11 +21,13 @@ impl AppViewModel {
             }
         }
 
-        Ok(Self { core_state })
+        Ok(Self {
+            _core_state: core_state,
+        })
     }
 
     pub fn get_servers(&self) -> Vec<ServerViewModel> {
-        let state = self.core_state.lock().unwrap();
+        let state = self._core_state.lock().unwrap();
         match easyssh_core::get_servers(&state) {
             Ok(servers) => {
                 servers.into_iter().map(|s| ServerViewModel::from(s)).collect()
@@ -37,6 +40,7 @@ impl AppViewModel {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct ServerViewModel {
     pub id: String,
     pub name: String,

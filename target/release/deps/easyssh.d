@@ -1,7 +1,7 @@
-C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\target\release\deps\easyssh.d: tui\main.rs
+C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\target\release\deps\EasySSH.d: platforms\windows\easyssh-winui\src\main.rs platforms\windows\easyssh-winui\src\bridge.rs platforms\windows\easyssh-winui\src\viewmodels\mod.rs
 
-C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\target\release\deps\easyssh.exe: tui\main.rs
+C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\target\release\deps\EasySSH.exe: platforms\windows\easyssh-winui\src\main.rs platforms\windows\easyssh-winui\src\bridge.rs platforms\windows\easyssh-winui\src\viewmodels\mod.rs
 
-tui\main.rs:
-
-# env-dep:CARGO_PKG_VERSION=0.3.0
+platforms\windows\easyssh-winui\src\main.rs:
+platforms\windows\easyssh-winui\src\bridge.rs:
+platforms\windows\easyssh-winui\src\viewmodels\mod.rs:
