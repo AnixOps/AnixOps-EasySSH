@@ -1,0 +1,1502 @@
+use rusqlite::{params, Connection};
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+use crate::error::LiteError;
+
+pub struct Database {
+    conn: Connection,
+}
+
+impl Database {
+    pub fn new(path: PathBuf) -> Result<Self, LiteError> {
+        let conn = Connection::open(path)?;
+        Ok(Self { conn })
+    }
+
+    /// 快速初始化 - 仅检查表是否存在，不存在则创建
+    pub fn init(&self) -> Result<(), LiteError> {
+        // 使用单个事务批量创建表
+        self.conn.execute_batch(
+            r#"
+            BEGIN;
+            CREATE TABLE IF NOT EXISTS groups (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS servers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 22,
+                username TEXT NOT NULL,
+                auth_type TEXT NOT NULL DEFAULT 'agent',
+                identity_file TEXT,
+                password_encrypted BLOB,
+                group_id TEXT,
+                status TEXT NOT NULL DEFAULT 'unknown',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS hosts (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 22,
+                username TEXT NOT NULL,
+                auth_type TEXT NOT NULL DEFAULT 'agent',
+                identity_file TEXT,
+                identity_id TEXT,
+                group_id TEXT,
+                notes TEXT,
+                color TEXT,
+                environment TEXT,
+                region TEXT,
+                purpose TEXT,
+                status TEXT NOT NULL DEFAULT 'unknown',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS tags (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                color TEXT,
+                description TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS host_tags (
+                host_id TEXT NOT NULL,
+                tag_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (host_id, tag_id),
+                FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS identities (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                private_key_path TEXT,
+                passphrase_secret_id TEXT,
+                auth_type TEXT NOT NULL DEFAULT 'key',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS snippets (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                command TEXT NOT NULL,
+                description TEXT,
+                folder_id TEXT,
+                variables_json TEXT,
+                scope TEXT NOT NULL DEFAULT 'personal',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY,
+                host_id TEXT NOT NULL,
+                title TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                last_command TEXT,
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS layouts (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                workspace_mode TEXT NOT NULL,
+                layout_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS sync_state (
+                id TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                checkpoint TEXT,
+                state_json TEXT,
+                last_sync_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id TEXT PRIMARY KEY,
+                actor TEXT,
+                action TEXT NOT NULL,
+                target_type TEXT,
+                target_id TEXT,
+                payload_json TEXT,
+                level TEXT NOT NULL DEFAULT 'info',
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_hosts_group ON hosts(group_id);
+            CREATE INDEX IF NOT EXISTS idx_hosts_name ON hosts(name);
+            CREATE INDEX IF NOT EXISTS idx_hosts_status ON hosts(status);
+            CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+            CREATE INDEX IF NOT EXISTS idx_sessions_host ON sessions(host_id);
+            CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_events(created_at);
+            CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_events(target_type, target_id);
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            COMMIT;
+            "#,
+        )?;
+        Ok(())
+    }
+
+    /// 快速检查数据库是否已初始化（用于启动优化）
+    pub fn is_initialized(&self) -> Result<bool, LiteError> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('servers', 'groups')",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(count >= 2)
+    }
+
+    pub fn get_servers(&self) -> Result<Vec<ServerRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, host, port, username, auth_type, identity_file, group_id, status, created_at, updated_at FROM servers ORDER BY name"
+        )?;
+
+        let servers = stmt
+            .query_map([], |row| {
+                Ok(ServerRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    host: row.get(2)?,
+                    port: row.get(3)?,
+                    username: row.get(4)?,
+                    auth_type: row.get(5)?,
+                    identity_file: row.get(6)?,
+                    group_id: row.get(7)?,
+                    status: row.get(8)?,
+                    created_at: row.get(9)?,
+                    updated_at: row.get(10)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(servers)
+    }
+
+    pub fn get_server(&self, id: &str) -> Result<ServerRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, host, port, username, auth_type, identity_file, group_id, status, created_at, updated_at FROM servers WHERE id = ?"
+        )?;
+
+        let server = stmt.query_row([id], |row| {
+            Ok(ServerRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                host: row.get(2)?,
+                port: row.get(3)?,
+                username: row.get(4)?,
+                auth_type: row.get(5)?,
+                identity_file: row.get(6)?,
+                group_id: row.get(7)?,
+                status: row.get(8)?,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
+            })
+        })?;
+
+        Ok(server)
+    }
+
+    pub fn add_server(&self, server: &NewServer) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO servers (id, name, host, port, username, auth_type, identity_file, group_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                server.id,
+                server.name,
+                server.host,
+                server.port,
+                server.username,
+                server.auth_type,
+                server.identity_file,
+                server.group_id,
+                server.status.as_str(),
+                now,
+                now
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_server(&self, server: &UpdateServer) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE servers SET name = ?, host = ?, port = ?, username = ?, auth_type = ?, identity_file = ?, group_id = ?, status = ?, updated_at = ? WHERE id = ?",
+            params![
+                server.name,
+                server.host,
+                server.port,
+                server.username,
+                server.auth_type,
+                server.identity_file,
+                server.group_id,
+                server.status.as_str(),
+                now,
+                server.id
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_server(&self, id: &str) -> Result<(), LiteError> {
+        self.conn
+            .execute("DELETE FROM servers WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_groups(&self) -> Result<Vec<GroupRecord>, LiteError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, created_at, updated_at FROM groups ORDER BY name")?;
+
+        let groups = stmt
+            .query_map([], |row| {
+                Ok(GroupRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    created_at: row.get(2)?,
+                    updated_at: row.get(3)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(groups)
+    }
+
+    pub fn add_group(&self, group: &NewGroup) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO groups (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            params![group.id, group.name, now, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_group(&self, group: &UpdateGroup) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE groups SET name = ?, updated_at = ? WHERE id = ?",
+            params![group.name, now, group.id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_group(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM groups WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_hosts(&self) -> Result<Vec<HostRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, host, port, username, auth_type, identity_file, identity_id, group_id, notes, color, environment, region, purpose, status, created_at, updated_at FROM hosts ORDER BY name",
+        )?;
+
+        let hosts = stmt
+            .query_map([], |row| {
+                Ok(HostRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    host: row.get(2)?,
+                    port: row.get(3)?,
+                    username: row.get(4)?,
+                    auth_type: row.get(5)?,
+                    identity_file: row.get(6)?,
+                    identity_id: row.get(7)?,
+                    group_id: row.get(8)?,
+                    notes: row.get(9)?,
+                    color: row.get(10)?,
+                    environment: row.get(11)?,
+                    region: row.get(12)?,
+                    purpose: row.get(13)?,
+                    status: row.get(14)?,
+                    created_at: row.get(15)?,
+                    updated_at: row.get(16)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(hosts)
+    }
+
+    pub fn get_host(&self, id: &str) -> Result<HostRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, host, port, username, auth_type, identity_file, identity_id, group_id, notes, color, environment, region, purpose, status, created_at, updated_at FROM hosts WHERE id = ?",
+        )?;
+
+        let host = stmt.query_row([id], |row| {
+            Ok(HostRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                host: row.get(2)?,
+                port: row.get(3)?,
+                username: row.get(4)?,
+                auth_type: row.get(5)?,
+                identity_file: row.get(6)?,
+                identity_id: row.get(7)?,
+                group_id: row.get(8)?,
+                notes: row.get(9)?,
+                color: row.get(10)?,
+                environment: row.get(11)?,
+                region: row.get(12)?,
+                purpose: row.get(13)?,
+                status: row.get(14)?,
+                created_at: row.get(15)?,
+                updated_at: row.get(16)?,
+            })
+        })?;
+
+        Ok(host)
+    }
+
+    pub fn add_host(&self, host: &NewHost) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO hosts (id, name, host, port, username, auth_type, identity_file, identity_id, group_id, notes, color, environment, region, purpose, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                host.id,
+                host.name,
+                host.host,
+                host.port,
+                host.username,
+                host.auth_type,
+                host.identity_file,
+                host.identity_id,
+                host.group_id,
+                host.notes,
+                host.color,
+                host.environment,
+                host.region,
+                host.purpose,
+                host.status,
+                now,
+                now
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_host(&self, host: &UpdateHost) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE hosts SET name = ?, host = ?, port = ?, username = ?, auth_type = ?, identity_file = ?, identity_id = ?, group_id = ?, notes = ?, color = ?, environment = ?, region = ?, purpose = ?, status = ?, updated_at = ? WHERE id = ?",
+            params![
+                host.name,
+                host.host,
+                host.port,
+                host.username,
+                host.auth_type,
+                host.identity_file,
+                host.identity_id,
+                host.group_id,
+                host.notes,
+                host.color,
+                host.environment,
+                host.region,
+                host.purpose,
+                host.status,
+                now,
+                host.id
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_host(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM hosts WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_tags(&self) -> Result<Vec<TagRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, color, description, created_at, updated_at FROM tags ORDER BY name",
+        )?;
+
+        let tags = stmt
+            .query_map([], |row| {
+                Ok(TagRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    color: row.get(2)?,
+                    description: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(tags)
+    }
+
+    pub fn get_tag(&self, id: &str) -> Result<TagRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, color, description, created_at, updated_at FROM tags WHERE id = ?",
+        )?;
+
+        let tag = stmt.query_row([id], |row| {
+            Ok(TagRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                description: row.get(3)?,
+                created_at: row.get(4)?,
+                updated_at: row.get(5)?,
+            })
+        })?;
+
+        Ok(tag)
+    }
+
+    pub fn add_tag(&self, tag: &NewTag) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO tags (id, name, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            params![tag.id, tag.name, tag.color, tag.description, now, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_tag(&self, tag: &UpdateTag) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE tags SET name = ?, color = ?, description = ?, updated_at = ? WHERE id = ?",
+            params![tag.name, tag.color, tag.description, now, tag.id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_tag(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM tags WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_host_tags(&self, host_id: &str) -> Result<Vec<TagRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT t.id, t.name, t.color, t.description, t.created_at, t.updated_at FROM tags t INNER JOIN host_tags ht ON ht.tag_id = t.id WHERE ht.host_id = ? ORDER BY t.name",
+        )?;
+
+        let tags = stmt
+            .query_map([host_id], |row| {
+                Ok(TagRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    color: row.get(2)?,
+                    description: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(tags)
+    }
+
+    pub fn set_host_tag(&self, host_id: &str, tag_id: &str) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT OR REPLACE INTO host_tags (host_id, tag_id, created_at) VALUES (?, ?, ?)",
+            params![host_id, tag_id, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn remove_host_tag(&self, host_id: &str, tag_id: &str) -> Result<(), LiteError> {
+        self.conn.execute(
+            "DELETE FROM host_tags WHERE host_id = ? AND tag_id = ?",
+            params![host_id, tag_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_identities(&self) -> Result<Vec<IdentityRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, private_key_path, passphrase_secret_id, auth_type, created_at, updated_at FROM identities ORDER BY name",
+        )?;
+
+        let identities = stmt
+            .query_map([], |row| {
+                Ok(IdentityRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    private_key_path: row.get(2)?,
+                    passphrase_secret_id: row.get(3)?,
+                    auth_type: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(identities)
+    }
+
+    pub fn get_identity(&self, id: &str) -> Result<IdentityRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, private_key_path, passphrase_secret_id, auth_type, created_at, updated_at FROM identities WHERE id = ?",
+        )?;
+
+        let identity = stmt.query_row([id], |row| {
+            Ok(IdentityRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                private_key_path: row.get(2)?,
+                passphrase_secret_id: row.get(3)?,
+                auth_type: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })?;
+
+        Ok(identity)
+    }
+
+    pub fn add_identity(&self, identity: &NewIdentity) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO identities (id, name, private_key_path, passphrase_secret_id, auth_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            params![identity.id, identity.name, identity.private_key_path, identity.passphrase_secret_id, identity.auth_type, now, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_identity(&self, identity: &UpdateIdentity) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE identities SET name = ?, private_key_path = ?, passphrase_secret_id = ?, auth_type = ?, updated_at = ? WHERE id = ?",
+            params![identity.name, identity.private_key_path, identity.passphrase_secret_id, identity.auth_type, now, identity.id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_identity(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM identities WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_snippets(&self) -> Result<Vec<SnippetRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, command, description, folder_id, variables_json, scope, created_at, updated_at FROM snippets ORDER BY name",
+        )?;
+
+        let snippets = stmt
+            .query_map([], |row| {
+                Ok(SnippetRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    command: row.get(2)?,
+                    description: row.get(3)?,
+                    folder_id: row.get(4)?,
+                    variables_json: row.get(5)?,
+                    scope: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(snippets)
+    }
+
+    pub fn get_snippet(&self, id: &str) -> Result<SnippetRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, command, description, folder_id, variables_json, scope, created_at, updated_at FROM snippets WHERE id = ?",
+        )?;
+
+        let snippet = stmt.query_row([id], |row| {
+            Ok(SnippetRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                command: row.get(2)?,
+                description: row.get(3)?,
+                folder_id: row.get(4)?,
+                variables_json: row.get(5)?,
+                scope: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
+            })
+        })?;
+
+        Ok(snippet)
+    }
+
+    pub fn add_snippet(&self, snippet: &NewSnippet) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO snippets (id, name, command, description, folder_id, variables_json, scope, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![snippet.id, snippet.name, snippet.command, snippet.description, snippet.folder_id, snippet.variables_json, snippet.scope, now, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_snippet(&self, snippet: &UpdateSnippet) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE snippets SET name = ?, command = ?, description = ?, folder_id = ?, variables_json = ?, scope = ?, updated_at = ? WHERE id = ?",
+            params![snippet.name, snippet.command, snippet.description, snippet.folder_id, snippet.variables_json, snippet.scope, now, snippet.id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_snippet(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM snippets WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_sessions(&self) -> Result<Vec<SessionRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, host_id, title, status, last_command, started_at, ended_at FROM sessions ORDER BY started_at DESC",
+        )?;
+
+        let sessions = stmt
+            .query_map([], |row| {
+                Ok(SessionRecord {
+                    id: row.get(0)?,
+                    host_id: row.get(1)?,
+                    title: row.get(2)?,
+                    status: row.get(3)?,
+                    last_command: row.get(4)?,
+                    started_at: row.get(5)?,
+                    ended_at: row.get(6)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(sessions)
+    }
+
+    pub fn get_session(&self, id: &str) -> Result<SessionRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, host_id, title, status, last_command, started_at, ended_at FROM sessions WHERE id = ?",
+        )?;
+
+        let session = stmt.query_row([id], |row| {
+            Ok(SessionRecord {
+                id: row.get(0)?,
+                host_id: row.get(1)?,
+                title: row.get(2)?,
+                status: row.get(3)?,
+                last_command: row.get(4)?,
+                started_at: row.get(5)?,
+                ended_at: row.get(6)?,
+            })
+        })?;
+
+        Ok(session)
+    }
+
+    pub fn add_session(&self, session: &NewSession) -> Result<(), LiteError> {
+        self.conn.execute(
+            "INSERT INTO sessions (id, host_id, title, status, last_command, started_at, ended_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            params![session.id, session.host_id, session.title, session.status, session.last_command, session.started_at, session.ended_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_session(&self, session: &UpdateSession) -> Result<(), LiteError> {
+        self.conn.execute(
+            "UPDATE sessions SET host_id = ?, title = ?, status = ?, last_command = ?, started_at = ?, ended_at = ? WHERE id = ?",
+            params![session.host_id, session.title, session.status, session.last_command, session.started_at, session.ended_at, session.id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_session(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM sessions WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_layouts(&self) -> Result<Vec<LayoutRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, workspace_mode, layout_json, created_at, updated_at FROM layouts ORDER BY updated_at DESC",
+        )?;
+
+        let layouts = stmt
+            .query_map([], |row| {
+                Ok(LayoutRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    workspace_mode: row.get(2)?,
+                    layout_json: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(layouts)
+    }
+
+    pub fn get_layout(&self, id: &str) -> Result<LayoutRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, workspace_mode, layout_json, created_at, updated_at FROM layouts WHERE id = ?",
+        )?;
+
+        let layout = stmt.query_row([id], |row| {
+            Ok(LayoutRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                workspace_mode: row.get(2)?,
+                layout_json: row.get(3)?,
+                created_at: row.get(4)?,
+                updated_at: row.get(5)?,
+            })
+        })?;
+
+        Ok(layout)
+    }
+
+    pub fn add_layout(&self, layout: &NewLayout) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO layouts (id, name, workspace_mode, layout_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            params![layout.id, layout.name, layout.workspace_mode, layout.layout_json, now, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_layout(&self, layout: &UpdateLayout) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE layouts SET name = ?, workspace_mode = ?, layout_json = ?, updated_at = ? WHERE id = ?",
+            params![layout.name, layout.workspace_mode, layout.layout_json, now, layout.id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_layout(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM layouts WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_sync_states(&self) -> Result<Vec<SyncStateRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, device_id, scope, checkpoint, state_json, last_sync_at, created_at, updated_at FROM sync_state ORDER BY updated_at DESC",
+        )?;
+
+        let states = stmt
+            .query_map([], |row| {
+                Ok(SyncStateRecord {
+                    id: row.get(0)?,
+                    device_id: row.get(1)?,
+                    scope: row.get(2)?,
+                    checkpoint: row.get(3)?,
+                    state_json: row.get(4)?,
+                    last_sync_at: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(states)
+    }
+
+    pub fn get_sync_state(&self, id: &str) -> Result<SyncStateRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, device_id, scope, checkpoint, state_json, last_sync_at, created_at, updated_at FROM sync_state WHERE id = ?",
+        )?;
+
+        let state = stmt.query_row([id], |row| {
+            Ok(SyncStateRecord {
+                id: row.get(0)?,
+                device_id: row.get(1)?,
+                scope: row.get(2)?,
+                checkpoint: row.get(3)?,
+                state_json: row.get(4)?,
+                last_sync_at: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })?;
+
+        Ok(state)
+    }
+
+    pub fn upsert_sync_state(&self, state: &NewSyncState) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT OR REPLACE INTO sync_state (id, device_id, scope, checkpoint, state_json, last_sync_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM sync_state WHERE id = ?), ?), ?)",
+            params![state.id, state.device_id, state.scope, state.checkpoint, state.state_json, state.last_sync_at, state.id, now, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_sync_state(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute("DELETE FROM sync_state WHERE id = ?", [id])?;
+        Ok(())
+    }
+
+    pub fn get_audit_events(&self) -> Result<Vec<AuditEventRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, actor, action, target_type, target_id, payload_json, level, created_at FROM audit_events ORDER BY created_at DESC",
+        )?;
+
+        let events = stmt
+            .query_map([], |row| {
+                Ok(AuditEventRecord {
+                    id: row.get(0)?,
+                    actor: row.get(1)?,
+                    action: row.get(2)?,
+                    target_type: row.get(3)?,
+                    target_id: row.get(4)?,
+                    payload_json: row.get(5)?,
+                    level: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(events)
+    }
+
+    pub fn add_audit_event(&self, event: &NewAuditEvent) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO audit_events (id, actor, action, target_type, target_id, payload_json, level, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            params![event.id, event.actor, event.action, event.target_type, event.target_id, event.payload_json, event.level, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_config(&self, key: &str) -> Result<Option<String>, LiteError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT value FROM config WHERE key = ?")?;
+        let result = stmt.query_row([key], |row| row.get(0)).ok();
+        Ok(result)
+    }
+
+    pub fn set_config(&self, key: &str, value: &str) -> Result<(), LiteError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)",
+            params![key, value],
+        )?;
+        Ok(())
+    }
+}
+
+fn chrono_now() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    format!("{}", duration.as_secs())
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct ServerRecord {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub auth_type: String,
+    pub identity_file: Option<String>,
+    pub group_id: Option<String>,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewServer {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub auth_type: String,
+    pub identity_file: Option<String>,
+    pub group_id: Option<String>,
+    pub status: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateServer {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub auth_type: String,
+    pub identity_file: Option<String>,
+    pub group_id: Option<String>,
+    pub status: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct GroupRecord {
+    pub id: String,
+    pub name: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewGroup {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateGroup {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct HostRecord {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub auth_type: String,
+    pub identity_file: Option<String>,
+    pub identity_id: Option<String>,
+    pub group_id: Option<String>,
+    pub notes: Option<String>,
+    pub color: Option<String>,
+    pub environment: Option<String>,
+    pub region: Option<String>,
+    pub purpose: Option<String>,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewHost {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub auth_type: String,
+    pub identity_file: Option<String>,
+    pub identity_id: Option<String>,
+    pub group_id: Option<String>,
+    pub notes: Option<String>,
+    pub color: Option<String>,
+    pub environment: Option<String>,
+    pub region: Option<String>,
+    pub purpose: Option<String>,
+    pub status: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateHost {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub auth_type: String,
+    pub identity_file: Option<String>,
+    pub identity_id: Option<String>,
+    pub group_id: Option<String>,
+    pub notes: Option<String>,
+    pub color: Option<String>,
+    pub environment: Option<String>,
+    pub region: Option<String>,
+    pub purpose: Option<String>,
+    pub status: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct TagRecord {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+    pub description: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewTag {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTag {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct IdentityRecord {
+    pub id: String,
+    pub name: String,
+    pub private_key_path: Option<String>,
+    pub passphrase_secret_id: Option<String>,
+    pub auth_type: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewIdentity {
+    pub id: String,
+    pub name: String,
+    pub private_key_path: Option<String>,
+    pub passphrase_secret_id: Option<String>,
+    pub auth_type: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateIdentity {
+    pub id: String,
+    pub name: String,
+    pub private_key_path: Option<String>,
+    pub passphrase_secret_id: Option<String>,
+    pub auth_type: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct SnippetRecord {
+    pub id: String,
+    pub name: String,
+    pub command: String,
+    pub description: Option<String>,
+    pub folder_id: Option<String>,
+    pub variables_json: Option<String>,
+    pub scope: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewSnippet {
+    pub id: String,
+    pub name: String,
+    pub command: String,
+    pub description: Option<String>,
+    pub folder_id: Option<String>,
+    pub variables_json: Option<String>,
+    pub scope: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateSnippet {
+    pub id: String,
+    pub name: String,
+    pub command: String,
+    pub description: Option<String>,
+    pub folder_id: Option<String>,
+    pub variables_json: Option<String>,
+    pub scope: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct SessionRecord {
+    pub id: String,
+    pub host_id: String,
+    pub title: Option<String>,
+    pub status: String,
+    pub last_command: Option<String>,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewSession {
+    pub id: String,
+    pub host_id: String,
+    pub title: Option<String>,
+    pub status: String,
+    pub last_command: Option<String>,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateSession {
+    pub id: String,
+    pub host_id: String,
+    pub title: Option<String>,
+    pub status: String,
+    pub last_command: Option<String>,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct LayoutRecord {
+    pub id: String,
+    pub name: String,
+    pub workspace_mode: String,
+    pub layout_json: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewLayout {
+    pub id: String,
+    pub name: String,
+    pub workspace_mode: String,
+    pub layout_json: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateLayout {
+    pub id: String,
+    pub name: String,
+    pub workspace_mode: String,
+    pub layout_json: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct SyncStateRecord {
+    pub id: String,
+    pub device_id: String,
+    pub scope: String,
+    pub checkpoint: Option<String>,
+    pub state_json: Option<String>,
+    pub last_sync_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewSyncState {
+    pub id: String,
+    pub device_id: String,
+    pub scope: String,
+    pub checkpoint: Option<String>,
+    pub state_json: Option<String>,
+    pub last_sync_at: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateSyncState {
+    pub id: String,
+    pub device_id: String,
+    pub scope: String,
+    pub checkpoint: Option<String>,
+    pub state_json: Option<String>,
+    pub last_sync_at: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct AuditEventRecord {
+    pub id: String,
+    pub actor: Option<String>,
+    pub action: String,
+    pub target_type: Option<String>,
+    pub target_id: Option<String>,
+    pub payload_json: Option<String>,
+    pub level: String,
+    pub created_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewAuditEvent {
+    pub id: String,
+    pub actor: Option<String>,
+    pub action: String,
+    pub target_type: Option<String>,
+    pub target_id: Option<String>,
+    pub payload_json: Option<String>,
+    pub level: String,
+}
+
+/// 全局数据库连接
+pub static DATABASE: Mutex<Option<Database>> = Mutex::new(None);
+
+/// 获取数据库路径
+pub fn get_db_path() -> PathBuf {
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("easyssh-lite");
+
+    std::fs::create_dir_all(&config_dir).ok();
+    config_dir.join("easyssh.db")
+}
+
+// ============ 单元测试 ============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_db_path() {
+        let path = get_db_path();
+        assert!(path.to_str().unwrap().contains("easyssh.db"));
+    }
+
+    #[test]
+    fn test_chrono_now_format() {
+        let now = chrono_now();
+        // 应该是一个数字字符串
+        assert!(now.parse::<u64>().is_ok());
+    }
+
+    #[test]
+    fn test_server_record_serialization() {
+        let record = ServerRecord {
+            id: "test-id".to_string(),
+            name: "Test Server".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "admin".to_string(),
+            auth_type: "password".to_string(),
+            identity_file: None,
+            group_id: Some("group-1".to_string()),
+            status: "online".to_string(),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        assert!(json.contains("Test Server"));
+        assert!(json.contains("192.168.1.1"));
+    }
+
+    #[test]
+    fn test_group_record_serialization() {
+        let record = GroupRecord {
+            id: "group-id".to_string(),
+            name: "Test Group".to_string(),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        assert!(json.contains("Test Group"));
+    }
+
+    #[test]
+    fn test_new_server_deserialization() {
+        let json = r#"{
+            "id": "srv-1",
+            "name": "My Server",
+            "host": "10.0.0.1",
+            "port": 2222,
+            "username": "root",
+            "auth_type": "key",
+            "identity_file": "/path/to/key",
+            "group_id": null,
+            "status": "online"
+        }"#;
+        let server: NewServer = serde_json::from_str(json).unwrap();
+        assert_eq!(server.name, "My Server");
+        assert_eq!(server.port, 2222);
+        assert!(server.identity_file.is_some());
+    }
+
+    #[test]
+    fn test_new_group_deserialization() {
+        let json = r#"{"id": "grp-1", "name": "Production"}"#;
+        let group: NewGroup = serde_json::from_str(json).unwrap();
+        assert_eq!(group.name, "Production");
+    }
+
+    #[test]
+    fn test_database_init_and_is_initialized() {
+        // 创建临时数据库文件
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        // 初始状态：未初始化
+        {
+            let db = Database::new(db_path.clone()).unwrap();
+            assert!(!db.is_initialized().unwrap());
+
+            // 初始化后
+            db.init().unwrap();
+            assert!(db.is_initialized().unwrap());
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_server_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_server_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 创建分组
+            let group = NewGroup {
+                id: "grp-1".to_string(),
+                name: "Test Group".to_string(),
+            };
+            db.add_group(&group).unwrap();
+
+            // 创建服务器
+            let server = NewServer {
+                id: "srv-1".to_string(),
+                name: "Test Server".to_string(),
+                host: "192.168.1.100".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_id: Some("grp-1".to_string()),
+                status: "online".to_string(),
+            };
+            db.add_server(&server).unwrap();
+
+            // 读取并验证
+            let servers = db.get_servers().unwrap();
+            assert_eq!(servers.len(), 1);
+            assert_eq!(servers[0].name, "Test Server");
+            assert_eq!(servers[0].host, "192.168.1.100");
+
+            // 更新服务器
+            let update = UpdateServer {
+                id: "srv-1".to_string(),
+                name: "Updated Server".to_string(),
+                host: "192.168.1.200".to_string(),
+                port: 2222,
+                username: "root".to_string(),
+                auth_type: "key".to_string(),
+                identity_file: Some("/path/to/key".to_string()),
+                group_id: None,
+                status: "offline".to_string(),
+            };
+            db.update_server(&update).unwrap();
+
+            // 验证更新
+            let server = db.get_server("srv-1").unwrap();
+            assert_eq!(server.name, "Updated Server");
+            assert_eq!(server.port, 2222);
+
+            // 删除服务器
+            db.delete_server("srv-1").unwrap();
+            let servers = db.get_servers().unwrap();
+            assert_eq!(servers.len(), 0);
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_group_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_group_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 创建分组
+            let group1 = NewGroup {
+                id: "grp-1".to_string(),
+                name: "Development".to_string(),
+            };
+            let group2 = NewGroup {
+                id: "grp-2".to_string(),
+                name: "Production".to_string(),
+            };
+            db.add_group(&group1).unwrap();
+            db.add_group(&group2).unwrap();
+
+            // 读取所有分组
+            let groups = db.get_groups().unwrap();
+            assert_eq!(groups.len(), 2);
+
+            // 更新分组
+            let update = UpdateGroup {
+                id: "grp-1".to_string(),
+                name: "Dev Team".to_string(),
+            };
+            db.update_group(&update).unwrap();
+            let groups = db.get_groups().unwrap();
+            let grp = groups.iter().find(|g| g.id == "grp-1").unwrap();
+            assert_eq!(grp.name, "Dev Team");
+
+            // 删除分组
+            db.delete_group("grp-2").unwrap();
+            let groups = db.get_groups().unwrap();
+            assert_eq!(groups.len(), 1);
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_config_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_config_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 初始无配置
+            assert!(db.get_config("theme").unwrap().is_none());
+
+            // 设置配置
+            db.set_config("theme", "dark").unwrap();
+            assert_eq!(db.get_config("theme").unwrap().unwrap(), "dark");
+
+            // 更新配置
+            db.set_config("theme", "light").unwrap();
+            assert_eq!(db.get_config("theme").unwrap().unwrap(), "light");
+
+            // 多配置键
+            db.set_config("language", "zh-CN").unwrap();
+            assert_eq!(db.get_config("language").unwrap().unwrap(), "zh-CN");
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+}

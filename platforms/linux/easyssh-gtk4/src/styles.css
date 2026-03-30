@@ -1,0 +1,39 @@
+/* EasySSH GTK4 Styles */
+
+.server-list row {
+    border-radius: 6px;
+    margin: 2px 6px;
+}
+
+.server-list row:selected {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
+.connection-button {
+    min-width: 120px;
+}
+
+.status-connected {
+    color: @success_color;
+}
+
+.status-disconnected {
+    color: @warning_color;
+}
+
+.status-error {
+    color: @error_color;
+}
+
+.terminal-container {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    font-family: monospace;
+    padding: 8px;
+}
+
+.server-card {
+    border-radius: 12px;
+    margin: 8px;
+}

@@ -1,0 +1,1 @@
+// Widgets module - custom GTK widgets will go here

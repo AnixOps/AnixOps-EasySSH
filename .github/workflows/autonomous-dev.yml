@@ -1,0 +1,78 @@
+name: Autonomous Dev
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Max iterations'
+        required: true
+        default: '20'
+      test_mode:
+        description: 'Test mode (tui/gui/all)'
+        required: true
+        default: 'tui'
+      auto_fix:
+        description: 'Enable auto fix'
+        required: true
+        default: 'false'
+
+  # 定时触发 (每天凌晨 3 点)
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  autonomous-dev:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Rust
+      uses: dtolnay/rust-action@stable
+      with:
+        toolchain: stable
+
+    - name: Setup Node.js (for babysitter)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Babysitter CLI
+      run: npm install -g @a5c-ai/babysitter-cli
+
+    - name: Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          src-tauri/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run Autonomous Dev
+      working-directory: ${{ github.workspace }}
+      run: |
+        a5c run easyssh-autonomous-dev \
+          --input "{\"maxIterations\": ${{ github.event.inputs.iterations || 20 }}, \"testMode\": \"${{ github.event.inputs.test_mode || 'tui' }}\", \"autoFix\": ${{ github.event.inputs.auto_fix || false }}}" \
+          --output "autonomous-report.json"
+      continue-on-error: true
+
+    - name: Upload Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: autonomous-report-${{ matrix.os }}
+        path: autonomous-report.json
+
+    - name: Check Results
+      run: |
+        $report = Get-Content autonomous-report.json | ConvertFrom-Json
+        if (-not $report.success) {
+          Write-Error "Autonomous dev failed!"
+          exit 1
+        }
+      shell: pwsh

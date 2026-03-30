@@ -1,7 +1,7 @@
 # EasySSH Debug接口测试报告
 
 ## 测试信息
-- 测试时间: 2026-03-29 20:05:10
+- 测试时间: 2026-03-30 01:44:39
 - 测试版本: v0.2.0
 
 ## 测试结果汇总
@@ -11,7 +11,7 @@
 | Rust单元测试 | ✅ PASS | 19 passed, 0 failed |
 | TypeScript检查 | ✅ PASS | - |
 | Cargo编译检查 | ✅ PASS | - |
-| 前端构建 | ✅ PASS |  |
+| 前端构建 | ❌ FAIL |  |
 
 ## Debug接口列表
 
@@ -62,33 +62,33 @@
 
 ```
    Compiling easyssh v0.2.0 (C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\src-tauri)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.30s
-     Running unittests src\lib.rs (src-tauri\target\debug\deps\easyssh_lib-6255f01956fd06c2.exe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.17s
+     Running unittests src\lib.rs (src-tauri\target\debug\deps\easyssh_lib-fce08605491c408e.exe)
 
 running 19 tests
-test ai_programming::tests::test_debug_test_report_serialization ... ok
 test ai_programming::tests::test_glob_match_partial ... ok
+test ai_programming::tests::test_debug_test_report_serialization ... ok
 test ai_programming::tests::test_glob_match_star ... ok
-test db::tests::test_new_group_deserialization ... ok
-test ai_programming::tests::test_search_result_deserialization ... ok
-test ai_programming::tests::test_health_status_serialization ... ok
+test ai_programming::tests::test_health_status_deserialization ... ok
 test ai_programming::tests::test_search_result_serialization ... ok
 test db::tests::test_chrono_now_format ... ok
+test ai_programming::tests::test_health_status_serialization ... ok
+test ai_programming::tests::test_walkdir_with_pattern ... ok
 test db::tests::test_group_record_serialization ... ok
+test ai_programming::tests::test_walkdir_current_dir ... ok
+test db::tests::test_new_group_deserialization ... ok
 test db::tests::test_new_server_deserialization ... ok
 test db::tests::test_server_record_serialization ... ok
-test pro::tests::test_audit_action_description ... ok
-test ai_programming::tests::test_walkdir_with_pattern ... ok
-test ai_programming::tests::test_walkdir_current_dir ... ok
-test ai_programming::tests::test_health_status_deserialization ... ok
-test pro::tests::test_create_audit_log ... ok
-test pro::tests::test_create_team ... ok
-test pro::tests::test_team_role_permissions ... ok
+test ai_programming::tests::test_search_result_deserialization ... ok
 test db::tests::test_get_db_path ... ok
+test db::tests::test_database_init_and_is_initialized ... ok
+test db::tests::test_config_operations ... ok
+test db::tests::test_group_crud_operations ... ok
+test db::tests::test_server_crud_operations ... ok
 
-test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 
-     Running unittests src\main.rs (src-tauri\target\debug\deps\easyssh-fc27ddd6e463c33b.exe)
+     Running unittests src\bin\tui.rs (src-tauri\target\debug\deps\easyssh-15ea2c098dd5c5bc.exe)
 
 running 0 tests
 

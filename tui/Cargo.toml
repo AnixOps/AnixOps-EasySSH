@@ -1,0 +1,29 @@
+[package]
+name = "easyssh-tui"
+version = "0.3.0"
+edition = "2021"
+authors = ["EasySSH Team"]
+description = "EasySSH terminal user interface (TUI) - cross-platform native SSH client"
+license = "MIT"
+
+[[bin]]
+name = "easyssh"
+path = "main.rs"
+
+[dependencies]
+easyssh-core = { path = "../core" }
+uuid = { version = "1", features = ["v4"] }
+whoami = "1.5"
+dirs = "5"
+env_logger = "0.11"
+
+[dependencies.tokio]
+version = "1"
+features = ["full"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

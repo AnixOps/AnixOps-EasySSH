@@ -1,0 +1,31 @@
+[package]
+name = "easyssh-gtk4"
+version = "0.3.0"
+edition = "2021"
+authors = ["EasySSH Team"]
+description = "EasySSH GTK4 native client for Linux"
+license = "MIT"
+
+[[bin]]
+name = "easyssh"
+path = "src/main.rs"
+
+[dependencies]
+easyssh-core = { path = "../../../core" }
+
+# GTK4 + libadwaita for modern GNOME-style UI
+gtk4 = { version = "0.8", features = ["v4_12"] }
+libadwaita = { version = "0.6", features = ["v1_5"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = 3
+strip = true
