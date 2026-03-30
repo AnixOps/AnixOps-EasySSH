@@ -4,6 +4,7 @@ pub mod db;
 pub mod debug_ws;
 pub mod edition;
 pub mod error;
+pub mod ffi;
 pub mod keychain;
 #[cfg(feature = "pro")]
 pub mod pro;

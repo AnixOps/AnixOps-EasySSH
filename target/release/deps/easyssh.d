@@ -3,3 +3,5 @@ C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\target\release\deps\easyssh.d: t
 C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\target\release\deps\easyssh.exe: tui\main.rs
 
 tui\main.rs:
+
+# env-dep:CARGO_PKG_VERSION=0.3.0
