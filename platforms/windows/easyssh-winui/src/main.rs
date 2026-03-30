@@ -2,6 +2,7 @@ use eframe::egui;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tracing::{info, error};
+use uuid::Uuid;
 
 mod bridge;
 mod viewmodels;
@@ -35,6 +36,14 @@ struct EasySSHApp {
     show_add_dialog: bool,
     new_server: NewServerForm,
     add_error: Option<String>,
+    // Connect Dialog
+    show_connect_dialog: bool,
+    connect_server: Option<ServerViewModel>,
+    password: String,
+    connect_status: ConnectStatus,
+    connect_error: Option<String>,
+    // Session
+    current_session_id: Option<String>,
 }
 
 #[derive(Default)]
@@ -53,6 +62,15 @@ enum AuthType {
     Key,
 }
 
+#[derive(Default, PartialEq)]
+enum ConnectStatus {
+    #[default]
+    Idle,
+    Connecting,
+    Connected,
+    Error,
+}
+
 impl EasySSHApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let view_model = Arc::new(Mutex::new(AppViewModel::new().expect("Failed to init")));
@@ -66,6 +84,12 @@ impl EasySSHApp {
             show_add_dialog: false,
             new_server: NewServerForm::default(),
             add_error: None,
+            show_connect_dialog: false,
+            connect_server: None,
+            password: String::new(),
+            connect_status: ConnectStatus::Idle,
+            connect_error: None,
+            current_session_id: None,
         }
     }
 
@@ -75,7 +99,6 @@ impl EasySSHApp {
     }
 
     fn add_server(&mut self) {
-        // Validate
         if self.new_server.name.is_empty() {
             self.add_error = Some("Name is required".to_string());
             return;
@@ -111,6 +134,53 @@ impl EasySSHApp {
             }
         }
     }
+
+    fn start_connect(&mut self) {
+        if let Some(server_id) = &self.selected_server {
+            if let Some(server) = self.servers.iter().find(|s| &s.id == server_id).cloned() {
+                self.show_connect_dialog = true;
+                self.connect_server = Some(server);
+                self.password = String::new();
+                self.connect_status = ConnectStatus::Idle;
+                self.connect_error = None;
+                self.current_session_id = None;
+            }
+        }
+    }
+
+    fn do_connect(&mut self) {
+        if let Some(ref server) = self.connect_server {
+            self.connect_status = ConnectStatus::Connecting;
+            self.connect_error = None;
+
+            let session_id = Uuid::new_v4().to_string();
+            let password = if self.password.is_empty() {
+                None
+            } else {
+                Some(self.password.clone())
+            };
+
+            let vm = self.view_model.lock().unwrap();
+            match vm.connect(
+                &session_id,
+                &server.host,
+                server.port,
+                &server.username,
+                password.as_deref()
+            ) {
+                Ok(_) => {
+                    info!("Connected to {}", server.name);
+                    self.connect_status = ConnectStatus::Connected;
+                    self.current_session_id = Some(session_id);
+                }
+                Err(e) => {
+                    error!("Failed to connect to {}: {}", server.name, e);
+                    self.connect_status = ConnectStatus::Error;
+                    self.connect_error = Some(e.to_string());
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for EasySSHApp {
@@ -129,7 +199,7 @@ impl eframe::App for EasySSHApp {
             });
         });
 
-        // Add Server Modal Dialog
+        // Add Server Dialog
         if self.show_add_dialog {
             egui::Window::new("Add New Server")
                 .collapsible(false)
@@ -141,7 +211,6 @@ impl eframe::App for EasySSHApp {
                     });
                     ui.separator();
 
-                    // Error message
                     if let Some(ref err) = self.add_error {
                         ui.colored_label(egui::Color32::RED, err);
                         ui.separator();
@@ -177,14 +246,12 @@ impl eframe::App for EasySSHApp {
 
                     ui.separator();
 
-                    // Default port hint
                     if self.new_server.port.is_empty() {
                         ui.label("Default port: 22");
                     }
 
                     ui.separator();
 
-                    // Buttons
                     ui.horizontal(|ui| {
                         if ui.button("Cancel").clicked() {
                             self.show_add_dialog = false;
@@ -196,6 +263,83 @@ impl eframe::App for EasySSHApp {
                         });
                     });
                 });
+        }
+
+        // Connect Dialog
+        if self.show_connect_dialog {
+            if let Some(ref server) = self.connect_server {
+                let is_connected = self.connect_status == ConnectStatus::Connected;
+                let server_name = server.name.clone();
+                let server_info = format!("{}@{}:{}", server.username, server.host, server.port);
+
+                egui::Window::new(format!("Connect to {}", server_name))
+                    .collapsible(false)
+                    .resizable(false)
+                    .default_size([400.0, 250.0])
+                    .show(ctx, |ui| {
+                        ui.heading(&server_info);
+                        ui.separator();
+
+                        // Error message
+                        if let Some(ref err) = self.connect_error {
+                            ui.colored_label(egui::Color32::RED, err);
+                            ui.separator();
+                        }
+
+                        // Status
+                        match self.connect_status {
+                            ConnectStatus::Idle => {
+                                ui.label("Enter password to connect:");
+                                ui.add_space(10.0);
+
+                                ui.horizontal(|ui| {
+                                    ui.label("Password:");
+                                    ui.add(egui::TextEdit::singleline(&mut self.password).password(true));
+                                });
+
+                                ui.separator();
+
+                                ui.horizontal(|ui| {
+                                    if ui.button("Cancel").clicked() {
+                                        self.show_connect_dialog = false;
+                                    }
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        if ui.button("Connect").clicked() {
+                                            self.do_connect();
+                                        }
+                                    });
+                                });
+                            }
+                            ConnectStatus::Connecting => {
+                                ui.label("Connecting...");
+                                ui.spinner();
+                            }
+                            ConnectStatus::Connected => {
+                                ui.colored_label(egui::Color32::GREEN, "✓ Connected successfully!");
+                                ui.separator();
+                                ui.label("Session active");
+                                ui.separator();
+                                if ui.button("Disconnect").clicked() {
+                                    self.show_connect_dialog = false;
+                                    self.connect_status = ConnectStatus::Idle;
+                                    self.current_session_id = None;
+                                }
+                            }
+                            ConnectStatus::Error => {
+                                ui.colored_label(egui::Color32::RED, "✗ Connection failed");
+                                ui.separator();
+                                if ui.button("Close").clicked() {
+                                    self.show_connect_dialog = false;
+                                    self.connect_status = ConnectStatus::Idle;
+                                }
+                                if ui.button("Retry").clicked() {
+                                    self.connect_status = ConnectStatus::Idle;
+                                    self.connect_error = None;
+                                }
+                            }
+                        }
+                    });
+            }
         }
 
         // Left panel - server list
@@ -257,7 +401,7 @@ impl eframe::App for EasySSHApp {
                     ui.separator();
 
                     if ui.button("Connect").clicked() {
-                        info!("Connecting to {}", server.name);
+                        self.start_connect();
                     }
                 } else {
                     ui.label("Server not found");

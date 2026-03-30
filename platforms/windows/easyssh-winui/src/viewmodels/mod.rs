@@ -1,15 +1,20 @@
 use std::sync::Mutex;
 use std::sync::Arc;
 use tracing::{info, error};
-use easyssh_core::{NewServer, ServerRecord, AppState};
+use easyssh_core::{NewServer, ServerRecord, AppState, SshSessionManager};
+use tokio::runtime::Runtime;
 
 pub struct AppViewModel {
     core_state: Arc<Mutex<AppState>>,
+    ssh_manager: Arc<Mutex<SshSessionManager>>,
+    runtime: Arc<Runtime>,
 }
 
 impl AppViewModel {
     pub fn new() -> anyhow::Result<Self> {
         let core_state = Arc::new(Mutex::new(AppState::new()));
+        let ssh_manager = Arc::new(Mutex::new(SshSessionManager::new()));
+        let runtime = Arc::new(Runtime::new()?);
 
         // Initialize database
         {
@@ -21,7 +26,7 @@ impl AppViewModel {
             }
         }
 
-        Ok(Self { core_state })
+        Ok(Self { core_state, ssh_manager, runtime })
     }
 
     pub fn get_servers(&self) -> Vec<ServerViewModel> {
@@ -55,6 +60,17 @@ impl AppViewModel {
         easyssh_core::add_server(&state, &new_server)?;
         info!("Added server: {}", name);
         Ok(())
+    }
+
+    pub fn connect(&self, session_id: &str, host: &str, port: i64, username: &str, password: Option<&str>) -> anyhow::Result<()> {
+        let rt = self.runtime.clone();
+        let manager = self.ssh_manager.clone();
+
+        rt.block_on(async {
+            let mut mgr = manager.lock().unwrap();
+            mgr.connect(session_id, host, port as u16, username, password).await
+                .map_err(|e| anyhow::anyhow!("SSH connection failed: {}", e))
+        })
     }
 }
 
