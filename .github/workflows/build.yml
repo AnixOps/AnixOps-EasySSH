@@ -46,12 +46,26 @@ jobs:
       - name: Clippy Check
         run: cargo clippy -p easyssh-core -- -D warnings
 
-      - name: Upload Core Artifact
+      - name: Upload Core Artifact (Linux/macOS)
+        if: runner.os != 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: easyssh-core-${{ matrix.os }}
           path: |
-            target/release/libeasyssh_core.*
+            target/release/libeasyssh_core.a
+            target/release/libeasyssh_core.dylib
+            target/release/libeasyssh_core.so
+            core/target/include/easyssh_core.h
+          if-no-files-found: warn
+
+      - name: Upload Core Artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: easyssh-core-${{ matrix.os }}
+          path: |
+            target/release/easyssh_core.dll
+            target/release/easyssh_core.dll.lib
             core/target/include/easyssh_core.h
           if-no-files-found: warn
 
@@ -83,19 +97,32 @@ jobs:
       - name: Build TUI
         run: cargo build --release -p easyssh-tui
 
-      - name: Test TUI CLI
+      - name: Test TUI CLI (Unix)
+        if: runner.os != 'Windows'
         run: |
           ./target/release/easyssh --version
           ./target/release/easyssh --help
-        shell: bash
 
-      - name: Upload TUI Binary
+      - name: Test TUI CLI (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\target\release\easyssh.exe --version
+          .\target\release\easyssh.exe --help
+
+      - name: Upload TUI Binary (Unix)
+        if: runner.os != 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: easyssh-tui-${{ matrix.os }}
-          path: |
-            target/release/easyssh
-            target/release/easyssh.exe
+          path: target/release/easyssh
+          if-no-files-found: warn
+
+      - name: Upload TUI Binary (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: easyssh-tui-${{ matrix.os }}
+          path: target/release/easyssh.exe
           if-no-files-found: warn
 
   # ==================== Linux GTK4 Build ====================
