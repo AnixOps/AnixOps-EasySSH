@@ -34,6 +34,9 @@ easyssh-core = { path = "../../../core" }
 eframe = { version = "0.28", features = ["default"] }
 egui = "0.28"
 
+# For UUID generation
+uuid = { version = "1", features = ["v4"] }
+
 # Async
 tokio = { version = "1", features = ["full"] }
 
