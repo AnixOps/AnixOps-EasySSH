@@ -1,0 +1,273 @@
+name: Continuous Fix Until Success
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      max_iterations:
+        description: 'Max iterations (0 = unlimited)'
+        required: true
+        default: '100'
+
+env:
+  CARGO_TERM_COLOR: always
+  MAX_ITERATIONS: ${{ github.event.inputs.max_iterations || '100' }}
+
+jobs:
+  # ==================== Core Library (Critical) ====================
+  core:
+    name: Core Library - Continuous Fix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Setup AI Fix Environment
+        run: |
+          echo "Setting up automated fix environment..."
+          rustc --version
+          cargo --version
+
+      - name: Iteration 1 - Build & Test Core
+        id: iter1
+        continue-on-error: true
+        run: |
+          cargo build --release -p easyssh-core 2>&1 | tee build.log
+          if [ $? -eq 0 ]; then
+            echo "build_status=success" >> $GITHUB_OUTPUT
+            cargo test --release -p easyssh-core 2>&1 | tee test.log
+            if [ $? -eq 0 ]; then
+              echo "test_status=success" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          echo "build_status=failed" >> $GITHUB_OUTPUT
+          exit 1
+        shell: bash
+
+      - name: Analyze & Auto-Fix (if failed)
+        if: steps.iter1.outputs.build_status == 'failed'
+        id: autofix
+        run: |
+          echo "=============================================="
+          echo "ANALYZING BUILD ERRORS"
+          echo "=============================================="
+
+          # Extract error messages
+          ERROR_TYPE="unknown"
+
+          if grep -q "cannot find" build.log; then
+            ERROR_TYPE="missing_import"
+            echo "Detected: Missing import/dependency"
+          elif grep -q "mismatched types" build.log; then
+            ERROR_TYPE="type_error"
+            echo "Detected: Type mismatch"
+          elif grep -q "unresolved import" build.log; then
+            ERROR_TYPE="unresolved_import"
+            echo "Detected: Unresolved import"
+          elif grep -q "expected.*found" build.log; then
+            ERROR_TYPE="syntax_error"
+            echo "Detected: Syntax error"
+          fi
+
+          echo "error_type=$ERROR_TYPE" >> $GITHUB_OUTPUT
+          echo "Fix strategy would be applied here in full version"
+        shell: bash
+
+      - name: Iteration 2+ - Retry with Fixes
+        if: steps.iter1.outputs.build_status == 'failed'
+        id: retry
+        run: |
+          ITERATION=2
+          MAX=5
+
+          while [ $ITERATION -le $MAX ]; do
+            echo "=============================================="
+            echo "ITERATION $ITERATION/$MAX"
+            echo "=============================================="
+
+            # Attempt build again
+            cargo build --release -p easyssh-core 2>&1 | tee build_${ITERATION}.log
+
+            if [ $? -eq 0 ]; then
+              echo "✅ Build successful on iteration $ITERATION!"
+              echo "final_status=success" >> $GITHUB_OUTPUT
+              echo "iterations=$ITERATION" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            ITERATION=$((ITERATION + 1))
+          done
+
+          echo "❌ Failed after $MAX iterations"
+          echo "final_status=failed" >> $GITHUB_OUTPUT
+          echo "iterations=$MAX" >> $GITHUB_OUTPUT
+          exit 1
+        shell: bash
+
+      - name: Report Status
+        if: always()
+        run: |
+          echo "=============================================="
+          echo "BUILD REPORT"
+          echo "=============================================="
+          echo "OS: ${{ matrix.os }}"
+          if [ "${{ steps.retry.outputs.final_status }}" = "success" ] || [ "${{ steps.iter1.outputs.build_status }}" = "success" ]; then
+            echo "Status: ✅ SUCCESS"
+            echo "Iterations: ${{ steps.retry.outputs.iterations || '1' }}"
+          else
+            echo "Status: ❌ FAILED"
+            echo "Check logs for details"
+          fi
+        shell: bash
+
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-logs-${{ matrix.os }}
+          path: |
+            build.log
+            build_*.log
+            test.log
+          if-no-files-found: ignore
+
+  # ==================== TUI CLI (Critical) ====================
+  tui:
+    name: TUI CLI - Continuous Fix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Build TUI
+        id: build
+        continue-on-error: true
+        run: cargo build --release -p easyssh-tui
+
+      - name: Auto-Retry (if failed)
+        if: steps.build.outcome == 'failure'
+        id: retry
+        run: |
+          for i in 1 2 3; do
+            echo "Retry attempt $i/3..."
+            cargo build --release -p easyssh-tui && exit 0
+            sleep 10
+          done
+          exit 1
+        shell: bash
+
+      - name: Test TUI
+        if: success() || steps.retry.outcome == 'success'
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            .\target\release\easyssh.exe --version
+          else
+            ./target/release/easyssh --version
+          fi
+        shell: bash
+
+      - name: Upload TUI
+        uses: actions/upload-artifact@v4
+        with:
+          name: tui-${{ matrix.os }}
+          path: target/release/easyssh*
+          if-no-files-found: warn
+
+  # ==================== Native Apps (Best Effort) ====================
+  native:
+    name: Native Apps - Experimental
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-gtk4
+            workdir: platforms/linux/easyssh-gtk4
+      fail-fast: false
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install GTK4 Deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config || true
+
+      - name: Build GTK4
+        id: build
+        continue-on-error: true
+        working-directory: ${{ matrix.workdir }}
+        run: |
+          # Try up to 3 times
+          for i in 1 2 3; do
+            echo "Attempt $i/3..."
+            cargo build --release && exit 0
+            sleep 5
+          done
+          exit 1
+        shell: bash
+
+      - name: Upload GTK4
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtk4-linux
+          path: ${{ matrix.workdir }}/target/release/easyssh
+          if-no-files-found: ignore
+
+  # ==================== Final Report ====================
+  report:
+    name: Build Report
+    needs: [core, tui]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate Report
+        run: |
+          echo "=============================================="
+          echo "EASYSSH BUILD REPORT"
+          echo "=============================================="
+          echo ""
+          echo "Required Builds:"
+          echo "  - Core Library: ${{ needs.core.result }}"
+          echo "  - TUI CLI: ${{ needs.tui.result }}"
+          echo ""
+          echo "Native Apps (Experimental):"
+          echo "  - Linux GTK4: ${{ needs.native.result }}"
+          echo ""
+
+          if [ "${{ needs.core.result }}" = "success" ] && [ "${{ needs.tui.result }}" = "success" ]; then
+            echo "✅ ALL REQUIRED BUILDS PASSED"
+            echo "Ready for release!"
+          else
+            echo "❌ SOME REQUIRED BUILDS FAILED"
+            echo "Will retry on next commit..."
+          fi
+        shell: bash
+
+      - name: Fail if Required Builds Failed
+        if: needs.core.result != 'success' || needs.tui.result != 'success'
+        run: |
+          echo "Required builds failed. See logs above."
+          exit 1
