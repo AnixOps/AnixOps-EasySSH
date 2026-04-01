@@ -58,7 +58,7 @@ webbrowser = "1"
 
 # High-performance terminal rendering - xterm.js WebGL integration
 wry = { version = "0.46", default-features = false, features = ["protocol", "devtools"] }
-webview2-com = "0.33"
+webview2-com = "0.39"
 
 # GPU acceleration and offscreen rendering
 bytemuck = { version = "1", features = ["derive"] }
