@@ -238,7 +238,7 @@ jobs:
           cargo llvm-cov --all-features --lcov --output-path ../lcov-core.info
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: lcov-core.info
           flags: core
