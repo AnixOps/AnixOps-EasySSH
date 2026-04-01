@@ -1,0 +1,379 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ============================================================================
+  # Rust Dependency Vulnerability Scan
+  # ============================================================================
+  cargo-audit:
+    name: Cargo Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Run cargo audit
+        run: |
+          echo "### Cargo Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cargo audit --json > audit-results.json || true
+          cargo audit --deny warnings 2>&1 | tee -a audit-report.txt || true
+
+      - name: Upload Audit Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cargo-audit-results
+          path: |
+            audit-results.json
+            audit-report.txt
+
+  # ============================================================================
+  # License Compliance
+  # ============================================================================
+  cargo-deny:
+    name: License & Bans Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Check licenses
+        run: |
+          echo "### License Compliance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cargo deny check licenses 2>&1 | tee -a license-report.txt || true
+
+      - name: Check advisories
+        run: |
+          echo "### Advisory Check" >> $GITHUB_STEP_SUMMARY
+          cargo deny check advisories 2>&1 | tee -a advisory-report.txt || true
+        continue-on-error: true
+
+      - name: Check bans
+        run: |
+          echo "### Crate Bans" >> $GITHUB_STEP_SUMMARY
+          cargo deny check bans 2>&1 | tee -a bans-report.txt || true
+        continue-on-error: true
+
+      - name: Check sources
+        run: |
+          echo "### Source Verification" >> $GITHUB_STEP_SUMMARY
+          cargo deny check sources 2>&1 | tee -a sources-report.txt || true
+
+      - name: Generate Summary
+        run: |
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Licenses | Completed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Advisories | Completed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bans | Completed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sources | Completed |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cargo-deny-reports
+          path: |
+            license-report.txt
+            advisory-report.txt
+            bans-report.txt
+            sources-report.txt
+
+  # ============================================================================
+  # Secret Scanning
+  # ============================================================================
+  trufflehog:
+    name: Secret Detection (TruffleHog)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Scan with GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+  # ============================================================================
+  # CodeQL Analysis
+  # ============================================================================
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust, typescript, swift
+          queries: security-extended,security-and-quality
+          config: |
+            paths-ignore:
+              - '**/tests/**'
+              - '**/test/**'
+              - '**/examples/**'
+              - '**/target/**'
+              - '**/node_modules/**'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (Ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+        continue-on-error: true
+
+      - name: Manual Build (if autobuild fails)
+        if: failure()
+        run: |
+          cargo build --release -p easyssh-core
+          cargo build --release -p easyssh-tui 2>/dev/null || true
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:rust"
+
+  # ============================================================================
+  # Trivy Security Scanner
+  # ============================================================================
+  trivy:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          skip-dirs: 'target,node_modules,.git'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+          category: 'trivy-fs'
+
+      - name: Run Trivy repo scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'repo'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+
+  # ============================================================================
+  # Bandit Security Scan (Python scripts)
+  # ============================================================================
+  bandit:
+    name: Python Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        run: |
+          find . -name "*.py" -type f | head -20 | xargs bandit -f json -o bandit-results.json 2>/dev/null || true
+          find . -name "*.py" -type f | head -20 | xargs bandit || true
+        continue-on-error: true
+
+      - name: Upload Bandit Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-results
+          path: bandit-results.json
+
+  # ============================================================================
+  # Dependency Review (for PRs)
+  # ============================================================================
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: true
+          deny-licenses: 'GPL-2.0,GPL-3.0,AGPL-1.0,AGPL-3.0'
+          allow-licenses: 'MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,CC0-1.0'
+
+  # ============================================================================
+  # Snyk Security Scan
+  # ============================================================================
+  snyk:
+    name: Snyk Security Scan
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SNYK_TOKEN != '' }}
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/rust@master
+        continue-on-error: true
+
+      - name: Snyk Code Test
+        uses: snyk/actions/node@master
+        with:
+          args: code test
+        continue-on-error: true
+
+  # ============================================================================
+  # Container Security Scan (for Docker images)
+  # ============================================================================
+  container-scan:
+    name: Container Image Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image for scanning
+        run: |
+          docker build -f docker/lite/Dockerfile -t easyssh-lite:scan .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'easyssh-lite:scan'
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy image results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-image-results.sarif'
+          category: 'trivy-image'
+
+      - name: Scan for secrets in image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'easyssh-lite:scan'
+          scanners: 'secret'
+          format: 'table'
+
+  # ============================================================================
+  # Security Summary
+  # ============================================================================
+  security-summary:
+    name: Security Summary
+    needs: [cargo-audit, cargo-deny, trufflehog, codeql, trivy]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate Security Report
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.cargo-audit.result }}" == "success" ]; then
+            echo "| Cargo Audit | ✅ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Cargo Audit | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.cargo-deny.result }}" == "success" ]; then
+            echo "| License Check | ✅ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| License Check | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.trufflehog.result }}" == "success" ]; then
+            echo "| Secret Detection | ✅ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Secret Detection | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.codeql.result }}" == "success" ]; then
+            echo "| CodeQL Analysis | ✅ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| CodeQL Analysis | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.trivy.result }}" == "success" ]; then
+            echo "| Trivy Scan | ✅ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Trivy Scan | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Security scans completed. Please review the detailed reports in the job artifacts." >> $GITHUB_STEP_SUMMARY

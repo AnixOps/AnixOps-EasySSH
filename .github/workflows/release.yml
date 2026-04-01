@@ -1,0 +1,550 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.2.3)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a prerelease?'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Create as draft release?'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ============================================================================
+  # Extract Version
+  # ============================================================================
+  version:
+    name: Extract Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      version_no_v: ${{ steps.get_version.outputs.version_no_v }}
+      is_prerelease: ${{ steps.get_version.outputs.is_prerelease }}
+      channel: ${{ steps.get_version.outputs.channel }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+
+          VERSION_NO_V="${VERSION#v}"
+          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+
+          # Determine channel
+          if [[ "$VERSION" == *"alpha"* ]]; then
+            CHANNEL="alpha"
+            IS_PRERELEASE="true"
+          elif [[ "$VERSION" == *"beta"* ]]; then
+            CHANNEL="beta"
+            IS_PRERELEASE="true"
+          elif [[ "$VERSION" == *"rc"* ]]; then
+            CHANNEL="rc"
+            IS_PRERELEASE="true"
+          elif [ "$IS_PRERELEASE" = "true" ]; then
+            CHANNEL="canary"
+          else
+            CHANNEL="stable"
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_no_v=$VERSION_NO_V" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+
+          echo "Version: $VERSION"
+          echo "Channel: $CHANNEL"
+
+  # ============================================================================
+  # Run Security Checks
+  # ============================================================================
+  security-checks:
+    name: Security Checks
+    needs: version
+    uses: ./.github/workflows/security.yml
+
+  # ============================================================================
+  # Run Test Suite
+  # ============================================================================
+  test-suite:
+    name: Test Suite
+    needs: version
+    uses: ./.github/workflows/test.yml
+
+  # ============================================================================
+  # Build Windows
+  # ============================================================================
+  build-windows:
+    name: Build Windows x64
+    needs: [version, test-suite]
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Windows UI
+        working-directory: platforms/windows/easyssh-winui
+        run: cargo build --release
+
+      - name: Create Installer
+        working-directory: platforms/windows/easyssh-winui
+        shell: pwsh
+        run: |
+          # Create release directory
+          New-Item -ItemType Directory -Force -Path release
+
+          # Copy binary
+          Copy-Item target/release/easyssh-winui.exe release/EasySSH.exe
+
+          # Copy any assets
+          if (Test-Path assets) {
+            Copy-Item -Recurse assets release/
+          }
+
+          # Create ZIP archive
+          Compress-Archive -Path release/* -DestinationPath EasySSH-${{ needs.version.outputs.version }}-windows-x64.zip -Force
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: platforms/windows/easyssh-winui/EasySSH-${{ needs.version.outputs.version }}-windows-x64.zip
+          retention-days: 30
+
+  # ============================================================================
+  # Build Linux
+  # ============================================================================
+  build-linux:
+    name: Build Linux ${{ matrix.arch }}
+    needs: [version, test-suite]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            cross: false
+          - arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Cross (for ARM64)
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build (Native)
+        if: '!matrix.cross'
+        working-directory: platforms/linux/easyssh-gtk4
+        run: cargo build --release
+
+      - name: Build (Cross)
+        if: matrix.cross
+        working-directory: platforms/linux/easyssh-gtk4
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Create Package
+        working-directory: platforms/linux/easyssh-gtk4
+        run: |
+          mkdir -p release
+
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cp target/${{ matrix.target }}/release/easyssh-gtk4 release/easyssh
+          else
+            cp target/release/easyssh-gtk4 release/easyssh
+          fi
+
+          # Create AppImage or tarball
+          tar -czf EasySSH-${{ needs.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz -C release .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: platforms/linux/easyssh-gtk4/EasySSH-${{ needs.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
+          retention-days: 30
+
+  # ============================================================================
+  # Build macOS
+  # ============================================================================
+  build-macos:
+    name: Build macOS ${{ matrix.arch }}
+    needs: [version, test-suite]
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-apple-darwin
+          - arch: aarch64
+            target: aarch64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Core
+        working-directory: core
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+          mkdir -p ../platforms/macos/EasySSH/libs
+          cp target/${{ matrix.target }}/release/libeasyssh_core.a ../platforms/macos/EasySSH/libs/ || true
+
+      - name: Build SwiftUI App
+        working-directory: platforms/macos/EasySSH
+        run: |
+          swift build -c release --arch ${{ matrix.arch }}
+
+          # Create app bundle structure
+          mkdir -p "release/EasySSH.app/Contents/MacOS"
+          mkdir -p "release/EasySSH.app/Contents/Resources"
+
+          # Copy binary
+          cp .build/release/EasySSH "release/EasySSH.app/Contents/MacOS/"
+
+          # Create Info.plist
+          cat > "release/EasySSH.app/Contents/Info.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>EasySSH</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.anixops.easyssh</string>
+            <key>CFBundleName</key>
+            <string>EasySSH</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ needs.version.outputs.version_no_v }}</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create DMG
+        working-directory: platforms/macos/EasySSH
+        run: |
+          # Create DMG
+          ln -s /Applications release/Applications
+          hdiutil create -volname "EasySSH" -srcfolder release \
+            -ov -format UDZO \
+            EasySSH-${{ needs.version.outputs.version }}-macos-${{ matrix.arch }}.dmg
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: platforms/macos/EasySSH/EasySSH-${{ needs.version.outputs.version }}-macos-${{ matrix.arch }}.dmg
+          retention-days: 30
+
+  # ============================================================================
+  # Build TUI
+  # ============================================================================
+  build-tui:
+    name: Build TUI
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: tui-${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+      - name: Build TUI
+        working-directory: tui
+        run: cargo build --release
+
+      - name: Package
+        working-directory: tui
+        run: |
+          mkdir -p release
+
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp target/release/easyssh.exe release/
+            7z a EasySSH-${{ needs.version.outputs.version }}-tui-windows-x64.zip release/
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            cp target/release/easyssh release/
+            tar -czf EasySSH-${{ needs.version.outputs.version }}-tui-macos-universal.tar.gz -C release .
+          else
+            cp target/release/easyssh release/
+            tar -czf EasySSH-${{ needs.version.outputs.version }}-tui-linux-x64.tar.gz -C release .
+          fi
+        shell: bash
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tui-${{ matrix.os }}
+          path: tui/EasySSH-*-tui-*.tar.gz
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # ============================================================================
+  # Code Signing
+  # ============================================================================
+  code-signing:
+    name: Code Signing
+    needs: [version, build-windows, build-macos]
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/code-signing.yml
+    with:
+      version: ${{ needs.version.outputs.version_no_v }}
+      platform: all
+    secrets: inherit
+
+  # ============================================================================
+  # Create Release
+  # ============================================================================
+  create-release:
+    name: Create GitHub Release
+    needs: [version, build-windows, build-linux, build-macos, build-tui, code-signing]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+
+          # Get changelog from CHANGELOG.md or generate from commits
+          if [ -f CHANGELOG.md ]; then
+            # Extract section for this version
+            awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | head -n -1 > release_notes.md || true
+          fi
+
+          if [ ! -s release_notes.md ]; then
+            # Generate from git log
+            echo "## Changes in $VERSION" > release_notes.md
+            echo "" >> release_notes.md
+            git log --oneline --no-decorate $(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo HEAD~10)..HEAD >> release_notes.md || true
+          fi
+
+          cat release_notes.md
+
+      - name: Generate Checksums
+        run: |
+          cd artifacts
+          find . -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" -o -name "*.AppImage" \) -exec sha256sum {} \; > ../SHA256SUMS
+          cd ..
+          cat SHA256SUMS
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.version.outputs.version }}
+          name: EasySSH ${{ needs.version.outputs.version }}
+          body_path: release_notes.md
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: ${{ needs.version.outputs.is_prerelease }}
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
+            artifacts/**/*.dmg
+            artifacts/**/*.AppImage
+            SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Release Manifest
+        run: |
+          cat > release-manifest.json << EOF
+          {
+            "version": "${{ needs.version.outputs.version }}",
+            "channel": "${{ needs.version.outputs.channel }}",
+            "release_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "windows-x64": {
+                "version": "${{ needs.version.outputs.version }}",
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.version }}/EasySSH-${{ needs.version.outputs.version }}-windows-x64.zip",
+                "checksum": "$(grep windows-x64.zip SHA256SUMS | cut -d' ' -f1 || echo 'N/A')"
+              },
+              "linux-x64": {
+                "version": "${{ needs.version.outputs.version }}",
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.version }}/EasySSH-${{ needs.version.outputs.version }}-linux-x86_64.tar.gz",
+                "checksum": "$(grep linux-x86_64.tar.gz SHA256SUMS | cut -d' ' -f1 || echo 'N/A')"
+              },
+              "macos-x64": {
+                "version": "${{ needs.version.outputs.version }}",
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.version }}/EasySSH-${{ needs.version.outputs.version }}-macos-x86_64.dmg",
+                "checksum": "$(grep macos-x86_64.dmg SHA256SUMS | cut -d' ' -f1 || echo 'N/A')"
+              },
+              "macos-arm64": {
+                "version": "${{ needs.version.outputs.version }}",
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.version }}/EasySSH-${{ needs.version.outputs.version }}-macos-aarch64.dmg",
+                "checksum": "$(grep macos-aarch64.dmg SHA256SUMS | cut -d' ' -f1 || echo 'N/A')"
+              }
+            }
+          }
+          EOF
+          cat release-manifest.json
+
+      - name: Upload Manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: release-manifest.json
+
+  # ============================================================================
+  # Trigger Canary Deployment (if canary channel)
+  # ============================================================================
+  deploy-canary:
+    name: Deploy to Canary
+    needs: [version, create-release]
+    if: needs.version.outputs.channel == 'canary'
+    uses: ./.github/workflows/canary-release.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      percentage: 5
+    secrets: inherit
+
+  # ============================================================================
+  # Notify
+  # ============================================================================
+  notify:
+    name: Notify Release
+    needs: [version, create-release]
+    runs-on: ubuntu-latest
+    if: always() && needs.create-release.result == 'success'
+
+    steps:
+      - name: Post to Slack
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🚀 EasySSH ${{ needs.version.outputs.version }} Released!",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "New Release: ${{ needs.version.outputs.version }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Channel:* ${{ needs.version.outputs.channel }}\n*Release URL:* https://github.com/${{ github.repository }}/releases/tag/${{ needs.version.outputs.version }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
+
+      - name: Summary
+        run: |
+          echo "# Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Channel:** ${{ needs.version.outputs.channel }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Release](https://github.com/${{ github.repository }}/releases/tag/${{ needs.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
