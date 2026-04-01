@@ -2,9 +2,9 @@
 //!
 //! 提供事件报告生成、改进建议、影响分析等功能
 
-use crate::incident_models::*;
 use crate::db::Database;
-use anyhow::{Result, anyhow};
+use crate::incident_models::*;
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -33,23 +33,28 @@ impl PostMortemService {
         user_id: &str,
     ) -> Result<PostMortem> {
         // 检查事件是否存在且已关闭/解决
-        let incident: Incident = sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
-            .bind(incident_id)
-            .fetch_optional(self.db.pool())
-            .await?
-            .ok_or_else(|| anyhow!("Incident not found: {}", incident_id))?;
+        let incident: Incident =
+            sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
+                .bind(incident_id)
+                .fetch_optional(self.db.pool())
+                .await?
+                .ok_or_else(|| anyhow!("Incident not found: {}", incident_id))?;
 
-        if !matches!(incident.status, IncidentStatus::Resolved | IncidentStatus::Closed) {
-            return Err(anyhow!("Can only create post-mortem for resolved or closed incidents"));
+        if !matches!(
+            incident.status,
+            IncidentStatus::Resolved | IncidentStatus::Closed
+        ) {
+            return Err(anyhow!(
+                "Can only create post-mortem for resolved or closed incidents"
+            ));
         }
 
         // 检查是否已存在复盘
-        let existing: Option<PostMortem> = sqlx::query_as::<_, PostMortem>(
-            "SELECT * FROM post_mortems WHERE incident_id = ?"
-        )
-        .bind(incident_id)
-        .fetch_optional(self.db.pool())
-        .await?;
+        let existing: Option<PostMortem> =
+            sqlx::query_as::<_, PostMortem>("SELECT * FROM post_mortems WHERE incident_id = ?")
+                .bind(incident_id)
+                .fetch_optional(self.db.pool())
+                .await?;
 
         if existing.is_some() {
             return Err(anyhow!("Post-mortem already exists for this incident"));
@@ -71,21 +76,23 @@ impl PostMortemService {
             serde_json::json!(action_items)
         };
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO post_mortems (
                 id, incident_id, title, summary, timeline_summary, root_cause_analysis,
                 impact_analysis, resolution_steps, lessons_learned, action_items,
                 contributors, started_at, status, created_by, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&post_mortem_id)
         .bind(incident_id)
         .bind(title)
         .bind(summary)
         .bind(&timeline_summary)
         .bind(root_cause_analysis)
-        .bind("")  // impact_analysis 将在分析后更新
-        .bind("")  // resolution_steps 将在分析后更新
+        .bind("") // impact_analysis 将在分析后更新
+        .bind("") // resolution_steps 将在分析后更新
         .bind(lessons_learned)
         .bind(&action_items_json)
         .bind(serde_json::json!(contributors))
@@ -97,29 +104,38 @@ impl PostMortemService {
         .await?;
 
         // 自动生成一些分析内容
-        self.auto_analyze_post_mortem(&post_mortem_id, &incident).await?;
+        self.auto_analyze_post_mortem(&post_mortem_id, &incident)
+            .await?;
 
-        info!("Created post-mortem {} for incident {}", post_mortem_id, incident_id);
+        info!(
+            "Created post-mortem {} for incident {}",
+            post_mortem_id, incident_id
+        );
 
         self.get_post_mortem_by_id(&post_mortem_id).await
     }
 
     /// 获取复盘详情
     pub async fn get_post_mortem_by_id(&self, post_mortem_id: &str) -> Result<PostMortem> {
-        let post_mortem = sqlx::query_as::<_, PostMortem>("SELECT * FROM post_mortems WHERE id = ?")
-            .bind(post_mortem_id)
-            .fetch_optional(self.db.pool())
-            .await?;
+        let post_mortem =
+            sqlx::query_as::<_, PostMortem>("SELECT * FROM post_mortems WHERE id = ?")
+                .bind(post_mortem_id)
+                .fetch_optional(self.db.pool())
+                .await?;
 
         post_mortem.ok_or_else(|| anyhow!("Post-mortem not found: {}", post_mortem_id))
     }
 
     /// 通过事件ID获取复盘
-    pub async fn get_post_mortem_by_incident(&self, incident_id: &str) -> Result<Option<PostMortem>> {
-        let post_mortem = sqlx::query_as::<_, PostMortem>("SELECT * FROM post_mortems WHERE incident_id = ?")
-            .bind(incident_id)
-            .fetch_optional(self.db.pool())
-            .await?;
+    pub async fn get_post_mortem_by_incident(
+        &self,
+        incident_id: &str,
+    ) -> Result<Option<PostMortem>> {
+        let post_mortem =
+            sqlx::query_as::<_, PostMortem>("SELECT * FROM post_mortems WHERE incident_id = ?")
+                .bind(incident_id)
+                .fetch_optional(self.db.pool())
+                .await?;
 
         Ok(post_mortem)
     }
@@ -139,7 +155,8 @@ impl PostMortemService {
         let now = Utc::now();
         let current = self.get_post_mortem_by_id(post_mortem_id).await?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE post_mortems SET
                 summary = ?,
                 root_cause_analysis = ?,
@@ -150,14 +167,20 @@ impl PostMortemService {
                 status = ?,
                 updated_at = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(summary.unwrap_or(&current.summary))
         .bind(root_cause_analysis.unwrap_or(&current.root_cause_analysis))
         .bind(impact_analysis.unwrap_or(&current.impact_analysis))
         .bind(resolution_steps.unwrap_or(&current.resolution_steps))
         .bind(lessons_learned.unwrap_or(&current.lessons_learned))
         .bind(action_items.map(|a| serde_json::json!(a)))
-        .bind(status.as_ref().map(|s| s.as_str()).unwrap_or(current.status.as_str()))
+        .bind(
+            status
+                .as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or(current.status.as_str()),
+        )
         .bind(now)
         .bind(post_mortem_id)
         .execute(self.db.pool())
@@ -179,16 +202,18 @@ impl PostMortemService {
 
     /// 发布复盘
     pub async fn publish_post_mortem(&self, post_mortem_id: &str) -> Result<PostMortem> {
-        let post_mortem = self.update_post_mortem(
-            post_mortem_id,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(PostMortemStatus::Published),
-        ).await?;
+        let post_mortem = self
+            .update_post_mortem(
+                post_mortem_id,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(PostMortemStatus::Published),
+            )
+            .await?;
 
         info!("Published post-mortem {}", post_mortem_id);
         Ok(post_mortem)
@@ -206,7 +231,8 @@ impl PostMortemService {
             SELECT pm.* FROM post_mortems pm
             JOIN incidents i ON pm.incident_id = i.id
             WHERE 1=1
-        "#.to_string();
+        "#
+        .to_string();
 
         if team_id.is_some() {
             query.push_str(" AND i.team_id = ?");
@@ -254,7 +280,7 @@ impl PostMortemService {
     /// 收集贡献者
     async fn collect_contributors(&self, incident_id: &str) -> Result<Vec<String>> {
         let participants: Vec<(String,)> = sqlx::query_as(
-            "SELECT user_id FROM incident_participants WHERE incident_id = ? AND is_active = TRUE"
+            "SELECT user_id FROM incident_participants WHERE incident_id = ? AND is_active = TRUE",
         )
         .bind(incident_id)
         .fetch_all(self.db.pool())
@@ -265,11 +291,13 @@ impl PostMortemService {
 
     /// 生成时间线摘要
     async fn generate_timeline_summary(&self, incident_id: &str) -> Result<String> {
-        let entries: Vec<IncidentTimelineEntry> = sqlx::query_as::<_, IncidentTimelineEntry>(r#"
+        let entries: Vec<IncidentTimelineEntry> = sqlx::query_as::<_, IncidentTimelineEntry>(
+            r#"
             SELECT * FROM incident_timeline
             WHERE incident_id = ?
             ORDER BY created_at ASC
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -294,7 +322,10 @@ impl PostMortemService {
     }
 
     /// 生成建议的行动项
-    async fn generate_suggested_action_items(&self, incident: &Incident) -> Result<serde_json::Value> {
+    async fn generate_suggested_action_items(
+        &self,
+        incident: &Incident,
+    ) -> Result<serde_json::Value> {
         let mut items = Vec::new();
 
         // 基于事件类型生成建议
@@ -369,7 +400,11 @@ impl PostMortemService {
     }
 
     /// 自动分析复盘内容
-    async fn auto_analyze_post_mortem(&self, post_mortem_id: &str, incident: &Incident) -> Result<()> {
+    async fn auto_analyze_post_mortem(
+        &self,
+        post_mortem_id: &str,
+        incident: &Incident,
+    ) -> Result<()> {
         // 计算关键指标
         let metrics = self.calculate_incident_metrics(&incident.id).await?;
 
@@ -380,12 +415,14 @@ impl PostMortemService {
         let impact_analysis = self.generate_impact_analysis(&incident.id).await?;
 
         // 更新复盘
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE post_mortems SET
                 impact_analysis = ?,
                 resolution_steps = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(&impact_analysis)
         .bind(&resolution_steps)
         .bind(post_mortem_id)
@@ -399,13 +436,16 @@ impl PostMortemService {
 
     /// 计算事件指标
     async fn calculate_incident_metrics(&self, incident_id: &str) -> Result<IncidentMetrics> {
-        let incident: Incident = sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
-            .bind(incident_id)
-            .fetch_one(self.db.pool())
-            .await?;
+        let incident: Incident =
+            sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
+                .bind(incident_id)
+                .fetch_one(self.db.pool())
+                .await?;
 
         // 计算MTTR (Mean Time To Resolution)
-        let mttr_minutes = if let (Some(resolved_at), detected_at) = (incident.resolved_at, incident.detected_at) {
+        let mttr_minutes = if let (Some(resolved_at), detected_at) =
+            (incident.resolved_at, incident.detected_at)
+        {
             let duration = resolved_at.signed_duration_since(detected_at);
             Some(duration.num_minutes() as f64)
         } else {
@@ -413,7 +453,9 @@ impl PostMortemService {
         };
 
         // 计算确认时间
-        let time_to_ack = if let (Some(acknowledged_at), detected_at) = (incident.acknowledged_at, incident.detected_at) {
+        let time_to_ack = if let (Some(acknowledged_at), detected_at) =
+            (incident.acknowledged_at, incident.detected_at)
+        {
             let duration = acknowledged_at.signed_duration_since(detected_at);
             Some(duration.num_minutes() as f64)
         } else {
@@ -441,7 +483,7 @@ impl PostMortemService {
             },
             avg_time_to_acknowledge_minutes: time_to_ack.unwrap_or(0.0),
             avg_time_to_resolve_minutes: mttr_minutes.unwrap_or(0.0),
-            top_affected_services: vec![],  // 需要更多数据
+            top_affected_services: vec![], // 需要更多数据
             alert_storm_count: 0,
             false_positive_rate: 0.0,
         })
@@ -449,11 +491,13 @@ impl PostMortemService {
 
     /// 生成解决方案步骤
     async fn generate_resolution_steps(&self, incident_id: &str) -> Result<String> {
-        let entries: Vec<IncidentTimelineEntry> = sqlx::query_as::<_, IncidentTimelineEntry>(r#"
+        let entries: Vec<IncidentTimelineEntry> = sqlx::query_as::<_, IncidentTimelineEntry>(
+            r#"
             SELECT * FROM incident_timeline
             WHERE incident_id = ? AND entry_type IN ('action', 'automation', 'runbook_executed')
             ORDER BY created_at ASC
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -478,10 +522,11 @@ impl PostMortemService {
 
     /// 生成影响分析
     async fn generate_impact_analysis(&self, incident_id: &str) -> Result<String> {
-        let incident: Incident = sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
-            .bind(incident_id)
-            .fetch_one(self.db.pool())
-            .await?;
+        let incident: Incident =
+            sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
+                .bind(incident_id)
+                .fetch_one(self.db.pool())
+                .await?;
 
         let mut analysis = String::from("## 影响分析\n\n");
 
@@ -519,10 +564,11 @@ impl PostMortemService {
 
     /// 执行完整影响分析
     pub async fn analyze_impact(&self, incident_id: &str) -> Result<ImpactAnalysis> {
-        let incident: Incident = sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
-            .bind(incident_id)
-            .fetch_one(self.db.pool())
-            .await?;
+        let incident: Incident =
+            sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
+                .bind(incident_id)
+                .fetch_one(self.db.pool())
+                .await?;
 
         // 分析受影响服务器
         let affected_servers = self.analyze_affected_servers(&incident).await?;
@@ -531,18 +577,26 @@ impl PostMortemService {
         let affected_services = self.analyze_affected_services(&incident).await?;
 
         // 估算受影响用户
-        let affected_users = self.estimate_affected_users(&incident, &affected_services).await?;
+        let affected_users = self
+            .estimate_affected_users(&incident, &affected_services)
+            .await?;
 
         // 业务影响评估
-        let business_impact = self.assess_business_impact(&incident, &affected_services).await?;
+        let business_impact = self
+            .assess_business_impact(&incident, &affected_services)
+            .await?;
 
         // 估算停机时间
         let estimated_downtime = incident.resolved_at.map(|resolved| {
-            resolved.signed_duration_since(incident.detected_at).num_minutes()
+            resolved
+                .signed_duration_since(incident.detected_at)
+                .num_minutes()
         });
 
         // 财务影响估算
-        let financial_impact = self.estimate_financial_impact(&incident, estimated_downtime).await?;
+        let financial_impact = self
+            .estimate_financial_impact(&incident, estimated_downtime)
+            .await?;
 
         Ok(ImpactAnalysis {
             incident_id: incident_id.to_string(),
@@ -567,7 +621,10 @@ impl PostMortemService {
                     // 在实际实现中，这里会从服务器数据库获取详细信息
                     servers.push(AffectedServer {
                         server_id: server_id.clone(),
-                        server_name: format!("Server-{}", server_id[..8.min(server_id.len())].to_string()),
+                        server_name: format!(
+                            "Server-{}",
+                            server_id[..8.min(server_id.len())].to_string()
+                        ),
                         impact_level: ImpactLevel::Total,
                         services: vec![], // 需要从服务器配置获取
                     });
@@ -583,7 +640,8 @@ impl PostMortemService {
         let mut services = Vec::new();
 
         if let Some(services_json) = &incident.affected_services {
-            if let Ok(service_names) = serde_json::from_value::<Vec<String>>(services_json.clone()) {
+            if let Ok(service_names) = serde_json::from_value::<Vec<String>>(services_json.clone())
+            {
                 for service_name in service_names {
                     services.push(AffectedService {
                         service_name: service_name.clone(),
@@ -662,18 +720,24 @@ impl PostMortemService {
     }
 
     /// 生成AI改进建议
-    pub async fn generate_improvement_suggestions(&self, post_mortem_id: &str) -> Result<Vec<String>> {
+    pub async fn generate_improvement_suggestions(
+        &self,
+        post_mortem_id: &str,
+    ) -> Result<Vec<String>> {
         let post_mortem = self.get_post_mortem_by_id(post_mortem_id).await?;
-        let incident: Incident = sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
-            .bind(&post_mortem.incident_id)
-            .fetch_one(self.db.pool())
-            .await?;
+        let incident: Incident =
+            sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
+                .bind(&post_mortem.incident_id)
+                .fetch_one(self.db.pool())
+                .await?;
 
         let mut suggestions = Vec::new();
 
         // 基于MTTR的建议
         if let Some(resolved_at) = incident.resolved_at {
-            let mttr = resolved_at.signed_duration_since(incident.detected_at).num_minutes();
+            let mttr = resolved_at
+                .signed_duration_since(incident.detected_at)
+                .num_minutes();
 
             if mttr > 60 {
                 suggestions.push(format!(
@@ -683,13 +747,17 @@ impl PostMortemService {
             }
 
             if mttr > 15 && matches!(incident.severity, IncidentSeverity::Critical) {
-                suggestions.push("P1事件MTTR超过15分钟SLA，建议审查升级策略和响应团队可用性。".to_string());
+                suggestions.push(
+                    "P1事件MTTR超过15分钟SLA，建议审查升级策略和响应团队可用性。".to_string(),
+                );
             }
         }
 
         // 基于确认时间的建议
         if let Some(acknowledged_at) = incident.acknowledged_at {
-            let time_to_ack = acknowledged_at.signed_duration_since(incident.detected_at).num_minutes();
+            let time_to_ack = acknowledged_at
+                .signed_duration_since(incident.detected_at)
+                .num_minutes();
 
             if time_to_ack > 5 {
                 suggestions.push(format!(
@@ -698,7 +766,9 @@ impl PostMortemService {
                 ));
             }
         } else {
-            suggestions.push("事件未被及时确认，建议设置更严格的告警通知策略，包括短信和电话通知。".to_string());
+            suggestions.push(
+                "事件未被及时确认，建议设置更严格的告警通知策略，包括短信和电话通知。".to_string(),
+            );
         }
 
         // 基于事件类型的建议
@@ -710,7 +780,8 @@ impl PostMortemService {
                 suggestions.push("建议优化自动扩缩容策略，提前预防资源瓶颈。".to_string());
             }
             IncidentType::DiskFull => {
-                suggestions.push("建议实施自动存储管理策略，包括日志轮转和临时文件清理。".to_string());
+                suggestions
+                    .push("建议实施自动存储管理策略，包括日志轮转和临时文件清理。".to_string());
             }
             _ => {}
         }
@@ -725,15 +796,19 @@ impl PostMortemService {
     /// 生成复盘报告
     pub async fn generate_post_mortem_report(&self, post_mortem_id: &str) -> Result<String> {
         let post_mortem = self.get_post_mortem_by_id(post_mortem_id).await?;
-        let incident: Incident = sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
-            .bind(&post_mortem.incident_id)
-            .fetch_one(self.db.pool())
-            .await?;
+        let incident: Incident =
+            sqlx::query_as::<_, Incident>("SELECT * FROM incidents WHERE id = ?")
+                .bind(&post_mortem.incident_id)
+                .fetch_one(self.db.pool())
+                .await?;
 
         let impact = self.analyze_impact(&incident.id).await?;
-        let suggestions = self.generate_improvement_suggestions(post_mortem_id).await?;
+        let suggestions = self
+            .generate_improvement_suggestions(post_mortem_id)
+            .await?;
 
-        let report = format!(r#"# {} 事后复盘报告
+        let report = format!(
+            r#"# {} 事后复盘报告
 
 ## 基本信息
 - **事件编号:** {}
@@ -782,11 +857,25 @@ impl PostMortemService {
             post_mortem.root_cause_analysis,
             post_mortem.impact_analysis,
             impact.affected_servers.len(),
-            impact.affected_services.iter().map(|s| s.service_name.clone()).collect::<Vec<_>>().join(", "),
-            impact.affected_users.as_ref().map(|u| u.estimated_count.to_string()).unwrap_or_else(|| "未知".to_string()),
+            impact
+                .affected_services
+                .iter()
+                .map(|s| s.service_name.clone())
+                .collect::<Vec<_>>()
+                .join(", "),
+            impact
+                .affected_users
+                .as_ref()
+                .map(|u| u.estimated_count.to_string())
+                .unwrap_or_else(|| "未知".to_string()),
             post_mortem.resolution_steps,
             post_mortem.lessons_learned,
-            suggestions.iter().enumerate().map(|(i, s)| format!("{}. {}", i + 1, s)).collect::<Vec<_>>().join("\n")
+            suggestions
+                .iter()
+                .enumerate()
+                .map(|(i, s)| format!("{}. {}", i + 1, s))
+                .collect::<Vec<_>>()
+                .join("\n")
         );
 
         Ok(report)

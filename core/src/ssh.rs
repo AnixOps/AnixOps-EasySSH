@@ -248,7 +248,8 @@ impl ConnectionPool {
     /// Cleanup expired connections
     fn cleanup_expired(&mut self) {
         let before = self.connections.len();
-        self.connections.retain(|c| !c.is_expired(self.idle_timeout, self.max_age));
+        self.connections
+            .retain(|c| !c.is_expired(self.idle_timeout, self.max_age));
         let removed = before - self.connections.len();
         if removed > 0 {
             log::info!("SSH Pool: cleaned up {} expired connections", removed);
@@ -409,12 +410,7 @@ impl SshSessionManager {
             pool.cleanup_expired();
             let after = pool.len();
             if before != after {
-                log::info!(
-                    "SSH Pool {}: {} -> {} connections",
-                    key.host,
-                    before,
-                    after
-                );
+                log::info!("SSH Pool {}: {} -> {} connections", key.host, before, after);
             }
         }
 
@@ -436,14 +432,13 @@ impl SshSessionManager {
         let server_key = ServerKey::new(host, port, username);
 
         // Try to acquire from existing pool
-        let pool = self
-            .pools
-            .entry(server_key.clone())
-            .or_insert_with(|| ConnectionPool::new(
+        let pool = self.pools.entry(server_key.clone()).or_insert_with(|| {
+            ConnectionPool::new(
                 self.pool_max_connections,
                 self.pool_idle_timeout,
-                self.pool_max_age
-            ));
+                self.pool_max_age,
+            )
+        });
 
         if let Some(pool_idx) = pool.acquire() {
             // Reuse existing connection
@@ -468,7 +463,10 @@ impl SshSessionManager {
 
             log::info!(
                 "SSH MUX: Reused connection {}@{}:{} (pool_idx={})",
-                username, host, port, pool_idx
+                username,
+                host,
+                port,
+                pool_idx
             );
 
             return Ok(metadata);
@@ -478,8 +476,7 @@ impl SshSessionManager {
         let session = Self::create_session(host, port, username, password).await?;
 
         // Try to add to pool
-        let pool_idx = pool.add(session)
-            .ok_or_else(|| LiteError::SessionPoolFull)?;
+        let pool_idx = pool.add(session).ok_or(LiteError::SessionPoolFull)?;
 
         // Create separate SFTP connection
         let sftp_session = Self::create_session(host, port, username, password).await?;
@@ -505,7 +502,11 @@ impl SshSessionManager {
 
         log::info!(
             "SSH MUX: Created new connection {}@{}:{} (pool_idx={}, pool_size={})",
-            username, host, port, pool_idx, pool.len()
+            username,
+            host,
+            port,
+            pool_idx,
+            pool.len()
         );
 
         Ok(metadata)
@@ -524,34 +525,35 @@ impl SshSessionManager {
 
         tokio::task::spawn_blocking(move || {
             let addr = format!("{}:{}", host, port);
-            let tcp = TcpStream::connect(&addr)
-                .map_err(|e| LiteError::SshConnectionFailed {
-                    host: host.clone(),
-                    port,
-                    message: e.to_string(),
-                })?;
+            let tcp = TcpStream::connect(&addr).map_err(|e| LiteError::SshConnectionFailed {
+                host: host.clone(),
+                port,
+                message: e.to_string(),
+            })?;
 
             tcp.set_read_timeout(Some(Duration::from_secs(30)))
                 .map_err(|e| LiteError::Io(e.to_string()))?;
             tcp.set_write_timeout(Some(Duration::from_secs(30)))
                 .map_err(|e| LiteError::Io(e.to_string()))?;
 
-            let mut session = Session::new()
-                .map_err(|e| LiteError::Ssh(e.to_string()))?;
+            let mut session = Session::new().map_err(|e| LiteError::Ssh(e.to_string()))?;
             session.set_tcp_stream(tcp);
-            session.handshake()
+            session
+                .handshake()
                 .map_err(|e| LiteError::Ssh(format!("Handshake failed: {}", e)))?;
 
             match &password {
                 Some(pwd) => {
-                    session.userauth_password(&username, pwd)
-                        .map_err(|_| LiteError::SshAuthFailed {
+                    session.userauth_password(&username, pwd).map_err(|_| {
+                        LiteError::SshAuthFailed {
                             host: host.clone(),
                             username: username.clone(),
-                        })?;
+                        }
+                    })?;
                 }
                 None => {
-                    session.userauth_agent(&username)
+                    session
+                        .userauth_agent(&username)
                         .map_err(|_| LiteError::SshAuthFailed {
                             host: host.clone(),
                             username: username.clone(),
@@ -560,10 +562,7 @@ impl SshSessionManager {
             }
 
             if !session.authenticated() {
-                return Err(LiteError::SshAuthFailed {
-                    host,
-                    username,
-                });
+                return Err(LiteError::SshAuthFailed { host, username });
             }
 
             Ok(session)
@@ -574,13 +573,18 @@ impl SshSessionManager {
 
     /// Execute command on session
     pub async fn execute(&self, session_id: &str, command: &str) -> Result<String, LiteError> {
-        let user_session = self.user_sessions.get(session_id)
+        let user_session = self
+            .user_sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(session_id.to_string()))?;
 
-        let pool = self.pools.get(&user_session.server_key)
+        let pool = self
+            .pools
+            .get(&user_session.server_key)
             .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
-        let conn = pool.get(user_session.pool_idx)
+        let conn = pool
+            .get(user_session.pool_idx)
             .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
         let session = conn.session.clone();
@@ -595,10 +599,12 @@ impl SshSessionManager {
                 session_guard.set_blocking(true);
             }
 
-            let mut channel = session_guard.channel_session()
+            let mut channel = session_guard
+                .channel_session()
                 .map_err(|e| LiteError::SshChannelFailed(e.to_string()))?;
 
-            channel.exec(&command)
+            channel
+                .exec(&command)
                 .map_err(|e| LiteError::Ssh(format!("Exec failed: {}", e)))?;
 
             // Read with timeout
@@ -665,7 +671,10 @@ impl SshSessionManager {
                         || err_str.contains("connection refused");
 
                     if is_reset && attempt < max_retries {
-                        log::warn!("SSH connection reset, retrying... (attempt {})", attempt + 1);
+                        log::warn!(
+                            "SSH connection reset, retrying... (attempt {})",
+                            attempt + 1
+                        );
                         tokio::time::sleep(Duration::from_millis(500 * (attempt + 1) as u64)).await;
                         last_error = Some(e);
                     } else {
@@ -675,7 +684,7 @@ impl SshSessionManager {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| LiteError::SshTimeout))
+        Err(last_error.unwrap_or(LiteError::SshTimeout))
     }
 
     /// Start streaming shell session
@@ -689,13 +698,17 @@ impl SshSessionManager {
             self.create_shell_session(session_id).await?;
         }
 
-        let shell = self.shell_sessions.get(session_id)
+        let shell = self
+            .shell_sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(session_id.to_string()))?;
 
         // Send command
         if !command.is_empty() {
-            let cmd = format!("{}", command);
-            shell.stdin_tx.send(cmd.into_bytes())
+            let cmd = command.to_string();
+            shell
+                .stdin_tx
+                .send(cmd.into_bytes())
                 .map_err(|e| LiteError::Ssh(format!("Send failed: {}", e)))?;
         }
 
@@ -722,13 +735,18 @@ impl SshSessionManager {
 
     /// Create persistent shell session
     async fn create_shell_session(&mut self, session_id: &str) -> Result<(), LiteError> {
-        let user_session = self.user_sessions.get(session_id)
+        let user_session = self
+            .user_sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(session_id.to_string()))?;
 
-        let pool = self.pools.get(&user_session.server_key)
+        let pool = self
+            .pools
+            .get(&user_session.server_key)
             .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
-        let conn = pool.get(user_session.pool_idx)
+        let conn = pool
+            .get(user_session.pool_idx)
             .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
         let session = conn.session.clone();
@@ -836,10 +854,14 @@ impl SshSessionManager {
 
     /// Write to shell stdin
     pub async fn write_shell_input(&self, session_id: &str, input: &[u8]) -> Result<(), LiteError> {
-        let shell = self.shell_sessions.get(session_id)
+        let shell = self
+            .shell_sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(session_id.to_string()))?;
 
-        shell.stdin_tx.send(input.to_vec())
+        shell
+            .stdin_tx
+            .send(input.to_vec())
             .map_err(|e| LiteError::Ssh(format!("Send failed: {}", e)))?;
 
         Ok(())
@@ -888,7 +910,9 @@ impl SshSessionManager {
 
     /// Get SFTP session Arc for external use
     pub fn get_sftp_session_arc(&self, session_id: &str) -> Option<Arc<TokioMutex<Session>>> {
-        self.user_sessions.get(session_id).and_then(|s| s.sftp_session.clone())
+        self.user_sessions
+            .get(session_id)
+            .and_then(|s| s.sftp_session.clone())
     }
 
     /// Get main SSH session Arc for external use (e.g., port forwarding)
@@ -900,8 +924,14 @@ impl SshSessionManager {
     }
 
     /// Execute command via SFTP session channel (avoids shell channel conflicts)
-    pub async fn execute_via_sftp(&self, session_id: &str, command: &str) -> Result<String, LiteError> {
-        let user_session = self.user_sessions.get(session_id)
+    pub async fn execute_via_sftp(
+        &self,
+        session_id: &str,
+        command: &str,
+    ) -> Result<String, LiteError> {
+        let user_session = self
+            .user_sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(session_id.to_string()))?;
 
         // Use the dedicated SFTP session for command execution
@@ -916,10 +946,12 @@ impl SshSessionManager {
         tokio::task::spawn_blocking(move || {
             let session_guard = session_arc.blocking_lock();
 
-            let mut channel = session_guard.channel_session()
+            let mut channel = session_guard
+                .channel_session()
                 .map_err(|e| LiteError::Ssh(format!("SFTP channel failed: {}", e)))?;
 
-            channel.exec(&command)
+            channel
+                .exec(&command)
                 .map_err(|e| LiteError::Ssh(format!("SFTP exec failed: {}", e)))?;
 
             // Read with timeout
@@ -961,7 +993,9 @@ impl SshSessionManager {
 
     /// Create SFTP session
     pub async fn create_sftp(&self, session_id: &str) -> Result<Sftp, LiteError> {
-        let user_session = self.user_sessions.get(session_id)
+        let user_session = self
+            .user_sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(session_id.to_string()))?;
 
         // Use dedicated SFTP session if available
@@ -969,10 +1003,13 @@ impl SshSessionManager {
             sftp_session.clone()
         } else {
             // Fallback to main session
-            let pool = self.pools.get(&user_session.server_key)
+            let pool = self
+                .pools
+                .get(&user_session.server_key)
                 .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
-            let conn = pool.get(user_session.pool_idx)
+            let conn = pool
+                .get(user_session.pool_idx)
                 .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
             conn.session.clone()
@@ -980,7 +1017,8 @@ impl SshSessionManager {
 
         tokio::task::spawn_blocking(move || {
             let session = session_arc.blocking_lock();
-            session.sftp()
+            session
+                .sftp()
                 .map_err(|e| LiteError::Ssh(format!("SFTP creation failed: {}", e)))
         })
         .await
@@ -999,27 +1037,35 @@ impl SshSessionManager {
 
     /// Get session metadata
     pub fn get_metadata(&self, session_id: &str) -> Option<SessionMetadata> {
-        self.user_sessions.get(session_id).map(|s| s.metadata.clone())
+        self.user_sessions
+            .get(session_id)
+            .map(|s| s.metadata.clone())
     }
 
     /// Get pool statistics
     pub fn get_pool_stats(&self) -> PoolStats {
-        let pools: Vec<PoolInfo> = self.pools.iter().map(|(key, pool)| {
-            let connections: Vec<ConnectionInfo> = pool.connections.iter()
-                .map(|c| ConnectionInfo {
-                    age_secs: c.age_secs(),
-                    idle_secs: c.idle_secs(),
-                    health: format!("{:?}", c.health),
-                    busy: c.active_channels.load(Ordering::Relaxed),
-                })
-                .collect();
+        let pools: Vec<PoolInfo> = self
+            .pools
+            .iter()
+            .map(|(key, pool)| {
+                let connections: Vec<ConnectionInfo> = pool
+                    .connections
+                    .iter()
+                    .map(|c| ConnectionInfo {
+                        age_secs: c.age_secs(),
+                        idle_secs: c.idle_secs(),
+                        health: format!("{:?}", c.health),
+                        busy: c.active_channels.load(Ordering::Relaxed),
+                    })
+                    .collect();
 
-            PoolInfo {
-                server: format!("{}@{}:{}", key.username, key.host, key.port),
-                connection_count: pool.len(),
-                connections,
-            }
-        }).collect();
+                PoolInfo {
+                    server: format!("{}@{}:{}", key.username, key.host, key.port),
+                    connection_count: pool.len(),
+                    connections,
+                }
+            })
+            .collect();
 
         PoolStats {
             total_pools: pools.len(),
@@ -1030,13 +1076,18 @@ impl SshSessionManager {
 
     /// Check connection health
     pub async fn check_health(&self, session_id: &str) -> Result<ConnectionHealth, LiteError> {
-        let user_session = self.user_sessions.get(session_id)
+        let user_session = self
+            .user_sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(session_id.to_string()))?;
 
-        let pool = self.pools.get(&user_session.server_key)
+        let pool = self
+            .pools
+            .get(&user_session.server_key)
             .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
-        let conn = pool.get(user_session.pool_idx)
+        let conn = pool
+            .get(user_session.pool_idx)
             .ok_or_else(|| LiteError::SshSessionDisconnected(session_id.to_string()))?;
 
         let session = conn.session.clone();
@@ -1192,7 +1243,7 @@ pub fn strip_ansi_codes(input: &str) -> String {
                     chars.next();
                 }
             } else {
-                while let Some(ch) = chars.next() {
+                for ch in chars.by_ref() {
                     if (0x40..=0x7e).contains(&(ch as u8)) {
                         break;
                     }
@@ -1255,14 +1306,12 @@ mod tests {
         let info = PoolInfo {
             server: "192.168.1.1".to_string(),
             connection_count: 2,
-            connections: vec![
-                ConnectionInfo {
-                    age_secs: 10,
-                    idle_secs: 5,
-                    health: "healthy".to_string(),
-                    busy: false,
-                },
-            ],
+            connections: vec![ConnectionInfo {
+                age_secs: 10,
+                idle_secs: 5,
+                health: "healthy".to_string(),
+                busy: false,
+            }],
         };
         assert_eq!(info.server, "192.168.1.1");
         assert_eq!(info.connection_count, 2);
@@ -1420,8 +1469,7 @@ mod tests {
 
     #[test]
     fn test_ssh_session_manager_with_pool_config() {
-        let manager = SshSessionManager::new()
-            .with_pool_config(10, 600, 7200);
+        let manager = SshSessionManager::new().with_pool_config(10, 600, 7200);
 
         assert_eq!(manager.pool_max_connections, 10);
         assert_eq!(manager.pool_idle_timeout, 600);
@@ -1587,8 +1635,7 @@ mod tests {
 
     #[test]
     fn test_ssh_session_manager_with_pool_config_edge_cases() {
-        let manager = SshSessionManager::new()
-            .with_pool_config(0, 0, 0);
+        let manager = SshSessionManager::new().with_pool_config(0, 0, 0);
 
         assert_eq!(manager.pool_max_connections, 0);
         assert_eq!(manager.pool_idle_timeout, 0);

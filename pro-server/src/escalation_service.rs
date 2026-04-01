@@ -2,10 +2,10 @@
 //!
 //! 提供事件自动升级、升级策略管理、通知集成等功能
 
-use crate::incident_models::*;
 use crate::db::Database;
+use crate::incident_models::*;
 use crate::redis_cache::RedisCache;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -42,11 +42,13 @@ impl EscalationService {
                 .await?;
         }
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO escalation_policies (
                 id, name, team_id, is_default, rules, created_at, updated_at, is_active
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&policy_id)
         .bind(name)
         .bind(team_id)
@@ -65,21 +67,24 @@ impl EscalationService {
 
     /// 获取升级策略详情
     pub async fn get_policy_by_id(&self, policy_id: &str) -> Result<EscalationPolicy> {
-        let policy = sqlx::query_as::<_, EscalationPolicy>("SELECT * FROM escalation_policies WHERE id = ?")
-            .bind(policy_id)
-            .fetch_optional(self.db.pool())
-            .await?;
+        let policy =
+            sqlx::query_as::<_, EscalationPolicy>("SELECT * FROM escalation_policies WHERE id = ?")
+                .bind(policy_id)
+                .fetch_optional(self.db.pool())
+                .await?;
 
         policy.ok_or_else(|| anyhow!("Escalation policy not found: {}", policy_id))
     }
 
     /// 获取团队的升级策略列表
     pub async fn get_team_policies(&self, team_id: &str) -> Result<Vec<EscalationPolicy>> {
-        let policies = sqlx::query_as::<_, EscalationPolicy>(r#"
+        let policies = sqlx::query_as::<_, EscalationPolicy>(
+            r#"
             SELECT * FROM escalation_policies
             WHERE team_id = ? AND is_active = TRUE
             ORDER BY is_default DESC, created_at DESC
-        "#)
+        "#,
+        )
         .bind(team_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -89,11 +94,13 @@ impl EscalationService {
 
     /// 获取团队默认升级策略
     pub async fn get_default_policy(&self, team_id: &str) -> Result<Option<EscalationPolicy>> {
-        let policy = sqlx::query_as::<_, EscalationPolicy>(r#"
+        let policy = sqlx::query_as::<_, EscalationPolicy>(
+            r#"
             SELECT * FROM escalation_policies
             WHERE team_id = ? AND is_default = TRUE AND is_active = TRUE
             LIMIT 1
-        "#)
+        "#,
+        )
         .bind(team_id)
         .fetch_optional(self.db.pool())
         .await?;
@@ -121,11 +128,13 @@ impl EscalationService {
                 .await?;
         }
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE escalation_policies
             SET name = ?, rules = ?, is_default = ?, is_active = ?, updated_at = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(name.unwrap_or(&current.name))
         .bind(rules.map(|r| serde_json::json!(r)))
         .bind(is_default.unwrap_or(current.is_default))
@@ -172,17 +181,21 @@ impl EscalationService {
         let new_level = target_level.unwrap_or(current_level + 1);
 
         if new_level <= current_level {
-            return Err(anyhow!("Target escalation level must be higher than current level"));
+            return Err(anyhow!(
+                "Target escalation level must be higher than current level"
+            ));
         }
 
         let now = Utc::now();
 
         // 更新事件升级级别
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE incidents
             SET escalation_level = ?, status = 'escalated', updated_at = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(new_level)
         .bind(now)
         .bind(incident_id)
@@ -208,7 +221,10 @@ impl EscalationService {
         .await?;
 
         // 添加时间线条目
-        let timeline_entry = format!("事件从级别 {} 升级到级别 {}。原因: {}", current_level, new_level, reason);
+        let timeline_entry = format!(
+            "事件从级别 {} 升级到级别 {}。原因: {}",
+            current_level, new_level, reason
+        );
 
         sqlx::query(r#"
             INSERT INTO incident_timeline (id, incident_id, entry_type, title, description, created_by, created_at)
@@ -232,7 +248,8 @@ impl EscalationService {
         // 发送升级通知
         if let Some(users) = notify_users {
             for user_id in users {
-                self.send_escalation_notification(incident_id, &user_id, new_level).await?;
+                self.send_escalation_notification(incident_id, &user_id, new_level)
+                    .await?;
             }
         }
 
@@ -264,27 +281,36 @@ impl EscalationService {
             None => return Ok(None),
         };
 
-        let rules: Vec<EscalationRule> = serde_json::from_value(policy.rules.clone())
-            .unwrap_or_default();
+        let rules: Vec<EscalationRule> =
+            serde_json::from_value(policy.rules.clone()).unwrap_or_default();
 
         // 找到适用的下一级规则
-        let next_rule = rules.iter().find(|r| r.level == incident.escalation_level + 1);
+        let next_rule = rules
+            .iter()
+            .find(|r| r.level == incident.escalation_level + 1);
 
         if let Some(rule) = next_rule {
             // 检查升级条件
-            let should_escalate = self.evaluate_escalation_conditions(&incident, &rule.condition).await?;
+            let should_escalate = self
+                .evaluate_escalation_conditions(&incident, &rule.condition)
+                .await?;
 
             if should_escalate {
-                info!("Auto-escalating incident {} to level {}", incident_id, rule.level);
+                info!(
+                    "Auto-escalating incident {} to level {}",
+                    incident_id, rule.level
+                );
 
                 // 执行自动升级
-                let escalated = self.escalate_incident(
-                    incident_id,
-                    "system",
-                    "自动升级：达到升级策略条件",
-                    Some(rule.level),
-                    Some(rule.notify_users.clone()),
-                ).await?;
+                let escalated = self
+                    .escalate_incident(
+                        incident_id,
+                        "system",
+                        "自动升级：达到升级策略条件",
+                        Some(rule.level),
+                        Some(rule.notify_users.clone()),
+                    )
+                    .await?;
 
                 return Ok(Some(escalated));
             }
@@ -327,7 +353,10 @@ impl EscalationService {
                 }
             }
             _ => {
-                warn!("Unknown escalation condition type: {}", condition.condition_type);
+                warn!(
+                    "Unknown escalation condition type: {}",
+                    condition.condition_type
+                );
             }
         }
 
@@ -350,12 +379,17 @@ impl EscalationService {
     }
 
     /// 获取升级历史
-    pub async fn get_escalation_history(&self, incident_id: &str) -> Result<Vec<EscalationHistory>> {
-        let history = sqlx::query_as::<_, EscalationHistory>(r#"
+    pub async fn get_escalation_history(
+        &self,
+        incident_id: &str,
+    ) -> Result<Vec<EscalationHistory>> {
+        let history = sqlx::query_as::<_, EscalationHistory>(
+            r#"
             SELECT * FROM escalation_history
             WHERE incident_id = ?
             ORDER BY escalated_at ASC
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -376,11 +410,13 @@ impl EscalationService {
         let integration_id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO integration_configs (
                 id, team_id, provider, name, config, is_active, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&integration_id)
         .bind(team_id)
         .bind(provider.as_str())
@@ -392,28 +428,35 @@ impl EscalationService {
         .execute(self.db.pool())
         .await?;
 
-        info!("Created integration {}: {} ({:?})", integration_id, name, provider);
+        info!(
+            "Created integration {}: {} ({:?})",
+            integration_id, name, provider
+        );
 
         self.get_integration_by_id(&integration_id).await
     }
 
     /// 获取集成配置详情
     pub async fn get_integration_by_id(&self, integration_id: &str) -> Result<IntegrationConfig> {
-        let integration = sqlx::query_as::<_, IntegrationConfig>("SELECT * FROM integration_configs WHERE id = ?")
-            .bind(integration_id)
-            .fetch_optional(self.db.pool())
-            .await?;
+        let integration = sqlx::query_as::<_, IntegrationConfig>(
+            "SELECT * FROM integration_configs WHERE id = ?",
+        )
+        .bind(integration_id)
+        .fetch_optional(self.db.pool())
+        .await?;
 
         integration.ok_or_else(|| anyhow!("Integration not found: {}", integration_id))
     }
 
     /// 获取团队的所有集成配置
     pub async fn get_team_integrations(&self, team_id: &str) -> Result<Vec<IntegrationConfig>> {
-        let integrations = sqlx::query_as::<_, IntegrationConfig>(r#"
+        let integrations = sqlx::query_as::<_, IntegrationConfig>(
+            r#"
             SELECT * FROM integration_configs
             WHERE team_id = ?
             ORDER BY is_active DESC, created_at DESC
-        "#)
+        "#,
+        )
         .bind(team_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -427,10 +470,12 @@ impl EscalationService {
         team_id: &str,
         provider: &IntegrationProvider,
     ) -> Result<Vec<IntegrationConfig>> {
-        let integrations = sqlx::query_as::<_, IntegrationConfig>(r#"
+        let integrations = sqlx::query_as::<_, IntegrationConfig>(
+            r#"
             SELECT * FROM integration_configs
             WHERE team_id = ? AND provider = ? AND is_active = TRUE
-        "#)
+        "#,
+        )
         .bind(team_id)
         .bind(provider.as_str())
         .fetch_all(self.db.pool())
@@ -450,11 +495,13 @@ impl EscalationService {
         let now = Utc::now();
         let current = self.get_integration_by_id(integration_id).await?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE integration_configs
             SET name = ?, config = ?, is_active = ?, updated_at = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(name.unwrap_or(&current.name))
         .bind(config.unwrap_or(current.config.clone()))
         .bind(is_active.unwrap_or(current.is_active))
@@ -479,17 +526,16 @@ impl EscalationService {
             IntegrationProvider::OpsGenie => {
                 self.test_opsgenie_integration(&integration.config).await?
             }
-            IntegrationProvider::Slack => {
-                self.test_slack_integration(&integration.config).await?
-            }
-            IntegrationProvider::Teams => {
-                self.test_teams_integration(&integration.config).await?
-            }
+            IntegrationProvider::Slack => self.test_slack_integration(&integration.config).await?,
+            IntegrationProvider::Teams => self.test_teams_integration(&integration.config).await?,
             IntegrationProvider::Webhook => {
                 self.test_webhook_integration(&integration.config).await?
             }
             _ => {
-                info!("Test not implemented for provider {:?}", integration.provider);
+                info!(
+                    "Test not implemented for provider {:?}",
+                    integration.provider
+                );
                 true
             }
         };
@@ -498,11 +544,13 @@ impl EscalationService {
         let now = Utc::now();
         let status = if test_result { "success" } else { "failed" };
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE integration_configs
             SET last_tested_at = ?, last_test_status = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(now)
         .bind(status)
         .bind(integration_id)
@@ -603,22 +651,40 @@ impl EscalationService {
 
             let result = match integration.provider {
                 IntegrationProvider::PagerDuty => {
-                    self.send_pagerduty_notification(&integration.config, incident, &notification_type).await
+                    self.send_pagerduty_notification(
+                        &integration.config,
+                        incident,
+                        &notification_type,
+                    )
+                    .await
                 }
                 IntegrationProvider::OpsGenie => {
-                    self.send_opsgenie_notification(&integration.config, incident, &notification_type).await
+                    self.send_opsgenie_notification(
+                        &integration.config,
+                        incident,
+                        &notification_type,
+                    )
+                    .await
                 }
                 IntegrationProvider::Slack => {
-                    self.send_slack_notification(&integration.config, incident, &notification_type).await
+                    self.send_slack_notification(&integration.config, incident, &notification_type)
+                        .await
                 }
                 IntegrationProvider::Teams => {
-                    self.send_teams_notification(&integration.config, incident, &notification_type).await
+                    self.send_teams_notification(&integration.config, incident, &notification_type)
+                        .await
                 }
                 IntegrationProvider::Email => {
-                    self.send_email_notification(&integration.config, incident, &notification_type).await
+                    self.send_email_notification(&integration.config, incident, &notification_type)
+                        .await
                 }
                 IntegrationProvider::Webhook => {
-                    self.send_webhook_notification(&integration.config, incident, &notification_type).await
+                    self.send_webhook_notification(
+                        &integration.config,
+                        incident,
+                        &notification_type,
+                    )
+                    .await
                 }
                 _ => Ok(CommunicationResult {
                     success: false,
@@ -641,7 +707,9 @@ impl EscalationService {
         notification_type: &CommunicationType,
     ) -> Result<CommunicationResult> {
         // 构建PagerDuty事件
-        let routing_key = config.get("routing_key").and_then(|v| v.as_str())
+        let routing_key = config
+            .get("routing_key")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow!("Missing routing_key in PagerDuty config"))?;
 
         let action = match notification_type {
@@ -683,7 +751,9 @@ impl EscalationService {
         incident: &Incident,
         notification_type: &CommunicationType,
     ) -> Result<CommunicationResult> {
-        let api_key = config.get("api_key").and_then(|v| v.as_str())
+        let api_key = config
+            .get("api_key")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow!("Missing api_key in OpsGenie config"))?;
 
         let payload = serde_json::json!({
@@ -719,7 +789,9 @@ impl EscalationService {
         incident: &Incident,
         notification_type: &CommunicationType,
     ) -> Result<CommunicationResult> {
-        let webhook_url = config.get("webhook_url").and_then(|v| v.as_str())
+        let webhook_url = config
+            .get("webhook_url")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow!("Missing webhook_url in Slack config"))?;
 
         let color = match incident.severity {
@@ -773,7 +845,9 @@ impl EscalationService {
         incident: &Incident,
         notification_type: &CommunicationType,
     ) -> Result<CommunicationResult> {
-        let webhook_url = config.get("webhook_url").and_then(|v| v.as_str())
+        let webhook_url = config
+            .get("webhook_url")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow!("Missing webhook_url in Teams config"))?;
 
         let payload = serde_json::json!({
@@ -850,7 +924,9 @@ impl EscalationService {
         incident: &Incident,
         notification_type: &CommunicationType,
     ) -> Result<CommunicationResult> {
-        let url = config.get("url").and_then(|v| v.as_str())
+        let url = config
+            .get("url")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow!("Missing url in webhook config"))?;
 
         let payload = serde_json::json!({
@@ -860,7 +936,11 @@ impl EscalationService {
             "timestamp": Utc::now().to_rfc3339(),
         });
 
-        info!("Would send webhook notification to {}: {}", url, payload.to_string());
+        info!(
+            "Would send webhook notification to {}: {}",
+            url,
+            payload.to_string()
+        );
 
         Ok(CommunicationResult {
             success: true,

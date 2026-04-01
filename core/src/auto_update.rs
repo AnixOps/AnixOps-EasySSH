@@ -17,21 +17,21 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::interval;
 
+pub mod ab_testing;
+pub mod delta;
 pub mod platform;
+pub mod rollback;
 pub mod server;
 pub mod signature;
-pub mod delta;
-pub mod rollback;
-pub mod ab_testing;
 pub mod ui_integration;
 
+pub use ab_testing::AbTestManager;
+pub use delta::DeltaPatcher;
 pub use platform::PlatformUpdater;
+pub use rollback::RollbackManager;
 pub use server::UpdateServerClient;
 pub use signature::SignatureVerifier;
-pub use delta::DeltaPatcher;
-pub use rollback::RollbackManager;
-pub use ab_testing::AbTestManager;
-pub use ui_integration::{UpdateController, UpdateUiEvent, presets, init_auto_update};
+pub use ui_integration::{init_auto_update, presets, UpdateController, UpdateUiEvent};
 
 /// Current application version
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -225,10 +225,8 @@ impl AutoUpdater {
         let (progress_tx, progress_rx) = mpsc::channel(100);
 
         let signature_verifier = SignatureVerifier::new(&config.signature_public_key)?;
-        let rollback_manager = RollbackManager::new(
-            config.temp_dir.clone(),
-            config.rollback_backup_count,
-        ).await?;
+        let rollback_manager =
+            RollbackManager::new(config.temp_dir.clone(), config.rollback_backup_count).await?;
         let ab_manager = AbTestManager::new(config.ab_test_group.clone()).await?;
 
         let platform_updater = platform::create_platform_updater().await?;
@@ -262,9 +260,7 @@ impl AutoUpdater {
 
     /// Start background update checker
     pub async fn start_background_checker(self: Arc<Self>) {
-        let mut interval = interval(Duration::from_secs(
-            self.config.read().await.check_interval
-        ));
+        let mut interval = interval(Duration::from_secs(self.config.read().await.check_interval));
 
         loop {
             interval.tick().await;
@@ -298,7 +294,8 @@ impl AutoUpdater {
         state.is_background_checking = background;
         drop(state);
 
-        self.send_progress(UpdateStage::Checking, 0, 0, 0.0, "Checking for updates...").await;
+        self.send_progress(UpdateStage::Checking, 0, 0, 0.0, "Checking for updates...")
+            .await;
 
         let config = self.config.read().await;
         let current_version = &config.channel.to_string();
@@ -306,11 +303,10 @@ impl AutoUpdater {
         drop(config);
 
         // Query update server
-        let update_info = self.server_client.check_update(
-            CURRENT_VERSION,
-            current_version,
-            ab_group.as_deref(),
-        ).await?;
+        let update_info = self
+            .server_client
+            .check_update(CURRENT_VERSION, current_version, ab_group.as_deref())
+            .await?;
 
         let mut state = self.state.write().await;
         state.current_stage = UpdateStage::Idle;
@@ -320,7 +316,9 @@ impl AutoUpdater {
             // Check if version was skipped
             let config = self.config.read().await;
             if config.skipped_versions.contains(&info.version) {
-                return Ok(UpdateResult::Skipped { version: info.version });
+                return Ok(UpdateResult::Skipped {
+                    version: info.version,
+                });
             }
             drop(config);
 
@@ -357,16 +355,21 @@ impl AutoUpdater {
             self.platform_updater.get_package_extension()
         ));
 
-        self.send_progress(UpdateStage::Downloading, 0, info.size, 0.0, "Downloading update...").await;
+        self.send_progress(
+            UpdateStage::Downloading,
+            0,
+            info.size,
+            0.0,
+            "Downloading update...",
+        )
+        .await;
 
         // Download with progress
         let mut last_progress_time = std::time::Instant::now();
         let mut last_bytes = 0u64;
 
-        self.server_client.download_update(
-            &info.download_url,
-            &download_path,
-            |downloaded, total| {
+        self.server_client
+            .download_update(&info.download_url, &download_path, |downloaded, total| {
                 let now = std::time::Instant::now();
                 let elapsed = now.duration_since(last_progress_time).as_secs_f64();
 
@@ -396,20 +399,36 @@ impl AutoUpdater {
                     last_progress_time = now;
                     last_bytes = downloaded;
                 }
-            },
-        ).await?;
+            })
+            .await?;
 
         // Verify SHA256
-        self.send_progress(UpdateStage::Verifying, info.size, info.size, 100.0, "Verifying download...").await;
+        self.send_progress(
+            UpdateStage::Verifying,
+            info.size,
+            info.size,
+            100.0,
+            "Verifying download...",
+        )
+        .await;
 
         let sha256 = self.calculate_sha256(&download_path).await?;
         if sha256 != info.sha256 {
-            return Err(anyhow::anyhow!("SHA256 mismatch: expected {}, got {}", info.sha256, sha256));
+            return Err(anyhow::anyhow!(
+                "SHA256 mismatch: expected {}, got {}",
+                info.sha256,
+                sha256
+            ));
         }
 
         // Download and verify signature
-        let sig_path = temp_dir.join(format!("easyssh-{}-{}.sig", info.version, info.build_number));
-        self.server_client.download_signature(&info.signature_url, &sig_path).await?;
+        let sig_path = temp_dir.join(format!(
+            "easyssh-{}-{}.sig",
+            info.version, info.build_number
+        ));
+        self.server_client
+            .download_signature(&info.signature_url, &sig_path)
+            .await?;
 
         let sig_data = tokio::fs::read(&sig_path).await?;
         let package_data = tokio::fs::read(&download_path).await?;
@@ -422,25 +441,40 @@ impl AutoUpdater {
 
         // Handle delta updates
         if info.delta_available && info.delta_url.is_some() {
-            let delta_path = temp_dir.join(format!(
-                "easyssh-{}-delta.patch",
-                info.version
-            ));
+            let delta_path = temp_dir.join(format!("easyssh-{}-delta.patch", info.version));
 
-            self.send_progress(UpdateStage::Patching, 0, 100, 0.0, "Downloading delta patch...").await;
+            self.send_progress(
+                UpdateStage::Patching,
+                0,
+                100,
+                0.0,
+                "Downloading delta patch...",
+            )
+            .await;
 
-            self.server_client.download_update(
-                info.delta_url.as_ref().unwrap(),
-                &delta_path,
-                |_, _| {}, // Silent download for delta
-            ).await?;
+            self.server_client
+                .download_update(
+                    info.delta_url.as_ref().unwrap(),
+                    &delta_path,
+                    |_, _| {}, // Silent download for delta
+                )
+                .await?;
 
-            self.send_progress(UpdateStage::Patching, 50, 100, 50.0, "Applying delta patch...").await;
+            self.send_progress(
+                UpdateStage::Patching,
+                50,
+                100,
+                50.0,
+                "Applying delta patch...",
+            )
+            .await;
 
             // Apply delta patch to create full package
             let current_exe = std::env::current_exe()?;
             let delta_patcher = DeltaPatcher::new()?;
-            delta_patcher.apply_patch(&current_exe, &delta_path, &download_path).await?;
+            delta_patcher
+                .apply_patch(&current_exe, &delta_path, &download_path)
+                .await?;
         }
 
         let mut state = self.state.write().await;
@@ -452,19 +486,39 @@ impl AutoUpdater {
     }
 
     /// Install update
-    pub async fn install_update(&self, info: &UpdateInfo, package_path: &Path) -> anyhow::Result<()> {
+    pub async fn install_update(
+        &self,
+        info: &UpdateInfo,
+        package_path: &Path,
+    ) -> anyhow::Result<()> {
         let mut state = self.state.write().await;
         state.current_stage = UpdateStage::Installing;
         state.is_installing = true;
         drop(state);
 
-        self.send_progress(UpdateStage::Installing, 0, 100, 0.0, "Creating backup for rollback...").await;
+        self.send_progress(
+            UpdateStage::Installing,
+            0,
+            100,
+            0.0,
+            "Creating backup for rollback...",
+        )
+        .await;
 
         // Create rollback backup
         let current_exe = std::env::current_exe()?;
-        self.rollback_manager.create_backup(&current_exe, &info.version).await?;
+        self.rollback_manager
+            .create_backup(&current_exe, &info.version)
+            .await?;
 
-        self.send_progress(UpdateStage::Installing, 25, 100, 25.0, "Installing update...").await;
+        self.send_progress(
+            UpdateStage::Installing,
+            25,
+            100,
+            25.0,
+            "Installing update...",
+        )
+        .await;
 
         // Platform-specific installation
         match self.platform_updater.install_update(package_path).await {
@@ -476,7 +530,14 @@ impl AutoUpdater {
             }
             Err(e) => {
                 // Trigger rollback
-                self.send_progress(UpdateStage::RollingBack, 0, 100, 0.0, "Installation failed, rolling back...").await;
+                self.send_progress(
+                    UpdateStage::RollingBack,
+                    0,
+                    100,
+                    0.0,
+                    "Installation failed, rolling back...",
+                )
+                .await;
 
                 if let Err(rollback_err) = self.rollback_manager.rollback().await {
                     log::error!("Rollback failed: {}", rollback_err);
@@ -492,12 +553,18 @@ impl AutoUpdater {
     }
 
     /// Handle user response to update prompt
-    pub async fn handle_user_response(&self, response: UpdateResponse, info: &UpdateInfo) -> anyhow::Result<UpdateResult> {
+    pub async fn handle_user_response(
+        &self,
+        response: UpdateResponse,
+        info: &UpdateInfo,
+    ) -> anyhow::Result<UpdateResult> {
         match response {
             UpdateResponse::InstallNow => {
                 let path = self.download_update(info).await?;
                 self.install_update(info, &path).await?;
-                Ok(UpdateResult::UpdateInstalled { version: info.version.clone() })
+                Ok(UpdateResult::UpdateInstalled {
+                    version: info.version.clone(),
+                })
             }
             UpdateResponse::InstallLater => {
                 let mut config = self.config.write().await;
@@ -505,10 +572,13 @@ impl AutoUpdater {
                     SystemTime::now()
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
-                        .as_secs() + 86400 // 24 hours
+                        .as_secs()
+                        + 86400, // 24 hours
                 );
                 drop(config);
-                Ok(UpdateResult::RemindLater { version: info.version.clone() })
+                Ok(UpdateResult::RemindLater {
+                    version: info.version.clone(),
+                })
             }
             UpdateResponse::SkipVersion => {
                 let mut config = self.config.write().await;
@@ -516,7 +586,9 @@ impl AutoUpdater {
                     config.skipped_versions.push(info.version.clone());
                 }
                 drop(config);
-                Ok(UpdateResult::Skipped { version: info.version.clone() })
+                Ok(UpdateResult::Skipped {
+                    version: info.version.clone(),
+                })
             }
         }
     }
@@ -561,9 +633,11 @@ impl AutoUpdater {
             Ok(version) => {
                 let mut state = self.state.write().await;
                 state.current_stage = UpdateStage::Idle;
-                Ok(UpdateResult::RolledBack { previous_version: version })
+                Ok(UpdateResult::RolledBack {
+                    previous_version: version,
+                })
             }
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
@@ -583,7 +657,9 @@ impl AutoUpdater {
     // Helper methods
     async fn get_temp_dir(&self) -> anyhow::Result<PathBuf> {
         let config = self.config.read().await;
-        let temp_dir = config.temp_dir.clone()
+        let temp_dir = config
+            .temp_dir
+            .clone()
             .unwrap_or_else(|| std::env::temp_dir().join("easyssh-updates"));
         drop(config);
 
@@ -592,7 +668,7 @@ impl AutoUpdater {
     }
 
     async fn calculate_sha256(&self, path: &Path) -> anyhow::Result<String> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         use tokio::io::AsyncReadExt;
 
         let mut file = tokio::fs::File::open(path).await?;
@@ -611,7 +687,14 @@ impl AutoUpdater {
         Ok(format!("{:x}", result))
     }
 
-    async fn send_progress(&self, stage: UpdateStage, bytes: u64, total: u64, percentage: f32, message: &str) {
+    async fn send_progress(
+        &self,
+        stage: UpdateStage,
+        bytes: u64,
+        total: u64,
+        percentage: f32,
+        message: &str,
+    ) {
         let _ = self.progress_tx.try_send(UpdateProgress {
             stage,
             bytes_downloaded: bytes,
@@ -624,7 +707,10 @@ impl AutoUpdater {
     }
 
     fn is_version_below_minimum(&self, current: &str, minimum: &str) -> bool {
-        match (semver::Version::parse(current), semver::Version::parse(minimum)) {
+        match (
+            semver::Version::parse(current),
+            semver::Version::parse(minimum),
+        ) {
             (Ok(current), Ok(minimum)) => current < minimum,
             _ => false,
         }

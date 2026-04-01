@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
+use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{info, error, debug};
-use futures_util::{SinkExt, StreamExt};
+use tracing::{debug, error, info};
 
 use crate::viewmodels::AppViewModel;
 
@@ -19,7 +19,8 @@ pub struct UiDebugState {
     pub command_input_len: usize,
 }
 
-static UI_DEBUG_STATE: std::sync::OnceLock<std::sync::Mutex<UiDebugState>> = std::sync::OnceLock::new();
+static UI_DEBUG_STATE: std::sync::OnceLock<std::sync::Mutex<UiDebugState>> =
+    std::sync::OnceLock::new();
 
 pub fn update_ui_debug(
     is_connected: bool,
@@ -277,7 +278,13 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                 if let Some(server) = servers.iter().find(|s| s.id == id) {
                     let session_id = uuid::Uuid::new_v4().to_string();
 
-                    match vm.connect(&session_id, &server.host, server.port, &server.username, password) {
+                    match vm.connect(
+                        &session_id,
+                        &server.host,
+                        server.port,
+                        &server.username,
+                        password,
+                    ) {
                         Ok(_) => {
                             // initialize persistent shell stream
                             let _ = vm.execute_stream(&session_id, "");
@@ -290,12 +297,12 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                                 })),
                                 error: None,
                             }
-                        },
+                        }
                         Err(e) => WsResponse {
                             success: false,
                             data: None,
                             error: Some(format!("Connection failed: {}", e)),
-                        }
+                        },
                     }
                 } else {
                     WsResponse {
@@ -328,7 +335,7 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                         success: false,
                         data: None,
                         error: Some(format!("Disconnect failed: {}", e)),
-                    }
+                    },
                 }
             } else {
                 // 断开所有会话
@@ -361,7 +368,7 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                         success: false,
                         data: None,
                         error: Some(format!("Command write failed: {}", e)),
-                    }
+                    },
                 }
             } else {
                 WsResponse {
@@ -418,37 +425,41 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
             }
         }
 
-        "get_status" => {
-            WsResponse {
-                success: true,
-                data: Some(serde_json::json!({
-                    "status": "running",
-                    "version": "0.3.0"
-                })),
-                error: None,
-            }
-        }
+        "get_status" => WsResponse {
+            success: true,
+            data: Some(serde_json::json!({
+                "status": "running",
+                "version": "0.3.0"
+            })),
+            error: None,
+        },
 
-        "ping" => {
-            WsResponse {
-                success: true,
-                data: Some(serde_json::json!({
-                    "pong": true,
-                    "timestamp_ms": std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_millis())
-                        .unwrap_or(0)
-                })),
-                error: None,
-            }
-        }
+        "ping" => WsResponse {
+            success: true,
+            data: Some(serde_json::json!({
+                "pong": true,
+                "timestamp_ms": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0)
+            })),
+            error: None,
+        },
 
         "add_server" => {
             let name = cmd.params.get("name").and_then(|v| v.as_str());
             let host = cmd.params.get("host").and_then(|v| v.as_str());
-            let port = cmd.params.get("port").and_then(|v| v.as_i64()).unwrap_or(22);
+            let port = cmd
+                .params
+                .get("port")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(22);
             let username = cmd.params.get("username").and_then(|v| v.as_str());
-            let auth_type = cmd.params.get("auth_type").and_then(|v| v.as_str()).unwrap_or("password");
+            let auth_type = cmd
+                .params
+                .get("auth_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("password");
 
             if let (Some(name), Some(host), Some(username)) = (name, host, username) {
                 let vm = view_model.lock().unwrap();
@@ -462,7 +473,7 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                         success: false,
                         data: None,
                         error: Some(format!("Failed to add server: {}", e)),
-                    }
+                    },
                 }
             } else {
                 WsResponse {
@@ -488,7 +499,7 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                         success: false,
                         data: None,
                         error: Some(format!("Failed to delete server: {}", e)),
-                    }
+                    },
                 }
             } else {
                 WsResponse {
@@ -515,7 +526,7 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                         success: false,
                         data: None,
                         error: Some(format!("Failed to save password: {}", e)),
-                    }
+                    },
                 }
             } else {
                 WsResponse {
@@ -544,7 +555,7 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                         success: true,
                         data: Some(serde_json::json!({"has_password": false})),
                         error: None,
-                    }
+                    },
                 }
             } else {
                 WsResponse {
@@ -557,7 +568,11 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
 
         "automation_probe" => {
             let server_id = cmd.params.get("server_id").and_then(|v| v.as_str());
-            let password = cmd.params.get("password").and_then(|v| v.as_str()).unwrap_or("");
+            let password = cmd
+                .params
+                .get("password")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
 
             let mut checks = vec![];
 
@@ -595,7 +610,9 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                 }));
             }
 
-            let all_ok = checks.iter().all(|c| c.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+            let all_ok = checks
+                .iter()
+                .all(|c| c.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
 
             WsResponse {
                 success: all_ok,
@@ -603,7 +620,11 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
                     "all_ok": all_ok,
                     "checks": checks,
                 })),
-                error: if all_ok { None } else { Some("One or more probes failed".to_string()) },
+                error: if all_ok {
+                    None
+                } else {
+                    Some("One or more probes failed".to_string())
+                },
             }
         }
 
@@ -611,7 +632,7 @@ async fn handle_command(cmd: WsCommand, view_model: &Arc<Mutex<AppViewModel>>) -
             success: false,
             data: None,
             error: Some(format!("Unknown command: {}", cmd.command)),
-        }
+        },
     }
 }
 

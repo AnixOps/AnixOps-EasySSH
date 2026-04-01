@@ -1,6 +1,8 @@
 //! Backup compression and encryption
 
-use super::{BackupError, BackupResult, CompressionFormat, EncryptionAlgorithm, EncryptionSettings};
+use super::{
+    BackupError, BackupResult, CompressionFormat, EncryptionAlgorithm, EncryptionSettings,
+};
 use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
@@ -19,24 +21,41 @@ pub fn compress_data(data: &[u8], format: CompressionFormat, level: u32) -> Back
     match format {
         CompressionFormat::Gzip => {
             let mut encoder = GzEncoder::new(Vec::new(), Compression::new(level));
-            encoder.write_all(data).map_err(|e| BackupError::Compression(e.to_string()))?;
-            encoder.finish().map_err(|e| BackupError::Compression(e.to_string()))
+            encoder
+                .write_all(data)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
+            encoder
+                .finish()
+                .map_err(|e| BackupError::Compression(e.to_string()))
         }
         CompressionFormat::Zstd => {
             let mut encoder = ZstdEncoder::new(Vec::new(), level as i32)
                 .map_err(|e| BackupError::Compression(e.to_string()))?;
-            encoder.write_all(data).map_err(|e| BackupError::Compression(e.to_string()))?;
-            encoder.finish().map_err(|e| BackupError::Compression(e.to_string()))
+            encoder
+                .write_all(data)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
+            encoder
+                .finish()
+                .map_err(|e| BackupError::Compression(e.to_string()))
         }
         CompressionFormat::Bzip2 => {
-            let mut encoder = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::new(level));
-            encoder.write_all(data).map_err(|e| BackupError::Compression(e.to_string()))?;
-            encoder.finish().map_err(|e| BackupError::Compression(e.to_string()))
+            let mut encoder =
+                bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::new(level));
+            encoder
+                .write_all(data)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
+            encoder
+                .finish()
+                .map_err(|e| BackupError::Compression(e.to_string()))
         }
         CompressionFormat::Xz => {
             let mut encoder = xz2::write::XzEncoder::new(Vec::new(), level as u32);
-            encoder.write_all(data).map_err(|e| BackupError::Compression(e.to_string()))?;
-            encoder.finish().map_err(|e| BackupError::Compression(e.to_string()))
+            encoder
+                .write_all(data)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
+            encoder
+                .finish()
+                .map_err(|e| BackupError::Compression(e.to_string()))
         }
         CompressionFormat::Tar | CompressionFormat::Zip => {
             // Tar and Zip need directory context, just pass through for now
@@ -51,25 +70,34 @@ pub fn decompress_data(data: &[u8], format: CompressionFormat) -> BackupResult<V
         CompressionFormat::Gzip => {
             let mut decoder = GzDecoder::new(data);
             let mut result = Vec::new();
-            decoder.read_to_end(&mut result).map_err(|e| BackupError::Compression(e.to_string()))?;
+            decoder
+                .read_to_end(&mut result)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
             Ok(result)
         }
         CompressionFormat::Zstd => {
-            let mut decoder = ZstdDecoder::new(data).map_err(|e| BackupError::Compression(e.to_string()))?;
+            let mut decoder =
+                ZstdDecoder::new(data).map_err(|e| BackupError::Compression(e.to_string()))?;
             let mut result = Vec::new();
-            decoder.read_to_end(&mut result).map_err(|e| BackupError::Compression(e.to_string()))?;
+            decoder
+                .read_to_end(&mut result)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
             Ok(result)
         }
         CompressionFormat::Bzip2 => {
             let mut decoder = bzip2::read::BzDecoder::new(data);
             let mut result = Vec::new();
-            decoder.read_to_end(&mut result).map_err(|e| BackupError::Compression(e.to_string()))?;
+            decoder
+                .read_to_end(&mut result)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
             Ok(result)
         }
         CompressionFormat::Xz => {
             let mut decoder = xz2::read::XzDecoder::new(data);
             let mut result = Vec::new();
-            decoder.read_to_end(&mut result).map_err(|e| BackupError::Compression(e.to_string()))?;
+            decoder
+                .read_to_end(&mut result)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
             Ok(result)
         }
         CompressionFormat::Tar | CompressionFormat::Zip => {
@@ -94,7 +122,9 @@ pub async fn compress_directory(
             builder
                 .append_dir_all(".", source)
                 .map_err(|e| BackupError::Compression(e.to_string()))?;
-            builder.finish().map_err(|e| BackupError::Compression(e.to_string()))?;
+            builder
+                .finish()
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
         }
         CompressionFormat::Zip => {
             let mut zip = zip::ZipWriter::new(file);
@@ -112,13 +142,15 @@ pub async fn compress_directory(
                     zip.start_file_from_path(relative_path, options)
                         .map_err(|e| BackupError::Compression(e.to_string()))?;
                     let contents = tokio::fs::read(path).await.map_err(BackupError::Io)?;
-                    zip.write_all(&contents).map_err(|e| BackupError::Compression(e.to_string()))?;
+                    zip.write_all(&contents)
+                        .map_err(|e| BackupError::Compression(e.to_string()))?;
                 } else if path.is_dir() && relative_path.as_os_str().len() > 0 {
                     zip.add_directory_from_path(relative_path, options)
                         .map_err(|e| BackupError::Compression(e.to_string()))?;
                 }
             }
-            zip.finish().map_err(|e| BackupError::Compression(e.to_string()))?;
+            zip.finish()
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
         }
         _ => {
             // For other formats, create tar first then compress
@@ -128,12 +160,18 @@ pub async fn compress_directory(
                 builder
                     .append_dir_all(".", source)
                     .map_err(|e| BackupError::Compression(e.to_string()))?;
-                builder.finish().map_err(|e| BackupError::Compression(e.to_string()))?;
+                builder
+                    .finish()
+                    .map_err(|e| BackupError::Compression(e.to_string()))?;
             }
 
-            let tar_data = tokio::fs::read(temp_tar.path()).await.map_err(BackupError::Io)?;
+            let tar_data = tokio::fs::read(temp_tar.path())
+                .await
+                .map_err(BackupError::Io)?;
             let compressed = compress_data(&tar_data, format, level)?;
-            tokio::fs::write(output, compressed).await.map_err(BackupError::Io)?;
+            tokio::fs::write(output, compressed)
+                .await
+                .map_err(BackupError::Io)?;
         }
     }
 
@@ -147,34 +185,48 @@ pub async fn decompress_archive(
     output: &Path,
     format: CompressionFormat,
 ) -> BackupResult<()> {
-    tokio::fs::create_dir_all(output).await.map_err(BackupError::Io)?;
+    tokio::fs::create_dir_all(output)
+        .await
+        .map_err(BackupError::Io)?;
 
     match format {
         CompressionFormat::Tar => {
             let file = std::fs::File::open(source).map_err(BackupError::Io)?;
             let mut archive = tar::Archive::new(file);
-            archive.unpack(output).map_err(|e| BackupError::Compression(e.to_string()))?;
+            archive
+                .unpack(output)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
         }
         CompressionFormat::Zip => {
             let file = std::fs::File::open(source).map_err(BackupError::Io)?;
-            let mut archive = zip::ZipArchive::new(file).map_err(|e| BackupError::Compression(e.to_string()))?;
+            let mut archive =
+                zip::ZipArchive::new(file).map_err(|e| BackupError::Compression(e.to_string()))?;
 
             for i in 0..archive.len() {
-                let mut file = archive.by_index(i).map_err(|e| BackupError::Compression(e.to_string()))?;
+                let mut file = archive
+                    .by_index(i)
+                    .map_err(|e| BackupError::Compression(e.to_string()))?;
                 let outpath = match file.enclosed_name() {
                     Some(path) => output.join(path),
                     None => continue,
                 };
 
                 if file.name().ends_with('/') {
-                    tokio::fs::create_dir_all(&outpath).await.map_err(BackupError::Io)?;
+                    tokio::fs::create_dir_all(&outpath)
+                        .await
+                        .map_err(BackupError::Io)?;
                 } else {
                     if let Some(p) = outpath.parent() {
-                        tokio::fs::create_dir_all(p).await.map_err(BackupError::Io)?;
+                        tokio::fs::create_dir_all(p)
+                            .await
+                            .map_err(BackupError::Io)?;
                     }
-                    let mut outfile = tokio::fs::File::create(&outpath).await.map_err(BackupError::Io)?;
+                    let mut outfile = tokio::fs::File::create(&outpath)
+                        .await
+                        .map_err(BackupError::Io)?;
                     let mut buffer = Vec::new();
-                    file.read_to_end(&mut buffer).map_err(|e| BackupError::Compression(e.to_string()))?;
+                    file.read_to_end(&mut buffer)
+                        .map_err(|e| BackupError::Compression(e.to_string()))?;
                     outfile.write_all(&buffer).await.map_err(BackupError::Io)?;
                 }
             }
@@ -185,11 +237,15 @@ pub async fn decompress_archive(
             let tar_data = decompress_data(&compressed_data, format)?;
 
             let temp_tar = tempfile::NamedTempFile::new().map_err(BackupError::Io)?;
-            tokio::fs::write(temp_tar.path(), tar_data).await.map_err(BackupError::Io)?;
+            tokio::fs::write(temp_tar.path(), tar_data)
+                .await
+                .map_err(BackupError::Io)?;
 
             let file = std::fs::File::open(temp_tar.path()).map_err(BackupError::Io)?;
             let mut archive = tar::Archive::new(file);
-            archive.unpack(output).map_err(|e| BackupError::Compression(e.to_string()))?;
+            archive
+                .unpack(output)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
         }
     }
 
@@ -209,7 +265,9 @@ pub async fn compress_backup(
         let data = tokio::fs::read(source).await.map_err(BackupError::Io)?;
         let compressed = compress_data(&data, format, level)?;
         let len = compressed.len() as u64;
-        tokio::fs::write(output, compressed).await.map_err(BackupError::Io)?;
+        tokio::fs::write(output, compressed)
+            .await
+            .map_err(BackupError::Io)?;
         Ok(len)
     }
 }
@@ -220,12 +278,17 @@ pub async fn decompress_backup(
     output: &Path,
     format: CompressionFormat,
 ) -> BackupResult<()> {
-    if format == CompressionFormat::Tar || format == CompressionFormat::Zip || source.extension().and_then(|s| s.to_str()) == Some("tar") {
+    if format == CompressionFormat::Tar
+        || format == CompressionFormat::Zip
+        || source.extension().and_then(|s| s.to_str()) == Some("tar")
+    {
         decompress_archive(source, output, format).await
     } else {
         let compressed_data = tokio::fs::read(source).await.map_err(BackupError::Io)?;
         let decompressed = decompress_data(&compressed_data, format)?;
-        tokio::fs::write(output, decompressed).await.map_err(BackupError::Io)?;
+        tokio::fs::write(output, decompressed)
+            .await
+            .map_err(BackupError::Io)?;
         Ok(())
     }
 }
@@ -234,11 +297,12 @@ pub async fn decompress_backup(
 pub fn derive_key(password: &str, salt: &[u8], algorithm: EncryptionAlgorithm) -> Vec<u8> {
     match algorithm {
         EncryptionAlgorithm::Aes256Gcm => {
-            use argon2::{Argon2, PasswordHasher};
             use argon2::password_hash::SaltString;
+            use argon2::{Argon2, PasswordHasher};
 
             let argon2 = Argon2::default();
-            let salt_string = SaltString::encode_b64(salt).unwrap_or_else(|_| SaltString::from_b64("AAAAAAAA").unwrap());
+            let salt_string = SaltString::encode_b64(salt)
+                .unwrap_or_else(|_| SaltString::from_b64("AAAAAAAA").unwrap());
             let password_hash = argon2
                 .hash_password(password.as_bytes(), &salt_string)
                 .expect("Failed to hash password");
@@ -247,11 +311,12 @@ pub fn derive_key(password: &str, salt: &[u8], algorithm: EncryptionAlgorithm) -
         }
         EncryptionAlgorithm::ChaCha20Poly1305 => {
             // Same key derivation
-            use argon2::{Argon2, PasswordHasher};
             use argon2::password_hash::SaltString;
+            use argon2::{Argon2, PasswordHasher};
 
             let argon2 = Argon2::default();
-            let salt_string = SaltString::encode_b64(salt).unwrap_or_else(|_| SaltString::from_b64("AAAAAAAA").unwrap());
+            let salt_string = SaltString::encode_b64(salt)
+                .unwrap_or_else(|_| SaltString::from_b64("AAAAAAAA").unwrap());
             let password_hash = argon2
                 .hash_password(password.as_bytes(), &salt_string)
                 .expect("Failed to hash password");
@@ -262,7 +327,11 @@ pub fn derive_key(password: &str, salt: &[u8], algorithm: EncryptionAlgorithm) -
 }
 
 /// Encrypt data with AES-256-GCM
-pub fn encrypt_data(data: &[u8], key: &[u8], algorithm: EncryptionAlgorithm) -> BackupResult<Vec<u8>> {
+pub fn encrypt_data(
+    data: &[u8],
+    key: &[u8],
+    algorithm: EncryptionAlgorithm,
+) -> BackupResult<Vec<u8>> {
     match algorithm {
         EncryptionAlgorithm::Aes256Gcm => {
             let cipher = Aes256Gcm::new_from_slice(key)
@@ -306,9 +375,15 @@ pub fn encrypt_data(data: &[u8], key: &[u8], algorithm: EncryptionAlgorithm) -> 
 }
 
 /// Decrypt data with AES-256-GCM
-pub fn decrypt_data(encrypted_data: &[u8], key: &[u8], algorithm: EncryptionAlgorithm) -> BackupResult<Vec<u8>> {
+pub fn decrypt_data(
+    encrypted_data: &[u8],
+    key: &[u8],
+    algorithm: EncryptionAlgorithm,
+) -> BackupResult<Vec<u8>> {
     if encrypted_data.len() < 12 {
-        return Err(BackupError::Encryption("Invalid encrypted data".to_string()));
+        return Err(BackupError::Encryption(
+            "Invalid encrypted data".to_string(),
+        ));
     }
 
     let nonce_bytes = &encrypted_data[..12];
@@ -366,7 +441,9 @@ pub async fn encrypt_backup(
     result.extend_from_slice(&salt);
     result.extend_from_slice(&encrypted);
 
-    tokio::fs::write(output, result).await.map_err(BackupError::Io)?;
+    tokio::fs::write(output, result)
+        .await
+        .map_err(BackupError::Io)?;
 
     let metadata = std::fs::metadata(output).map_err(BackupError::Io)?;
     Ok(metadata.len())
@@ -382,7 +459,9 @@ pub async fn decrypt_backup(
     let data = tokio::fs::read(source).await.map_err(BackupError::Io)?;
 
     if data.len() < 16 {
-        return Err(BackupError::Encryption("Invalid encrypted file".to_string()));
+        return Err(BackupError::Encryption(
+            "Invalid encrypted file".to_string(),
+        ));
     }
 
     // Extract salt
@@ -395,7 +474,9 @@ pub async fn decrypt_backup(
     // Decrypt data
     let decrypted = decrypt_data(encrypted, &key, algorithm)?;
 
-    tokio::fs::write(output, decrypted).await.map_err(BackupError::Io)?;
+    tokio::fs::write(output, decrypted)
+        .await
+        .map_err(BackupError::Io)?;
 
     Ok(encrypted.len() as u64)
 }
@@ -451,17 +532,28 @@ pub struct StreamingCompressor<R: AsyncRead> {
 
 impl<R: AsyncRead + Unpin> StreamingCompressor<R> {
     pub fn new(reader: R, format: CompressionFormat, level: u32) -> Self {
-        Self { reader, format, level: level.clamp(1, 9) }
+        Self {
+            reader,
+            format,
+            level: level.clamp(1, 9),
+        }
     }
 
-    pub async fn compress_to<W: AsyncWrite + Unpin>(&mut self, writer: &mut W) -> BackupResult<u64> {
+    pub async fn compress_to<W: AsyncWrite + Unpin>(
+        &mut self,
+        writer: &mut W,
+    ) -> BackupResult<u64> {
         let mut buffer = vec![0u8; 65536];
         let mut total_written = 0u64;
 
         // For streaming, we'll read all and compress (simplified)
         let mut data = Vec::new();
         loop {
-            let n = self.reader.read(&mut buffer).await.map_err(BackupError::Io)?;
+            let n = self
+                .reader
+                .read(&mut buffer)
+                .await
+                .map_err(BackupError::Io)?;
             if n == 0 {
                 break;
             }
@@ -469,7 +561,10 @@ impl<R: AsyncRead + Unpin> StreamingCompressor<R> {
         }
 
         let compressed = compress_data(&data, self.format, self.level)?;
-        writer.write_all(&compressed).await.map_err(BackupError::Io)?;
+        writer
+            .write_all(&compressed)
+            .await
+            .map_err(BackupError::Io)?;
         total_written += compressed.len() as u64;
 
         Ok(total_written)
@@ -527,13 +622,23 @@ mod tests {
 
         // Create test directory structure
         tokio::fs::create_dir_all(&source_dir).await.unwrap();
-        tokio::fs::write(source_dir.join("file1.txt"), "content1").await.unwrap();
-        tokio::fs::write(source_dir.join("file2.txt"), "content2").await.unwrap();
-        tokio::fs::create_dir_all(source_dir.join("subdir")).await.unwrap();
-        tokio::fs::write(source_dir.join("subdir/file3.txt"), "content3").await.unwrap();
+        tokio::fs::write(source_dir.join("file1.txt"), "content1")
+            .await
+            .unwrap();
+        tokio::fs::write(source_dir.join("file2.txt"), "content2")
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(source_dir.join("subdir"))
+            .await
+            .unwrap();
+        tokio::fs::write(source_dir.join("subdir/file3.txt"), "content3")
+            .await
+            .unwrap();
 
         // Compress
-        let size = compress_directory(&source_dir, &output_file, CompressionFormat::Gzip, 6).await.unwrap();
+        let size = compress_directory(&source_dir, &output_file, CompressionFormat::Gzip, 6)
+            .await
+            .unwrap();
         assert!(size > 0);
         assert!(output_file.exists());
     }

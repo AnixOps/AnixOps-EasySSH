@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{Mutex as TokioMutex};
+use tokio::sync::Mutex as TokioMutex;
 use tokio::task::JoinHandle;
 
 /// Remote desktop protocol types
@@ -391,7 +391,8 @@ impl RemoteDesktopManager {
         };
 
         self.sessions.insert(session_id.clone(), session.clone());
-        self.stop_flags.insert(session_id, Arc::new(AtomicBool::new(false)));
+        self.stop_flags
+            .insert(session_id, Arc::new(AtomicBool::new(false)));
 
         Ok(session)
     }
@@ -402,40 +403,41 @@ impl RemoteDesktopManager {
         session_id: &str,
         tunnel_config: &SshTunnelConfig,
     ) -> Result<u16, LiteError> {
-        use std::net::TcpStream;
         use std::io::{Read, Write};
+        use std::net::TcpStream;
 
         // Create SSH connection
         let addr = format!("{}:{}", tunnel_config.ssh_host, tunnel_config.ssh_port);
-        let tcp = TcpStream::connect(&addr)
-            .map_err(|e| LiteError::SshConnectionFailed {
-                host: tunnel_config.ssh_host.clone(),
-                port: tunnel_config.ssh_port,
-                message: e.to_string(),
-            })?;
+        let tcp = TcpStream::connect(&addr).map_err(|e| LiteError::SshConnectionFailed {
+            host: tunnel_config.ssh_host.clone(),
+            port: tunnel_config.ssh_port,
+            message: e.to_string(),
+        })?;
 
         tcp.set_read_timeout(Some(Duration::from_secs(30)))
             .map_err(|e| LiteError::Io(e.to_string()))?;
         tcp.set_write_timeout(Some(Duration::from_secs(30)))
             .map_err(|e| LiteError::Io(e.to_string()))?;
 
-        let mut session = ssh2::Session::new()
-            .map_err(|e| LiteError::Ssh(e.to_string()))?;
+        let mut session = ssh2::Session::new().map_err(|e| LiteError::Ssh(e.to_string()))?;
         session.set_tcp_stream(tcp);
-        session.handshake()
+        session
+            .handshake()
             .map_err(|e| LiteError::Ssh(format!("Handshake failed: {}", e)))?;
 
         // Authenticate
         match &tunnel_config.ssh_password {
             Some(pwd) if tunnel_config.ssh_auth_type == "password" => {
-                session.userauth_password(&tunnel_config.ssh_username, pwd)
+                session
+                    .userauth_password(&tunnel_config.ssh_username, pwd)
                     .map_err(|_| LiteError::SshAuthFailed {
                         host: tunnel_config.ssh_host.clone(),
                         username: tunnel_config.ssh_username.clone(),
                     })?;
             }
             _ => {
-                session.userauth_agent(&tunnel_config.ssh_username)
+                session
+                    .userauth_agent(&tunnel_config.ssh_username)
                     .map_err(|_| LiteError::SshAuthFailed {
                         host: tunnel_config.ssh_host.clone(),
                         username: tunnel_config.ssh_username.clone(),
@@ -461,19 +463,22 @@ impl RemoteDesktopManager {
         let remote_port = tunnel_config.remote_port;
         let session_arc = Arc::new(TokioMutex::new(session));
         let session_clone = session_arc.clone();
-        let stop_flag = self.stop_flags.get(session_id)
+        let stop_flag = self
+            .stop_flags
+            .get(session_id)
             .ok_or_else(|| LiteError::SessionNotFound(session_id.to_string()))?
             .clone();
 
         // Start tunnel forwarding
         let handle = tokio::spawn(async move {
-            let listener = match tokio::net::TcpListener::bind(format!("127.0.0.1:{}", local_port)).await {
-                Ok(l) => l,
-                Err(e) => {
-                    log::error!("Failed to bind local port {}: {}", local_port, e);
-                    return;
-                }
-            };
+            let listener =
+                match tokio::net::TcpListener::bind(format!("127.0.0.1:{}", local_port)).await {
+                    Ok(l) => l,
+                    Err(e) => {
+                        log::error!("Failed to bind local port {}: {}", local_port, e);
+                        return;
+                    }
+                };
 
             log::info!("SSH tunnel listening on port {}", local_port);
 
@@ -557,7 +562,12 @@ impl RemoteDesktopManager {
                                     match channel.read(&mut remote_buf) {
                                         Ok(0) => break,
                                         Ok(n) => {
-                                            if std::io::Write::write_all(&mut local_stream, &remote_buf[..n]).is_err() {
+                                            if std::io::Write::write_all(
+                                                &mut local_stream,
+                                                &remote_buf[..n],
+                                            )
+                                            .is_err()
+                                            {
                                                 break;
                                             }
                                         }
@@ -681,11 +691,14 @@ impl RemoteDesktopManager {
 
         // Ensure directory exists
         if let Some(parent) = std::path::Path::new(&output_path).parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| LiteError::Io(format!("Failed to create recording directory: {}", e)))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                LiteError::Io(format!("Failed to create recording directory: {}", e))
+            })?;
         }
 
-        let stop_flag = self.stop_flags.get(session_id)
+        let stop_flag = self
+            .stop_flags
+            .get(session_id)
             .ok_or_else(|| LiteError::SessionNotFound(session_id.to_string()))?
             .clone();
 
@@ -712,7 +725,8 @@ impl RemoteDesktopManager {
             _handle: handle,
         };
 
-        self.recording_sessions.insert(session_id.to_string(), recording);
+        self.recording_sessions
+            .insert(session_id.to_string(), recording);
 
         // Update session
         if let Some(session) = self.sessions.get_mut(session_id) {
@@ -726,7 +740,9 @@ impl RemoteDesktopManager {
 
     /// Stop session recording
     pub async fn stop_recording(&mut self, session_id: &str) -> Result<String, LiteError> {
-        let recording = self.recording_sessions.remove(session_id)
+        let recording = self
+            .recording_sessions
+            .remove(session_id)
             .ok_or_else(|| LiteError::RecordingError("No active recording".to_string()))?;
 
         // Update session
@@ -755,14 +771,17 @@ impl RemoteDesktopManager {
 
     /// Get recording duration
     pub fn get_recording_duration(&self, session_id: &str) -> Option<Duration> {
-        self.recording_sessions.get(session_id)
+        self.recording_sessions
+            .get(session_id)
             .map(|r| r.start_time.elapsed())
     }
 
     /// Generate FreeRDP command line arguments
     #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
     pub fn generate_freerdp_args(&self, session_id: &str) -> Result<Vec<String>, LiteError> {
-        let session = self.sessions.get(session_id)
+        let session = self
+            .sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SessionNotFound(session_id.to_string()))?;
 
         let settings = &session.settings;
@@ -869,7 +888,10 @@ impl RemoteDesktopManager {
         // Experience settings
         let exp = &settings.experience;
         if exp.auto_reconnect {
-            args.push(format!("/auto-reconnect-max-attempts:{}", exp.auto_reconnect_max_attempts));
+            args.push(format!(
+                "/auto-reconnect-max-attempts:{}",
+                exp.auto_reconnect_max_attempts
+            ));
         }
 
         // Gateway
@@ -894,7 +916,9 @@ impl RemoteDesktopManager {
 
     /// Generate TigerVNC command line arguments
     pub fn generate_vnc_args(&self, session_id: &str) -> Result<Vec<String>, LiteError> {
-        let session = self.sessions.get(session_id)
+        let session = self
+            .sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::SessionNotFound(session_id.to_string()))?;
 
         let settings = &session.settings;
@@ -943,7 +967,8 @@ impl RemoteDesktopManager {
 
     /// Cleanup expired sessions
     pub fn cleanup(&mut self) {
-        let to_remove: Vec<String> = self.sessions
+        let to_remove: Vec<String> = self
+            .sessions
             .iter()
             .filter(|(_, s)| s.status == SessionStatus::Disconnected)
             .map(|(id, _)| id.clone())
@@ -966,7 +991,9 @@ impl RemoteDesktopManager {
     pub fn active_session_count(&self) -> usize {
         self.sessions
             .values()
-            .filter(|s| s.status == SessionStatus::Connected || s.status == SessionStatus::Recording)
+            .filter(|s| {
+                s.status == SessionStatus::Connected || s.status == SessionStatus::Recording
+            })
             .count()
     }
 }
@@ -979,10 +1006,12 @@ impl Default for RemoteDesktopManager {
 
 /// Find an available local port
 async fn find_available_port() -> Result<u16, LiteError> {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
         .map_err(|e| LiteError::Io(format!("Failed to find available port: {}", e)))?;
 
-    let addr = listener.local_addr()
+    let addr = listener
+        .local_addr()
         .map_err(|e| LiteError::Io(format!("Failed to get local address: {}", e)))?;
 
     // Drop the listener so the port becomes available
@@ -999,7 +1028,10 @@ async fn find_available_port() -> Result<u16, LiteError> {
 pub fn generate_mstsc_rdp_file(settings: &RemoteDesktopSettings) -> Result<String, LiteError> {
     let mut rdp_content = String::new();
 
-    rdp_content.push_str(&format!("full address:s:{}:{}\n", settings.host, settings.port));
+    rdp_content.push_str(&format!(
+        "full address:s:{}:{}\n",
+        settings.host, settings.port
+    ));
     rdp_content.push_str(&format!("username:s:{}\n", settings.username));
 
     if let Some(domain) = &settings.domain {
@@ -1028,18 +1060,24 @@ pub fn generate_mstsc_rdp_file(settings: &RemoteDesktopSettings) -> Result<Strin
         rdp_content.push_str("dynamic resolution:i:1\n");
     }
 
-    rdp_content.push_str(&format!("desktopscalefactor:i:{}\n", display.desktop_scale_factor));
+    rdp_content.push_str(&format!(
+        "desktopscalefactor:i:{}\n",
+        display.desktop_scale_factor
+    ));
 
     // Performance settings
     let perf = &settings.performance;
-    rdp_content.push_str(&format!("connection type:i:{}\n", match perf.connection_type {
-        ConnectionType::Modem => 1,
-        ConnectionType::LowSpeedBroadband => 2,
-        ConnectionType::Satellite => 3,
-        ConnectionType::HighSpeedBroadband => 4,
-        ConnectionType::Wan => 5,
-        ConnectionType::Lan => 6,
-    }));
+    rdp_content.push_str(&format!(
+        "connection type:i:{}\n",
+        match perf.connection_type {
+            ConnectionType::Modem => 1,
+            ConnectionType::LowSpeedBroadband => 2,
+            ConnectionType::Satellite => 3,
+            ConnectionType::HighSpeedBroadband => 4,
+            ConnectionType::Wan => 5,
+            ConnectionType::Lan => 6,
+        }
+    ));
 
     if perf.disable_wallpaper {
         rdp_content.push_str("disable wallpaper:i:1\n");
@@ -1061,16 +1099,28 @@ pub fn generate_mstsc_rdp_file(settings: &RemoteDesktopSettings) -> Result<Strin
     let local_res = &settings.local_resources;
 
     // Clipboard
-    rdp_content.push_str(&format!("redirectclipboard:i:{}\n", if local_res.clipboard { 1 } else { 0 }));
+    rdp_content.push_str(&format!(
+        "redirectclipboard:i:{}\n",
+        if local_res.clipboard { 1 } else { 0 }
+    ));
 
     // Printers
-    rdp_content.push_str(&format!("redirectprinters:i:{}\n", if local_res.printer { 1 } else { 0 }));
+    rdp_content.push_str(&format!(
+        "redirectprinters:i:{}\n",
+        if local_res.printer { 1 } else { 0 }
+    ));
 
     // Smart cards
-    rdp_content.push_str(&format!("redirectsmartcards:i:{}\n", if local_res.smart_cards { 1 } else { 0 }));
+    rdp_content.push_str(&format!(
+        "redirectsmartcards:i:{}\n",
+        if local_res.smart_cards { 1 } else { 0 }
+    ));
 
     // COM ports
-    rdp_content.push_str(&format!("redirectcomports:i:{}\n", if local_res.ports { 1 } else { 0 }));
+    rdp_content.push_str(&format!(
+        "redirectcomports:i:{}\n",
+        if local_res.ports { 1 } else { 0 }
+    ));
 
     // Drives
     match local_res.drives {
@@ -1087,13 +1137,19 @@ pub fn generate_mstsc_rdp_file(settings: &RemoteDesktopSettings) -> Result<Strin
     }
 
     // Audio
-    rdp_content.push_str(&format!("audiomode:i:{}\n", match local_res.audio {
-        AudioRedirectionMode::Server => 0,
-        AudioRedirectionMode::Client => 1,
-        AudioRedirectionMode::DoNotPlay => 2,
-    }));
+    rdp_content.push_str(&format!(
+        "audiomode:i:{}\n",
+        match local_res.audio {
+            AudioRedirectionMode::Server => 0,
+            AudioRedirectionMode::Client => 1,
+            AudioRedirectionMode::DoNotPlay => 2,
+        }
+    ));
 
-    rdp_content.push_str(&format!("audiocapturemode:i:{}\n", if local_res.microphone { 1 } else { 0 }));
+    rdp_content.push_str(&format!(
+        "audiocapturemode:i:{}\n",
+        if local_res.microphone { 1 } else { 0 }
+    ));
 
     // Video capture
     if local_res.video_capture {
@@ -1102,29 +1158,59 @@ pub fn generate_mstsc_rdp_file(settings: &RemoteDesktopSettings) -> Result<Strin
 
     // Experience
     let exp = &settings.experience;
-    rdp_content.push_str(&format!("allow desktop composition:i:{}\n", if exp.desktop_composition { 1 } else { 0 }));
-    rdp_content.push_str(&format!("allow font smoothing:i:{}\n", if exp.font_smoothing { 1 } else { 0 }));
-    rdp_content.push_str(&format!("disable full window drag:i:{}\n", if exp.show_window_contents { 0 } else { 1 }));
-    rdp_content.push_str(&format!("disable menu anims:i:{}\n", if exp.menu_window_animation { 0 } else { 1 }));
-    rdp_content.push_str(&format!("disable themes:i:{}\n", if exp.visual_styles { 0 } else { 1 }));
-    rdp_content.push_str(&format!("disable wallpaper:i:{}\n", if exp.desktop_background { 0 } else { 1 }));
+    rdp_content.push_str(&format!(
+        "allow desktop composition:i:{}\n",
+        if exp.desktop_composition { 1 } else { 0 }
+    ));
+    rdp_content.push_str(&format!(
+        "allow font smoothing:i:{}\n",
+        if exp.font_smoothing { 1 } else { 0 }
+    ));
+    rdp_content.push_str(&format!(
+        "disable full window drag:i:{}\n",
+        if exp.show_window_contents { 0 } else { 1 }
+    ));
+    rdp_content.push_str(&format!(
+        "disable menu anims:i:{}\n",
+        if exp.menu_window_animation { 0 } else { 1 }
+    ));
+    rdp_content.push_str(&format!(
+        "disable themes:i:{}\n",
+        if exp.visual_styles { 0 } else { 1 }
+    ));
+    rdp_content.push_str(&format!(
+        "disable wallpaper:i:{}\n",
+        if exp.desktop_background { 0 } else { 1 }
+    ));
 
-    rdp_content.push_str(&format!("autoreconnection enabled:i:{}\n", if exp.auto_reconnect { 1 } else { 0 }));
-    rdp_content.push_str(&format!("autoreconnect max retries:i:{}\n", exp.auto_reconnect_max_attempts));
+    rdp_content.push_str(&format!(
+        "autoreconnection enabled:i:{}\n",
+        if exp.auto_reconnect { 1 } else { 0 }
+    ));
+    rdp_content.push_str(&format!(
+        "autoreconnect max retries:i:{}\n",
+        exp.auto_reconnect_max_attempts
+    ));
 
     // Gateway
     if let Some(gateway) = &settings.gateway {
         rdp_content.push_str(&format!("gatewayhostname:s:{}\n", gateway.server));
-        rdp_content.push_str(&format!("gatewayusagemethod:i:{}\n",
-            if gateway.bypass_for_local { 2 } else { 1 }));
-        rdp_content.push_str(&format!("gatewaycredentialssource:i:{}\n",
-            if gateway.use_cached_credentials { 1 } else { 0 }));
-        rdp_content.push_str(&format!("gatewayprofileusagemethod:i:{}\n",
+        rdp_content.push_str(&format!(
+            "gatewayusagemethod:i:{}\n",
+            if gateway.bypass_for_local { 2 } else { 1 }
+        ));
+        rdp_content.push_str(&format!(
+            "gatewaycredentialssource:i:{}\n",
+            if gateway.use_cached_credentials { 1 } else { 0 }
+        ));
+        rdp_content.push_str(&format!(
+            "gatewayprofileusagemethod:i:{}\n",
             match gateway.logon_method {
                 GatewayLogonMethod::AllowUserToSelect => 0,
                 GatewayLogonMethod::AskForPassword => 1,
                 GatewayLogonMethod::SmartCard => 2,
-            }));
+            }
+        ));
 
         match gateway.auth_method {
             GatewayAuthMethod::Password => {
@@ -1161,7 +1247,8 @@ pub async fn launch_windows_rdp(settings: &RemoteDesktopSettings) -> Result<(), 
     let temp_dir = std::env::temp_dir();
     let rdp_file = temp_dir.join(format!("easyssh_{}.rdp", uuid::Uuid::new_v4()));
 
-    tokio::fs::write(&rdp_file, rdp_content).await
+    tokio::fs::write(&rdp_file, rdp_content)
+        .await
         .map_err(|e| LiteError::Io(format!("Failed to write RDP file: {}", e)))?;
 
     // Launch mstsc
@@ -1187,7 +1274,10 @@ pub async fn launch_windows_rdp(settings: &RemoteDesktopSettings) -> Result<(), 
 }
 
 /// Launch FreeRDP connection
-pub async fn launch_freerdp(session_id: &str, manager: &RemoteDesktopManager) -> Result<(), LiteError> {
+pub async fn launch_freerdp(
+    session_id: &str,
+    manager: &RemoteDesktopManager,
+) -> Result<(), LiteError> {
     use std::process::Command;
 
     let args = manager.generate_freerdp_args(session_id)?;
@@ -1343,7 +1433,13 @@ mod tests {
 
     #[test]
     fn test_audio_redirection_modes() {
-        assert!(matches!(AudioRedirectionMode::Client, AudioRedirectionMode::Client));
-        assert!(matches!(AudioRedirectionMode::Server, AudioRedirectionMode::Server));
+        assert!(matches!(
+            AudioRedirectionMode::Client,
+            AudioRedirectionMode::Client
+        ));
+        assert!(matches!(
+            AudioRedirectionMode::Server,
+            AudioRedirectionMode::Server
+        ));
     }
 }

@@ -4,19 +4,19 @@
 
 use eframe::egui;
 
-pub mod syntax_highlighter;
 pub mod code_folding;
-pub mod multi_cursor;
-pub mod minimap;
-pub mod find_replace;
 pub mod diff_view;
-pub mod lsp_client;
 pub mod editor_theme;
-pub mod remote_editor;
 pub mod embedded_terminal;
+pub mod find_replace;
+pub mod lsp_client;
+pub mod minimap;
+pub mod multi_cursor;
+pub mod remote_editor;
+pub mod syntax_highlighter;
 
-pub use syntax_highlighter::Language;
 pub use editor_theme::{EditorTheme, ThemeManager};
+pub use syntax_highlighter::Language;
 
 /// Code editor
 pub struct CodeEditor {

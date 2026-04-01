@@ -13,7 +13,7 @@ use crate::error::LiteError;
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
 use std::collections::HashMap;
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -569,14 +569,19 @@ impl PortForwardManager {
             // that just keeps the session alive while the forward is active
             // The actual implementation would need proper channel handling
 
-            info!("Remote forward setup requested for port {} -> {}", remote_port, local_addr);
+            info!(
+                "Remote forward setup requested for port {} -> {}",
+                remote_port, local_addr
+            );
 
             // Keep this thread alive to maintain the forward
             // In a full implementation, this would handle incoming connections
             std::thread::sleep(Duration::from_secs(1));
 
             Ok::<(), LiteError>(())
-        }).await.map_err(|e| LiteError::Io(format!("Remote forward task failed: {}", e)))?;
+        })
+        .await
+        .map_err(|e| LiteError::Io(format!("Remote forward task failed: {}", e)))?;
 
         Ok(())
     }
@@ -913,10 +918,12 @@ async fn handle_local_forward_connection(
         let remote_host = remote_host.to_string();
         move || {
             let session = ssh_session.blocking_lock();
-            session.channel_direct_tcpip(&remote_host, remote_port, None)
+            session
+                .channel_direct_tcpip(&remote_host, remote_port, None)
                 .map_err(|e| LiteError::Ssh(format!("Direct TCP/IP failed: {}", e)))
         }
-    }).await;
+    })
+    .await;
 
     match result {
         Ok(Ok(mut channel)) => {
@@ -1033,7 +1040,9 @@ async fn handle_socks_connection(
 
     if cmd != 1 {
         // CONNECT only
-        let _ = client_stream.write_all(&[5, 7, 0, 1, 0, 0, 0, 0, 0, 0]).await;
+        let _ = client_stream
+            .write_all(&[5, 7, 0, 1, 0, 0, 0, 0, 0, 0])
+            .await;
         return;
     }
 
@@ -1077,7 +1086,9 @@ async fn handle_socks_connection(
             (domain.to_string(), port)
         }
         _ => {
-            let _ = client_stream.write_all(&[5, 8, 0, 1, 0, 0, 0, 0, 0, 0]).await;
+            let _ = client_stream
+                .write_all(&[5, 8, 0, 1, 0, 0, 0, 0, 0, 0])
+                .await;
             return;
         }
     };
@@ -1094,10 +1105,12 @@ async fn handle_socks_connection(
         let ssh_session = ssh_session.clone();
         move || {
             let session = ssh_session.blocking_lock();
-            session.channel_direct_tcpip(&dest_host, dest_port, None)
+            session
+                .channel_direct_tcpip(&dest_host, dest_port, None)
                 .map_err(|e| LiteError::Ssh(format!("SOCKS direct TCP/IP failed: {}", e)))
         }
-    }).await;
+    })
+    .await;
 
     match result {
         Ok(Ok(mut channel)) => {
@@ -1425,8 +1438,14 @@ mod tests {
 
     #[test]
     fn test_topology_edge_types() {
-        assert_eq!(TopologyEdgeType::LocalForward, TopologyEdgeType::LocalForward);
-        assert_ne!(TopologyEdgeType::LocalForward, TopologyEdgeType::DynamicForward);
+        assert_eq!(
+            TopologyEdgeType::LocalForward,
+            TopologyEdgeType::LocalForward
+        );
+        assert_ne!(
+            TopologyEdgeType::LocalForward,
+            TopologyEdgeType::DynamicForward
+        );
     }
 
     #[test]

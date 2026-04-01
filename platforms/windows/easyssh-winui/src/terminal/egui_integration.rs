@@ -9,13 +9,13 @@
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use egui::{Ui, Color32, Rounding, Stroke, Key, Response};
+use egui::{Color32, Key, Response, Rounding, Stroke, Ui};
 use raw_window_handle::WindowHandle;
 use tracing::{debug, info, warn};
-use wry::{WebView, Rect as WryRect};
+use wry::{Rect as WryRect, WebView};
 
-use super::webgl_terminal::{WebGlTerminal, TerminalConfig, RenderStats};
 use super::clipboard::SharedClipboard;
+use super::webgl_terminal::{RenderStats, TerminalConfig, WebGlTerminal};
 
 /// Message types for WebView <-> egui communication
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -25,12 +25,23 @@ pub enum TerminalMessage {
     Binary(Vec<u8>),
     SelectionChange(String),
     RenderStats(RenderStats),
-    Resize { cols: usize, rows: usize },
+    Resize {
+        cols: usize,
+        rows: usize,
+    },
     Selection(String),
     Options(serde_json::Value),
-    Ready { cols: usize, rows: usize },
-    ClipboardRequest { action: ClipboardAction },
-    ClipboardResponse { action: ClipboardAction, data: Option<String> },
+    Ready {
+        cols: usize,
+        rows: usize,
+    },
+    ClipboardRequest {
+        action: ClipboardAction,
+    },
+    ClipboardResponse {
+        action: ClipboardAction,
+        data: Option<String>,
+    },
 }
 
 /// Clipboard actions
@@ -99,7 +110,11 @@ impl EguiWebGlTerminal {
     }
 
     /// Initialize WebView for this terminal
-    pub fn init_webview(&mut self, _window_handle: WindowHandle, _rect: WryRect) -> anyhow::Result<()> {
+    pub fn init_webview(
+        &mut self,
+        _window_handle: WindowHandle,
+        _rect: WryRect,
+    ) -> anyhow::Result<()> {
         if self.webview.is_some() {
             return Ok(());
         }
@@ -117,10 +132,7 @@ impl EguiWebGlTerminal {
                 "type": "write",
                 "data": data
             });
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         } else {
             // Queue for later
             if let Ok(mut queue) = self.pending_output.lock() {
@@ -141,10 +153,7 @@ impl EguiWebGlTerminal {
     pub fn clear(&mut self) {
         if let Some(webview) = &self.webview {
             let msg = serde_json::json!({"type": "clear"});
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
         self.terminal.lock().unwrap().clear();
     }
@@ -153,10 +162,7 @@ impl EguiWebGlTerminal {
     pub fn reset(&mut self) {
         if let Some(webview) = &self.webview {
             let msg = serde_json::json!({"type": "reset"});
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
         self.terminal.lock().unwrap().reset();
     }
@@ -165,10 +171,7 @@ impl EguiWebGlTerminal {
     pub fn focus(&mut self) {
         if let Some(webview) = &self.webview {
             let msg = serde_json::json!({"type": "focus"});
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
     }
 
@@ -176,10 +179,7 @@ impl EguiWebGlTerminal {
     pub fn blur(&mut self) {
         if let Some(webview) = &self.webview {
             let msg = serde_json::json!({"type": "blur"});
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
     }
 
@@ -187,10 +187,7 @@ impl EguiWebGlTerminal {
     pub fn scroll_to_bottom(&mut self) {
         if let Some(webview) = &self.webview {
             let msg = serde_json::json!({"type": "scrollToBottom"});
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
     }
 
@@ -213,10 +210,7 @@ impl EguiWebGlTerminal {
     pub fn select_all(&mut self) {
         if let Some(webview) = &self.webview {
             let msg = serde_json::json!({"type": "selectAll"});
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
     }
 
@@ -248,10 +242,7 @@ impl EguiWebGlTerminal {
     fn request_selection_from_webview(&self) {
         if let Some(webview) = &self.webview {
             let msg = serde_json::json!({"type": "getSelection"});
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
     }
 
@@ -296,10 +287,7 @@ impl EguiWebGlTerminal {
                     "rows": rows
                 }
             });
-            let _ = webview.evaluate_script(&format!(
-                "window.postMessage({}, '*');",
-                msg
-            ));
+            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
         }
     }
 
@@ -495,11 +483,8 @@ impl WebGlTerminalWidget {
         let rect = response.rect;
 
         // Paint terminal background
-        ui.painter().rect_filled(
-            rect,
-            Rounding::same(4.0),
-            Color32::from_rgb(22, 25, 30),
-        );
+        ui.painter()
+            .rect_filled(rect, Rounding::same(4.0), Color32::from_rgb(22, 25, 30));
 
         // Paint terminal border (highlight if focused)
         let border_color = if response.has_focus() {
@@ -566,7 +551,10 @@ impl WebGlTerminalWidget {
         // Handle right-click for context menu - do this while we still have term lock
         let show_menu = response.secondary_clicked();
         let menu_pos = if show_menu {
-            Some(ctx.input(|i| i.pointer.interact_pos()).unwrap_or(rect.center()))
+            Some(
+                ctx.input(|i| i.pointer.interact_pos())
+                    .unwrap_or(rect.center()),
+            )
         } else {
             None
         };
@@ -588,7 +576,8 @@ impl WebGlTerminalWidget {
         }
 
         // Request continuous repaint for 60fps
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_millis(16));
 
         response
     }

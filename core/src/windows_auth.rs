@@ -24,6 +24,12 @@ pub struct TpmKeyHandle {
 /// Windows Hello authenticator
 pub struct WindowsHelloAuthenticator;
 
+impl Default for WindowsHelloAuthenticator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WindowsHelloAuthenticator {
     /// Create new authenticator instance
     pub fn new() -> Self {
@@ -68,7 +74,9 @@ impl WindowsHelloAuthenticator {
 
     #[cfg(not(windows))]
     pub fn authenticate(&self, _message: &str) -> Result<WindowsHelloResult, LiteError> {
-        Err(LiteError::Config("Windows Hello only available on Windows".to_string()))
+        Err(LiteError::Config(
+            "Windows Hello only available on Windows".to_string(),
+        ))
     }
 
     /// Register a new Windows Hello credential
@@ -79,6 +87,12 @@ impl WindowsHelloAuthenticator {
 
 /// Windows TPM integration
 pub struct WindowsTpm;
+
+impl Default for WindowsTpm {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WindowsTpm {
     /// Create new TPM instance
@@ -115,6 +129,12 @@ impl WindowsTpm {
 /// YubiKey integration via PC/SC or HID
 pub struct YubiKeyAuthenticator;
 
+impl Default for YubiKeyAuthenticator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl YubiKeyAuthenticator {
     /// Create new YubiKey authenticator
     pub fn new() -> Self {
@@ -143,6 +163,12 @@ impl YubiKeyAuthenticator {
 
 /// WebAuthn/FIDO2 authenticator
 pub struct WebAuthnAuthenticator;
+
+impl Default for WebAuthnAuthenticator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WebAuthnAuthenticator {
     /// Create new WebAuthn authenticator
@@ -228,10 +254,11 @@ impl HardwareAuthenticatorManager {
         match method {
             HardwareAuthMethod::BiometricFingerprint
             | HardwareAuthMethod::BiometricFace
-            | HardwareAuthMethod::BiometricIris => {
-                self.windows_hello.authenticate(message)
-            }
-            _ => Err(LiteError::Config(format!("Method {:?} not implemented", method))),
+            | HardwareAuthMethod::BiometricIris => self.windows_hello.authenticate(message),
+            _ => Err(LiteError::Config(format!(
+                "Method {:?} not implemented",
+                method
+            ))),
         }
     }
 

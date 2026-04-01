@@ -1,6 +1,6 @@
 use axum::{
     extract::{Extension, Json, State},
-    routing::{post, delete, get},
+    routing::{delete, get, post},
     Router,
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -10,20 +10,15 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::{
-    models::*,
-    redis_cache::RedisCache,
-    services::auth_service::AuthService,
-    AppState,
-};
+use crate::{models::*, redis_cache::RedisCache, services::auth_service::AuthService, AppState};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,        // User ID
+    pub sub: String, // User ID
     pub email: String,
-    pub exp: i64,           // Expiration timestamp
-    pub iat: i64,           // Issued at timestamp
-    pub jti: String,        // JWT ID (for revocation)
+    pub exp: i64,    // Expiration timestamp
+    pub iat: i64,    // Issued at timestamp
+    pub jti: String, // JWT ID (for revocation)
     pub scopes: Vec<String>,
 }
 
@@ -63,7 +58,11 @@ pub fn create_access_token(
     Ok(token)
 }
 
-pub fn create_refresh_token(user_id: &str, secret: &str, expiry_days: u64) -> anyhow::Result<(String, String)> {
+pub fn create_refresh_token(
+    user_id: &str,
+    secret: &str,
+    expiry_days: u64,
+) -> anyhow::Result<(String, String)> {
     let now = Utc::now();
     let expiration = now + Duration::days(expiry_days as i64);
     let jti = Uuid::new_v4().to_string();
@@ -135,29 +134,32 @@ async fn register(
 ) -> Result<Json<SuccessResponse<UserProfile>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let auth_service = AuthService::new(state.db.pool().clone(), state.redis.clone());
 
-    let password_hash = hash_password(&req.password)
-        .map_err(|e| (
+    let password_hash = hash_password(&req.password).map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "password_hash_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     let user = auth_service
         .create_user(&req.email, &password_hash, &req.name)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "registration_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "registration_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -175,15 +177,17 @@ async fn login(
     let user = auth_service
         .authenticate_user(&req.email, &req.password)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse {
-                error: "authentication_failed".to_string(),
-                message: e.to_string(),
-                code: Some("invalid_credentials".to_string()),
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    error: "authentication_failed".to_string(),
+                    message: e.to_string(),
+                    code: Some("invalid_credentials".to_string()),
+                    details: None,
+                }),
+            )
+        })?;
 
     // MFA check
     if user.mfa_enabled {
@@ -194,7 +198,7 @@ async fn login(
                 message: "MFA code required".to_string(),
                 code: Some("mfa_required".to_string()),
                 details: None,
-            })
+            }),
         ))?;
 
         // Verify MFA code (implement TOTP verification)
@@ -209,46 +213,57 @@ async fn login(
         &state.config.jwt_secret,
         state.config.jwt_expiry_hours,
         scopes.clone(),
-    ).map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "token_creation_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
+    )
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "token_creation_failed".to_string(),
+                message: e.to_string(),
+                code: None,
+                details: None,
+            }),
+        )
+    })?;
 
     let (refresh_token, jti) = create_refresh_token(
         &user.id,
         &state.config.jwt_secret,
         state.config.refresh_token_expiry_days,
-    ).map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "token_creation_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
+    )
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "token_creation_failed".to_string(),
+                message: e.to_string(),
+                code: None,
+                details: None,
+            }),
+        )
+    })?;
 
     // Store session in database
-    auth_service.create_session(
-        &user.id,
-        &hash_api_key(&access_token),
-        &hash_api_key(&refresh_token),
-        None,
-        &jti,
-    ).await.map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "session_creation_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
+    auth_service
+        .create_session(
+            &user.id,
+            &hash_api_key(&access_token),
+            &hash_api_key(&refresh_token),
+            None,
+            &jti,
+        )
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "session_creation_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(LoginResponse {
         access_token,
@@ -263,44 +278,51 @@ async fn refresh_token(
     State(state): State<AppState>,
     Json(req): Json<serde_json::Value>,
 ) -> Result<Json<LoginResponse>, (axum::http::StatusCode, Json<ErrorResponse>)> {
-    let refresh_token = req.get("refresh_token")
-        .and_then(|v| v.as_str())
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_token".to_string(),
-                message: "Refresh token is required".to_string(),
-                code: Some("missing_refresh_token".to_string()),
-                details: None,
-            })
-        ))?;
+    let refresh_token = req.get("refresh_token").and_then(|v| v.as_str()).ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_token".to_string(),
+            message: "Refresh token is required".to_string(),
+            code: Some("missing_refresh_token".to_string()),
+            details: None,
+        }),
+    ))?;
 
     let claims = decode::<RefreshClaims>(
         refresh_token,
         &DecodingKey::from_secret(state.config.jwt_secret.as_bytes()),
         &Validation::default(),
-    ).map_err(|e| (
-        axum::http::StatusCode::UNAUTHORIZED,
-        Json(ErrorResponse {
-            error: "invalid_token".to_string(),
-            message: e.to_string(),
-            code: Some("token_decode_failed".to_string()),
-            details: None,
-        })
-    ))?.claims;
+    )
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse {
+                error: "invalid_token".to_string(),
+                message: e.to_string(),
+                code: Some("token_decode_failed".to_string()),
+                details: None,
+            }),
+        )
+    })?
+    .claims;
 
     // Check if token is revoked
     let jti_hash = hash_api_key(refresh_token);
-    let is_revoked = state.redis.get(&format!("revoked:{}", jti_hash)).await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "redis_error".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?
+    let is_revoked = state
+        .redis
+        .get(&format!("revoked:{}", jti_hash))
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "redis_error".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?
         .is_some();
 
     if is_revoked {
@@ -311,21 +333,25 @@ async fn refresh_token(
                 message: "Refresh token has been revoked".to_string(),
                 code: Some("token_revoked".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     let auth_service = AuthService::new(state.db.pool().clone(), state.redis.clone());
-    let user = auth_service.get_user_by_id(&claims.sub).await
-        .map_err(|e| (
-            axum::http::StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "user_not_found".to_string(),
-                message: e.to_string(),
-                code: Some("user_not_found".to_string()),
-                details: None,
-            })
-        ))?;
+    let user = auth_service
+        .get_user_by_id(&claims.sub)
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: "user_not_found".to_string(),
+                    message: e.to_string(),
+                    code: Some("user_not_found".to_string()),
+                    details: None,
+                }),
+            )
+        })?;
 
     let scopes = vec!["read".to_string(), "write".to_string()];
 
@@ -335,42 +361,53 @@ async fn refresh_token(
         &state.config.jwt_secret,
         state.config.jwt_expiry_hours,
         scopes.clone(),
-    ).map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "token_creation_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
+    )
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "token_creation_failed".to_string(),
+                message: e.to_string(),
+                code: None,
+                details: None,
+            }),
+        )
+    })?;
 
     let (new_refresh_token, new_jti) = create_refresh_token(
         &user.id,
         &state.config.jwt_secret,
         state.config.refresh_token_expiry_days,
-    ).map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "token_creation_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
-
-    // Revoke old refresh token
-    let ttl = std::time::Duration::from_secs(state.config.refresh_token_expiry_days * 86400);
-    state.redis.set(&format!("revoked:{}", jti_hash), "1", ttl).await
-        .map_err(|e| (
+    )
+    .map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
-                error: "redis_error".to_string(),
+                error: "token_creation_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
+
+    // Revoke old refresh token
+    let ttl = std::time::Duration::from_secs(state.config.refresh_token_expiry_days * 86400);
+    state
+        .redis
+        .set(&format!("revoked:{}", jti_hash), "1", ttl)
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "redis_error".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(LoginResponse {
         access_token: new_access_token,
@@ -386,7 +423,8 @@ async fn logout(
     req: axum::extract::Request,
 ) -> Result<Json<SuccessResponse<()>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     // Extract token from Authorization header
-    let auth_header = req.headers()
+    let auth_header = req
+        .headers()
         .get("Authorization")
         .and_then(|h| h.to_str().ok())
         .and_then(|h| h.strip_prefix("Bearer "));
@@ -394,16 +432,21 @@ async fn logout(
     if let Some(token) = auth_header {
         let jti_hash = hash_api_key(token);
         let ttl = std::time::Duration::from_secs(state.config.jwt_expiry_hours * 3600);
-        state.redis.set(&format!("revoked:{}", jti_hash), "1", ttl).await
-            .map_err(|e| (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "redis_error".to_string(),
-                    message: e.to_string(),
-                    code: None,
-                    details: None,
-                })
-            ))?;
+        state
+            .redis
+            .set(&format!("revoked:{}", jti_hash), "1", ttl)
+            .await
+            .map_err(|e| {
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: "redis_error".to_string(),
+                        message: e.to_string(),
+                        code: None,
+                        details: None,
+                    }),
+                )
+            })?;
     }
 
     Ok(Json(SuccessResponse {
@@ -419,16 +462,20 @@ async fn get_current_user(
 ) -> Result<Json<SuccessResponse<UserProfile>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let auth_service = AuthService::new(state.db.pool().clone(), state.redis.clone());
 
-    let user = auth_service.get_user_by_id(&claims.sub).await
-        .map_err(|e| (
-            axum::http::StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: "user_not_found".to_string(),
-                message: e.to_string(),
-                code: Some("user_not_found".to_string()),
-                details: None,
-            })
-        ))?;
+    let user = auth_service
+        .get_user_by_id(&claims.sub)
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: "user_not_found".to_string(),
+                    message: e.to_string(),
+                    code: Some("user_not_found".to_string()),
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -441,44 +488,62 @@ async fn create_api_key(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
     Json(req): Json<CreateApiKeyRequest>,
-) -> Result<Json<SuccessResponse<CreateApiKeyResponse>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
+) -> Result<
+    Json<SuccessResponse<CreateApiKeyResponse>>,
+    (axum::http::StatusCode, Json<ErrorResponse>),
+> {
     let auth_service = AuthService::new(state.db.pool().clone(), state.redis.clone());
 
     let (api_key, key_hash, key_prefix) = generate_api_key();
 
-    let expires_at = req.expires_in_days.map(|days| Utc::now() + Duration::days(days as i64));
+    let expires_at = req
+        .expires_in_days
+        .map(|days| Utc::now() + Duration::days(days as i64));
 
-    let api_key_record = auth_service.create_api_key(
-        &claims.sub,
-        &req.name,
-        &key_hash,
-        &key_prefix,
-        req.scopes.as_ref().map(|s| serde_json::to_value(s).unwrap()),
-        expires_at,
-    ).await.map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "api_key_creation_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
+    let api_key_record = auth_service
+        .create_api_key(
+            &claims.sub,
+            &req.name,
+            &key_hash,
+            &key_prefix,
+            req.scopes
+                .as_ref()
+                .map(|s| serde_json::to_value(s).unwrap()),
+            expires_at,
+        )
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "api_key_creation_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     // Store in Redis for fast lookup
-    let ttl = req.expires_in_days
+    let ttl = req
+        .expires_in_days
         .map(|d| std::time::Duration::from_secs(d as u64 * 86400))
         .unwrap_or(std::time::Duration::from_secs(365 * 86400));
-    state.redis.store_api_key(&key_hash, &claims.sub, Some(ttl)).await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "redis_error".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+    state
+        .redis
+        .store_api_key(&key_hash, &claims.sub, Some(ttl))
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "redis_error".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -491,7 +556,10 @@ async fn create_api_key(
             created_at: api_key_record.created_at,
             expires_at: api_key_record.expires_at,
         },
-        message: Some("API key created successfully. Store it securely - it won't be shown again.".to_string()),
+        message: Some(
+            "API key created successfully. Store it securely - it won't be shown again."
+                .to_string(),
+        ),
     }))
 }
 
@@ -501,16 +569,17 @@ async fn list_api_keys(
 ) -> Result<Json<SuccessResponse<Vec<ApiKey>>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let auth_service = AuthService::new(state.db.pool().clone(), state.redis.clone());
 
-    let keys = auth_service.list_api_keys(&claims.sub).await
-        .map_err(|e| (
+    let keys = auth_service.list_api_keys(&claims.sub).await.map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "list_api_keys_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -527,16 +596,17 @@ async fn revoke_api_key(
     let auth_service = AuthService::new(state.db.pool().clone(), state.redis.clone());
 
     // Get the API key first to revoke in Redis
-    let key = auth_service.get_api_key(&id).await
-        .map_err(|e| (
+    let key = auth_service.get_api_key(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::NOT_FOUND,
             Json(ErrorResponse {
                 error: "api_key_not_found".to_string(),
                 message: e.to_string(),
                 code: Some("not_found".to_string()),
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     // Ensure user owns this key
     if key.user_id != claims.sub {
@@ -547,33 +617,39 @@ async fn revoke_api_key(
                 message: "You can only revoke your own API keys".to_string(),
                 code: Some("forbidden".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     // Revoke in Redis
-    state.redis.revoke_api_key(&key.key_hash).await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "redis_error".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+    state
+        .redis
+        .revoke_api_key(&key.key_hash)
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "redis_error".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     // Delete from database
-    auth_service.delete_api_key(&id).await
-        .map_err(|e| (
+    auth_service.delete_api_key(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "revoke_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     Ok(Json(SuccessResponse {
         success: true,

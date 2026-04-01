@@ -35,7 +35,7 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
 };
-use argon2::{password_hash::SaltString, Argon2, PasswordHasher, Algorithm, Version, Params};
+use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use rand::{rngs::OsRng, RngCore};
 use std::sync::RwLock;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -127,8 +127,8 @@ impl CryptoState {
         OsRng.fill_bytes(&mut salt);
 
         let key = self.derive_key_secure(master_password, &salt)?;
-        let cipher =
-            Aes256Gcm::new_from_slice(key.as_slice()).map_err(|e| LiteError::Crypto(e.to_string()))?;
+        let cipher = Aes256Gcm::new_from_slice(key.as_slice())
+            .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         self.cipher = Some(cipher);
         self.salt = Some(salt);
@@ -175,8 +175,8 @@ impl CryptoState {
         let salt = self.salt.ok_or(LiteError::InvalidMasterPassword)?;
 
         let key = self.derive_key_secure(master_password, &salt)?;
-        let cipher =
-            Aes256Gcm::new_from_slice(key.as_slice()).map_err(|e| LiteError::Crypto(e.to_string()))?;
+        let cipher = Aes256Gcm::new_from_slice(key.as_slice())
+            .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         self.cipher = Some(cipher);
         self.secure_key = Some(key);
@@ -527,7 +527,9 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt() {
         let mut state = CryptoState::new();
-        state.initialize("master_password").expect("Failed to initialize");
+        state
+            .initialize("master_password")
+            .expect("Failed to initialize");
 
         let plaintext = b"Hello, World! This is a secret message.";
         let encrypted = state.encrypt(plaintext).expect("Failed to encrypt");
@@ -544,7 +546,9 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt_unicode() {
         let mut state = CryptoState::new();
-        state.initialize("unicode_test_pass").expect("Failed to initialize");
+        state
+            .initialize("unicode_test_pass")
+            .expect("Failed to initialize");
 
         let plaintext = "中文测试 🎉 émojis and ñoño".as_bytes();
         let encrypted = state.encrypt(plaintext).expect("Failed to encrypt");
@@ -568,7 +572,9 @@ mod tests {
     #[test]
     fn test_encrypt_large_data() {
         let mut state = CryptoState::new();
-        state.initialize("large_data_pass").expect("Failed to initialize");
+        state
+            .initialize("large_data_pass")
+            .expect("Failed to initialize");
 
         let plaintext = vec![0u8; 1024 * 1024]; // 1MB of zeros
         let encrypted = state.encrypt(&plaintext).expect("Failed to encrypt large");
@@ -646,7 +652,9 @@ mod tests {
 
         // Verify salt is different each time
         let mut state2 = CryptoState::new();
-        state2.initialize("test_pass").expect("Failed to initialize 2");
+        state2
+            .initialize("test_pass")
+            .expect("Failed to initialize 2");
         let salt2 = state2.get_salt().expect("Should have salt 2");
 
         // Salts should be different (with extremely high probability)
@@ -656,7 +664,9 @@ mod tests {
     #[test]
     fn test_multiple_encrypt_decrypt_cycles() {
         let mut state = CryptoState::new();
-        state.initialize("cycle_test_pass").expect("Failed to initialize");
+        state
+            .initialize("cycle_test_pass")
+            .expect("Failed to initialize");
 
         let plaintexts = vec![
             b"First message".to_vec(),
@@ -711,8 +721,12 @@ mod tests {
         salt.copy_from_slice(&[1u8; 32]); // Fixed salt for testing
 
         // Same password + same salt should produce same key
-        let key1 = state.derive_key_internal(password, &salt).expect("Derive 1");
-        let key2 = state.derive_key_internal(password, &salt).expect("Derive 2");
+        let key1 = state
+            .derive_key_internal(password, &salt)
+            .expect("Derive 1");
+        let key2 = state
+            .derive_key_internal(password, &salt)
+            .expect("Derive 2");
 
         assert_eq!(key1, key2);
     }
@@ -723,8 +737,12 @@ mod tests {
         let mut salt = [0u8; 32];
         salt.copy_from_slice(&[1u8; 32]);
 
-        let key1 = state.derive_key_internal("password1", &salt).expect("Derive 1");
-        let key2 = state.derive_key_internal("password2", &salt).expect("Derive 2");
+        let key1 = state
+            .derive_key_internal("password1", &salt)
+            .expect("Derive 1");
+        let key2 = state
+            .derive_key_internal("password2", &salt)
+            .expect("Derive 2");
 
         assert_ne!(key1, key2);
     }
@@ -739,8 +757,12 @@ mod tests {
         let mut salt2 = [0u8; 32];
         salt2.copy_from_slice(&[2u8; 32]);
 
-        let key1 = state.derive_key_internal(password, &salt1).expect("Derive 1");
-        let key2 = state.derive_key_internal(password, &salt2).expect("Derive 2");
+        let key1 = state
+            .derive_key_internal(password, &salt1)
+            .expect("Derive 1");
+        let key2 = state
+            .derive_key_internal(password, &salt2)
+            .expect("Derive 2");
 
         assert_ne!(key1, key2);
     }
@@ -748,7 +770,9 @@ mod tests {
     #[test]
     fn test_lock_clears_cipher() {
         let mut state = CryptoState::new();
-        state.initialize("test_password").expect("Failed to initialize");
+        state
+            .initialize("test_password")
+            .expect("Failed to initialize");
         assert!(state.is_unlocked());
 
         state.lock();
@@ -805,7 +829,9 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt_binary_data() {
         let mut state = CryptoState::new();
-        state.initialize("binary_test").expect("Failed to initialize");
+        state
+            .initialize("binary_test")
+            .expect("Failed to initialize");
 
         // Binary data with all byte values
         let plaintext: Vec<u8> = (0..=255).collect();
@@ -818,15 +844,17 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt_special_characters() {
         let mut state = CryptoState::new();
-        state.initialize("special_test").expect("Failed to initialize");
+        state
+            .initialize("special_test")
+            .expect("Failed to initialize");
 
         // Data with special Unicode characters
         let test_strings = vec![
-            "Hello\x00World",          // Null byte
-            "Line1\nLine2",            // Newline
-            "Tab\tSeparated",          // Tab
-            "Quote\"Test\"",           // Quotes
-            "Backslash\\Test",         // Backslash
+            "Hello\x00World",  // Null byte
+            "Line1\nLine2",    // Newline
+            "Tab\tSeparated",  // Tab
+            "Quote\"Test\"",   // Quotes
+            "Backslash\\Test", // Backslash
         ];
 
         for s in &test_strings {
@@ -838,13 +866,17 @@ mod tests {
 
     #[test]
     fn test_concurrent_crypto_state_thread_safety() {
-        use std::thread;
         use std::sync::Arc;
         use std::sync::Mutex;
+        use std::thread;
 
         let crypto = Arc::new(Mutex::new(CryptoState::new()));
         {
-            crypto.lock().unwrap().initialize("concurrent_pass").expect("Init");
+            crypto
+                .lock()
+                .unwrap()
+                .initialize("concurrent_pass")
+                .expect("Init");
         }
 
         let handles: Vec<_> = (0..10)
@@ -861,10 +893,7 @@ mod tests {
             })
             .collect();
 
-        let results: Vec<bool> = handles
-            .into_iter()
-            .map(|h| h.join().unwrap())
-            .collect();
+        let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
 
         assert!(results.iter().all(|&r| r), "Concurrent operations failed");
     }

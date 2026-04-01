@@ -2,11 +2,11 @@
 //!
 //! Tracks availability, uptime, incidents, and compliance with SLA targets.
 
+use chrono::Datelike;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::Datelike;
 
 use super::metrics::{Incident, MonthlyAvailability, SlaStats};
 use super::{MonitoringError, TimeRange};
@@ -130,10 +130,7 @@ pub enum SlaStatus {
 }
 
 impl SlaMonitor {
-    pub fn new(
-        config: SlaConfig,
-        storage: Arc<super::storage::MetricsStorage>,
-    ) -> Self {
+    pub fn new(config: SlaConfig, storage: Arc<super::storage::MetricsStorage>) -> Self {
         Self {
             config,
             storage,
@@ -156,7 +153,10 @@ impl SlaMonitor {
     /// Get SLA config for a server (or default)
     pub async fn get_server_config(&self, server_id: &str) -> SlaConfig {
         let configs = self.server_configs.read().await;
-        configs.get(server_id).cloned().unwrap_or_else(|| self.config.clone())
+        configs
+            .get(server_id)
+            .cloned()
+            .unwrap_or_else(|| self.config.clone())
     }
 
     /// Calculate SLA statistics for a server
@@ -183,15 +183,23 @@ impl SlaMonitor {
             .as_secs();
 
         // Calculate days until month end
-        let now_datetime = chrono::DateTime::from_timestamp(now as i64, 0)
-            .unwrap_or_else(|| chrono::Utc::now());
+        let now_datetime =
+            chrono::DateTime::from_timestamp(now as i64, 0).unwrap_or_else(|| chrono::Utc::now());
         let naive_date = now_datetime.naive_utc();
         let current_month = naive_date.month();
         let current_year = naive_date.year();
         let days_in_month = chrono::NaiveDate::from_ymd_opt(
-            if current_month == 12 { current_year + 1 } else { current_year },
-            if current_month == 12 { 1 } else { current_month + 1 },
-            1
+            if current_month == 12 {
+                current_year + 1
+            } else {
+                current_year
+            },
+            if current_month == 12 {
+                1
+            } else {
+                current_month + 1
+            },
+            1,
         )
         .and_then(|d| d.pred_opt())
         .map(|d| d.day())
@@ -200,7 +208,8 @@ impl SlaMonitor {
 
         // Calculate allowed downtime for the month
         let total_minutes_in_month = (days_in_month as f64) * 24.0 * 60.0;
-        let allowed_downtime_minutes = total_minutes_in_month * (100.0 - config.availability_target) / 100.0;
+        let allowed_downtime_minutes =
+            total_minutes_in_month * (100.0 - config.availability_target) / 100.0;
         let current_downtime_minutes = stats.downtime_minutes as f64;
         let remaining_downtime_minutes = allowed_downtime_minutes - current_downtime_minutes;
 
@@ -218,7 +227,8 @@ impl SlaMonitor {
 
         // Generate breach forecast if at risk
         let breach_forecast = if is_at_risk {
-            self.calculate_breach_forecast(server_id, &stats, remaining_downtime_minutes).await
+            self.calculate_breach_forecast(server_id, &stats, remaining_downtime_minutes)
+                .await
         } else {
             None
         };
@@ -254,7 +264,9 @@ impl SlaMonitor {
             .as_secs();
 
         // Calculate average incident rate
-        let total_incident_minutes: f64 = stats.incidents.iter()
+        let total_incident_minutes: f64 = stats
+            .incidents
+            .iter()
             .map(|i| i.duration_minutes as f64)
             .sum();
 
@@ -281,10 +293,12 @@ impl SlaMonitor {
 
         // Calculate predicted final availability
         let current_month_days = 30.0;
-        let predicted_additional_downtime = avg_downtime_per_day * (current_month_days - days_in_period);
+        let predicted_additional_downtime =
+            avg_downtime_per_day * (current_month_days - days_in_period);
         let total_predicted_downtime = total_incident_minutes + predicted_additional_downtime;
         let total_minutes_in_month = current_month_days * 24.0 * 60.0;
-        let predicted_availability = ((total_minutes_in_month - total_predicted_downtime) / total_minutes_in_month) * 100.0;
+        let predicted_availability =
+            ((total_minutes_in_month - total_predicted_downtime) / total_minutes_in_month) * 100.0;
 
         Some(BreachForecast {
             predicted_breach_date: breach_timestamp,
@@ -317,7 +331,8 @@ impl SlaMonitor {
         };
 
         let mut incidents = self.current_incidents.write().await;
-        incidents.entry(server_id.to_string())
+        incidents
+            .entry(server_id.to_string())
             .or_default()
             .push(incident);
 
@@ -340,7 +355,8 @@ impl SlaMonitor {
             if let Some(incident) = server_incidents.iter_mut().find(|i| i.id == incident_id) {
                 // Calculate duration and store in SLA records
                 let duration = now - incident.started_at;
-                self.store_incident_record(server_id, incident, duration).await?;
+                self.store_incident_record(server_id, incident, duration)
+                    .await?;
             }
             server_incidents.retain(|i| i.id != incident_id);
         }
@@ -410,7 +426,9 @@ impl SlaMonitor {
         };
 
         for server_id in servers {
-            let stats = self.calculate_sla(&server_id, self.config.default_time_range).await?;
+            let stats = self
+                .calculate_sla(&server_id, self.config.default_time_range)
+                .await?;
             let config = self.get_server_config(&server_id).await;
 
             // Check availability breach
@@ -427,8 +445,7 @@ impl SlaMonitor {
                     severity,
                     message: format!(
                         "SLA breach: {:.2}% availability (target: {:.2}%)",
-                        stats.uptime_percent,
-                        config.availability_target
+                        stats.uptime_percent, config.availability_target
                     ),
                     current_value: stats.uptime_percent,
                     target_value: config.availability_target,
@@ -436,7 +453,9 @@ impl SlaMonitor {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs(),
-                    recommended_action: "Investigate root cause and implement high availability measures".to_string(),
+                    recommended_action:
+                        "Investigate root cause and implement high availability measures"
+                            .to_string(),
                 });
             }
 
@@ -448,8 +467,7 @@ impl SlaMonitor {
                     severity: SlaBreachSeverity::Warning,
                     message: format!(
                         "MTTR SLA at risk: {:.1} minutes average (target: {:.1} minutes)",
-                        stats.mttr_minutes,
-                        config.mttr_target_minutes
+                        stats.mttr_minutes, config.mttr_target_minutes
                     ),
                     current_value: stats.mttr_minutes,
                     target_value: config.mttr_target_minutes,
@@ -457,13 +475,22 @@ impl SlaMonitor {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs(),
-                    recommended_action: "Improve incident response procedures and automation".to_string(),
+                    recommended_action: "Improve incident response procedures and automation"
+                        .to_string(),
                 });
             }
 
             // Check incident frequency (more than 3 critical incidents per month)
-            let critical_count = stats.incidents.iter()
-                .filter(|i| matches!(i.severity, super::alerts::AlertSeverity::Critical | super::alerts::AlertSeverity::Emergency))
+            let critical_count = stats
+                .incidents
+                .iter()
+                .filter(|i| {
+                    matches!(
+                        i.severity,
+                        super::alerts::AlertSeverity::Critical
+                            | super::alerts::AlertSeverity::Emergency
+                    )
+                })
                 .count();
 
             if critical_count > 3 {
@@ -481,7 +508,8 @@ impl SlaMonitor {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs(),
-                    recommended_action: "Review system stability and implement preventive measures".to_string(),
+                    recommended_action: "Review system stability and implement preventive measures"
+                        .to_string(),
                 });
             }
         }
@@ -563,7 +591,10 @@ impl SlaMonitor {
 
         let start_timestamp = start.and_utc().timestamp() as u64;
         let end_timestamp = end.and_utc().timestamp() as u64;
-        let time_range = TimeRange::Custom { start: start_timestamp, end: end_timestamp };
+        let time_range = TimeRange::Custom {
+            start: start_timestamp,
+            end: end_timestamp,
+        };
 
         let stats = self.calculate_sla(server_id, time_range.clone()).await?;
         let health = self.get_health_status(server_id).await?;
@@ -592,34 +623,33 @@ impl SlaMonitor {
         })
     }
 
-    fn generate_recommendations(
-        &self,
-        stats: &SlaStats,
-        health: &SlaHealthStatus,
-    ) -> Vec<String> {
+    fn generate_recommendations(&self, stats: &SlaStats, health: &SlaHealthStatus) -> Vec<String> {
         let mut recommendations = Vec::new();
 
         if stats.uptime_percent < health.target_availability {
             recommendations.push(
-                "Implement redundant systems and failover mechanisms to improve availability".to_string()
+                "Implement redundant systems and failover mechanisms to improve availability"
+                    .to_string(),
             );
         }
 
         if stats.mttr_minutes > 60.0 {
             recommendations.push(
-                "Establish automated incident response and on-call procedures to reduce MTTR".to_string()
+                "Establish automated incident response and on-call procedures to reduce MTTR"
+                    .to_string(),
             );
         }
 
         if stats.incidents.len() > 5 {
             recommendations.push(
-                "Conduct root cause analysis on recurring incidents to prevent future occurrences".to_string()
+                "Conduct root cause analysis on recurring incidents to prevent future occurrences"
+                    .to_string(),
             );
         }
 
         if health.is_at_risk {
             recommendations.push(
-                "Monitor SLA metrics closely and prepare capacity expansion plans".to_string()
+                "Monitor SLA metrics closely and prepare capacity expansion plans".to_string(),
             );
         }
 

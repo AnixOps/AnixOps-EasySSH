@@ -2,10 +2,10 @@
 //!
 //! 提供完整的事件管理、告警聚合、自动诊断、运行手册执行等功能
 
-use crate::incident_models::*;
 use crate::db::Database;
+use crate::incident_models::*;
 use crate::redis_cache::RedisCache;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use sqlx::{Any, Transaction};
 use std::collections::HashMap;
@@ -25,7 +25,11 @@ impl IncidentService {
     // ============= 事件CRUD操作 =============
 
     /// 创建新事件
-    pub async fn create_incident(&self, req: CreateIncidentRequest, user_id: &str) -> Result<Incident> {
+    pub async fn create_incident(
+        &self,
+        req: CreateIncidentRequest,
+        user_id: &str,
+    ) -> Result<Incident> {
         let incident_id = Uuid::new_v4().to_string();
         let incident_number = generate_incident_number();
         let now = Utc::now();
@@ -34,13 +38,15 @@ impl IncidentService {
         let affected_services = req.affected_services.map(|v| serde_json::json!(v));
         let tags = req.tags.map(|v| serde_json::json!(v));
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO incidents (
                 id, incident_number, title, description, incident_type, severity, status,
                 team_id, created_by, created_at, updated_at, detected_at,
                 affected_servers, affected_services, assigned_to, escalation_level, tags
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&incident_id)
         .bind(&incident_number)
         .bind(&req.title)
@@ -66,10 +72,15 @@ impl IncidentService {
             &incident_id,
             TimelineEntryType::StatusChange,
             "事件已创建",
-            &format!("事件 {} 已创建，严重程度: {}", incident_number, req.severity.as_str()),
+            &format!(
+                "事件 {} 已创建，严重程度: {}",
+                incident_number,
+                req.severity.as_str()
+            ),
             user_id,
             None,
-        ).await?;
+        )
+        .await?;
 
         // 如果指定了负责人，创建分配记录
         if let Some(assignee) = &req.assigned_to {
@@ -80,24 +91,29 @@ impl IncidentService {
                 &format!("事件分配给用户 {}", assignee),
                 user_id,
                 None,
-            ).await?;
+            )
+            .await?;
 
             // 添加参与者
-            self.join_incident(&incident_id, assignee, ParticipantRole::IncidentCommander).await?;
+            self.join_incident(&incident_id, assignee, ParticipantRole::IncidentCommander)
+                .await?;
         }
 
         info!("Created incident {}: {}", incident_number, req.title);
 
         // 从数据库获取完整记录
-        self.get_incident_by_id(&incident_id).await
+        self.get_incident_by_id(&incident_id)
+            .await
             .map_err(|e| anyhow!("Failed to fetch created incident: {}", e))
     }
 
     /// 获取事件详情
     pub async fn get_incident_by_id(&self, incident_id: &str) -> Result<Incident> {
-        let incident = sqlx::query_as::<_, Incident>(r#"
+        let incident = sqlx::query_as::<_, Incident>(
+            r#"
             SELECT * FROM incidents WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_optional(self.db.pool())
         .await?;
@@ -147,17 +163,20 @@ impl IncidentService {
         }
 
         // 执行更新
-        sqlx::query(&format!(r#"UPDATE incidents SET updated_at = ? {} WHERE id = ?"#,
-            if updates.is_empty() { "" } else { ", " }))
-            .bind(now)
-            .bind(incident_id)
-            .execute(self.db.pool())
-            .await?;
+        sqlx::query(&format!(
+            r#"UPDATE incidents SET updated_at = ? {} WHERE id = ?"#,
+            if updates.is_empty() { "" } else { ", " }
+        ))
+        .bind(now)
+        .bind(incident_id)
+        .execute(self.db.pool())
+        .await?;
 
         // 处理状态变更
         if let Some(new_status) = &req.status {
             if new_status != &incident.status {
-                self.handle_status_change(incident_id, &incident.status, new_status, user_id).await?;
+                self.handle_status_change(incident_id, &incident.status, new_status, user_id)
+                    .await?;
             }
         }
 
@@ -168,10 +187,15 @@ impl IncidentService {
                     incident_id,
                     TimelineEntryType::SeverityChange,
                     "严重程度变更",
-                    &format!("严重程度从 {} 变更为 {}", incident.severity.as_str(), new_severity.as_str()),
+                    &format!(
+                        "严重程度从 {} 变更为 {}",
+                        incident.severity.as_str(),
+                        new_severity.as_str()
+                    ),
                     user_id,
                     None,
-                ).await?;
+                )
+                .await?;
             }
         }
 
@@ -182,13 +206,22 @@ impl IncidentService {
                     incident_id,
                     TimelineEntryType::Assignment,
                     "事件重新分配",
-                    &format!("事件从 {:?} 重新分配给 {}", incident.assigned_to, new_assignee),
+                    &format!(
+                        "事件从 {:?} 重新分配给 {}",
+                        incident.assigned_to, new_assignee
+                    ),
                     user_id,
                     None,
-                ).await?;
+                )
+                .await?;
 
                 // 更新或添加参与者
-                self.join_incident(incident_id, new_assignee, ParticipantRole::IncidentCommander).await?;
+                self.join_incident(
+                    incident_id,
+                    new_assignee,
+                    ParticipantRole::IncidentCommander,
+                )
+                .await?;
             }
         }
 
@@ -206,11 +239,13 @@ impl IncidentService {
     ) -> Result<Incident> {
         let now = Utc::now();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE incidents
             SET status = 'acknowledged', acknowledged_at = ?, acknowledged_by = ?, updated_at = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(now)
         .bind(user_id)
         .bind(now)
@@ -231,10 +266,12 @@ impl IncidentService {
             &description,
             user_id,
             None,
-        ).await?;
+        )
+        .await?;
 
         // 加入事件参与者
-        self.join_incident(incident_id, user_id, ParticipantRole::Responder).await?;
+        self.join_incident(incident_id, user_id, ParticipantRole::Responder)
+            .await?;
 
         info!("Incident {} acknowledged by user {}", incident_id, user_id);
 
@@ -276,7 +313,8 @@ impl IncidentService {
             &description,
             user_id,
             None,
-        ).await?;
+        )
+        .await?;
 
         // 关闭关联的告警
         self.resolve_incident_alerts(incident_id, user_id).await?;
@@ -290,11 +328,13 @@ impl IncidentService {
     pub async fn close_incident(&self, incident_id: &str, user_id: &str) -> Result<Incident> {
         let now = Utc::now();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE incidents
             SET status = 'closed', closed_at = ?, updated_at = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(now)
         .bind(now)
         .bind(incident_id)
@@ -308,7 +348,8 @@ impl IncidentService {
             "事件已正式关闭",
             user_id,
             None,
-        ).await?;
+        )
+        .await?;
 
         info!("Incident {} closed by user {}", incident_id, user_id);
 
@@ -316,7 +357,10 @@ impl IncidentService {
     }
 
     /// 查询事件列表
-    pub async fn query_incidents(&self, req: QueryIncidentsRequest) -> Result<IncidentListResponse> {
+    pub async fn query_incidents(
+        &self,
+        req: QueryIncidentsRequest,
+    ) -> Result<IncidentListResponse> {
         let page = req.page.unwrap_or(1);
         let limit = req.limit.unwrap_or(20);
         let offset = (page - 1) * limit;
@@ -331,13 +375,17 @@ impl IncidentService {
         let where_clause = conditions.join(" AND ");
 
         // 查询总数
-        let total: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM incidents WHERE {}", where_clause))
-            .bind(req.team_id.as_ref())
-            .fetch_one(self.db.pool())
-            .await?;
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM incidents WHERE {}",
+            where_clause
+        ))
+        .bind(req.team_id.as_ref())
+        .fetch_one(self.db.pool())
+        .await?;
 
         // 查询事件列表
-        let incidents: Vec<Incident> = sqlx::query_as::<_, Incident>(&format!(r#"
+        let incidents: Vec<Incident> = sqlx::query_as::<_, Incident>(&format!(
+            r#"
             SELECT * FROM incidents
             WHERE {}
             ORDER BY
@@ -350,7 +398,9 @@ impl IncidentService {
                 END,
                 created_at DESC
             LIMIT ? OFFSET ?
-        "#, where_clause))
+        "#,
+            where_clause
+        ))
         .bind(req.team_id.as_ref())
         .bind(limit)
         .bind(offset)
@@ -358,7 +408,9 @@ impl IncidentService {
         .await?;
 
         // 计算统计
-        let stats = self.calculate_incident_stats(req.team_id.as_deref()).await?;
+        let stats = self
+            .calculate_incident_stats(req.team_id.as_deref())
+            .await?;
 
         Ok(IncidentListResponse {
             incidents,
@@ -371,10 +423,15 @@ impl IncidentService {
 
     /// 计算事件统计
     async fn calculate_incident_stats(&self, team_id: Option<&str>) -> Result<IncidentStats> {
-        let team_condition = if team_id.is_some() { "AND team_id = ?" } else { "" };
+        let team_condition = if team_id.is_some() {
+            "AND team_id = ?"
+        } else {
+            ""
+        };
 
         let total_count: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM incidents WHERE 1=1 {}", team_condition
+            "SELECT COUNT(*) FROM incidents WHERE 1=1 {}",
+            team_condition
         ))
         .bind(team_id)
         .fetch_one(self.db.pool())
@@ -389,31 +446,37 @@ impl IncidentService {
         .await?;
 
         let critical_count: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM incidents WHERE severity = 'critical' {}", team_condition
+            "SELECT COUNT(*) FROM incidents WHERE severity = 'critical' {}",
+            team_condition
         ))
         .bind(team_id)
         .fetch_one(self.db.pool())
         .await?;
 
         let high_count: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM incidents WHERE severity = 'high' {}", team_condition
+            "SELECT COUNT(*) FROM incidents WHERE severity = 'high' {}",
+            team_condition
         ))
         .bind(team_id)
         .fetch_one(self.db.pool())
         .await?;
 
         let acknowledged_count: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM incidents WHERE status = 'acknowledged' {}", team_condition
+            "SELECT COUNT(*) FROM incidents WHERE status = 'acknowledged' {}",
+            team_condition
         ))
         .bind(team_id)
         .fetch_one(self.db.pool())
         .await?;
 
         let today = Utc::now().date_naive();
-        let resolved_today: i64 = sqlx::query_scalar(&format!(r#"
+        let resolved_today: i64 = sqlx::query_scalar(&format!(
+            r#"
             SELECT COUNT(*) FROM incidents
             WHERE status = 'resolved' AND DATE(resolved_at) = ? {}
-        "#, team_condition))
+        "#,
+            team_condition
+        ))
         .bind(today.to_string())
         .bind(team_id)
         .fetch_one(self.db.pool())
@@ -446,11 +509,13 @@ impl IncidentService {
         let entry_id = Uuid::new_v4().to_string();
         let now = Utc::now();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO incident_timeline (
                 id, incident_id, entry_type, title, description, created_by, created_at, metadata
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&entry_id)
         .bind(incident_id)
         .bind(entry_type.as_str())
@@ -462,7 +527,10 @@ impl IncidentService {
         .execute(self.db.pool())
         .await?;
 
-        debug!("Added timeline entry to incident {}: {}", incident_id, title);
+        debug!(
+            "Added timeline entry to incident {}: {}",
+            incident_id, title
+        );
 
         Ok(IncidentTimelineEntry {
             id: entry_id,
@@ -477,12 +545,17 @@ impl IncidentService {
     }
 
     /// 获取事件时间线
-    pub async fn get_incident_timeline(&self, incident_id: &str) -> Result<Vec<IncidentTimelineEntry>> {
-        let entries = sqlx::query_as::<_, IncidentTimelineEntry>(r#"
+    pub async fn get_incident_timeline(
+        &self,
+        incident_id: &str,
+    ) -> Result<Vec<IncidentTimelineEntry>> {
+        let entries = sqlx::query_as::<_, IncidentTimelineEntry>(
+            r#"
             SELECT * FROM incident_timeline
             WHERE incident_id = ?
             ORDER BY created_at ASC
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -504,12 +577,14 @@ impl IncidentService {
         let now = Utc::now();
 
         // 检查是否存在相同指纹的活跃告警
-        let existing_alert: Option<Alert> = sqlx::query_as::<_, Alert>(r#"
+        let existing_alert: Option<Alert> = sqlx::query_as::<_, Alert>(
+            r#"
             SELECT * FROM alerts
             WHERE fingerprint = ? AND status IN ('firing', 'acknowledged', 'flapping')
             ORDER BY last_occurrence_at DESC
             LIMIT 1
-        "#)
+        "#,
+        )
         .bind(&fingerprint)
         .fetch_optional(self.db.pool())
         .await?;
@@ -519,11 +594,13 @@ impl IncidentService {
             existing.occurrence_count += 1;
             existing.last_occurrence_at = now;
 
-            sqlx::query(r#"
+            sqlx::query(
+                r#"
                 UPDATE alerts
                 SET occurrence_count = ?, last_occurrence_at = ?, raw_data = ?
                 WHERE id = ?
-            "#)
+            "#,
+            )
             .bind(existing.occurrence_count)
             .bind(now)
             .bind(&req.raw_data)
@@ -544,7 +621,10 @@ impl IncidentService {
                 info!("Alert {} promoted to incident {}", existing.id, incident.id);
             }
 
-            info!("Aggregated alert {} (count: {})", existing.alert_number, existing.occurrence_count);
+            info!(
+                "Aggregated alert {} (count: {})",
+                existing.alert_number, existing.occurrence_count
+            );
 
             return Ok(existing);
         }
@@ -553,14 +633,16 @@ impl IncidentService {
         let alert_id = Uuid::new_v4().to_string();
         let alert_number = generate_alert_number();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO alerts (
                 id, alert_number, source, alert_type, severity, title, description, team_id,
                 server_id, service_name, metric_name, metric_value, threshold,
                 status, created_at, first_occurrence_at, last_occurrence_at, fingerprint,
                 occurrence_count, raw_data
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&alert_id)
         .bind(&alert_number)
         .bind(&req.source)
@@ -595,7 +677,10 @@ impl IncidentService {
 
         let create_req = CreateIncidentRequest {
             title: format!("[AUTO] {}", alert.title),
-            description: format!("自动创建自告警 {}: {}", alert.alert_number, alert.description),
+            description: format!(
+                "自动创建自告警 {}: {}",
+                alert.alert_number, alert.description
+            ),
             incident_type,
             severity: alert.severity.clone(),
             team_id: alert.team_id.clone(),
@@ -618,10 +703,16 @@ impl IncidentService {
             t if t.contains("network") || t.contains("connectivity") => IncidentType::NetworkIssue,
             t if t.contains("service") || t.contains("http") => IncidentType::ServiceUnavailable,
             t if t.contains("security") || t.contains("breach") => IncidentType::SecurityBreach,
-            t if t.contains("ssl") || t.contains("certificate") || t.contains("tls") => IncidentType::SslExpired,
+            t if t.contains("ssl") || t.contains("certificate") || t.contains("tls") => {
+                IncidentType::SslExpired
+            }
             t if t.contains("backup") => IncidentType::BackupFailed,
-            t if t.contains("database") || t.contains("db") || t.contains("sql") => IncidentType::DatabaseError,
-            t if t.contains("hardware") || t.contains("disk_failure") => IncidentType::HardwareFailure,
+            t if t.contains("database") || t.contains("db") || t.contains("sql") => {
+                IncidentType::DatabaseError
+            }
+            t if t.contains("hardware") || t.contains("disk_failure") => {
+                IncidentType::HardwareFailure
+            }
             t if t.contains("ddos") || t.contains("attack") => IncidentType::DdosAttack,
             _ => IncidentType::Custom,
         }
@@ -638,7 +729,10 @@ impl IncidentService {
     }
 
     /// 获取聚合后的告警列表
-    pub async fn get_aggregated_alerts(&self, team_id: &str) -> Result<Vec<AlertAggregationResult>> {
+    pub async fn get_aggregated_alerts(
+        &self,
+        team_id: &str,
+    ) -> Result<Vec<AlertAggregationResult>> {
         let query = r#"
             SELECT
                 fingerprint,
@@ -672,8 +766,11 @@ impl IncidentService {
             let latest_alert = self.get_alert_by_id(&latest_alert_id).await?;
 
             // 检测告警抖动（flapping）
-            let is_flapping = alert_count > 3 &&
-                latest_alert.last_occurrence_at.signed_duration_since(first_alert.first_occurrence_at) < Duration::minutes(5);
+            let is_flapping = alert_count > 3
+                && latest_alert
+                    .last_occurrence_at
+                    .signed_duration_since(first_alert.first_occurrence_at)
+                    < Duration::minutes(5);
 
             let suggested_action = if is_flapping {
                 "告警抖动 detected，建议检查阈值设置或查看服务稳定性".to_string()
@@ -702,11 +799,13 @@ impl IncidentService {
     pub async fn resolve_alert(&self, alert_id: &str, user_id: &str) -> Result<Alert> {
         let now = Utc::now();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE alerts
             SET status = 'resolved', resolved_at = ?, resolved_by = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(now)
         .bind(user_id)
         .bind(alert_id)
@@ -732,10 +831,12 @@ impl IncidentService {
 
     /// 获取事件关联的告警
     pub async fn get_incident_alerts(&self, incident_id: &str) -> Result<Vec<Alert>> {
-        let alerts = sqlx::query_as::<_, Alert>("SELECT * FROM alerts WHERE incident_id = ? ORDER BY created_at DESC")
-            .bind(incident_id)
-            .fetch_all(self.db.pool())
-            .await?;
+        let alerts = sqlx::query_as::<_, Alert>(
+            "SELECT * FROM alerts WHERE incident_id = ? ORDER BY created_at DESC",
+        )
+        .bind(incident_id)
+        .fetch_all(self.db.pool())
+        .await?;
 
         Ok(alerts)
     }
@@ -744,11 +845,13 @@ impl IncidentService {
     async fn resolve_incident_alerts(&self, incident_id: &str, user_id: &str) -> Result<()> {
         let now = Utc::now();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE alerts
             SET status = 'resolved', resolved_at = ?, resolved_by = ?
             WHERE incident_id = ? AND status IN ('firing', 'acknowledged', 'flapping')
-        "#)
+        "#,
+        )
         .bind(now)
         .bind(user_id)
         .bind(incident_id)
@@ -771,24 +874,32 @@ impl IncidentService {
         let now = Utc::now();
 
         // 检查是否已参与
-        let existing: Option<IncidentParticipant> = sqlx::query_as::<_, IncidentParticipant>(r#"
+        let existing: Option<IncidentParticipant> = sqlx::query_as::<_, IncidentParticipant>(
+            r#"
             SELECT * FROM incident_participants
             WHERE incident_id = ? AND user_id = ? AND is_active = TRUE
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .bind(user_id)
         .fetch_optional(self.db.pool())
         .await?;
 
         if existing.is_some() {
-            return Err(anyhow!("User {} is already participating in incident {}", user_id, incident_id));
+            return Err(anyhow!(
+                "User {} is already participating in incident {}",
+                user_id,
+                incident_id
+            ));
         }
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO incident_participants (
                 id, incident_id, user_id, role, joined_at, is_active, notification_enabled
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&participant_id)
         .bind(incident_id)
         .bind(user_id)
@@ -807,9 +918,13 @@ impl IncidentService {
             &format!("用户 {} 以 {:?} 角色加入事件", user_id, role),
             user_id,
             None,
-        ).await?;
+        )
+        .await?;
 
-        info!("User {} joined incident {} as {:?}", user_id, incident_id, role);
+        info!(
+            "User {} joined incident {} as {:?}",
+            user_id, incident_id, role
+        );
 
         Ok(IncidentParticipant {
             id: participant_id,
@@ -827,11 +942,13 @@ impl IncidentService {
     pub async fn leave_incident(&self, incident_id: &str, user_id: &str) -> Result<()> {
         let now = Utc::now();
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE incident_participants
             SET left_at = ?, is_active = FALSE
             WHERE incident_id = ? AND user_id = ?
-        "#)
+        "#,
+        )
         .bind(now)
         .bind(incident_id)
         .bind(user_id)
@@ -845,7 +962,8 @@ impl IncidentService {
             &format!("用户 {} 离开事件", user_id),
             user_id,
             None,
-        ).await?;
+        )
+        .await?;
 
         info!("User {} left incident {}", user_id, incident_id);
 
@@ -853,12 +971,17 @@ impl IncidentService {
     }
 
     /// 获取事件参与者
-    pub async fn get_incident_participants(&self, incident_id: &str) -> Result<Vec<IncidentParticipant>> {
-        let participants = sqlx::query_as::<_, IncidentParticipant>(r#"
+    pub async fn get_incident_participants(
+        &self,
+        incident_id: &str,
+    ) -> Result<Vec<IncidentParticipant>> {
+        let participants = sqlx::query_as::<_, IncidentParticipant>(
+            r#"
             SELECT * FROM incident_participants
             WHERE incident_id = ?
             ORDER BY joined_at ASC
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -890,12 +1013,14 @@ impl IncidentService {
                 .await?;
         }
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO diagnosis_results (
                 id, incident_id, diagnosis_type, findings, confidence_score,
                 suggested_actions, runbook_suggestions, created_by, created_at, is_primary
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&diagnosis_id)
         .bind(incident_id)
         .bind(diagnosis_type)
@@ -914,18 +1039,27 @@ impl IncidentService {
             incident_id,
             TimelineEntryType::Diagnosis,
             "新诊断结果",
-            &format!("[{}] {}", diagnosis_type, findings.chars().take(100).collect::<String>()),
+            &format!(
+                "[{}] {}",
+                diagnosis_type,
+                findings.chars().take(100).collect::<String>()
+            ),
             created_by,
             None,
-        ).await?;
+        )
+        .await?;
 
-        info!("Added diagnosis to incident {} by {}", incident_id, created_by);
+        info!(
+            "Added diagnosis to incident {} by {}",
+            incident_id, created_by
+        );
 
         // 获取创建的诊断
-        let diagnosis = sqlx::query_as::<_, DiagnosisResult>("SELECT * FROM diagnosis_results WHERE id = ?")
-            .bind(&diagnosis_id)
-            .fetch_one(self.db.pool())
-            .await?;
+        let diagnosis =
+            sqlx::query_as::<_, DiagnosisResult>("SELECT * FROM diagnosis_results WHERE id = ?")
+                .bind(&diagnosis_id)
+                .fetch_one(self.db.pool())
+                .await?;
 
         Ok(diagnosis)
     }
@@ -941,7 +1075,8 @@ impl IncidentService {
         let similar_incidents = self.find_similar_incidents(&incident).await?;
 
         // 建议的运行手册
-        let runbook_suggestions: Vec<String> = self.suggest_runbooks(&incident.incident)
+        let runbook_suggestions: Vec<String> = self
+            .suggest_runbooks(&incident.incident)
             .await?
             .into_iter()
             .map(|r| r.id)
@@ -954,15 +1089,17 @@ impl IncidentService {
             "检查资源使用情况".to_string(),
         ];
 
-        let diagnosis = self.add_diagnosis(
-            incident_id,
-            "ai",
-            &findings,
-            Some(0.85),
-            Some(suggested_actions),
-            Some(runbook_suggestions),
-            "ai_system",
-        ).await?;
+        let diagnosis = self
+            .add_diagnosis(
+                incident_id,
+                "ai",
+                &findings,
+                Some(0.85),
+                Some(suggested_actions),
+                Some(runbook_suggestions),
+                "ai_system",
+            )
+            .await?;
 
         // 更新诊断的相似事件信息
         let related_ids: Vec<String> = similar_incidents.into_iter().map(|i| i.id).collect();
@@ -989,8 +1126,14 @@ impl IncidentService {
         if !alerts.is_empty() {
             findings.push_str(&format!("检测到 {} 个相关告警。", alerts.len()));
 
-            let high_severity_count = alerts.iter()
-                .filter(|a| matches!(a.severity, IncidentSeverity::Critical | IncidentSeverity::High))
+            let high_severity_count = alerts
+                .iter()
+                .filter(|a| {
+                    matches!(
+                        a.severity,
+                        IncidentSeverity::Critical | IncidentSeverity::High
+                    )
+                })
                 .count();
 
             if high_severity_count > 0 {
@@ -1024,7 +1167,8 @@ impl IncidentService {
     async fn find_similar_incidents(&self, current: &Incident) -> Result<Vec<Incident>> {
         let since = Utc::now() - Duration::days(90);
 
-        let similar = sqlx::query_as::<_, Incident>(r#"
+        let similar = sqlx::query_as::<_, Incident>(
+            r#"
             SELECT * FROM incidents
             WHERE team_id = ?
             AND incident_type = ?
@@ -1032,7 +1176,8 @@ impl IncidentService {
             AND created_at > ?
             ORDER BY created_at DESC
             LIMIT 5
-        "#)
+        "#,
+        )
         .bind(&current.team_id)
         .bind(current.incident_type.as_str())
         .bind(since)
@@ -1044,21 +1189,24 @@ impl IncidentService {
 
     /// 获取诊断详情
     pub async fn get_diagnosis_by_id(&self, diagnosis_id: &str) -> Result<DiagnosisResult> {
-        let diagnosis = sqlx::query_as::<_, DiagnosisResult>("SELECT * FROM diagnosis_results WHERE id = ?")
-            .bind(diagnosis_id)
-            .fetch_optional(self.db.pool())
-            .await?;
+        let diagnosis =
+            sqlx::query_as::<_, DiagnosisResult>("SELECT * FROM diagnosis_results WHERE id = ?")
+                .bind(diagnosis_id)
+                .fetch_optional(self.db.pool())
+                .await?;
 
         diagnosis.ok_or_else(|| anyhow!("Diagnosis not found: {}", diagnosis_id))
     }
 
     /// 获取事件的所有诊断
     pub async fn get_incident_diagnoses(&self, incident_id: &str) -> Result<Vec<DiagnosisResult>> {
-        let diagnoses = sqlx::query_as::<_, DiagnosisResult>(r#"
+        let diagnoses = sqlx::query_as::<_, DiagnosisResult>(
+            r#"
             SELECT * FROM diagnosis_results
             WHERE incident_id = ?
             ORDER BY created_at DESC
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -1105,7 +1253,8 @@ impl IncidentService {
         // 查找同类型的近期事件
         let since = Utc::now() - Duration::hours(24);
 
-        let related = sqlx::query_as::<_, Incident>(r#"
+        let related = sqlx::query_as::<_, Incident>(
+            r#"
             SELECT * FROM incidents
             WHERE id != ?
             AND team_id = ?
@@ -1113,7 +1262,8 @@ impl IncidentService {
             AND created_at > ?
             ORDER BY created_at DESC
             LIMIT 5
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .bind(&incident.team_id)
         .bind(incident.incident_type.as_str())

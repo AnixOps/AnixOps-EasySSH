@@ -3,12 +3,17 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_postgres::{Client, Config, NoTls, Row as PostgresRow};
 use tokio_postgres::types::Type;
+use tokio_postgres::{Client, Config, NoTls, Row as PostgresRow};
 
-use crate::database_client::{DatabaseDriver, DatabaseType, DatabaseError};
-use crate::database_client::drivers::{ConnectionInfo, TableInfo, TableType, TableDetail, ColumnInfo, IndexInfo, ForeignKeyInfo, DatabaseStats};
-use crate::database_client::{DatabaseSchema, SchemaTable, SchemaColumn, QueryResult, QueryRow, QueryCell, PerformanceMetrics};
+use crate::database_client::drivers::{
+    ColumnInfo, ConnectionInfo, DatabaseStats, ForeignKeyInfo, IndexInfo, TableDetail, TableInfo,
+    TableType,
+};
+use crate::database_client::{DatabaseDriver, DatabaseError, DatabaseType};
+use crate::database_client::{
+    DatabaseSchema, PerformanceMetrics, QueryCell, QueryResult, QueryRow, SchemaColumn, SchemaTable,
+};
 
 /// PostgreSQL driver
 pub struct PostgresDriver {
@@ -64,7 +69,11 @@ impl PostgresDriver {
             "BLOB".to_string()
         } else if upper == "REAL" || upper == "FLOAT4" {
             "REAL".to_string()
-        } else if upper == "DOUBLE PRECISION" || upper == "FLOAT8" || upper.starts_with("NUMERIC") || upper.starts_with("DECIMAL") {
+        } else if upper == "DOUBLE PRECISION"
+            || upper == "FLOAT8"
+            || upper.starts_with("NUMERIC")
+            || upper.starts_with("DECIMAL")
+        {
             "NUMERIC".to_string()
         } else if upper == "DATE" {
             "DATE".to_string()
@@ -101,7 +110,9 @@ impl DatabaseDriver for PostgresDriver {
             config.password(pwd);
         }
 
-        let (client, connection) = config.connect(NoTls).await
+        let (client, connection) = config
+            .connect(NoTls)
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
         // Spawn connection in background
@@ -137,7 +148,9 @@ impl DatabaseDriver for PostgresDriver {
 
         let start = std::time::Instant::now();
 
-        let rows = c.query(query, &[]).await
+        let rows = c
+            .query(query, &[])
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         if rows.is_empty() {
@@ -152,7 +165,8 @@ impl DatabaseDriver for PostgresDriver {
         }
 
         // Get column names and types from first row
-        let columns: Vec<String> = rows[0].columns()
+        let columns: Vec<String> = rows[0]
+            .columns()
             .iter()
             .map(|col| col.name().to_string())
             .collect();
@@ -183,7 +197,9 @@ impl DatabaseDriver for PostgresDriver {
         let conn = self.get_conn()?;
         let c = conn.lock().await;
 
-        let rows_affected = c.execute(query, &[]).await
+        let rows_affected = c
+            .execute(query, &[])
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         Ok(rows_affected as u64)
@@ -196,19 +212,20 @@ impl DatabaseDriver for PostgresDriver {
         for table in tables {
             let detail = self.get_table_info(&table.name).await?;
 
-            let columns = detail.columns.iter().map(|col| {
-                SchemaColumn {
+            let columns = detail
+                .columns
+                .iter()
+                .map(|col| SchemaColumn {
                     name: col.name.clone(),
                     data_type: col.data_type.clone(),
                     nullable: col.nullable,
                     default: col.default_value.clone(),
                     is_primary_key: col.is_primary_key,
-                    is_foreign_key: detail.foreign_keys.iter()
-                        .any(|fk| fk.column == col.name),
+                    is_foreign_key: detail.foreign_keys.iter().any(|fk| fk.column == col.name),
                     comment: col.comment.clone(),
                     extra: None,
-                }
-            }).collect();
+                })
+                .collect();
 
             schema_tables.push(SchemaTable {
                 name: table.name,
@@ -216,33 +233,45 @@ impl DatabaseDriver for PostgresDriver {
                 table_type: match table.table_type {
                     TableType::Table => crate::database_client::schema::SchemaTableType::Table,
                     TableType::View => crate::database_client::schema::SchemaTableType::View,
-                    TableType::SystemTable => crate::database_client::schema::SchemaTableType::System,
+                    TableType::SystemTable => {
+                        crate::database_client::schema::SchemaTableType::System
+                    }
                     _ => crate::database_client::schema::SchemaTableType::Table,
                 },
                 columns,
-                indexes: detail.indexes.iter().map(|idx| crate::database_client::schema::SchemaIndex {
-                    name: idx.name.clone(),
-                    columns: idx.columns.clone(),
-                    unique: idx.unique,
-                    primary: idx.primary,
-                    index_type: Some(idx.index_type.clone()),
-                    comment: None,
-                }).collect(),
-                foreign_keys: detail.foreign_keys.iter().map(|fk| crate::database_client::schema::SchemaForeignKey {
-                    name: fk.name.clone(),
-                    column: fk.column.clone(),
-                    referenced_table: fk.referenced_table.clone(),
-                    referenced_column: fk.referenced_column.clone(),
-                    on_update: Some(fk.on_update.clone()),
-                    on_delete: Some(fk.on_delete.clone()),
-                }).collect(),
+                indexes: detail
+                    .indexes
+                    .iter()
+                    .map(|idx| crate::database_client::schema::SchemaIndex {
+                        name: idx.name.clone(),
+                        columns: idx.columns.clone(),
+                        unique: idx.unique,
+                        primary: idx.primary,
+                        index_type: Some(idx.index_type.clone()),
+                        comment: None,
+                    })
+                    .collect(),
+                foreign_keys: detail
+                    .foreign_keys
+                    .iter()
+                    .map(|fk| crate::database_client::schema::SchemaForeignKey {
+                        name: fk.name.clone(),
+                        column: fk.column.clone(),
+                        referenced_table: fk.referenced_table.clone(),
+                        referenced_column: fk.referenced_column.clone(),
+                        on_update: Some(fk.on_update.clone()),
+                        on_delete: Some(fk.on_delete.clone()),
+                    })
+                    .collect(),
                 row_count: table.row_count,
                 comment: table.comment,
             });
         }
 
         Ok(DatabaseSchema {
-            database_name: self.info.as_ref()
+            database_name: self
+                .info
+                .as_ref()
                 .map(|c| c.database.clone())
                 .unwrap_or_default(),
             tables: schema_tables,
@@ -255,8 +284,12 @@ impl DatabaseDriver for PostgresDriver {
     }
 
     async fn list_databases(&self) -> Result<Vec<String>, DatabaseError> {
-        let result = self.query("SELECT datname FROM pg_database WHERE datistemplate = false").await?;
-        let databases: Vec<String> = result.rows.iter()
+        let result = self
+            .query("SELECT datname FROM pg_database WHERE datistemplate = false")
+            .await?;
+        let databases: Vec<String> = result
+            .rows
+            .iter()
             .filter_map(|row| {
                 row.cells.get(0).map(|cell| match cell {
                     QueryCell::String(s) => s.clone(),
@@ -281,7 +314,9 @@ impl DatabaseDriver for PostgresDriver {
                      AND c.relkind IN ('r', 'v')
                      ORDER BY c.relname";
 
-        let rows = c.query(query, &[]).await
+        let rows = c
+            .query(query, &[])
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let mut tables = Vec::new();
@@ -317,7 +352,8 @@ impl DatabaseDriver for PostgresDriver {
 
     async fn get_table(&self, table_name: &str) -> Result<TableInfo, DatabaseError> {
         let tables = self.get_tables().await?;
-        tables.into_iter()
+        tables
+            .into_iter()
             .find(|t| t.name == table_name)
             .ok_or_else(|| DatabaseError::SchemaError(format!("Table not found: {}", table_name)))
     }
@@ -347,7 +383,9 @@ impl DatabaseDriver for PostgresDriver {
                      AND NOT a.attisdropped
                      ORDER BY a.attnum";
 
-        let rows = c.query(query, &[&table_name]).await
+        let rows = c
+            .query(query, &[&table_name])
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
         let mut columns = Vec::new();
@@ -391,21 +429,27 @@ impl DatabaseDriver for PostgresDriver {
                      WHERE n.nspname = 'public'
                      AND c.relname = $1";
 
-        let rows = c.query(query, &[&table_name]).await
+        let rows = c
+            .query(query, &[&table_name])
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
-        let mut indexes_map: std::collections::HashMap<String, (bool, bool, Vec<String>)> = std::collections::HashMap::new();
+        let mut indexes_map: std::collections::HashMap<String, (bool, bool, Vec<String>)> =
+            std::collections::HashMap::new();
         for row in rows {
             let name: String = row.get(0);
             let column: String = row.get(1);
             let is_unique: bool = row.get(2);
             let is_primary: bool = row.get(3);
 
-            let entry = indexes_map.entry(name).or_insert((is_unique, is_primary, Vec::new()));
+            let entry = indexes_map
+                .entry(name)
+                .or_insert((is_unique, is_primary, Vec::new()));
             entry.2.push(column);
         }
 
-        let indexes: Vec<IndexInfo> = indexes_map.into_iter()
+        let indexes: Vec<IndexInfo> = indexes_map
+            .into_iter()
             .map(|(name, (unique, primary, columns))| IndexInfo {
                 name,
                 columns,
@@ -430,7 +474,9 @@ impl DatabaseDriver for PostgresDriver {
                      WHERE tc.constraint_type = 'FOREIGN KEY'
                      AND tc.table_name = $1";
 
-        let rows = c.query(query, &[&table_name]).await
+        let rows = c
+            .query(query, &[&table_name])
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
         let mut foreign_keys = Vec::new();
@@ -487,7 +533,9 @@ impl DatabaseDriver for PostgresDriver {
         let conn = self.get_conn()?;
         let c = conn.lock().await;
 
-        let version: String = c.query_one("SELECT version()", &[]).await
+        let version: String = c
+            .query_one("SELECT version()", &[])
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .get(0);
 
@@ -500,7 +548,9 @@ impl DatabaseDriver for PostgresDriver {
         let table_count: i64 = row.get(1);
 
         Ok(DatabaseStats {
-            name: self.info.as_ref()
+            name: self
+                .info
+                .as_ref()
                 .map(|i| i.database.clone())
                 .unwrap_or_else(|| "postgresql".to_string()),
             size_bytes: size as u64,
@@ -515,7 +565,8 @@ impl DatabaseDriver for PostgresDriver {
     async fn begin_transaction(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let c = conn.lock().await;
-        c.execute("BEGIN", &[]).await
+        c.execute("BEGIN", &[])
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
         Ok(())
     }
@@ -523,7 +574,8 @@ impl DatabaseDriver for PostgresDriver {
     async fn commit(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let c = conn.lock().await;
-        c.execute("COMMIT", &[]).await
+        c.execute("COMMIT", &[])
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
         Ok(())
     }
@@ -531,7 +583,8 @@ impl DatabaseDriver for PostgresDriver {
     async fn rollback(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let c = conn.lock().await;
-        c.execute("ROLLBACK", &[]).await
+        c.execute("ROLLBACK", &[])
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
         Ok(())
     }
@@ -540,8 +593,13 @@ impl DatabaseDriver for PostgresDriver {
         let conn = self.get_conn()?;
         let c = conn.lock().await;
 
-        let row = c.query_one("SELECT sum(numbackends) as connections
-                              FROM pg_stat_database", &[]).await;
+        let row = c
+            .query_one(
+                "SELECT sum(numbackends) as connections
+                              FROM pg_stat_database",
+                &[],
+            )
+            .await;
 
         let connections: i64 = row.map(|r| r.get(0)).unwrap_or(0);
 
@@ -560,13 +618,16 @@ impl DatabaseDriver for PostgresDriver {
     }
 
     async fn cancel(&self) -> Result<(), DatabaseError> {
-        Err(DatabaseError::Unknown("Query cancellation not supported for PostgreSQL".to_string()))
+        Err(DatabaseError::Unknown(
+            "Query cancellation not supported for PostgreSQL".to_string(),
+        ))
     }
 
     async fn ping(&self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let c = conn.lock().await;
-        c.execute("SELECT 1", &[]).await
+        c.execute("SELECT 1", &[])
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
         Ok(())
     }

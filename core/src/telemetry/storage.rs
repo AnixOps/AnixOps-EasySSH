@@ -123,7 +123,10 @@ impl AnalyticsStorage {
     }
 
     /// Retrieve events
-    pub async fn retrieve(&self, batch_size: usize) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
+    pub async fn retrieve(
+        &self,
+        batch_size: usize,
+    ) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
         let file_path = self.storage_path.join("events.jsonl");
 
         if !file_path.exists() {
@@ -274,7 +277,11 @@ impl AnalyticsStorage {
 
         tokio::fs::write(&file_path, remaining.join("\n")).await?;
 
-        println!("[Telemetry] Deleted {} events for user {}", deleted_count, anonymous_id.as_str());
+        println!(
+            "[Telemetry] Deleted {} events for user {}",
+            deleted_count,
+            anonymous_id.as_str()
+        );
 
         // Log the deletion for compliance
         self.log_deletion(anonymous_id, deleted_count).await?;
@@ -356,7 +363,11 @@ impl AnalyticsStorage {
     }
 
     /// Log deletion for compliance audit
-    async fn log_deletion(&self, anonymous_id: &AnonymousId, count: usize) -> Result<(), TelemetryError> {
+    async fn log_deletion(
+        &self,
+        anonymous_id: &AnonymousId,
+        count: usize,
+    ) -> Result<(), TelemetryError> {
         let log_path = self.storage_path.join("deletion_log.jsonl");
 
         let log_entry = DeletionLogEntry {
@@ -390,7 +401,9 @@ impl AnalyticsStorage {
     pub async fn get_stats(&self) -> StorageStats {
         let event_count = self.count().await.unwrap_or(0);
 
-        let storage_size = if let Ok(metadata) = tokio::fs::metadata(self.storage_path.join("events.jsonl")).await {
+        let storage_size = if let Ok(metadata) =
+            tokio::fs::metadata(self.storage_path.join("events.jsonl")).await
+        {
             metadata.len()
         } else {
             0
@@ -455,7 +468,7 @@ impl PrivacyCompliance {
 
         // Check for patterns that should not exist
         let forbidden_patterns = [
-            r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", // IPs
+            r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",         // IPs
             r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", // Emails
         ];
 
@@ -463,7 +476,10 @@ impl PrivacyCompliance {
         if cfg!(debug_assertions) {
             for pattern in &forbidden_patterns {
                 if json.contains(pattern) {
-                    eprintln!("[Privacy Warning] Potential PII detected in event: {}", event.id);
+                    eprintln!(
+                        "[Privacy Warning] Potential PII detected in event: {}",
+                        event.id
+                    );
                     return false;
                 }
             }
@@ -473,7 +489,9 @@ impl PrivacyCompliance {
     }
 
     /// Generate privacy report
-    pub async fn generate_privacy_report(storage: &AnalyticsStorage) -> Result<PrivacyReport, TelemetryError> {
+    pub async fn generate_privacy_report(
+        storage: &AnalyticsStorage,
+    ) -> Result<PrivacyReport, TelemetryError> {
         let stats = storage.get_stats().await;
 
         Ok(PrivacyReport {

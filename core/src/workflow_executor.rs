@@ -1,14 +1,14 @@
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, RwLock};
 use tokio::task::JoinSet;
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use tracing::{error, info, warn, debug};
-use std::sync::Arc;
 
 use crate::workflow_engine::*;
-use crate::workflow_variables::{VariableResolver, ServerContext, ExecutionContext};
+use crate::workflow_variables::{ExecutionContext, ServerContext, VariableResolver};
 
 /// Maximum number of retry attempts for a step
 const MAX_RETRY_ATTEMPTS: u32 = 10;
@@ -116,7 +116,10 @@ impl ConditionEvaluator {
         for (op_str, op_name) in &operators {
             if let Some(pos) = resolved.find(op_str) {
                 let left = resolved[..pos].trim();
-                let right = resolved[pos + op_str.len()..].trim().trim_matches('"').trim_matches('\'');
+                let right = resolved[pos + op_str.len()..]
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'');
 
                 return Self::evaluate_comparison(left, right, op_name);
             }
@@ -125,7 +128,10 @@ impl ConditionEvaluator {
         // Check for regex patterns like: variable =~ pattern
         if let Some(pos) = resolved.find(" =~ ") {
             let left = resolved[..pos].trim();
-            let right = resolved[pos + 4..].trim().trim_matches('"').trim_matches('\'');
+            let right = resolved[pos + 4..]
+                .trim()
+                .trim_matches('"')
+                .trim_matches('\'');
             return Self::evaluate_regex(left, right);
         }
 
@@ -193,13 +199,17 @@ impl ConditionEvaluator {
         // Split by OR first (lower precedence)
         let or_parts: Vec<&str> = expr.split(" || ").collect();
         if or_parts.len() > 1 {
-            return or_parts.iter().any(|part| Self::evaluate_logical(part.trim(), resolver));
+            return or_parts
+                .iter()
+                .any(|part| Self::evaluate_logical(part.trim(), resolver));
         }
 
         // Then split by AND (higher precedence)
         let and_parts: Vec<&str> = expr.split(" && ").collect();
         if and_parts.len() > 1 {
-            return and_parts.iter().all(|part| Self::evaluate(part.trim(), resolver));
+            return and_parts
+                .iter()
+                .all(|part| Self::evaluate(part.trim(), resolver));
         }
 
         // Handle NOT operator
@@ -224,7 +234,10 @@ impl WorkflowExecutor {
     }
 
     /// Create with SSH manager for actual command execution
-    pub fn with_ssh_manager(mut self, ssh_manager: Arc<tokio::sync::Mutex<crate::ssh::SshSessionManager>>) -> Self {
+    pub fn with_ssh_manager(
+        mut self,
+        ssh_manager: Arc<tokio::sync::Mutex<crate::ssh::SshSessionManager>>,
+    ) -> Self {
         self.ssh_manager = Some(ssh_manager);
         self
     }
@@ -249,8 +262,7 @@ impl WorkflowExecutor {
         servers: Vec<ServerContext>,
         _initial_variables: HashMap<String, serde_json::Value>,
     ) -> String {
-        let execution = WorkflowExecution::new(&workflow.id)
-            .with_servers(servers);
+        let execution = WorkflowExecution::new(&workflow.id).with_servers(servers);
 
         let execution_id = execution.execution_id.clone();
 
@@ -398,12 +410,9 @@ impl WorkflowExecutor {
                 execution.add_step_result(step_result.clone());
 
                 // Determine next step based on result
-                current_step_id = self.determine_next_step(
-                    &step,
-                    &step_result,
-                    &mut loop_stack,
-                    &mut resolver,
-                ).await;
+                current_step_id = self
+                    .determine_next_step(&step, &step_result, &mut loop_stack, &mut resolver)
+                    .await;
 
                 // Handle loop context updates
                 if let Some(loop_ctx) = loop_stack.last_mut() {
@@ -473,7 +482,14 @@ impl WorkflowExecutor {
                         return None;
                     }
                     StepType::Loop => {
-                        if let StepConfig::Loop { loop_type, iteration_var, items, max_iterations, body_start } = &step.config {
+                        if let StepConfig::Loop {
+                            loop_type,
+                            iteration_var,
+                            items,
+                            max_iterations,
+                            body_start,
+                        } = &step.config
+                        {
                             let loop_ctx = LoopContext::new(
                                 step.id.clone(),
                                 loop_type.clone(),
@@ -502,24 +518,17 @@ impl WorkflowExecutor {
                         // Retry is handled in execute_step_with_retry
                         Some(step.id.clone())
                     }
-                    ErrorAction::Skip => {
-                        step.next_step.clone()
-                    }
-                    ErrorAction::Continue => {
-                        step.error_handling.error_jump_target.clone()
-                            .or(step.next_step.clone())
-                    }
-                    ErrorAction::Ignore => {
-                        step.next_step.clone()
-                    }
+                    ErrorAction::Skip => step.next_step.clone(),
+                    ErrorAction::Continue => step
+                        .error_handling
+                        .error_jump_target
+                        .clone()
+                        .or(step.next_step.clone()),
+                    ErrorAction::Ignore => step.next_step.clone(),
                 }
             }
-            StepStatus::Skipped => {
-                step.next_step.clone()
-            }
-            _ => {
-                step.next_step.clone()
-            }
+            StepStatus::Skipped => step.next_step.clone(),
+            _ => step.next_step.clone(),
         }
     }
 
@@ -532,16 +541,24 @@ impl WorkflowExecutor {
     ) -> StepResult {
         let max_attempts = step.retry.as_ref().map(|r| r.max_attempts).unwrap_or(0);
         let retry_delay = step.retry.as_ref().map(|r| r.delay_secs).unwrap_or(1);
-        let backoff_multiplier = step.retry.as_ref().map(|r| r.backoff_multiplier).unwrap_or(1.0);
+        let backoff_multiplier = step
+            .retry
+            .as_ref()
+            .map(|r| r.backoff_multiplier)
+            .unwrap_or(1.0);
 
         let mut last_result = None;
 
         for attempt in 0..=max_attempts {
             if attempt > 0 {
-                info!("Retrying step {} (attempt {}/{})", step.name, attempt, max_attempts);
+                info!(
+                    "Retrying step {} (attempt {}/{})",
+                    step.name, attempt, max_attempts
+                );
 
                 self.send_event(ExecutionEvent::StepRetry {
-                    execution_id: resolver.get("execution.id")
+                    execution_id: resolver
+                        .get("execution.id")
                         .and_then(|v| v.as_str())
                         .unwrap_or("unknown")
                         .to_string(),
@@ -551,7 +568,8 @@ impl WorkflowExecutor {
                 });
 
                 // Calculate delay with exponential backoff
-                let delay_secs = (retry_delay as f64 * backoff_multiplier.powi((attempt - 1) as i32)) as u64;
+                let delay_secs =
+                    (retry_delay as f64 * backoff_multiplier.powi((attempt - 1) as i32)) as u64;
                 tokio::time::sleep(Duration::from_secs(delay_secs)).await;
             }
 
@@ -600,7 +618,13 @@ impl WorkflowExecutor {
 
         let result = tokio::time::timeout(timeout, async {
             match &step.config {
-                StepConfig::SshCommand { command, working_dir, env_vars, capture_output, fail_on_error: _ } => {
+                StepConfig::SshCommand {
+                    command,
+                    working_dir,
+                    env_vars,
+                    capture_output,
+                    fail_on_error: _,
+                } => {
                     let resolved_command = resolver.resolve(command);
                     let resolved_working_dir = working_dir.as_ref().map(|w| resolver.resolve(w));
                     self.execute_ssh_command(
@@ -609,38 +633,85 @@ impl WorkflowExecutor {
                         env_vars,
                         *capture_output,
                         server,
-                    ).await
+                    )
+                    .await
                 }
-                StepConfig::SftpUpload { local_path, remote_path, create_dirs, permissions } => {
+                StepConfig::SftpUpload {
+                    local_path,
+                    remote_path,
+                    create_dirs,
+                    permissions,
+                } => {
                     let resolved_local = resolver.resolve(local_path);
                     let resolved_remote = resolver.resolve(remote_path);
-                    self.execute_sftp_upload(&resolved_local, &resolved_remote, *create_dirs, permissions.as_deref()).await
+                    self.execute_sftp_upload(
+                        &resolved_local,
+                        &resolved_remote,
+                        *create_dirs,
+                        permissions.as_deref(),
+                    )
+                    .await
                 }
-                StepConfig::SftpDownload { remote_path, local_path, create_dirs } => {
+                StepConfig::SftpDownload {
+                    remote_path,
+                    local_path,
+                    create_dirs,
+                } => {
                     let resolved_remote = resolver.resolve(remote_path);
                     let resolved_local = resolver.resolve(local_path);
-                    self.execute_sftp_download(&resolved_remote, &resolved_local, *create_dirs).await
+                    self.execute_sftp_download(&resolved_remote, &resolved_local, *create_dirs)
+                        .await
                 }
-                StepConfig::LocalCommand { command, working_dir, env_vars, capture_output } => {
+                StepConfig::LocalCommand {
+                    command,
+                    working_dir,
+                    env_vars,
+                    capture_output,
+                } => {
                     let resolved_command = resolver.resolve(command);
                     let resolved_working_dir = working_dir.as_ref().map(|w| resolver.resolve(w));
-                    self.execute_local_command(&resolved_command, resolved_working_dir.as_deref(), env_vars, *capture_output).await
+                    self.execute_local_command(
+                        &resolved_command,
+                        resolved_working_dir.as_deref(),
+                        env_vars,
+                        *capture_output,
+                    )
+                    .await
                 }
-                StepConfig::Condition { expression: _, operator, left_operand, right_operand } => {
+                StepConfig::Condition {
+                    expression: _,
+                    operator,
+                    left_operand,
+                    right_operand,
+                } => {
                     let left = resolver.resolve(left_operand);
                     let right = resolver.resolve(right_operand);
                     let matched = ConditionEvaluator::evaluate_comparison(&left, &right, operator);
 
                     Ok(StepExecutionOutcome {
-                        output: Some(format!("Condition evaluated: {} {} {} = {}", left, operator, right, matched)),
+                        output: Some(format!(
+                            "Condition evaluated: {} {} {} = {}",
+                            left, operator, right, matched
+                        )),
                         exit_code: if matched { 0 } else { 1 },
                     })
                 }
-                StepConfig::Loop { loop_type, iteration_var: _, items, .. } => {
+                StepConfig::Loop {
+                    loop_type,
+                    iteration_var: _,
+                    items,
+                    ..
+                } => {
                     // Loop step initialization
-                    let items_resolved = items.as_ref().map(|i| resolver.resolve(i)).unwrap_or_default();
+                    let items_resolved = items
+                        .as_ref()
+                        .map(|i| resolver.resolve(i))
+                        .unwrap_or_default();
                     Ok(StepExecutionOutcome {
-                        output: Some(format!("Loop initialized: {:?} with items: {}", loop_type, items_resolved)),
+                        output: Some(format!(
+                            "Loop initialized: {:?} with items: {}",
+                            loop_type, items_resolved
+                        )),
                         exit_code: 0,
                     })
                 }
@@ -651,7 +722,11 @@ impl WorkflowExecutor {
                         exit_code: 0,
                     })
                 }
-                StepConfig::SetVariable { variable_name, value_expression, evaluate } => {
+                StepConfig::SetVariable {
+                    variable_name,
+                    value_expression,
+                    evaluate,
+                } => {
                     let value = if *evaluate {
                         resolver.resolve(value_expression)
                     } else {
@@ -663,35 +738,62 @@ impl WorkflowExecutor {
                         exit_code: 0,
                     })
                 }
-                StepConfig::Notification { notification_type, title, message, recipients } => {
+                StepConfig::Notification {
+                    notification_type,
+                    title,
+                    message,
+                    recipients,
+                } => {
                     let resolved_title = resolver.resolve(title);
                     let resolved_message = resolver.resolve(message);
-                    self.execute_notification(*notification_type, &resolved_title, &resolved_message, recipients.as_ref()).await
+                    self.execute_notification(
+                        *notification_type,
+                        &resolved_title,
+                        &resolved_message,
+                        recipients.as_ref(),
+                    )
+                    .await
                 }
-                StepConfig::Parallel { parallel_steps, failure_mode } => {
-                    self.execute_parallel_steps(parallel_steps, *failure_mode, resolver, server).await
+                StepConfig::Parallel {
+                    parallel_steps,
+                    failure_mode,
+                } => {
+                    self.execute_parallel_steps(parallel_steps, *failure_mode, resolver, server)
+                        .await
                 }
-                StepConfig::SubWorkflow { script_id, input_vars, output_mapping } => {
-                    self.execute_subworkflow(script_id, input_vars, output_mapping, resolver, server).await
+                StepConfig::SubWorkflow {
+                    script_id,
+                    input_vars,
+                    output_mapping,
+                } => {
+                    self.execute_subworkflow(
+                        script_id,
+                        input_vars,
+                        output_mapping,
+                        resolver,
+                        server,
+                    )
+                    .await
                 }
-                StepConfig::ErrorHandler { error_types, recovery_action, recovery_step: _ } => {
-                    Ok(StepExecutionOutcome {
-                        output: Some(format!("Error handler configured for: {:?}, action: {}", error_types, recovery_action)),
-                        exit_code: 0,
-                    })
-                }
-                StepConfig::Break => {
-                    Ok(StepExecutionOutcome {
-                        output: Some("Break loop".to_string()),
-                        exit_code: 0,
-                    })
-                }
-                StepConfig::Continue => {
-                    Ok(StepExecutionOutcome {
-                        output: Some("Continue loop".to_string()),
-                        exit_code: 0,
-                    })
-                }
+                StepConfig::ErrorHandler {
+                    error_types,
+                    recovery_action,
+                    recovery_step: _,
+                } => Ok(StepExecutionOutcome {
+                    output: Some(format!(
+                        "Error handler configured for: {:?}, action: {}",
+                        error_types, recovery_action
+                    )),
+                    exit_code: 0,
+                }),
+                StepConfig::Break => Ok(StepExecutionOutcome {
+                    output: Some("Break loop".to_string()),
+                    exit_code: 0,
+                }),
+                StepConfig::Continue => Ok(StepExecutionOutcome {
+                    output: Some("Continue loop".to_string()),
+                    exit_code: 0,
+                }),
                 StepConfig::Return { value_expression } => {
                     let value = value_expression.as_ref().map(|e| resolver.resolve(e));
                     Ok(StepExecutionOutcome {
@@ -700,7 +802,8 @@ impl WorkflowExecutor {
                     })
                 }
             }
-        }).await;
+        })
+        .await;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
@@ -709,7 +812,11 @@ impl WorkflowExecutor {
                 step_id,
                 started_at: Utc::now(),
                 completed_at: Some(Utc::now()),
-                status: if outcome.exit_code == 0 { StepStatus::Completed } else { StepStatus::Failed },
+                status: if outcome.exit_code == 0 {
+                    StepStatus::Completed
+                } else {
+                    StepStatus::Failed
+                },
                 output: outcome.output,
                 error: None,
                 exit_code: Some(outcome.exit_code),
@@ -757,13 +864,17 @@ impl WorkflowExecutor {
             command.to_string()
         };
 
-        let env_prefix = env_vars.iter()
+        let env_prefix = env_vars
+            .iter()
             .map(|(k, v)| format!("export {}={}; ", k, v))
             .collect::<String>();
 
         let final_command = format!("{}{}", env_prefix, full_command);
 
-        info!("Executing SSH command on {}: {}", server.host, final_command);
+        info!(
+            "Executing SSH command on {}: {}",
+            server.host, final_command
+        );
 
         if let Some(ref ssh_manager) = self.ssh_manager {
             // Use actual SSH manager
@@ -772,15 +883,27 @@ impl WorkflowExecutor {
 
             // Connect first
             let password = server.password.as_deref();
-            manager.connect(&session_id, &server.host, server.port, &server.username, password).await
+            manager
+                .connect(
+                    &session_id,
+                    &server.host,
+                    server.port,
+                    &server.username,
+                    password,
+                )
+                .await
                 .map_err(|e| WorkflowError::SshError(e.to_string()))?;
 
             // Execute command
             let output = if capture_output {
-                manager.execute(&session_id, &final_command).await
+                manager
+                    .execute(&session_id, &final_command)
+                    .await
                     .map_err(|e| WorkflowError::StepExecutionFailed(e.to_string()))?
             } else {
-                manager.execute(&session_id, &final_command).await
+                manager
+                    .execute(&session_id, &final_command)
+                    .await
                     .map_err(|e| WorkflowError::StepExecutionFailed(e.to_string()))?;
                 String::new()
             };
@@ -796,7 +919,11 @@ impl WorkflowExecutor {
             // Mock execution for testing
             warn!("No SSH manager configured, using mock execution");
             Ok(StepExecutionOutcome {
-                output: if capture_output { Some(format!("Executed: {}", final_command)) } else { None },
+                output: if capture_output {
+                    Some(format!("Executed: {}", final_command))
+                } else {
+                    None
+                },
                 exit_code: 0,
             })
         }
@@ -838,8 +965,9 @@ impl WorkflowExecutor {
 
         if create_dirs {
             if let Some(parent) = std::path::Path::new(local_path).parent() {
-                tokio::fs::create_dir_all(parent).await
-                    .map_err(|e| WorkflowError::StepExecutionFailed(format!("Failed to create dirs: {}", e)))?;
+                tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                    WorkflowError::StepExecutionFailed(format!("Failed to create dirs: {}", e))
+                })?;
             }
         }
 
@@ -871,8 +999,9 @@ impl WorkflowExecutor {
         }
 
         if capture_output {
-            let output = cmd.output().await
-                .map_err(|e| WorkflowError::StepExecutionFailed(format!("Command failed: {}", e)))?;
+            let output = cmd.output().await.map_err(|e| {
+                WorkflowError::StepExecutionFailed(format!("Command failed: {}", e))
+            })?;
 
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -889,8 +1018,9 @@ impl WorkflowExecutor {
                 exit_code: 0,
             })
         } else {
-            let status = cmd.status().await
-                .map_err(|e| WorkflowError::StepExecutionFailed(format!("Command failed: {}", e)))?;
+            let status = cmd.status().await.map_err(|e| {
+                WorkflowError::StepExecutionFailed(format!("Command failed: {}", e))
+            })?;
 
             Ok(StepExecutionOutcome {
                 output: None,
@@ -913,7 +1043,10 @@ impl WorkflowExecutor {
                 // Platform-specific toast notifications would be implemented here
             }
             NotificationType::Email => {
-                info!("Email notification to {:?}: {} - {}", recipients, title, message);
+                info!(
+                    "Email notification to {:?}: {} - {}",
+                    recipients, title, message
+                );
             }
             NotificationType::Slack => {
                 info!("Slack notification: {} - {}", title, message);
@@ -924,7 +1057,10 @@ impl WorkflowExecutor {
         }
 
         Ok(StepExecutionOutcome {
-            output: Some(format!("Notification sent: {} ({:?})", title, notification_type)),
+            output: Some(format!(
+                "Notification sent: {} ({:?})",
+                title, notification_type
+            )),
             exit_code: 0,
         })
     }
@@ -966,7 +1102,10 @@ impl WorkflowExecutor {
                         match failure_mode {
                             ParallelFailureMode::FailFast => {
                                 return Ok(StepExecutionOutcome {
-                                    output: Some(format!("Parallel execution failed at step {}: {:?}", step_id, error)),
+                                    output: Some(format!(
+                                        "Parallel execution failed at step {}: {:?}",
+                                        step_id, error
+                                    )),
                                     exit_code: 1,
                                 });
                             }
@@ -987,9 +1126,11 @@ impl WorkflowExecutor {
         }
 
         Ok(StepExecutionOutcome {
-            output: Some(format!("Parallel execution completed: {}/{}",
+            output: Some(format!(
+                "Parallel execution completed: {}/{}",
                 results.iter().filter(|(_, s)| *s).count(),
-                results.len())),
+                results.len()
+            )),
             exit_code: if all_succeeded { 0 } else { 1 },
         })
     }
@@ -1006,7 +1147,8 @@ impl WorkflowExecutor {
         info!("Executing subworkflow: {}", script_id);
 
         // Resolve input variables
-        let _resolved_inputs: HashMap<String, String> = input_vars.iter()
+        let _resolved_inputs: HashMap<String, String> = input_vars
+            .iter()
             .map(|(k, v)| (k.clone(), resolver.resolve(v)))
             .collect();
 
@@ -1027,7 +1169,10 @@ impl WorkflowExecutor {
         let total_servers = servers.len();
         let max_parallel = max_parallel.min(MAX_PARALLEL_LIMIT).max(1);
 
-        info!("Executing workflow on {} servers with max_parallel={}", total_servers, max_parallel);
+        info!(
+            "Executing workflow on {} servers with max_parallel={}",
+            total_servers, max_parallel
+        );
 
         let semaphore = Arc::new(tokio::sync::Semaphore::new(max_parallel));
         let mut tasks = JoinSet::new();
@@ -1039,7 +1184,9 @@ impl WorkflowExecutor {
 
             let future = async move {
                 let _permit = permit;
-                executor.execute_on_server(&workflow_clone, &server, index, total_servers).await
+                executor
+                    .execute_on_server(&workflow_clone, &server, index, total_servers)
+                    .await
             };
 
             tasks.spawn(future);
@@ -1051,7 +1198,10 @@ impl WorkflowExecutor {
                 Ok(r) => results.push(r),
                 Err(e) => {
                     error!("Parallel execution task panicked: {}", e);
-                    results.push(Err(WorkflowError::StepExecutionFailed(format!("Task panicked: {}", e))));
+                    results.push(Err(WorkflowError::StepExecutionFailed(format!(
+                        "Task panicked: {}",
+                        e
+                    ))));
                 }
             }
         }
@@ -1069,7 +1219,9 @@ impl WorkflowExecutor {
         let mut results = Vec::with_capacity(total_servers);
 
         for (index, server) in servers.into_iter().enumerate() {
-            let result = self.execute_on_server(workflow, &server, index, total_servers).await;
+            let result = self
+                .execute_on_server(workflow, &server, index, total_servers)
+                .await;
             results.push(result);
         }
 
@@ -1085,7 +1237,8 @@ impl WorkflowExecutor {
     /// Get all active executions
     pub async fn get_active_executions(&self) -> Vec<WorkflowExecution> {
         let executions = self.executions.read().await;
-        executions.values()
+        executions
+            .values()
             .filter(|e| e.status == ExecutionStatus::Running)
             .cloned()
             .collect()
@@ -1112,7 +1265,10 @@ impl WorkflowExecutor {
                 info!("Paused execution: {}", execution_id);
                 Ok(())
             } else {
-                Err(WorkflowError::InvalidWorkflow(format!("Cannot pause execution with status {:?}", execution.status)))
+                Err(WorkflowError::InvalidWorkflow(format!(
+                    "Cannot pause execution with status {:?}",
+                    execution.status
+                )))
             }
         } else {
             Err(WorkflowError::ExecutionNotFound(execution_id.to_string()))
@@ -1128,7 +1284,10 @@ impl WorkflowExecutor {
                 info!("Resumed execution: {}", execution_id);
                 Ok(())
             } else {
-                Err(WorkflowError::InvalidWorkflow(format!("Cannot resume execution with status {:?}", execution.status)))
+                Err(WorkflowError::InvalidWorkflow(format!(
+                    "Cannot resume execution with status {:?}",
+                    execution.status
+                )))
             }
         } else {
             Err(WorkflowError::ExecutionNotFound(execution_id.to_string()))
@@ -1139,7 +1298,8 @@ impl WorkflowExecutor {
     pub async fn cleanup_executions(&self, max_age: Duration) -> usize {
         let mut executions = self.executions.write().await;
         let now = Utc::now();
-        let to_remove: Vec<String> = executions.iter()
+        let to_remove: Vec<String> = executions
+            .iter()
             .filter(|(_, e)| {
                 if e.status == ExecutionStatus::Running || e.status == ExecutionStatus::Paused {
                     return false;
@@ -1295,7 +1455,9 @@ impl BatchExecutionSummary {
                         }
                         _ => {
                             failed += 1;
-                            let err = execution.step_results.values()
+                            let err = execution
+                                .step_results
+                                .values()
                                 .find(|r| r.status == StepStatus::Failed)
                                 .and_then(|r| r.error.clone())
                                 .unwrap_or_else(|| "Execution failed".to_string());
@@ -1307,16 +1469,22 @@ impl BatchExecutionSummary {
                         successful += 1;
                     }
 
-                    let step_summaries: Vec<_> = execution.step_results.values()
+                    let step_summaries: Vec<_> = execution
+                        .step_results
+                        .values()
                         .map(|r| StepResultSummary {
                             step_name: r.step_id.clone(),
                             status: r.status.clone(),
-                            output_preview: r.output.as_ref()
+                            output_preview: r
+                                .output
+                                .as_ref()
                                 .map(|o| o.chars().take(100).collect()),
                         })
                         .collect();
 
-                    let total_time: u64 = execution.step_results.values()
+                    let total_time: u64 = execution
+                        .step_results
+                        .values()
                         .map(|r| r.execution_time_ms)
                         .sum();
 
@@ -1383,7 +1551,7 @@ impl BatchExecutionSummary {
 mod tests {
     use super::*;
     use crate::workflow_engine::*;
-    use crate::workflow_variables::{ServerContext, ExecutionContext};
+    use crate::workflow_variables::{ExecutionContext, ServerContext};
 
     fn create_test_server() -> ServerContext {
         ServerContext {
@@ -1464,7 +1632,11 @@ mod tests {
         assert_eq!(summary.failed, 1);
         // Use approximate comparison for floating point
         let rate = summary.success_rate();
-        assert!(rate > 66.66 && rate < 66.67, "Expected success rate around 66.67%, got {}", rate);
+        assert!(
+            rate > 66.66 && rate < 66.67,
+            "Expected success rate around 66.67%, got {}",
+            rate
+        );
     }
 
     #[test]
@@ -1497,7 +1669,9 @@ mod tests {
         let executor = WorkflowExecutor::new();
         let workflow = Workflow::new("Test Workflow");
 
-        let execution_id = executor.start_execution(&workflow, vec![], HashMap::new()).await;
+        let execution_id = executor
+            .start_execution(&workflow, vec![], HashMap::new())
+            .await;
         assert!(!execution_id.is_empty());
 
         let execution = executor.get_execution(&execution_id).await;
@@ -1509,7 +1683,9 @@ mod tests {
         let executor = WorkflowExecutor::new();
         let workflow = Workflow::new("Test Workflow");
 
-        let execution_id = executor.start_execution(&workflow, vec![], HashMap::new()).await;
+        let execution_id = executor
+            .start_execution(&workflow, vec![], HashMap::new())
+            .await;
         assert!(executor.get_execution(&execution_id).await.is_some());
         assert!(executor.get_execution("non-existent").await.is_none());
     }
@@ -1519,7 +1695,9 @@ mod tests {
         let executor = WorkflowExecutor::new();
         let workflow = Workflow::new("Test Workflow");
 
-        let execution_id = executor.start_execution(&workflow, vec![], HashMap::new()).await;
+        let execution_id = executor
+            .start_execution(&workflow, vec![], HashMap::new())
+            .await;
         assert!(executor.cancel_execution(&execution_id).await.is_ok());
 
         let execution = executor.get_execution(&execution_id).await.unwrap();
@@ -1535,7 +1713,9 @@ mod tests {
         let workflow = Workflow::new("Test Workflow");
 
         // Create and manually set to running for testing
-        let execution_id = executor.start_execution(&workflow, vec![], HashMap::new()).await;
+        let execution_id = executor
+            .start_execution(&workflow, vec![], HashMap::new())
+            .await;
 
         // Can't pause a not-started execution, so we test the error case
         assert!(executor.pause_execution(&execution_id).await.is_err());
@@ -1551,8 +1731,7 @@ mod tests {
 
     #[test]
     fn test_condition_evaluator_simple() {
-        let resolver = VariableResolver::new()
-            .with_system_variables();
+        let resolver = VariableResolver::new().with_system_variables();
 
         // Test truthy conditions
         assert!(ConditionEvaluator::evaluate("true", &resolver));
@@ -1572,12 +1751,20 @@ mod tests {
     #[test]
     fn test_condition_evaluator_comparison() {
         // Test eq operator
-        assert!(ConditionEvaluator::evaluate_comparison("value", "value", "eq"));
-        assert!(!ConditionEvaluator::evaluate_comparison("value1", "value2", "eq"));
+        assert!(ConditionEvaluator::evaluate_comparison(
+            "value", "value", "eq"
+        ));
+        assert!(!ConditionEvaluator::evaluate_comparison(
+            "value1", "value2", "eq"
+        ));
 
         // Test ne operator
-        assert!(ConditionEvaluator::evaluate_comparison("value1", "value2", "ne"));
-        assert!(!ConditionEvaluator::evaluate_comparison("value", "value", "ne"));
+        assert!(ConditionEvaluator::evaluate_comparison(
+            "value1", "value2", "ne"
+        ));
+        assert!(!ConditionEvaluator::evaluate_comparison(
+            "value", "value", "ne"
+        ));
 
         // Test gt/lt operators with numbers
         assert!(ConditionEvaluator::evaluate_comparison("10", "5", "gt"));
@@ -1590,25 +1777,53 @@ mod tests {
         assert!(ConditionEvaluator::evaluate_comparison("5", "10", "lte"));
 
         // Test string contains
-        assert!(ConditionEvaluator::evaluate_comparison("hello world", "world", "contains"));
-        assert!(!ConditionEvaluator::evaluate_comparison("hello", "world", "contains"));
+        assert!(ConditionEvaluator::evaluate_comparison(
+            "hello world",
+            "world",
+            "contains"
+        ));
+        assert!(!ConditionEvaluator::evaluate_comparison(
+            "hello", "world", "contains"
+        ));
 
         // Test starts_with/ends_with
-        assert!(ConditionEvaluator::evaluate_comparison("hello world", "hello", "starts_with"));
-        assert!(ConditionEvaluator::evaluate_comparison("hello world", "world", "ends_with"));
+        assert!(ConditionEvaluator::evaluate_comparison(
+            "hello world",
+            "hello",
+            "starts_with"
+        ));
+        assert!(ConditionEvaluator::evaluate_comparison(
+            "hello world",
+            "world",
+            "ends_with"
+        ));
 
         // Test in operator
-        assert!(ConditionEvaluator::evaluate_comparison("apple", "apple, banana, orange", "in"));
-        assert!(!ConditionEvaluator::evaluate_comparison("grape", "apple, banana", "in"));
+        assert!(ConditionEvaluator::evaluate_comparison(
+            "apple",
+            "apple, banana, orange",
+            "in"
+        ));
+        assert!(!ConditionEvaluator::evaluate_comparison(
+            "grape",
+            "apple, banana",
+            "in"
+        ));
 
         // Test exists/is_empty
-        assert!(ConditionEvaluator::evaluate_comparison("value", "", "exists"));
+        assert!(ConditionEvaluator::evaluate_comparison(
+            "value", "", "exists"
+        ));
         assert!(!ConditionEvaluator::evaluate_comparison("", "", "exists"));
         assert!(ConditionEvaluator::evaluate_comparison("", "", "is_empty"));
-        assert!(!ConditionEvaluator::evaluate_comparison("value", "", "is_empty"));
+        assert!(!ConditionEvaluator::evaluate_comparison(
+            "value", "", "is_empty"
+        ));
 
         // Test unknown operator returns false
-        assert!(!ConditionEvaluator::evaluate_comparison("a", "b", "unknown"));
+        assert!(!ConditionEvaluator::evaluate_comparison(
+            "a", "b", "unknown"
+        ));
     }
 
     #[test]
@@ -1616,14 +1831,32 @@ mod tests {
         let resolver = VariableResolver::new();
 
         // Test AND
-        assert!(ConditionEvaluator::evaluate_logical("true && true", &resolver));
-        assert!(!ConditionEvaluator::evaluate_logical("true && false", &resolver));
-        assert!(!ConditionEvaluator::evaluate_logical("false && true", &resolver));
+        assert!(ConditionEvaluator::evaluate_logical(
+            "true && true",
+            &resolver
+        ));
+        assert!(!ConditionEvaluator::evaluate_logical(
+            "true && false",
+            &resolver
+        ));
+        assert!(!ConditionEvaluator::evaluate_logical(
+            "false && true",
+            &resolver
+        ));
 
         // Test OR
-        assert!(ConditionEvaluator::evaluate_logical("true || false", &resolver));
-        assert!(ConditionEvaluator::evaluate_logical("false || true", &resolver));
-        assert!(!ConditionEvaluator::evaluate_logical("false || false", &resolver));
+        assert!(ConditionEvaluator::evaluate_logical(
+            "true || false",
+            &resolver
+        ));
+        assert!(ConditionEvaluator::evaluate_logical(
+            "false || true",
+            &resolver
+        ));
+        assert!(!ConditionEvaluator::evaluate_logical(
+            "false || false",
+            &resolver
+        ));
 
         // Test NOT
         assert!(!ConditionEvaluator::evaluate_logical("! true", &resolver));
@@ -1632,8 +1865,14 @@ mod tests {
         assert!(ConditionEvaluator::evaluate_logical("not false", &resolver));
 
         // Test precedence (AND before OR)
-        assert!(ConditionEvaluator::evaluate_logical("false && false || true", &resolver));
-        assert!(!ConditionEvaluator::evaluate_logical("false && (false || true)", &resolver));
+        assert!(ConditionEvaluator::evaluate_logical(
+            "false && false || true",
+            &resolver
+        ));
+        assert!(!ConditionEvaluator::evaluate_logical(
+            "false && (false || true)",
+            &resolver
+        ));
     }
 
     #[test]
@@ -1703,12 +1942,9 @@ mod tests {
         let executor = WorkflowExecutor::new();
 
         // Test successful command
-        let result = executor.execute_local_command(
-            "echo 'hello world'",
-            None,
-            &HashMap::new(),
-            true,
-        ).await;
+        let result = executor
+            .execute_local_command("echo 'hello world'", None, &HashMap::new(), true)
+            .await;
 
         assert!(result.is_ok());
         let outcome = result.unwrap();
@@ -1720,12 +1956,9 @@ mod tests {
     async fn test_notification_execution() {
         let executor = WorkflowExecutor::new();
 
-        let result = executor.execute_notification(
-            NotificationType::Toast,
-            "Test Title",
-            "Test Message",
-            None,
-        ).await;
+        let result = executor
+            .execute_notification(NotificationType::Toast, "Test Title", "Test Message", None)
+            .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().exit_code, 0);

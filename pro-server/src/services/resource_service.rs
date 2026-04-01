@@ -1,7 +1,4 @@
-use crate::{
-    models::*,
-    redis_cache::RedisCache,
-};
+use crate::{models::*, redis_cache::RedisCache};
 use anyhow::Result;
 use chrono::Utc;
 use sqlx::AnyPool;
@@ -72,7 +69,7 @@ impl ResourceService {
             .await?
         } else {
             sqlx::query_as::<_, SharedServer>(
-                "SELECT * FROM shared_servers WHERE is_active = TRUE ORDER BY shared_at DESC"
+                "SELECT * FROM shared_servers WHERE is_active = TRUE ORDER BY shared_at DESC",
             )
             .fetch_all(&self.db)
             .await?
@@ -83,7 +80,7 @@ impl ResourceService {
 
     pub async fn get_shared_server(&self, id: &str) -> Result<SharedServer> {
         let server = sqlx::query_as::<_, SharedServer>(
-            "SELECT * FROM shared_servers WHERE id = ? AND is_active = TRUE"
+            "SELECT * FROM shared_servers WHERE id = ? AND is_active = TRUE",
         )
         .bind(id)
         .fetch_one(&self.db)
@@ -182,12 +179,10 @@ impl ResourceService {
     }
 
     pub async fn get_snippet(&self, id: &str) -> Result<Snippet> {
-        let snippet = sqlx::query_as::<_, Snippet>(
-            "SELECT * FROM snippets WHERE id = ?"
-        )
-        .bind(id)
-        .fetch_one(&self.db)
-        .await?;
+        let snippet = sqlx::query_as::<_, Snippet>("SELECT * FROM snippets WHERE id = ?")
+            .bind(id)
+            .fetch_one(&self.db)
+            .await?;
 
         Ok(snippet)
     }
@@ -234,4 +229,3 @@ impl ResourceService {
         self.get_snippet(id).await
     }
 }
-

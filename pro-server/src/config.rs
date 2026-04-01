@@ -42,8 +42,7 @@ impl AppConfig {
             .parse::<u16>()
             .expect("Invalid PORT");
 
-        let base_url = env::var("BASE_URL")
-            .unwrap_or_else(|| format!("http://{}:{}", host, port));
+        let base_url = env::var("BASE_URL").unwrap_or_else(|| format!("http://{}:{}", host, port));
 
         Ok(Self {
             host,
@@ -85,9 +84,7 @@ impl AppConfig {
             oidc_redirect_url: env::var("OIDC_REDIRECT_URL").ok(),
             // Email
             smtp_host: env::var("SMTP_HOST").ok(),
-            smtp_port: env::var("SMTP_PORT")
-                .ok()
-                .and_then(|p| p.parse().ok()),
+            smtp_port: env::var("SMTP_PORT").ok().and_then(|p| p.parse().ok()),
             smtp_username: env::var("SMTP_USERNAME").ok(),
             smtp_password: env::var("SMTP_PASSWORD").ok(),
             smtp_from: env::var("SMTP_FROM").ok(),

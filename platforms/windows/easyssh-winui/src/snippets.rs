@@ -23,13 +23,18 @@ pub enum SnippetVariable {
     Username,
     Port,
     Password,
-    Custom { name: String, default: Option<String> },
+    Custom {
+        name: String,
+        default: Option<String>,
+    },
 }
 
 impl SnippetVariable {
     /// Parse variable from placeholder syntax {{name}}
     pub fn from_placeholder(placeholder: &str) -> Option<Self> {
-        let name = placeholder.trim_matches(|c| c == '{' || c == '}').to_lowercase();
+        let name = placeholder
+            .trim_matches(|c| c == '{' || c == '}')
+            .to_lowercase();
         match name.as_str() {
             "hostname" | "host" => Some(Self::Hostname),
             "username" | "user" => Some(Self::Username),
@@ -61,8 +66,14 @@ impl SnippetVariable {
             Self::Username => "{{username}}".to_string(),
             Self::Port => "{{port}}".to_string(),
             Self::Password => "{{password}}".to_string(),
-            Self::Custom { name, default: None } => format!("{{{{{}}}}}", name),
-            Self::Custom { name, default: Some(d) } => format!("{{{{{name}|{d}}}}}"),
+            Self::Custom {
+                name,
+                default: None,
+            } => format!("{{{{{}}}}}", name),
+            Self::Custom {
+                name,
+                default: Some(d),
+            } => format!("{{{{{name}|{d}}}}}"),
         }
     }
 
@@ -215,7 +226,11 @@ impl Snippet {
 
         // Replace custom variables with defaults if not provided
         for var in self.extract_variables() {
-            if let SnippetVariable::Custom { name, default: Some(d) } = var {
+            if let SnippetVariable::Custom {
+                name,
+                default: Some(d),
+            } = var
+            {
                 let placeholder = format!("{{{{{}}}}}", name);
                 if !values.contains_key(&name) {
                     result = result.replace(&placeholder, &d);
@@ -264,93 +279,90 @@ impl SnippetManager {
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("List files in directory with details")
                 .with_tags(vec!["files".to_string(), "ls".to_string()]),
-
             Snippet::new("Current Directory", "pwd")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Print working directory"),
-
             Snippet::new("Disk Usage", "df -h")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Show disk space usage"),
-
             Snippet::new("Memory Usage", "free -h")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Show memory usage"),
-
             Snippet::new("Process List", "ps aux | grep {{process_name|nginx}}")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Search processes by name"),
-
             Snippet::new("System Info", "uname -a && cat /etc/os-release")
                 .with_category(SnippetCategory::System)
                 .with_description("Show system information"),
-
             Snippet::new("Network Status", "ss -tuln")
                 .with_category(SnippetCategory::System)
                 .with_description("Show listening network ports"),
-
             Snippet::new("Docker PS", "docker ps -a")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("List all Docker containers")
                 .with_tags(vec!["docker".to_string(), "containers".to_string()]),
-
             Snippet::new("Docker Logs", "docker logs -f {{container_name}}")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Follow Docker container logs")
                 .with_tags(vec!["docker".to_string(), "logs".to_string()]),
-
-            Snippet::new("Find Large Files", "find {{path|/}} -type f -size +{{size|100M}} -exec ls -lh {} \\;")
-                .with_category(SnippetCategory::System)
-                .with_description("Find files larger than specified size"),
-
-            Snippet::new("SSH to Server", "ssh {{username}}@{{hostname}} -p {{port|22}}")
-                .with_category(SnippetCategory::FrequentlyUsed)
-                .with_description("SSH connection command")
-                .with_tags(vec!["ssh".to_string(), "connect".to_string()]),
-
+            Snippet::new(
+                "Find Large Files",
+                "find {{path|/}} -type f -size +{{size|100M}} -exec ls -lh {} \\;",
+            )
+            .with_category(SnippetCategory::System)
+            .with_description("Find files larger than specified size"),
+            Snippet::new(
+                "SSH to Server",
+                "ssh {{username}}@{{hostname}} -p {{port|22}}",
+            )
+            .with_category(SnippetCategory::FrequentlyUsed)
+            .with_description("SSH connection command")
+            .with_tags(vec!["ssh".to_string(), "connect".to_string()]),
             Snippet::new("Tail Log", "tail -f {{log_path|/var/log/syslog}}")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Follow log file in real-time"),
-
-            Snippet::new("Grep Search", "grep -r \"{{search_term}}\" {{path|.}} --include=\"*.{{ext|txt}}\"")
-                .with_category(SnippetCategory::FrequentlyUsed)
-                .with_description("Recursive grep search with file filter"),
-
+            Snippet::new(
+                "Grep Search",
+                "grep -r \"{{search_term}}\" {{path|.}} --include=\"*.{{ext|txt}}\"",
+            )
+            .with_category(SnippetCategory::FrequentlyUsed)
+            .with_description("Recursive grep search with file filter"),
             Snippet::new("Chmod Recursive", "chmod -R {{permissions|755}} {{path|.}}")
                 .with_category(SnippetCategory::System)
                 .with_description("Change permissions recursively"),
-
-            Snippet::new("Chown Recursive", "chown -R {{user|root}}:{{group|root}} {{path|.}}")
-                .with_category(SnippetCategory::System)
-                .with_description("Change ownership recursively"),
-
-            Snippet::new("Create Tar Archive", "tar -czf {{archive_name|backup.tar.gz}} {{source_path|.}}")
-                .with_category(SnippetCategory::System)
-                .with_description("Create compressed tar archive"),
-
-            Snippet::new("Extract Tar", "tar -xzf {{archive_path}} -C {{dest_path|.}}")
-                .with_category(SnippetCategory::System)
-                .with_description("Extract tar archive"),
-
+            Snippet::new(
+                "Chown Recursive",
+                "chown -R {{user|root}}:{{group|root}} {{path|.}}",
+            )
+            .with_category(SnippetCategory::System)
+            .with_description("Change ownership recursively"),
+            Snippet::new(
+                "Create Tar Archive",
+                "tar -czf {{archive_name|backup.tar.gz}} {{source_path|.}}",
+            )
+            .with_category(SnippetCategory::System)
+            .with_description("Create compressed tar archive"),
+            Snippet::new(
+                "Extract Tar",
+                "tar -xzf {{archive_path}} -C {{dest_path|.}}",
+            )
+            .with_category(SnippetCategory::System)
+            .with_description("Extract tar archive"),
             Snippet::new("Git Status", "git status")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Check git repository status")
                 .with_tags(vec!["git".to_string()]),
-
             Snippet::new("Git Pull", "git pull origin {{branch|main}}")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Pull latest changes from git remote")
                 .with_tags(vec!["git".to_string()]),
-
             Snippet::new("Git Log", "git log --oneline -{{count|20}}")
                 .with_category(SnippetCategory::FrequentlyUsed)
                 .with_description("Show recent git commits")
                 .with_tags(vec!["git".to_string()]),
-
             Snippet::new("Service Status", "systemctl status {{service_name}}")
                 .with_category(SnippetCategory::System)
                 .with_description("Check systemd service status"),
-
             Snippet::new("Service Restart", "sudo systemctl restart {{service_name}}")
                 .with_category(SnippetCategory::System)
                 .with_description("Restart systemd service"),
@@ -385,7 +397,10 @@ impl SnippetManager {
                 s.name.to_lowercase().contains(&query)
                     || s.content.to_lowercase().contains(&query)
                     || s.tags.iter().any(|t| t.to_lowercase().contains(&query))
-                    || s.description.as_ref().map(|d| d.to_lowercase().contains(&query)).unwrap_or(false)
+                    || s.description
+                        .as_ref()
+                        .map(|d| d.to_lowercase().contains(&query))
+                        .unwrap_or(false)
             })
             .collect()
     }
@@ -510,9 +525,10 @@ impl SnippetManager {
 
         for snippet in collection.snippets {
             // Check for duplicate by name
-            let exists = self.snippets.iter().any(|s| {
-                s.name == snippet.name && s.content == snippet.content
-            });
+            let exists = self
+                .snippets
+                .iter()
+                .any(|s| s.name == snippet.name && s.content == snippet.content);
 
             if exists {
                 skipped += 1;
@@ -547,7 +563,9 @@ impl SnippetManager {
 
     /// Find snippet by keyboard shortcut
     pub fn find_by_shortcut(&self, shortcut: &str) -> Option<&Snippet> {
-        self.snippets.iter().find(|s| s.shortcut.as_deref() == Some(shortcut))
+        self.snippets
+            .iter()
+            .find(|s| s.shortcut.as_deref() == Some(shortcut))
     }
 }
 
@@ -650,7 +668,9 @@ impl SnippetInputDialog {
     /// Get default value for current variable
     pub fn current_default(&self) -> Option<String> {
         self.current_variable().and_then(|v| match v {
-            SnippetVariable::Custom { default: Some(d), .. } => Some(d.clone()),
+            SnippetVariable::Custom {
+                default: Some(d), ..
+            } => Some(d.clone()),
             _ => None,
         })
     }
@@ -672,7 +692,11 @@ impl SnippetInputDialog {
 
         // Replace remaining with defaults
         for var in &self.variables {
-            if let SnippetVariable::Custom { name, default: Some(d) } = var {
+            if let SnippetVariable::Custom {
+                name,
+                default: Some(d),
+            } = var
+            {
                 let placeholder = format!("{{{{{}}}}}", name);
                 if !self.values.contains_key(name) {
                     result = result.replace(&placeholder, d);
@@ -713,7 +737,9 @@ mod tests {
         assert!(matches!(var, Some(SnippetVariable::Hostname)));
 
         let var = SnippetVariable::from_placeholder("{{custom_var|default_value}}");
-        assert!(matches!(var, Some(SnippetVariable::Custom { name, default: Some(d) }) if name == "custom_var" && d == "default_value"));
+        assert!(
+            matches!(var, Some(SnippetVariable::Custom { name, default: Some(d) }) if name == "custom_var" && d == "default_value")
+        );
     }
 
     #[test]
@@ -751,7 +777,10 @@ mod tests {
         manager.set_search_query("docker".to_string());
         let results = manager.filtered_snippets();
         assert!(!results.is_empty());
-        assert!(results.iter().all(|s| s.name.to_lowercase().contains("docker") || s.content.to_lowercase().contains("docker")));
+        assert!(results
+            .iter()
+            .all(|s| s.name.to_lowercase().contains("docker")
+                || s.content.to_lowercase().contains("docker")));
     }
 
     #[test]
@@ -759,7 +788,9 @@ mod tests {
         let mut manager = SnippetManager::new();
         manager.set_category(Some(SnippetCategory::System));
         let results = manager.filtered_snippets();
-        assert!(results.iter().all(|s| s.category == SnippetCategory::System));
+        assert!(results
+            .iter()
+            .all(|s| s.category == SnippetCategory::System));
     }
 
     #[test]

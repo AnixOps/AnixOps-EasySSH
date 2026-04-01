@@ -2,15 +2,15 @@
 //! Exposes session recording functionality to the frontend
 
 use serde::{Deserialize, Serialize};
-use tauri::{State, AppHandle, Manager};
 use std::sync::Arc;
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::Mutex;
 
-use crate::session_recording::{
-    SessionRecordingManager, RecordingConfig, RecordingMetadata, RecordingState,
-    ExportFormat, ExportOptions, CloudShareConfig, CloudShareManager,
-};
 use crate::error::LiteError;
+use crate::session_recording::{
+    CloudShareConfig, CloudShareManager, ExportFormat, ExportOptions, RecordingConfig,
+    RecordingMetadata, RecordingState, SessionRecordingManager,
+};
 
 /// Recording manager state for Tauri
 pub struct RecordingStateWrapper {
@@ -95,7 +95,10 @@ pub async fn recording_start(
         auto_mark_commands: request.auto_mark_commands,
         idle_time_limit: Some(1.0),
         max_duration: None,
-        output_dir: crate::get_db_path().parent().unwrap_or(std::path::Path::new(".")).join("recordings"),
+        output_dir: crate::get_db_path()
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join("recordings"),
         command: None,
     };
 
@@ -159,7 +162,14 @@ pub async fn recording_add_mark(
 ) -> Result<(), String> {
     let manager = state.manager.lock().await;
 
-    match manager.add_mark(&request.recording_id, &request.label, request.color.as_deref()).await {
+    match manager
+        .add_mark(
+            &request.recording_id,
+            &request.label,
+            request.color.as_deref(),
+        )
+        .await
+    {
         Ok(_) => Ok(()),
         Err(e) => Err(e.to_string()),
     }
@@ -277,7 +287,8 @@ pub async fn recording_export(
 
     // Get recording path
     let recordings = manager.list_recordings().await;
-    let recording = recordings.iter()
+    let recording = recordings
+        .iter()
         .find(|r| r.id == request.recording_id)
         .ok_or("Recording not found")?;
 
@@ -292,7 +303,8 @@ pub async fn recording_export(
     };
 
     // Get app data directory
-    let app_data = app.path_resolver()
+    let app_data = app
+        .path_resolver()
         .app_data_dir()
         .ok_or("Failed to get app data dir")?;
     let exports_dir = app_data.join("exports");
@@ -321,11 +333,14 @@ pub async fn recording_export(
 
     let export_manager = crate::session_recording::ExportManager::new();
 
-    match export_manager.export(
-        std::path::Path::new(&recording.file_path),
-        &output_path,
-        options,
-    ).await {
+    match export_manager
+        .export(
+            std::path::Path::new(&recording.file_path),
+            &output_path,
+            options,
+        )
+        .await
+    {
         Ok(_) => Ok(ExportResponse {
             success: true,
             file_path: output_path.to_string_lossy().to_string(),
@@ -349,17 +364,21 @@ pub async fn recording_upload(
 
     // Get recording
     let recordings = manager.list_recordings().await;
-    let recording = recordings.iter()
+    let recording = recordings
+        .iter()
         .find(|r| r.id == request.recording_id)
         .ok_or("Recording not found")?;
 
     let config = CloudShareConfig::default();
     let share_manager = CloudShareManager::new(config);
 
-    match share_manager.upload_to_asciinema(
-        std::path::Path::new(&recording.file_path),
-        request.title.as_deref(),
-    ).await {
+    match share_manager
+        .upload_to_asciinema(
+            std::path::Path::new(&recording.file_path),
+            request.title.as_deref(),
+        )
+        .await
+    {
         Ok(url) => Ok(UploadResponse {
             success: true,
             url: Some(url),
@@ -383,7 +402,8 @@ pub async fn recording_get_player_data(
 
     // Get recording path
     let recordings = manager.list_recordings().await;
-    let recording = recordings.iter()
+    let recording = recordings
+        .iter()
         .find(|r| r.id == recording_id)
         .ok_or("Recording not found")?;
 

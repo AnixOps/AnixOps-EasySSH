@@ -22,8 +22,8 @@ pub unsafe extern "C" fn sync_manager_create(
     device_id: *const c_char,
     device_name: *const c_char,
     encryption_key: *const c_char,
-    provider_type: c_int,  // 0=Disabled, 1=iCloud, 2=GoogleDrive, 3=OneDrive, 4=DropBox, 5=SelfHosted, 6=LocalNetwork, 7=CustomPath
-    provider_config: *const c_char,  // JSON字符串配置
+    provider_type: c_int, // 0=Disabled, 1=iCloud, 2=GoogleDrive, 3=OneDrive, 4=DropBox, 5=SelfHosted, 6=LocalNetwork, 7=CustomPath
+    provider_config: *const c_char, // JSON字符串配置
 ) -> *mut SyncManagerHandle {
     let runtime = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
@@ -129,9 +129,7 @@ pub unsafe extern "C" fn sync_manager_sync(
 ///
 /// 调用者必须确保handle是有效指针，返回的字符串需要调用sync_free_string释放
 #[no_mangle]
-pub unsafe extern "C" fn sync_manager_get_status(
-    handle: *mut SyncManagerHandle,
-) -> *mut c_char {
+pub unsafe extern "C" fn sync_manager_get_status(handle: *mut SyncManagerHandle) -> *mut c_char {
     if handle.is_null() {
         return std::ptr::null_mut();
     }
@@ -151,9 +149,7 @@ pub unsafe extern "C" fn sync_manager_get_status(
 ///
 /// 调用者必须确保handle是有效指针，返回的字符串需要调用sync_free_string释放
 #[no_mangle]
-pub unsafe extern "C" fn sync_manager_get_stats(
-    handle: *mut SyncManagerHandle,
-) -> *mut c_char {
+pub unsafe extern "C" fn sync_manager_get_stats(handle: *mut SyncManagerHandle) -> *mut c_char {
     if handle.is_null() {
         return std::ptr::null_mut();
     }
@@ -185,7 +181,11 @@ pub unsafe extern "C" fn sync_manager_create_version(
         None
     } else {
         let desc = CStr::from_ptr(description).to_string_lossy().to_string();
-        if desc.is_empty() { None } else { Some(desc) }
+        if desc.is_empty() {
+            None
+        } else {
+            Some(desc)
+        }
     };
 
     let version = SyncVersion {
@@ -233,9 +233,7 @@ pub unsafe extern "C" fn sync_manager_restore_version(
 ///
 /// 调用者必须确保handle是有效指针，返回的字符串需要调用sync_free_string释放
 #[no_mangle]
-pub unsafe extern "C" fn sync_manager_list_versions(
-    handle: *mut SyncManagerHandle,
-) -> *mut c_char {
+pub unsafe extern "C" fn sync_manager_list_versions(handle: *mut SyncManagerHandle) -> *mut c_char {
     if handle.is_null() {
         return std::ptr::null_mut();
     }
@@ -342,8 +340,16 @@ unsafe fn parse_provider_type(provider_type: c_int, config: *const c_char) -> Sy
                 let cfg = CStr::from_ptr(config).to_string_lossy().to_string();
                 // 期望格式: {"url": "...", "token": "..."}
                 if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&cfg) {
-                    let url = parsed.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                    let token = parsed.get("token").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let url = parsed
+                        .get("url")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let token = parsed
+                        .get("token")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
                     SyncProvider::SelfHosted { url, token }
                 } else {
                     SyncProvider::Disabled
@@ -418,7 +424,11 @@ pub unsafe extern "C" fn sync_config_create_icloud(
         None
     } else {
         let key = CStr::from_ptr(encryption_key).to_string_lossy().to_string();
-        if key.is_empty() { None } else { Some(key) }
+        if key.is_empty() {
+            None
+        } else {
+            Some(key)
+        }
     };
 
     let config = SyncConfig {
@@ -473,7 +483,11 @@ pub unsafe extern "C" fn sync_config_create_gdrive(
         None
     } else {
         let key = CStr::from_ptr(encryption_key).to_string_lossy().to_string();
-        if key.is_empty() { None } else { Some(key) }
+        if key.is_empty() {
+            None
+        } else {
+            Some(key)
+        }
     };
 
     let config = SyncConfig {
@@ -534,7 +548,11 @@ pub unsafe extern "C" fn sync_config_create_self_hosted(
         None
     } else {
         let key = CStr::from_ptr(encryption_key).to_string_lossy().to_string();
-        if key.is_empty() { None } else { Some(key) }
+        if key.is_empty() {
+            None
+        } else {
+            Some(key)
+        }
     };
 
     let url = CStr::from_ptr(url).to_string_lossy().to_string();
@@ -592,7 +610,11 @@ pub unsafe extern "C" fn sync_config_create_local_network(
         None
     } else {
         let key = CStr::from_ptr(encryption_key).to_string_lossy().to_string();
-        if key.is_empty() { None } else { Some(key) }
+        if key.is_empty() {
+            None
+        } else {
+            Some(key)
+        }
     };
 
     let config = SyncConfig {

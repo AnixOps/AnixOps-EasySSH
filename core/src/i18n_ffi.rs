@@ -160,8 +160,7 @@ pub extern "C" fn easyssh_i18n_format_number(num: f64) -> *mut c_char {
 /// Returns a string that must be freed with easyssh_i18n_free_string
 #[no_mangle]
 pub extern "C" fn easyssh_i18n_format_date(timestamp_secs: i64) -> *mut c_char {
-    let dt = chrono::DateTime::from_timestamp(timestamp_secs, 0)
-        .unwrap_or_else(|| chrono::Utc::now());
+    let dt = chrono::DateTime::from_timestamp(timestamp_secs, 0).unwrap_or_else(chrono::Utc::now);
     let formatted = core_i18n::format_date(dt);
     CString::new(formatted).unwrap_or_default().into_raw()
 }
@@ -170,8 +169,7 @@ pub extern "C" fn easyssh_i18n_format_date(timestamp_secs: i64) -> *mut c_char {
 /// Returns a string that must be freed with easyssh_i18n_free_string
 #[no_mangle]
 pub extern "C" fn easyssh_i18n_format_datetime(timestamp_secs: i64) -> *mut c_char {
-    let dt = chrono::DateTime::from_timestamp(timestamp_secs, 0)
-        .unwrap_or_else(|| chrono::Utc::now());
+    let dt = chrono::DateTime::from_timestamp(timestamp_secs, 0).unwrap_or_else(chrono::Utc::now);
     let formatted = core_i18n::format_datetime(dt);
     CString::new(formatted).unwrap_or_default().into_raw()
 }
@@ -180,11 +178,7 @@ pub extern "C" fn easyssh_i18n_format_datetime(timestamp_secs: i64) -> *mut c_ch
 /// Returns a string that must be freed with easyssh_i18n_free_string
 #[no_mangle]
 pub extern "C" fn easyssh_i18n_get_direction_class() -> *mut c_char {
-    let class = if core_i18n::is_rtl() {
-        "rtl"
-    } else {
-        "ltr"
-    };
+    let class = if core_i18n::is_rtl() { "rtl" } else { "ltr" };
     CString::new(class).unwrap_or_default().into_raw()
 }
 
@@ -255,7 +249,9 @@ pub unsafe extern "C" fn easyssh_i18n_free_string(s: *mut c_char) {
 /// Returns a string that must be freed with easyssh_i18n_free_string
 #[no_mangle]
 pub extern "C" fn easyssh_i18n_get_default_language() -> *mut c_char {
-    CString::new(core_i18n::DEFAULT_LANGUAGE).unwrap_or_default().into_raw()
+    CString::new(core_i18n::DEFAULT_LANGUAGE)
+        .unwrap_or_default()
+        .into_raw()
 }
 
 #[cfg(test)]
@@ -291,7 +287,9 @@ mod tests {
         assert!(!result.is_null());
 
         // Clean up
-        unsafe { easyssh_i18n_free_string(result); }
+        unsafe {
+            easyssh_i18n_free_string(result);
+        }
     }
 
     #[test]
@@ -306,6 +304,8 @@ mod tests {
         assert!(!code.is_null());
 
         // Clean up
-        unsafe { easyssh_i18n_free_string(code); }
+        unsafe {
+            easyssh_i18n_free_string(code);
+        }
     }
 }

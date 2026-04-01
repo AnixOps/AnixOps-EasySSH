@@ -1,4 +1,4 @@
-use axum::{routing::get, Router, Json};
+use axum::{routing::get, Json, Router};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 

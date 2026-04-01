@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Database type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,9 +47,15 @@ impl DatabaseType {
     /// Check if the dump command is available
     pub async fn is_available(&self) -> bool {
         let cmd = if cfg!(target_os = "windows") {
-            Command::new("where").arg(self.dump_command()).output().await
+            Command::new("where")
+                .arg(self.dump_command())
+                .output()
+                .await
         } else {
-            Command::new("which").arg(self.dump_command()).output().await
+            Command::new("which")
+                .arg(self.dump_command())
+                .output()
+                .await
         };
 
         matches!(cmd, Ok(output) if output.status.success())
@@ -216,7 +222,11 @@ pub trait DatabaseBackupEngine: Send + Sync {
     async fn list_databases(&self, config: &DatabaseConfig) -> BackupResult<Vec<String>>;
 
     /// List tables in a database
-    async fn list_tables(&self, config: &DatabaseConfig, database: &str) -> BackupResult<Vec<String>>;
+    async fn list_tables(
+        &self,
+        config: &DatabaseConfig,
+        database: &str,
+    ) -> BackupResult<Vec<String>>;
 }
 
 /// MySQL backup engine
@@ -235,9 +245,12 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
         // Build mysqldump command
         let mut cmd = Command::new("mysqldump");
 
-        cmd.arg("--host").arg(&config.connection.host)
-            .arg("--port").arg(config.connection.port.to_string())
-            .arg("--user").arg(&config.connection.username);
+        cmd.arg("--host")
+            .arg(&config.connection.host)
+            .arg("--port")
+            .arg(config.connection.port.to_string())
+            .arg("--user")
+            .arg(&config.connection.username);
 
         if let Some(password) = &config.connection.password {
             // Use environment variable for password (safer than command line)
@@ -281,7 +294,8 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
 
         // Include/exclude tables
         for table in &opts.exclude_tables {
-            cmd.arg("--ignore-table").arg(format!("{}.{}",
+            cmd.arg("--ignore-table").arg(format!(
+                "{}.{}",
                 config.connection.database.as_deref().unwrap_or(""),
                 table
             ));
@@ -317,15 +331,18 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
 
         let mut child = cmd.spawn().map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                BackupError::Database("mysqldump not found. Please install MySQL client tools.".to_string())
+                BackupError::Database(
+                    "mysqldump not found. Please install MySQL client tools.".to_string(),
+                )
             } else {
                 BackupError::Io(e)
             }
         })?;
 
-        let stdout = child.stdout.take().ok_or_else(||
-            BackupError::Database("Failed to capture stdout".to_string())
-        )?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| BackupError::Database("Failed to capture stdout".to_string()))?;
 
         // Handle compression
         let output_data = if config.compression {
@@ -347,17 +364,26 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
                 }
             }
 
-            encoder.write_all(&all_data).map_err(|e| BackupError::Compression(e.to_string()))?;
-            encoder.finish().map_err(|e| BackupError::Compression(e.to_string()))?
+            encoder
+                .write_all(&all_data)
+                .map_err(|e| BackupError::Compression(e.to_string()))?;
+            encoder
+                .finish()
+                .map_err(|e| BackupError::Compression(e.to_string()))?
         } else {
             let mut stdout_reader = tokio::io::BufReader::new(stdout);
             let mut all_data = Vec::new();
-            stdout_reader.read_to_end(&mut all_data).await.map_err(BackupError::Io)?;
+            stdout_reader
+                .read_to_end(&mut all_data)
+                .await
+                .map_err(BackupError::Io)?;
             all_data
         };
 
         // Write output
-        tokio::fs::write(&output_path, &output_data).await.map_err(BackupError::Io)?;
+        tokio::fs::write(&output_path, &output_data)
+            .await
+            .map_err(BackupError::Io)?;
 
         // Wait for completion and capture stderr
         let output = child.wait_with_output().await.map_err(BackupError::Io)?;
@@ -388,9 +414,18 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
             .count() as u32;
 
         let duration = start_time.elapsed().as_secs_f64();
-        let original_size = if config.compression { output_data.len() as u64 * 5 } else { output_data.len() as u64 }; // Estimate original size
+        let original_size = if config.compression {
+            output_data.len() as u64 * 5
+        } else {
+            output_data.len() as u64
+        }; // Estimate original size
 
-        info!("MySQL backup completed: {} tables, {} bytes in {:.2}s", table_count, output_data.len(), duration);
+        info!(
+            "MySQL backup completed: {} tables, {} bytes in {:.2}s",
+            table_count,
+            output_data.len(),
+            duration
+        );
 
         Ok(DatabaseBackupResult {
             db_type: DatabaseType::MySQL,
@@ -408,10 +443,14 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
     async fn test_connection(&self, config: &DatabaseConfig) -> BackupResult<()> {
         let mut cmd = Command::new("mysql");
 
-        cmd.arg("--host").arg(&config.host)
-            .arg("--port").arg(config.port.to_string())
-            .arg("--user").arg(&config.username)
-            .arg("-e").arg("SELECT 1");
+        cmd.arg("--host")
+            .arg(&config.host)
+            .arg("--port")
+            .arg(config.port.to_string())
+            .arg("--user")
+            .arg(&config.username)
+            .arg("-e")
+            .arg("SELECT 1");
 
         if let Some(password) = &config.password {
             cmd.env("MYSQL_PWD", password);
@@ -438,10 +477,14 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
     async fn list_databases(&self, config: &DatabaseConfig) -> BackupResult<Vec<String>> {
         let mut cmd = Command::new("mysql");
 
-        cmd.arg("--host").arg(&config.host)
-            .arg("--port").arg(config.port.to_string())
-            .arg("--user").arg(&config.username)
-            .arg("-e").arg("SHOW DATABASES");
+        cmd.arg("--host")
+            .arg(&config.host)
+            .arg("--port")
+            .arg(config.port.to_string())
+            .arg("--user")
+            .arg(&config.username)
+            .arg("-e")
+            .arg("SHOW DATABASES");
 
         if let Some(password) = &config.password {
             cmd.env("MYSQL_PWD", password);
@@ -451,7 +494,7 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
 
         if !output.status.success() {
             return Err(BackupError::Database(
-                String::from_utf8_lossy(&output.stderr).to_string()
+                String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
 
@@ -459,18 +502,30 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
             .lines()
             .skip(1) // Skip header
             .map(|l| l.trim().to_string())
-            .filter(|l| !l.is_empty() && l != "information_schema" && l != "performance_schema" && l != "sys")
+            .filter(|l| {
+                !l.is_empty()
+                    && l != "information_schema"
+                    && l != "performance_schema"
+                    && l != "sys"
+            })
             .collect();
 
         Ok(databases)
     }
 
-    async fn list_tables(&self, config: &DatabaseConfig, database: &str) -> BackupResult<Vec<String>> {
+    async fn list_tables(
+        &self,
+        config: &DatabaseConfig,
+        database: &str,
+    ) -> BackupResult<Vec<String>> {
         let mut cmd = Command::new("mysql");
 
-        cmd.arg("--host").arg(&config.host)
-            .arg("--port").arg(config.port.to_string())
-            .arg("--user").arg(&config.username)
+        cmd.arg("--host")
+            .arg(&config.host)
+            .arg("--port")
+            .arg(config.port.to_string())
+            .arg("--user")
+            .arg(&config.username)
             .arg("-e")
             .arg(format!("USE {}; SHOW TABLES", database));
 
@@ -482,7 +537,7 @@ impl DatabaseBackupEngine for MySqlBackupEngine {
 
         if !output.status.success() {
             return Err(BackupError::Database(
-                String::from_utf8_lossy(&output.stderr).to_string()
+                String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
 
@@ -513,9 +568,12 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
         // Build pg_dump command
         let mut cmd = Command::new("pg_dump");
 
-        cmd.arg("--host").arg(&config.connection.host)
-            .arg("--port").arg(config.connection.port.to_string())
-            .arg("--username").arg(&config.connection.username)
+        cmd.arg("--host")
+            .arg(&config.connection.host)
+            .arg("--port")
+            .arg(config.connection.port.to_string())
+            .arg("--username")
+            .arg(&config.connection.username)
             .arg("--no-password"); // Use PGPASSWORD env or .pgpass
 
         // Add options
@@ -573,7 +631,9 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
 
         let output = cmd.output().await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                BackupError::Database("pg_dump not found. Please install PostgreSQL client tools.".to_string())
+                BackupError::Database(
+                    "pg_dump not found. Please install PostgreSQL client tools.".to_string(),
+                )
             } else {
                 BackupError::Io(e)
             }
@@ -590,12 +650,15 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
 
         if !output.status.success() {
             return Err(BackupError::Database(format!(
-                "pg_dump failed: {}", output.status
+                "pg_dump failed: {}",
+                output.status
             )));
         }
 
         // Get file size and calculate checksum
-        let file_data = tokio::fs::read(&output_path).await.map_err(BackupError::Io)?;
+        let file_data = tokio::fs::read(&output_path)
+            .await
+            .map_err(BackupError::Io)?;
         let checksum = blake3::hash(&file_data).to_hex().to_string();
         let size = file_data.len() as u64;
 
@@ -625,7 +688,10 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
 
         let duration = start_time.elapsed().as_secs_f64();
 
-        info!("PostgreSQL backup completed: {} tables, {} bytes in {:.2}s", table_count, size, duration);
+        info!(
+            "PostgreSQL backup completed: {} tables, {} bytes in {:.2}s",
+            table_count, size, duration
+        );
 
         Ok(DatabaseBackupResult {
             db_type: DatabaseType::PostgreSQL,
@@ -643,11 +709,15 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
     async fn test_connection(&self, config: &DatabaseConfig) -> BackupResult<()> {
         let mut cmd = Command::new("psql");
 
-        cmd.arg("--host").arg(&config.host)
-            .arg("--port").arg(config.port.to_string())
-            .arg("--username").arg(&config.username)
+        cmd.arg("--host")
+            .arg(&config.host)
+            .arg("--port")
+            .arg(config.port.to_string())
+            .arg("--username")
+            .arg(&config.username)
             .arg("--no-password")
-            .arg("--command").arg("SELECT 1")
+            .arg("--command")
+            .arg("SELECT 1")
             .arg(config.database.as_deref().unwrap_or("postgres"));
 
         if let Some(password) = &config.password {
@@ -675,12 +745,16 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
     async fn list_databases(&self, config: &DatabaseConfig) -> BackupResult<Vec<String>> {
         let mut cmd = Command::new("psql");
 
-        cmd.arg("--host").arg(&config.host)
-            .arg("--port").arg(config.port.to_string())
-            .arg("--username").arg(&config.username)
+        cmd.arg("--host")
+            .arg(&config.host)
+            .arg("--port")
+            .arg(config.port.to_string())
+            .arg("--username")
+            .arg(&config.username)
             .arg("--no-password")
             .arg("--tuples-only")
-            .arg("--command").arg("SELECT datname FROM pg_database WHERE datistemplate = false;");
+            .arg("--command")
+            .arg("SELECT datname FROM pg_database WHERE datistemplate = false;");
 
         if let Some(password) = &config.password {
             cmd.env("PGPASSWORD", password);
@@ -690,7 +764,7 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
 
         if !output.status.success() {
             return Err(BackupError::Database(
-                String::from_utf8_lossy(&output.stderr).to_string()
+                String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
 
@@ -703,12 +777,19 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
         Ok(databases)
     }
 
-    async fn list_tables(&self, config: &DatabaseConfig, database: &str) -> BackupResult<Vec<String>> {
+    async fn list_tables(
+        &self,
+        config: &DatabaseConfig,
+        database: &str,
+    ) -> BackupResult<Vec<String>> {
         let mut cmd = Command::new("psql");
 
-        cmd.arg("--host").arg(&config.host)
-            .arg("--port").arg(config.port.to_string())
-            .arg("--username").arg(&config.username)
+        cmd.arg("--host")
+            .arg(&config.host)
+            .arg("--port")
+            .arg(config.port.to_string())
+            .arg("--username")
+            .arg(&config.username)
             .arg("--no-password")
             .arg("--tuples-only")
             .arg("--command")
@@ -725,7 +806,7 @@ impl DatabaseBackupEngine for PostgresBackupEngine {
 
         if !output.status.success() {
             return Err(BackupError::Database(
-                String::from_utf8_lossy(&output.stderr).to_string()
+                String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
 
@@ -754,24 +835,36 @@ impl DatabaseBackupEngine for SqliteBackupEngine {
         let source_path = PathBuf::from(&config.connection.host);
         let output_path = config.output_path.with_extension("db");
 
-        info!("Starting SQLite backup from {:?} to {:?}", source_path, output_path);
+        info!(
+            "Starting SQLite backup from {:?} to {:?}",
+            source_path, output_path
+        );
 
         // Create parent directory
         if let Some(parent) = output_path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(BackupError::Io)?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         // Copy file
-        tokio::fs::copy(&source_path, &output_path).await.map_err(BackupError::Io)?;
+        tokio::fs::copy(&source_path, &output_path)
+            .await
+            .map_err(BackupError::Io)?;
 
         // Calculate checksum
-        let file_data = tokio::fs::read(&output_path).await.map_err(BackupError::Io)?;
+        let file_data = tokio::fs::read(&output_path)
+            .await
+            .map_err(BackupError::Io)?;
         let checksum = blake3::hash(&file_data).to_hex().to_string();
         let size = file_data.len() as u64;
 
         let duration = start_time.elapsed().as_secs_f64();
 
-        info!("SQLite backup completed: {} bytes in {:.2}s", size, duration);
+        info!(
+            "SQLite backup completed: {} bytes in {:.2}s",
+            size, duration
+        );
 
         Ok(DatabaseBackupResult {
             db_type: DatabaseType::SQLite,
@@ -795,7 +888,11 @@ impl DatabaseBackupEngine for SqliteBackupEngine {
         Ok(vec![])
     }
 
-    async fn list_tables(&self, _config: &DatabaseConfig, _database: &str) -> BackupResult<Vec<String>> {
+    async fn list_tables(
+        &self,
+        _config: &DatabaseConfig,
+        _database: &str,
+    ) -> BackupResult<Vec<String>> {
         Ok(vec![])
     }
 }
@@ -819,8 +916,7 @@ pub async fn backup_mysql(
     database: Option<&str>,
     output: &Path,
 ) -> BackupResult<DatabaseBackupResult> {
-    let mut config = DatabaseConfig::new(DatabaseType::MySQL, host, username)
-        .with_port(port);
+    let mut config = DatabaseConfig::new(DatabaseType::MySQL, host, username).with_port(port);
 
     if let Some(pwd) = password {
         config = config.with_password(pwd);
@@ -851,8 +947,7 @@ pub async fn backup_postgresql(
     database: Option<&str>,
     output: &Path,
 ) -> BackupResult<DatabaseBackupResult> {
-    let mut config = DatabaseConfig::new(DatabaseType::PostgreSQL, host, username)
-        .with_port(port);
+    let mut config = DatabaseConfig::new(DatabaseType::PostgreSQL, host, username).with_port(port);
 
     if let Some(pwd) = password {
         config = config.with_password(pwd);

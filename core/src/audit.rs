@@ -68,35 +68,43 @@ impl AuditAction {
     /// 获取操作分类
     pub fn category(&self) -> AuditCategory {
         match self {
-            AuditAction::Login | AuditAction::Logout | AuditAction::LoginFailed |
-            AuditAction::PasswordChange | AuditAction::MfaEnabled | AuditAction::MfaDisabled => {
-                AuditCategory::Authentication
-            }
-            AuditAction::ServerCreate | AuditAction::ServerUpdate | AuditAction::ServerDelete |
-            AuditAction::ServerConnect | AuditAction::ServerDisconnect |
-            AuditAction::ServerImport | AuditAction::ServerExport => {
-                AuditCategory::Server
-            }
-            AuditAction::SessionStart | AuditAction::SessionEnd |
-            AuditAction::SessionRecord | AuditAction::SessionShare => {
-                AuditCategory::Session
-            }
-            AuditAction::TeamCreate | AuditAction::TeamUpdate | AuditAction::TeamDelete |
-            AuditAction::MemberInvite | AuditAction::MemberJoin |
-            AuditAction::MemberRemove | AuditAction::MemberRoleChange => {
-                AuditCategory::Team
-            }
-            AuditAction::PermissionGrant | AuditAction::PermissionRevoke |
-            AuditAction::RoleCreate | AuditAction::RoleUpdate | AuditAction::RoleDelete => {
-                AuditCategory::Permission
-            }
+            AuditAction::Login
+            | AuditAction::Logout
+            | AuditAction::LoginFailed
+            | AuditAction::PasswordChange
+            | AuditAction::MfaEnabled
+            | AuditAction::MfaDisabled => AuditCategory::Authentication,
+            AuditAction::ServerCreate
+            | AuditAction::ServerUpdate
+            | AuditAction::ServerDelete
+            | AuditAction::ServerConnect
+            | AuditAction::ServerDisconnect
+            | AuditAction::ServerImport
+            | AuditAction::ServerExport => AuditCategory::Server,
+            AuditAction::SessionStart
+            | AuditAction::SessionEnd
+            | AuditAction::SessionRecord
+            | AuditAction::SessionShare => AuditCategory::Session,
+            AuditAction::TeamCreate
+            | AuditAction::TeamUpdate
+            | AuditAction::TeamDelete
+            | AuditAction::MemberInvite
+            | AuditAction::MemberJoin
+            | AuditAction::MemberRemove
+            | AuditAction::MemberRoleChange => AuditCategory::Team,
+            AuditAction::PermissionGrant
+            | AuditAction::PermissionRevoke
+            | AuditAction::RoleCreate
+            | AuditAction::RoleUpdate
+            | AuditAction::RoleDelete => AuditCategory::Permission,
             AuditAction::ConfigUpdate | AuditAction::LayoutSave | AuditAction::LayoutDelete => {
                 AuditCategory::Configuration
             }
-            AuditAction::KeyUpload | AuditAction::KeyDelete | AuditAction::SecretView |
-            AuditAction::SsoLogin | AuditAction::IpBlocked => {
-                AuditCategory::Security
-            }
+            AuditAction::KeyUpload
+            | AuditAction::KeyDelete
+            | AuditAction::SecretView
+            | AuditAction::SsoLogin
+            | AuditAction::IpBlocked => AuditCategory::Security,
         }
     }
 
@@ -104,18 +112,23 @@ impl AuditAction {
     pub fn severity(&self) -> AuditSeverity {
         match self {
             AuditAction::LoginFailed | AuditAction::IpBlocked => AuditSeverity::Warning,
-            AuditAction::Login | AuditAction::Logout | AuditAction::ServerConnect |
-            AuditAction::ServerDisconnect | AuditAction::SessionStart | AuditAction::SessionEnd => {
-                AuditSeverity::Info
-            }
-            AuditAction::ServerCreate | AuditAction::ServerUpdate | AuditAction::MemberJoin |
-            AuditAction::MemberInvite | AuditAction::ConfigUpdate | AuditAction::LayoutSave => {
-                AuditSeverity::Info
-            }
-            AuditAction::ServerDelete | AuditAction::TeamDelete | AuditAction::RoleDelete |
-            AuditAction::KeyDelete | AuditAction::MemberRemove => {
-                AuditSeverity::High
-            }
+            AuditAction::Login
+            | AuditAction::Logout
+            | AuditAction::ServerConnect
+            | AuditAction::ServerDisconnect
+            | AuditAction::SessionStart
+            | AuditAction::SessionEnd => AuditSeverity::Info,
+            AuditAction::ServerCreate
+            | AuditAction::ServerUpdate
+            | AuditAction::MemberJoin
+            | AuditAction::MemberInvite
+            | AuditAction::ConfigUpdate
+            | AuditAction::LayoutSave => AuditSeverity::Info,
+            AuditAction::ServerDelete
+            | AuditAction::TeamDelete
+            | AuditAction::RoleDelete
+            | AuditAction::KeyDelete
+            | AuditAction::MemberRemove => AuditSeverity::High,
             _ => AuditSeverity::Medium,
         }
     }
@@ -266,11 +279,7 @@ pub struct ClientInfo {
 
 impl AuditEntry {
     /// 创建新的审计条目
-    pub fn new(
-        action: AuditAction,
-        actor: Actor,
-        target: AuditTarget,
-    ) -> Self {
+    pub fn new(action: AuditAction, actor: Actor, target: AuditTarget) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             timestamp: Utc::now(),
@@ -359,8 +368,7 @@ impl AuditEntry {
 
         type HmacSha256 = Hmac<Sha256>;
 
-        let mut mac = HmacSha256::new_from_slice(key)
-            .expect("HMAC can take key of any size");
+        let mut mac = HmacSha256::new_from_slice(key).expect("HMAC can take key of any size");
         mac.update(hash.as_bytes());
 
         let result = mac.finalize();
@@ -673,9 +681,7 @@ impl AuditLogger {
 
     /// 获取过滤后的条目
     pub fn get_filtered(&self, filter: &AuditFilter) -> Vec<&AuditEntry> {
-        self.entries.iter()
-            .filter(|e| filter.matches(e))
-            .collect()
+        self.entries.iter().filter(|e| filter.matches(e)).collect()
     }
 
     /// 获取最近的N条
@@ -685,11 +691,12 @@ impl AuditLogger {
 
     /// 搜索条目
     pub fn search(&self, query: &str) -> Vec<&AuditEntry> {
-        self.entries.iter()
+        self.entries
+            .iter()
             .filter(|e| {
-                e.actor.username.contains(query) ||
-                e.action.description().contains(query) ||
-                e.id.contains(query)
+                e.actor.username.contains(query)
+                    || e.action.description().contains(query)
+                    || e.id.contains(query)
             })
             .collect()
     }
@@ -724,8 +731,12 @@ impl AuditLogger {
         let mut time_end = None::<DateTime<Utc>>;
 
         for entry in &entries {
-            *by_category.entry(format!("{:?}", entry.action.category())).or_insert(0) += 1;
-            *by_severity.entry(format!("{:?}", entry.action.severity())).or_insert(0) += 1;
+            *by_category
+                .entry(format!("{:?}", entry.action.category()))
+                .or_insert(0) += 1;
+            *by_severity
+                .entry(format!("{:?}", entry.action.severity()))
+                .or_insert(0) += 1;
             unique_actors.insert(&entry.actor.user_id);
 
             if entry.action == AuditAction::LoginFailed {
@@ -754,7 +765,12 @@ impl AuditLogger {
     /// 导出为JSON
     pub fn export_json(&self, filter: Option<&AuditFilter>) -> Result<String, LiteError> {
         let entries: Vec<_> = match filter {
-            Some(f) => self.entries.iter().filter(|e| f.matches(e)).cloned().collect(),
+            Some(f) => self
+                .entries
+                .iter()
+                .filter(|e| f.matches(e))
+                .cloned()
+                .collect(),
             None => self.entries.iter().cloned().collect(),
         };
 
@@ -781,7 +797,8 @@ impl AuditLogger {
 
     /// 获取用户活动时间线
     pub fn get_user_timeline(&self, user_id: &str, limit: usize) -> Vec<&AuditEntry> {
-        self.entries.iter()
+        self.entries
+            .iter()
             .filter(|e| e.actor.user_id == user_id)
             .rev()
             .take(limit)
@@ -790,17 +807,16 @@ impl AuditLogger {
 
     /// 获取特定目标的审计记录
     pub fn get_target_history(&self, target_id: &str) -> Vec<&AuditEntry> {
-        self.entries.iter()
-            .filter(|e| {
-                match &e.target {
-                    AuditTarget::User { id } |
-                    AuditTarget::Server { id, .. } |
-                    AuditTarget::Team { id } |
-                    AuditTarget::Session { id } |
-                    AuditTarget::Key { id } => id == target_id,
-                    AuditTarget::Config { key } => key == target_id,
-                    AuditTarget::System => false,
-                }
+        self.entries
+            .iter()
+            .filter(|e| match &e.target {
+                AuditTarget::User { id }
+                | AuditTarget::Server { id, .. }
+                | AuditTarget::Team { id }
+                | AuditTarget::Session { id }
+                | AuditTarget::Key { id } => id == target_id,
+                AuditTarget::Config { key } => key == target_id,
+                AuditTarget::System => false,
             })
             .collect()
     }
@@ -808,12 +824,15 @@ impl AuditLogger {
     /// 检测异常活动
     pub fn detect_anomalies(&self, user_id: &str) -> Vec<String> {
         let mut anomalies = Vec::new();
-        let user_entries: Vec<_> = self.entries.iter()
+        let user_entries: Vec<_> = self
+            .entries
+            .iter()
             .filter(|e| e.actor.user_id == user_id)
             .collect();
 
         // 检查多次登录失败
-        let failed_logins = user_entries.iter()
+        let failed_logins = user_entries
+            .iter()
             .filter(|e| e.action == AuditAction::LoginFailed)
             .count();
 
@@ -822,13 +841,18 @@ impl AuditLogger {
         }
 
         // 检查来自不同IP的登录
-        let unique_ips: std::collections::HashSet<_> = user_entries.iter()
+        let unique_ips: std::collections::HashSet<_> = user_entries
+            .iter()
             .filter(|e| matches!(e.action, AuditAction::Login | AuditAction::LoginFailed))
             .filter_map(|e| e.client_info.ip_address.as_ref())
             .collect();
 
         if unique_ips.len() > 3 {
-            anomalies.push(format!("用户 {} 从 {} 个不同IP登录", user_id, unique_ips.len()));
+            anomalies.push(format!(
+                "用户 {} 从 {} 个不同IP登录",
+                user_id,
+                unique_ips.len()
+            ));
         }
 
         anomalies
@@ -936,11 +960,7 @@ mod tests {
 
         // 添加6条记录，应该只有5条保留
         for i in 0..6 {
-            let entry = AuditEntry::new(
-                AuditAction::Login,
-                actor.clone(),
-                AuditTarget::System,
-            );
+            let entry = AuditEntry::new(AuditAction::Login, actor.clone(), AuditTarget::System);
             logger.log(entry);
         }
 
@@ -992,10 +1012,26 @@ mod tests {
         };
 
         // 添加各种操作
-        logger.log(AuditEntry::new(AuditAction::Login, actor1.clone(), AuditTarget::System));
-        logger.log(AuditEntry::new(AuditAction::Login, actor2.clone(), AuditTarget::System));
-        logger.log(AuditEntry::new(AuditAction::LoginFailed, actor1.clone(), AuditTarget::System));
-        logger.log(AuditEntry::new(AuditAction::ServerCreate, actor1.clone(), AuditTarget::System));
+        logger.log(AuditEntry::new(
+            AuditAction::Login,
+            actor1.clone(),
+            AuditTarget::System,
+        ));
+        logger.log(AuditEntry::new(
+            AuditAction::Login,
+            actor2.clone(),
+            AuditTarget::System,
+        ));
+        logger.log(AuditEntry::new(
+            AuditAction::LoginFailed,
+            actor1.clone(),
+            AuditTarget::System,
+        ));
+        logger.log(AuditEntry::new(
+            AuditAction::ServerCreate,
+            actor1.clone(),
+            AuditTarget::System,
+        ));
 
         let stats = logger.generate_stats(None);
         assert_eq!(stats.total_entries, 4);
@@ -1014,7 +1050,11 @@ mod tests {
             role: None,
         };
 
-        logger.log(AuditEntry::new(AuditAction::Login, actor, AuditTarget::System));
+        logger.log(AuditEntry::new(
+            AuditAction::Login,
+            actor,
+            AuditTarget::System,
+        ));
 
         let csv = logger.export_csv(None).unwrap();
         assert!(csv.contains("timestamp,id,action"));
@@ -1034,15 +1074,14 @@ mod tests {
 
         // 添加多次登录失败
         for i in 0..6 {
-            logger.log(AuditEntry::new(
-                AuditAction::LoginFailed,
-                actor.clone(),
-                AuditTarget::System,
-            ).with_client_info(ClientInfo {
-                ip_address: Some(format!("10.0.0.{}", i)),
-                user_agent: None,
-                device_id: None,
-            }));
+            logger.log(
+                AuditEntry::new(AuditAction::LoginFailed, actor.clone(), AuditTarget::System)
+                    .with_client_info(ClientInfo {
+                        ip_address: Some(format!("10.0.0.{}", i)),
+                        user_agent: None,
+                        device_id: None,
+                    }),
+            );
         }
 
         let anomalies = logger.detect_anomalies("user1");
@@ -1053,8 +1092,13 @@ mod tests {
     #[test]
     fn test_audit_target_serialization() {
         let targets = vec![
-            AuditTarget::User { id: "user1".to_string() },
-            AuditTarget::Server { id: "srv1".to_string(), host: Some("192.168.1.1".to_string()) },
+            AuditTarget::User {
+                id: "user1".to_string(),
+            },
+            AuditTarget::Server {
+                id: "srv1".to_string(),
+                host: Some("192.168.1.1".to_string()),
+            },
             AuditTarget::System,
         ];
 
@@ -1083,9 +1127,21 @@ mod tests {
             role: None,
         };
 
-        logger.log(AuditEntry::new(AuditAction::Login, actor1.clone(), AuditTarget::System));
-        logger.log(AuditEntry::new(AuditAction::ServerConnect, actor1.clone(), AuditTarget::System));
-        logger.log(AuditEntry::new(AuditAction::Login, actor2.clone(), AuditTarget::System));
+        logger.log(AuditEntry::new(
+            AuditAction::Login,
+            actor1.clone(),
+            AuditTarget::System,
+        ));
+        logger.log(AuditEntry::new(
+            AuditAction::ServerConnect,
+            actor1.clone(),
+            AuditTarget::System,
+        ));
+        logger.log(AuditEntry::new(
+            AuditAction::Login,
+            actor2.clone(),
+            AuditTarget::System,
+        ));
 
         let timeline = logger.get_user_timeline("user1", 10);
         assert_eq!(timeline.len(), 2);
@@ -1197,7 +1253,11 @@ mod tests {
 
         // Log several entries
         for _ in 0..5 {
-            logger.log(AuditEntry::new(AuditAction::Login, actor.clone(), AuditTarget::System));
+            logger.log(AuditEntry::new(
+                AuditAction::Login,
+                actor.clone(),
+                AuditTarget::System,
+            ));
         }
 
         // Logger should be tamper protected
@@ -1225,7 +1285,11 @@ mod tests {
 
         // Log several entries
         for _ in 0..10 {
-            logger.log(AuditEntry::new(AuditAction::Login, actor.clone(), AuditTarget::System));
+            logger.log(AuditEntry::new(
+                AuditAction::Login,
+                actor.clone(),
+                AuditTarget::System,
+            ));
         }
 
         // Verify integrity
@@ -1247,7 +1311,11 @@ mod tests {
             role: None,
         };
 
-        logger.log(AuditEntry::new(AuditAction::Login, actor.clone(), AuditTarget::System));
+        logger.log(AuditEntry::new(
+            AuditAction::Login,
+            actor.clone(),
+            AuditTarget::System,
+        ));
 
         // Without tamper protection, verification should report not enabled
         let result = logger.verify_integrity();
@@ -1272,7 +1340,11 @@ mod tests {
 
         // Log several entries
         for _ in 0..5 {
-            logger.log(AuditEntry::new(AuditAction::Login, actor.clone(), AuditTarget::System));
+            logger.log(AuditEntry::new(
+                AuditAction::Login,
+                actor.clone(),
+                AuditTarget::System,
+            ));
         }
 
         // Check that entries form a chain (each entry references previous)
@@ -1283,8 +1355,7 @@ mod tests {
 
             // Current entry's previous_hash should equal previous entry's hash
             assert_eq!(
-                current.previous_hash,
-                previous.entry_hash,
+                current.previous_hash, previous.entry_hash,
                 "Hash chain broken at index {}",
                 i
             );

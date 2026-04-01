@@ -87,8 +87,7 @@ pub struct GitSignature {
 impl From<git2::Signature<'_>> for GitSignature {
     fn from(sig: git2::Signature<'_>) -> Self {
         let time = sig.when();
-        let timestamp = DateTime::from_timestamp(time.seconds(), 0)
-            .unwrap_or_else(|| Utc::now());
+        let timestamp = DateTime::from_timestamp(time.seconds(), 0).unwrap_or_else(|| Utc::now());
 
         Self {
             name: sig.name().unwrap_or("Unknown").to_string(),
@@ -132,12 +131,19 @@ impl From<git2::RepositoryState> for RepoState {
         match state {
             git2::RepositoryState::Clean => RepoState::Clean,
             git2::RepositoryState::Merge => RepoState::Merge,
-            git2::RepositoryState::Rebase | git2::RepositoryState::RebaseInteractive |
-            git2::RepositoryState::RebaseMerge => RepoState::Rebase,
-            git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => RepoState::Revert,
-            git2::RepositoryState::CherryPick | git2::RepositoryState::CherryPickSequence => RepoState::CherryPick,
+            git2::RepositoryState::Rebase
+            | git2::RepositoryState::RebaseInteractive
+            | git2::RepositoryState::RebaseMerge => RepoState::Rebase,
+            git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => {
+                RepoState::Revert
+            }
+            git2::RepositoryState::CherryPick | git2::RepositoryState::CherryPickSequence => {
+                RepoState::CherryPick
+            }
             git2::RepositoryState::Bisect => RepoState::Bisect,
-            git2::RepositoryState::ApplyMailbox | git2::RepositoryState::ApplyMailboxOrRebase => RepoState::ApplyMailbox,
+            git2::RepositoryState::ApplyMailbox | git2::RepositoryState::ApplyMailboxOrRebase => {
+                RepoState::ApplyMailbox
+            }
         }
     }
 }

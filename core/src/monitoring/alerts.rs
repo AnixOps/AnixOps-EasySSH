@@ -11,7 +11,9 @@ use crate::monitoring::metrics::{MetricType, ServerMetrics};
 
 use super::notifications::{NotificationChannel, NotificationChannelType};
 
-pub use super::notifications::{NotificationPayload, NotificationSender, NotificationError, ConfigValidationError};
+pub use super::notifications::{
+    ConfigValidationError, NotificationError, NotificationPayload, NotificationSender,
+};
 
 /// Alert severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -149,7 +151,7 @@ impl AlertCondition {
             AlertCondition::Between { min, max } => value >= *min && value <= *max,
             AlertCondition::Outside { min, max } => value < *min || value > *max,
             AlertCondition::Anomaly => false, // Handled separately
-            AlertCondition::NoData => false, // Handled separately
+            AlertCondition::NoData => false,  // Handled separately
         }
     }
 }
@@ -185,7 +187,9 @@ impl AlertEngine {
             active_alerts: Arc::new(RwLock::new(HashMap::new())),
             alert_history: Arc::new(RwLock::new(Vec::new())),
             notification_channels: Arc::new(RwLock::new(Vec::new())),
-            notification_manager: Arc::new(tokio::sync::RwLock::new(super::notifications::NotificationManager::new())),
+            notification_manager: Arc::new(tokio::sync::RwLock::new(
+                super::notifications::NotificationManager::new(),
+            )),
             config: AlertEngineConfig {
                 check_interval_secs: config.alert_check_interval_secs,
                 max_alert_history: 10000,
@@ -321,7 +325,8 @@ impl AlertEngine {
         let config = self.config.clone();
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(config.check_interval_secs));
+            let mut interval =
+                tokio::time::interval(tokio::time::Duration::from_secs(config.check_interval_secs));
 
             while *running.read().await {
                 interval.tick().await;
@@ -334,12 +339,10 @@ impl AlertEngine {
                     }
 
                     // Evaluate rule against metrics
-                    if let Err(e) = Self::evaluate_rule(
-                        &rule,
-                        &storage,
-                        &active_alerts,
-                        &notification_manager,
-                    ).await {
+                    if let Err(e) =
+                        Self::evaluate_rule(&rule, &storage, &active_alerts, &notification_manager)
+                            .await
+                    {
                         log::error!("Failed to evaluate alert rule {}: {}", rule.id, e);
                     }
                 }
@@ -426,13 +429,22 @@ impl AlertEngine {
                         // Send notifications using the notification manager
                         let payload = super::notifications::NotificationPayload::from_alert(&alert);
                         let manager = notification_manager.read().await;
-                        let results = manager.send_to_channels(&rule.notification_channels, &payload, 60).await;
+                        let results = manager
+                            .send_to_channels(&rule.notification_channels, &payload, 60)
+                            .await;
                         drop(manager);
 
                         for (channel_id, result) in results {
                             match result {
-                                Ok(_) => log::info!("Alert {} sent to channel {}", alert.id, channel_id),
-                                Err(e) => log::error!("Failed to send alert {} to channel {}: {}", alert.id, channel_id, e),
+                                Ok(_) => {
+                                    log::info!("Alert {} sent to channel {}", alert.id, channel_id)
+                                }
+                                Err(e) => log::error!(
+                                    "Failed to send alert {} to channel {}: {}",
+                                    alert.id,
+                                    channel_id,
+                                    e
+                                ),
                             }
                         }
                     }
@@ -446,7 +458,11 @@ impl AlertEngine {
                     if let Some(alert) = alerts.get(&alert_id) {
                         if now - alert.started_at >= rule.resolve_after_secs {
                             // Resolve the alert - just log for now
-                            log::info!("Auto-resolving alert {} after {} seconds", alert_id, rule.resolve_after_secs);
+                            log::info!(
+                                "Auto-resolving alert {} after {} seconds",
+                                alert_id,
+                                rule.resolve_after_secs
+                            );
                         }
                     }
                 }
@@ -507,7 +523,12 @@ impl AlertEngine {
         for (channel_id, result) in results {
             match result {
                 Ok(_) => log::info!("Alert {} sent to channel {}", alert.id, channel_id),
-                Err(e) => log::error!("Failed to send alert {} to channel {}: {}", alert.id, channel_id, e),
+                Err(e) => log::error!(
+                    "Failed to send alert {} to channel {}: {}",
+                    alert.id,
+                    channel_id,
+                    e
+                ),
             }
         }
     }
@@ -518,7 +539,8 @@ impl AlertEngine {
         channel: super::notifications::NotificationChannel,
     ) -> Result<(), super::MonitoringError> {
         let mut manager = self.notification_manager.write().await;
-        manager.add_channel(&channel)
+        manager
+            .add_channel(&channel)
             .map_err(|e| super::MonitoringError::Config(e.to_string()))?;
 
         let mut channels = self.notification_channels.write().await;
@@ -526,16 +548,34 @@ impl AlertEngine {
             id: channel.id,
             name: channel.name,
             channel_type: match channel.channel_type {
-                super::notifications::NotificationChannelType::Email => NotificationChannelType::Email,
-                super::notifications::NotificationChannelType::Slack => NotificationChannelType::Slack,
-                super::notifications::NotificationChannelType::Discord => NotificationChannelType::Discord,
-                super::notifications::NotificationChannelType::Webhook => NotificationChannelType::Webhook,
-                super::notifications::NotificationChannelType::PagerDuty => NotificationChannelType::PagerDuty,
-                super::notifications::NotificationChannelType::Opsgenie => NotificationChannelType::Opsgenie,
-                super::notifications::NotificationChannelType::Telegram => NotificationChannelType::Telegram,
+                super::notifications::NotificationChannelType::Email => {
+                    NotificationChannelType::Email
+                }
+                super::notifications::NotificationChannelType::Slack => {
+                    NotificationChannelType::Slack
+                }
+                super::notifications::NotificationChannelType::Discord => {
+                    NotificationChannelType::Discord
+                }
+                super::notifications::NotificationChannelType::Webhook => {
+                    NotificationChannelType::Webhook
+                }
+                super::notifications::NotificationChannelType::PagerDuty => {
+                    NotificationChannelType::PagerDuty
+                }
+                super::notifications::NotificationChannelType::Opsgenie => {
+                    NotificationChannelType::Opsgenie
+                }
+                super::notifications::NotificationChannelType::Telegram => {
+                    NotificationChannelType::Telegram
+                }
                 super::notifications::NotificationChannelType::Sms => NotificationChannelType::Sms,
-                super::notifications::NotificationChannelType::PushNotification => NotificationChannelType::PushNotification,
-                super::notifications::NotificationChannelType::DesktopNotification => NotificationChannelType::DesktopNotification,
+                super::notifications::NotificationChannelType::PushNotification => {
+                    NotificationChannelType::PushNotification
+                }
+                super::notifications::NotificationChannelType::DesktopNotification => {
+                    NotificationChannelType::DesktopNotification
+                }
             },
             config: channel.config,
             enabled: channel.enabled,

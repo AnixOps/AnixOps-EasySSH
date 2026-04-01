@@ -1,9 +1,9 @@
 //! Performance analysis and monitoring
 
+use crate::database_client::DatabaseError;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
-use crate::database_client::DatabaseError;
 
 /// Performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,9 +128,10 @@ impl PerformanceAnalyzer {
         }
 
         // Check for missing WHERE clause on large tables
-        if query.to_uppercase().starts_with("SELECT") &&
-           !query.to_uppercase().contains("WHERE") &&
-           !query.to_uppercase().contains("LIMIT") {
+        if query.to_uppercase().starts_with("SELECT")
+            && !query.to_uppercase().contains("WHERE")
+            && !query.to_uppercase().contains("LIMIT")
+        {
             warnings.push("Query without WHERE or LIMIT may return excessive data".to_string());
             score -= 15.0;
         }
@@ -190,16 +191,16 @@ impl PerformanceAnalyzer {
             if let Some(where_clause) = Self::extract_where_clause(&query.query_text) {
                 for column in Self::extract_columns_from_where(&where_clause) {
                     let key = format!("{}", column);
-                    let entry = candidates.entry(key).or_insert((
-                        query.query_text.clone(),
-                        0
-                    ));
+                    let entry = candidates
+                        .entry(key)
+                        .or_insert((query.query_text.clone(), 0));
                     entry.1 += query.execution_time_ms;
                 }
             }
         }
 
-        candidates.iter()
+        candidates
+            .iter()
             .filter(|(_, (_, total_time))| *total_time > 1000)
             .map(|(column, (query, total_time))| MissingIndex {
                 table_name: Self::extract_table_name(query).unwrap_or_default(),
@@ -225,7 +226,8 @@ impl PerformanceAnalyzer {
         if let Some(start) = upper.find("WHERE") {
             let after_where = &query[start + 5..];
             // Find end of WHERE clause
-            let end = after_where.to_uppercase()
+            let end = after_where
+                .to_uppercase()
                 .find("ORDER BY")
                 .or_else(|| after_where.to_uppercase().find("GROUP BY"))
                 .or_else(|| after_where.to_uppercase().find("LIMIT"))
@@ -245,13 +247,22 @@ impl PerformanceAnalyzer {
         for op in operators {
             for part in where_clause.split(op) {
                 let trimmed = part.trim();
-                if !trimmed.is_empty() && !trimmed.starts_with("'") && !trimmed.parse::<f64>().is_ok() {
+                if !trimmed.is_empty()
+                    && !trimmed.starts_with("'")
+                    && !trimmed.parse::<f64>().is_ok()
+                {
                     // Clean up the column name
-                    let col = trimmed.split_whitespace().last()
+                    let col = trimmed
+                        .split_whitespace()
+                        .last()
                         .unwrap_or(trimmed)
                         .trim_matches(&['(', ')', ',', ' '][..])
                         .to_string();
-                    if !col.is_empty() && col.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+                    if !col.is_empty()
+                        && col
+                            .chars()
+                            .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+                    {
                         columns.push(col);
                     }
                 }
@@ -265,7 +276,8 @@ impl PerformanceAnalyzer {
         let upper = query.to_uppercase();
         if let Some(start) = upper.find("FROM") {
             let after_from = &query[start + 4..];
-            let end = after_from.find(|c: char| c.is_whitespace() || c == ';')
+            let end = after_from
+                .find(|c: char| c.is_whitespace() || c == ';')
                 .unwrap_or(after_from.len());
             Some(after_from[..end].trim().to_string())
         } else {
@@ -362,7 +374,9 @@ impl PerformanceMonitor {
     pub fn get_trends(&self, duration_secs: u64) -> PerformanceTrends {
         let cutoff = Utc::now() - chrono::Duration::seconds(duration_secs as i64);
 
-        let recent: Vec<_> = self.metrics_history.iter()
+        let recent: Vec<_> = self
+            .metrics_history
+            .iter()
             .filter(|m| m.timestamp >= cutoff)
             .collect();
 
@@ -370,7 +384,10 @@ impl PerformanceMonitor {
             return PerformanceTrends::default();
         }
 
-        let qps_values: Vec<f64> = recent.iter().map(|m| m.metrics.queries_per_second).collect();
+        let qps_values: Vec<f64> = recent
+            .iter()
+            .map(|m| m.metrics.queries_per_second)
+            .collect();
 
         PerformanceTrends {
             avg_queries_per_second: qps_values.iter().sum::<f64>() / qps_values.len() as f64,
@@ -378,7 +395,8 @@ impl PerformanceMonitor {
             min_queries_per_second: qps_values.iter().cloned().fold(f64::MAX, f64::min),
             connection_growth: self.calculate_connection_growth(&recent),
             slow_query_trend: recent.iter().map(|m| m.metrics.slow_queries as u64).sum(),
-            cache_efficiency: recent.last()
+            cache_efficiency: recent
+                .last()
                 .and_then(|m| m.metrics.cache_hit_ratio)
                 .unwrap_or(0.0),
         }
@@ -423,7 +441,10 @@ pub struct ExplainFormatter;
 impl ExplainFormatter {
     pub fn format_text(plan: &QueryPlan) -> String {
         let mut output = String::new();
-        output.push_str(&format!("Query Plan (Cost: {:.2}, Rows: {})\n", plan.estimated_cost, plan.estimated_rows));
+        output.push_str(&format!(
+            "Query Plan (Cost: {:.2}, Rows: {})\n",
+            plan.estimated_cost, plan.estimated_rows
+        ));
         output.push_str("========================================================\n\n");
 
         for node in &plan.nodes {

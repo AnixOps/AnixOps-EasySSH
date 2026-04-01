@@ -393,7 +393,7 @@ impl Drop for StreamingProcessor {
 /// Create optimized batcher for 60fps streaming
 pub fn create_optimized_batcher() -> DataBatcher {
     DataBatcher::with_capacity(
-        8192,                      // 8KB batches
+        8192,                     // 8KB batches
         Duration::from_millis(1), // 1ms flush interval
     )
 }
@@ -457,7 +457,10 @@ mod tests {
 
         // This should trigger backpressure
         let data2 = vec![0u8; 20];
-        assert!(matches!(buffer.push(&data2), Err(BufferError::Backpressure)));
+        assert!(matches!(
+            buffer.push(&data2),
+            Err(BufferError::Backpressure)
+        ));
     }
 
     #[test]
@@ -503,9 +506,9 @@ mod tests {
 
     #[test]
     fn test_big_data_detection() {
-        assert!(!big_data::is_big_data(1024));      // 1KB
+        assert!(!big_data::is_big_data(1024)); // 1KB
         assert!(!big_data::is_big_data(1024 * 1024 - 1)); // Just under 1MB
-        assert!(big_data::is_big_data(1024 * 1024 + 1));  // Just over 1MB
+        assert!(big_data::is_big_data(1024 * 1024 + 1)); // Just over 1MB
         assert!(big_data::is_big_data(10 * 1024 * 1024)); // 10MB
     }
 

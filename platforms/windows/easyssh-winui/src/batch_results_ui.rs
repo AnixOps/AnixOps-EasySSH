@@ -4,8 +4,8 @@ use eframe::egui;
 use egui::{Color32, Frame, ProgressBar, RichText, Ui};
 use std::collections::HashMap;
 
-use easyssh_core::workflow_executor::{BatchExecutionSummary, ServerExecutionResult};
 use easyssh_core::workflow_engine::StepStatus;
+use easyssh_core::workflow_executor::{BatchExecutionSummary, ServerExecutionResult};
 
 /// Batch execution results viewer
 pub struct BatchExecutionResultsPanel {
@@ -94,7 +94,12 @@ impl BatchExecutionResultsPanel {
         response
     }
 
-    fn render_header(&mut self, ui: &mut Ui, summary: &BatchExecutionSummary, response: &mut BatchResultsResponse) {
+    fn render_header(
+        &mut self,
+        ui: &mut Ui,
+        summary: &BatchExecutionSummary,
+        response: &mut BatchResultsResponse,
+    ) {
         ui.horizontal(|ui| {
             // Overall status indicator
             let (icon, color) = if summary.failed == 0 && summary.cancelled == 0 {
@@ -121,7 +126,11 @@ impl BatchExecutionResultsPanel {
         // Stats row
         ui.horizontal(|ui| {
             let total = summary.total_servers;
-            let success_pct = if total > 0 { (summary.successful as f32 / total as f32) * 100.0 } else { 0.0 };
+            let success_pct = if total > 0 {
+                (summary.successful as f32 / total as f32) * 100.0
+            } else {
+                0.0
+            };
 
             ui.label(format!(
                 "{}/{} successful ({:.1}%)",
@@ -141,26 +150,30 @@ impl BatchExecutionResultsPanel {
 
         // Progress bar
         let progress = if summary.total_servers > 0 {
-            (summary.successful + summary.failed + summary.cancelled) as f32 / summary.total_servers as f32
+            (summary.successful + summary.failed + summary.cancelled) as f32
+                / summary.total_servers as f32
         } else {
             1.0
         };
-        ui.add(ProgressBar::new(progress).text(format!("{}/{} complete", summary.successful + summary.failed + summary.cancelled, summary.total_servers)));
+        ui.add(ProgressBar::new(progress).text(format!(
+            "{}/{} complete",
+            summary.successful + summary.failed + summary.cancelled,
+            summary.total_servers
+        )));
     }
 
     fn render_summary_view(&mut self, ui: &mut Ui, summary: &BatchExecutionSummary) {
         // Server results grid
         ui.label("Server Results:");
 
-        egui::ScrollArea::vertical()
-            .show(ui, |ui| {
-                for server_result in &summary.results {
-                    if self.show_only_failed && server_result.success {
-                        continue;
-                    }
-                    self.render_server_summary_card(ui, server_result);
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for server_result in &summary.results {
+                if self.show_only_failed && server_result.success {
+                    continue;
                 }
-            });
+                self.render_server_summary_card(ui, server_result);
+            }
+        });
     }
 
     fn render_server_summary_card(&mut self, ui: &mut Ui, result: &ServerExecutionResult) {
@@ -176,52 +189,54 @@ impl BatchExecutionResultsPanel {
             Color32::from_rgb(50, 30, 30)
         };
 
-        Frame::group(ui.style())
-            .fill(bg_color)
-            .show(ui, |ui| {
-                ui.set_min_width(ui.available_width());
+        Frame::group(ui.style()).fill(bg_color).show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
 
-                ui.horizontal(|ui| {
-                    ui.colored_label(status_color, RichText::new(status_icon).size(20.0));
+            ui.horizontal(|ui| {
+                ui.colored_label(status_color, RichText::new(status_icon).size(20.0));
 
-                    ui.vertical(|ui| {
-                        ui.label(RichText::new(&result.server_name).strong());
-                        ui.label(RichText::new(&result.server_id).size(11.0).color(Color32::GRAY));
-                    });
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(format!("{}ms", result.execution_time_ms));
-
-                        if let Some(ref _error) = result.error_message {
-                            ui.colored_label(Color32::RED, "Error");
-                        }
-                    });
+                ui.vertical(|ui| {
+                    ui.label(RichText::new(&result.server_name).strong());
+                    ui.label(
+                        RichText::new(&result.server_id)
+                            .size(11.0)
+                            .color(Color32::GRAY),
+                    );
                 });
 
-                if !result.step_results.is_empty() {
-                    ui.horizontal_wrapped(|ui| {
-                        for step in &result.step_results {
-                            let step_icon = match step.status {
-                                StepStatus::Completed => "✓",
-                                StepStatus::Failed => "✗",
-                                StepStatus::Skipped => "⊘",
-                                _ => "•",
-                            };
-                            let step_color = match step.status {
-                                StepStatus::Completed => Color32::GREEN,
-                                StepStatus::Failed => Color32::RED,
-                                StepStatus::Skipped => Color32::GRAY,
-                                _ => Color32::YELLOW,
-                            };
-                            ui.colored_label(step_color, step_icon);
-                        }
-                    });
-                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(format!("{}ms", result.execution_time_ms));
 
-                if let Some(ref error) = result.error_message {
-                    ui.colored_label(Color32::RED, RichText::new(error).size(12.0));
-                }
+                    if let Some(ref _error) = result.error_message {
+                        ui.colored_label(Color32::RED, "Error");
+                    }
+                });
             });
+
+            if !result.step_results.is_empty() {
+                ui.horizontal_wrapped(|ui| {
+                    for step in &result.step_results {
+                        let step_icon = match step.status {
+                            StepStatus::Completed => "✓",
+                            StepStatus::Failed => "✗",
+                            StepStatus::Skipped => "⊘",
+                            _ => "•",
+                        };
+                        let step_color = match step.status {
+                            StepStatus::Completed => Color32::GREEN,
+                            StepStatus::Failed => Color32::RED,
+                            StepStatus::Skipped => Color32::GRAY,
+                            _ => Color32::YELLOW,
+                        };
+                        ui.colored_label(step_color, step_icon);
+                    }
+                });
+            }
+
+            if let Some(ref error) = result.error_message {
+                ui.colored_label(Color32::RED, RichText::new(error).size(12.0));
+            }
+        });
 
         ui.add_space(4.0);
     }
@@ -245,7 +260,8 @@ impl BatchExecutionResultsPanel {
                                 continue;
                             }
 
-                            let is_selected = self.selected_server.as_ref() == Some(&result.server_id);
+                            let is_selected =
+                                self.selected_server.as_ref() == Some(&result.server_id);
                             let (icon, color) = if result.success {
                                 ("✓", Color32::GREEN)
                             } else {
@@ -254,7 +270,9 @@ impl BatchExecutionResultsPanel {
 
                             let text = format!("{} {}", icon, result.server_name);
                             let label = if is_selected {
-                                RichText::new(text).strong().background_color(Color32::from_gray(50))
+                                RichText::new(text)
+                                    .strong()
+                                    .background_color(Color32::from_gray(50))
                             } else {
                                 RichText::new(text).color(color)
                             };
@@ -271,7 +289,8 @@ impl BatchExecutionResultsPanel {
             // Details panel
             ui.vertical(|ui| {
                 if let Some(ref server_id) = self.selected_server {
-                    if let Some(result) = summary.results.iter().find(|r| &r.server_id == server_id) {
+                    if let Some(result) = summary.results.iter().find(|r| &r.server_id == server_id)
+                    {
                         self.render_server_details(ui, result);
                     }
                 } else {
@@ -317,7 +336,12 @@ impl BatchExecutionResultsPanel {
                 ui.label(&step.step_name);
 
                 if let Some(ref output) = step.output_preview {
-                    ui.label(RichText::new(output).size(11.0).color(Color32::GRAY).monospace());
+                    ui.label(
+                        RichText::new(output)
+                            .size(11.0)
+                            .color(Color32::GRAY)
+                            .monospace(),
+                    );
                 }
             });
         }
@@ -334,7 +358,10 @@ impl BatchExecutionResultsPanel {
             }
             for result in &summary.results {
                 let is_selected = self.selected_server.as_ref() == Some(&result.server_id);
-                if ui.selectable_label(is_selected, &result.server_name).clicked() {
+                if ui
+                    .selectable_label(is_selected, &result.server_name)
+                    .clicked()
+                {
                     self.selected_server = Some(result.server_id.clone());
                 }
             }
@@ -362,10 +389,7 @@ impl BatchExecutionResultsPanel {
             "Started: {}\n",
             summary.started_at.format("%Y-%m-%d %H:%M:%S")
         ));
-        logs.push_str(&format!(
-            "Total servers: {}\n",
-            summary.total_servers
-        ));
+        logs.push_str(&format!("Total servers: {}\n", summary.total_servers));
         logs.push('\n');
 
         for result in &summary.results {

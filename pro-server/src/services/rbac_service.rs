@@ -22,25 +22,24 @@ impl RbacService {
         let limit = limit.unwrap_or(20) as i64;
 
         let roles = sqlx::query_as::<_, Role>(
-            "SELECT * FROM roles WHERE is_system = TRUE ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            "SELECT * FROM roles WHERE is_system = TRUE ORDER BY created_at DESC LIMIT ? OFFSET ?",
         )
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.db)
         .await?;
 
-        let total = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM roles WHERE is_system = TRUE"
-        )
-        .fetch_one(&self.db)
-        .await?;
+        let total =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM roles WHERE is_system = TRUE")
+                .fetch_one(&self.db)
+                .await?;
 
         Ok((roles, total))
     }
 
     pub async fn list_team_roles(&self, team_id: &str) -> Result<Vec<Role>> {
         let roles = sqlx::query_as::<_, Role>(
-            "SELECT * FROM roles WHERE team_id = ? ORDER BY created_at DESC"
+            "SELECT * FROM roles WHERE team_id = ? ORDER BY created_at DESC",
         )
         .bind(team_id)
         .fetch_all(&self.db)
@@ -106,12 +105,10 @@ impl RbacService {
     }
 
     pub async fn get_role(&self, role_id: &str) -> Result<Role> {
-        let role = sqlx::query_as::<_, Role>(
-            "SELECT * FROM roles WHERE id = ?"
-        )
-        .bind(role_id)
-        .fetch_one(&self.db)
-        .await?;
+        let role = sqlx::query_as::<_, Role>("SELECT * FROM roles WHERE id = ?")
+            .bind(role_id)
+            .fetch_one(&self.db)
+            .await?;
 
         Ok(role)
     }
@@ -152,7 +149,7 @@ impl RbacService {
 
     pub async fn list_permissions(&self) -> Result<Vec<Permission>> {
         let permissions = sqlx::query_as::<_, Permission>(
-            "SELECT * FROM permissions ORDER BY resource_type, action"
+            "SELECT * FROM permissions ORDER BY resource_type, action",
         )
         .fetch_all(&self.db)
         .await?;
@@ -164,7 +161,7 @@ impl RbacService {
         let permissions = sqlx::query_as::<_, Permission>(
             "SELECT p.* FROM permissions p
              INNER JOIN role_permissions rp ON p.id = rp.permission_id
-             WHERE rp.role_id = ?"
+             WHERE rp.role_id = ?",
         )
         .bind(role_id)
         .fetch_all(&self.db)
@@ -175,7 +172,7 @@ impl RbacService {
 
     pub async fn add_permission_to_role(&self, role_id: &str, permission_id: &str) -> Result<()> {
         sqlx::query(
-            "INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)"
+            "INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
         )
         .bind(role_id)
         .bind(permission_id)
@@ -185,7 +182,11 @@ impl RbacService {
         Ok(())
     }
 
-    pub async fn remove_permission_from_role(&self, role_id: &str, permission_id: &str) -> Result<()> {
+    pub async fn remove_permission_from_role(
+        &self,
+        role_id: &str,
+        permission_id: &str,
+    ) -> Result<()> {
         sqlx::query("DELETE FROM role_permissions WHERE role_id = ? AND permission_id = ?")
             .bind(role_id)
             .bind(permission_id)
@@ -257,7 +258,7 @@ impl RbacService {
              FROM role_permissions rp
              INNER JOIN roles r ON rp.role_id = r.id
              INNER JOIN permissions p ON rp.permission_id = p.id
-             INNER JOIN team_members tm ON tm.user_id = ?"
+             INNER JOIN team_members tm ON tm.user_id = ?",
         );
 
         query.push_str(" WHERE (r.is_system = TRUE OR r.team_id = tm.team_id)");

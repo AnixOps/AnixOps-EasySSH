@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::{
     middleware,
-    routing::{get, post, put, delete, patch},
+    routing::{delete, get, patch, post, put},
     Router,
 };
 use std::net::SocketAddr;
@@ -17,35 +17,30 @@ mod api;
 mod auth;
 mod config;
 mod db;
-mod middleware as app_middleware;
+mod docs;
+mod middleware;
 mod models;
 mod redis_cache;
 mod services;
 mod websocket;
-mod docs;
 
 // 事件响应中心模块
+mod escalation_service;
 mod incident_models;
 mod incident_service;
-mod runbook_service;
-mod escalation_service;
 mod post_mortem_service;
+mod runbook_service;
 
 use crate::api::{
-    audit::audit_routes,
-    collaboration::collaboration_routes,
-    incident::incident_routes,
-    rbac::rbac_routes,
-    resources::resource_routes,
-    sso::sso_routes,
-    teams::team_routes,
+    audit::audit_routes, collaboration::collaboration_routes, incident::incident_routes,
+    rbac::rbac_routes, resources::resource_routes, sso::sso_routes, teams::team_routes,
 };
 use crate::auth::auth_routes;
 use crate::config::AppConfig;
 use crate::db::Database;
-use crate::middleware::{rate_limit::RateLimitLayer, auth::AuthLayer};
-use crate::websocket::ws_routes;
 use crate::docs::swagger::swagger_routes;
+use crate::middleware::{auth::AuthLayer, rate_limit::RateLimitLayer};
+use crate::websocket::ws_routes;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -116,10 +111,7 @@ fn create_router(state: AppState) -> Router {
     );
 
     // Authentication middleware
-    let auth_layer = AuthLayer::new(
-        state.config.jwt_secret.clone(),
-        state.redis.clone(),
-    );
+    let auth_layer = AuthLayer::new(state.config.jwt_secret.clone(), state.redis.clone());
 
     // Health check route (no auth required)
     let health_router = Router::new()
@@ -166,7 +158,9 @@ async fn health_check() -> &'static str {
     "OK"
 }
 
-async fn readiness_check(state: axum::extract::State<AppState>) -> Result<&'static str, (axum::http::StatusCode, String)> {
+async fn readiness_check(
+    state: axum::extract::State<AppState>,
+) -> Result<&'static str, (axum::http::StatusCode, String)> {
     // Check database connection
     if let Err(e) = state.db.ping().await {
         return Err((

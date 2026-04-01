@@ -32,17 +32,15 @@ impl MacOSUpdater {
         // Walk up to find .app bundle
         let mut path = exe_path.to_path_buf();
         while let Some(parent) = path.parent() {
-            if parent.extension()
-                .map(|e| e == "app")
-                .unwrap_or(false)
-            {
+            if parent.extension().map(|e| e == "app").unwrap_or(false) {
                 return Ok(parent.to_path_buf());
             }
             path = parent.to_path_buf();
         }
 
         // Fallback: return the directory containing the binary
-        exe_path.parent()
+        exe_path
+            .parent()
             .map(|p| p.to_path_buf())
             .ok_or_else(|| anyhow::anyhow!("Could not find app bundle"))
     }
@@ -100,7 +98,9 @@ impl MacOSUpdater {
         let new_app = std::fs::read_dir(&mount_point)?
             .filter_map(|entry| entry.ok())
             .find(|entry| {
-                entry.path().extension()
+                entry
+                    .path()
+                    .extension()
                     .map(|e| e == "app")
                     .unwrap_or(false)
             })
@@ -149,7 +149,9 @@ impl MacOSUpdater {
         let new_app = std::fs::read_dir(&extract_dir)?
             .filter_map(|entry| entry.ok())
             .find(|entry| {
-                entry.path().extension()
+                entry
+                    .path()
+                    .extension()
                     .map(|e| e == "app")
                     .unwrap_or(false)
             })
@@ -190,7 +192,9 @@ impl MacOSUpdater {
     fn find_app_in_directory(dir: &Path) -> anyhow::Result<PathBuf> {
         for entry in walkdir::WalkDir::new(dir).max_depth(3) {
             let entry = entry?;
-            if entry.path().extension()
+            if entry
+                .path()
+                .extension()
                 .map(|e| e == "app")
                 .unwrap_or(false)
             {
@@ -204,10 +208,14 @@ impl MacOSUpdater {
     /// Replace app bundle with atomic operation
     async fn replace_app_bundle(&self, new_app: &Path) -> anyhow::Result<()> {
         // Get parent of current app (usually /Applications or ~/Applications)
-        let install_parent = self.app_bundle_path.parent()
+        let install_parent = self
+            .app_bundle_path
+            .parent()
             .ok_or_else(|| anyhow::anyhow!("Invalid app path"))?;
 
-        let app_name = self.app_bundle_path.file_name()
+        let app_name = self
+            .app_bundle_path
+            .file_name()
             .ok_or_else(|| anyhow::anyhow!("Invalid app name"))?;
 
         // Create temporary path in same directory (for atomic rename)
@@ -257,7 +265,12 @@ impl MacOSUpdater {
     /// Remove quarantine attribute
     async fn remove_quarantine(app_path: &Path) -> anyhow::Result<()> {
         Command::new("xattr")
-            .args(&["-d", "-r", "com.apple.quarantine", app_path.to_str().unwrap()])
+            .args(&[
+                "-d",
+                "-r",
+                "com.apple.quarantine",
+                app_path.to_str().unwrap(),
+            ])
             .output()?;
 
         // Ignore errors - attribute might not exist
@@ -290,7 +303,8 @@ impl PlatformUpdater for MacOSUpdater {
     }
 
     async fn install_update(&self, package_path: &Path) -> anyhow::Result<()> {
-        let extension = package_path.extension()
+        let extension = package_path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("dmg");
 
@@ -323,7 +337,8 @@ impl PlatformUpdater for MacOSUpdater {
     }
 
     async fn verify_package(&self, package_path: &Path) -> anyhow::Result<bool> {
-        let extension = package_path.extension()
+        let extension = package_path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
 

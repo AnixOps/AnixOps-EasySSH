@@ -40,7 +40,7 @@ impl EnhancedAppViewModel {
                 .thread_name("easyssh-pool")
                 .enable_all()
                 .build()
-                .map_err(|e| anyhow::anyhow!("Failed to create Tokio runtime: {}", e))?
+                .map_err(|e| anyhow::anyhow!("Failed to create Tokio runtime: {}", e))?,
         );
 
         // Create enhanced manager with optimized settings
@@ -51,7 +51,7 @@ impl EnhancedAppViewModel {
                 .health_check_interval(30)
                 .reconnect_max_attempts(5)
                 .max_global_connections(100)
-                .build()
+                .build(),
         ));
 
         let session_content_cache = Arc::new(Mutex::new(HashMap::new()));
@@ -79,11 +79,17 @@ impl EnhancedAppViewModel {
 
     pub fn get_groups(&self) -> anyhow::Result<Vec<easyssh_core::GroupRecord>> {
         let state = self.core_state.lock().unwrap();
-        easyssh_core::get_groups(&state)
-            .map_err(|e| anyhow::anyhow!("Failed to get groups: {}", e))
+        easyssh_core::get_groups(&state).map_err(|e| anyhow::anyhow!("Failed to get groups: {}", e))
     }
 
-    pub fn add_server(&self, name: &str, host: &str, port: i64, username: &str, auth_type: &str) -> anyhow::Result<()> {
+    pub fn add_server(
+        &self,
+        name: &str,
+        host: &str,
+        port: i64,
+        username: &str,
+        auth_type: &str,
+    ) -> anyhow::Result<()> {
         let state = self.core_state.lock().unwrap();
         let new_server = easyssh_core::NewServer {
             id: uuid::Uuid::new_v4().to_string(),
@@ -107,7 +113,9 @@ impl EnhancedAppViewModel {
     }
 
     pub fn get_saved_password(&self, server_id: &str) -> Option<String> {
-        easyssh_core::keychain::get_password(server_id).ok().flatten()
+        easyssh_core::keychain::get_password(server_id)
+            .ok()
+            .flatten()
     }
 
     pub fn save_password(&self, server_id: &str, password: &str) -> anyhow::Result<()> {
@@ -116,7 +124,14 @@ impl EnhancedAppViewModel {
     }
 
     /// Connect with enhanced connection pool
-    pub fn connect(&self, session_id: &str, host: &str, port: i64, username: &str, password: Option<&str>) -> anyhow::Result<()> {
+    pub fn connect(
+        &self,
+        session_id: &str,
+        host: &str,
+        port: i64,
+        username: &str,
+        password: Option<&str>,
+    ) -> anyhow::Result<()> {
         let rt = self.runtime.clone();
         let manager = self.enhanced_manager.clone();
         let sid = session_id.to_string();
@@ -126,13 +141,18 @@ impl EnhancedAppViewModel {
 
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
-            mgr.connect(&sid, &h, port as u16, &u, p.as_deref()).await
+            mgr.connect(&sid, &h, port as u16, &u, p.as_deref())
+                .await
                 .map_err(|e| anyhow::anyhow!("SSH connection failed: {}", e))
         })
     }
 
     /// Execute with auto-reconnect
-    pub fn execute_with_reconnect(&self, session_id: &str, command: &str) -> anyhow::Result<String> {
+    pub fn execute_with_reconnect(
+        &self,
+        session_id: &str,
+        command: &str,
+    ) -> anyhow::Result<String> {
         let rt = self.runtime.clone();
         let manager = self.enhanced_manager.clone();
         let sid = session_id.to_string();
@@ -140,13 +160,18 @@ impl EnhancedAppViewModel {
 
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
-            mgr.execute_with_auto_reconnect(&sid, &cmd).await
+            mgr.execute_with_auto_reconnect(&sid, &cmd)
+                .await
                 .map_err(|e| anyhow::anyhow!("Command execution failed: {}", e))
         })
     }
 
     /// Execute stream with enhanced manager
-    pub fn execute_stream(&self, session_id: &str, command: &str) -> anyhow::Result<UnboundedReceiver<String>> {
+    pub fn execute_stream(
+        &self,
+        session_id: &str,
+        command: &str,
+    ) -> anyhow::Result<UnboundedReceiver<String>> {
         // Use base manager for streaming
         let rt = self.runtime.clone();
         let manager = self.enhanced_manager.clone();
@@ -158,12 +183,19 @@ impl EnhancedAppViewModel {
             let mgr = manager.lock().unwrap();
             // This would need to be implemented in EnhancedSshManager
             // For now, return an error
-            Err(anyhow::anyhow!("Stream execution not yet implemented in enhanced manager"))
+            Err(anyhow::anyhow!(
+                "Stream execution not yet implemented in enhanced manager"
+            ))
         })
     }
 
     /// Store session content with compression
-    pub fn store_session_content(&self, session_id: &str, server_key: &str, content: &str) -> anyhow::Result<()> {
+    pub fn store_session_content(
+        &self,
+        session_id: &str,
+        server_key: &str,
+        content: &str,
+    ) -> anyhow::Result<()> {
         let rt = self.runtime.clone();
         let manager = self.enhanced_manager.clone();
         let sid = session_id.to_string();
@@ -172,7 +204,8 @@ impl EnhancedAppViewModel {
 
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
-            mgr.store_session_content(&sid, &sk, &c).await
+            mgr.store_session_content(&sid, &sk, &c)
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to store session content: {}", e))
         })
     }
@@ -185,7 +218,8 @@ impl EnhancedAppViewModel {
 
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
-            mgr.retrieve_session_content(&sid).await
+            mgr.retrieve_session_content(&sid)
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to retrieve session content: {}", e))
         })
     }
@@ -220,7 +254,8 @@ impl EnhancedAppViewModel {
 
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
-            mgr.disconnect(&sid).await
+            mgr.disconnect(&sid)
+                .await
                 .map_err(|e| anyhow::anyhow!("Disconnect failed: {}", e))
         })
     }

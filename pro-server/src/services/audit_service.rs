@@ -24,12 +24,8 @@ impl AuditService {
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<AuditLog>, i64)> {
-        let mut query = String::from(
-            "SELECT * FROM audit_logs WHERE 1=1"
-        );
-        let mut count_query = String::from(
-            "SELECT COUNT(*) FROM audit_logs WHERE 1=1"
-        );
+        let mut query = String::from("SELECT * FROM audit_logs WHERE 1=1");
+        let mut count_query = String::from("SELECT COUNT(*) FROM audit_logs WHERE 1=1");
 
         if team_id.is_some() {
             query.push_str(" AND team_id = ?");
@@ -114,9 +110,7 @@ impl AuditService {
         from_date: Option<chrono::DateTime<chrono::Utc>>,
         to_date: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<serde_json::Value> {
-        let mut query = String::from(
-            "SELECT action, COUNT(*) as count FROM audit_logs WHERE 1=1"
-        );
+        let mut query = String::from("SELECT action, COUNT(*) as count FROM audit_logs WHERE 1=1");
 
         if team_id.is_some() {
             query.push_str(" AND team_id = ?");

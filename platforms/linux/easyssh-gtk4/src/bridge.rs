@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
-use serde::{Deserialize, Serialize};
 
 pub struct BridgeHandle {
     ptr: *mut c_void,
@@ -51,11 +51,12 @@ impl BridgeHandle {
                 return Ok(Vec::new());
             }
 
-            let c_str = CStr::from_ptr(ptr).to_str()
+            let c_str = CStr::from_ptr(ptr)
+                .to_str()
                 .map_err(|e| format!("Invalid UTF-8: {}", e))?;
 
-            let result = serde_json::from_str(c_str)
-                .map_err(|e| format!("JSON parse error: {}", e));
+            let result =
+                serde_json::from_str(c_str).map_err(|e| format!("JSON parse error: {}", e));
 
             easyssh_free_string(ptr);
             result
@@ -69,11 +70,12 @@ impl BridgeHandle {
                 return Ok(Vec::new());
             }
 
-            let c_str = CStr::from_ptr(ptr).to_str()
+            let c_str = CStr::from_ptr(ptr)
+                .to_str()
                 .map_err(|e| format!("Invalid UTF-8: {}", e))?;
 
-            let result = serde_json::from_str(c_str)
-                .map_err(|e| format!("JSON parse error: {}", e));
+            let result =
+                serde_json::from_str(c_str).map_err(|e| format!("JSON parse error: {}", e));
 
             easyssh_free_string(ptr);
             result
@@ -82,31 +84,40 @@ impl BridgeHandle {
 
     pub fn add_server(&self, server: &Server) -> Result<(), String> {
         unsafe {
-            let json = serde_json::to_string(server)
-                .map_err(|e| format!("Serialize error: {}", e))?;
-            let c_str = CString::new(json)
-                .map_err(|e| format!("CString error: {}", e))?;
+            let json =
+                serde_json::to_string(server).map_err(|e| format!("Serialize error: {}", e))?;
+            let c_str = CString::new(json).map_err(|e| format!("CString error: {}", e))?;
 
             let result = easyssh_add_server(self.ptr, c_str.as_ptr());
-            if result == 0 { Ok(()) } else { Err("Failed to add server".to_string()) }
+            if result == 0 {
+                Ok(())
+            } else {
+                Err("Failed to add server".to_string())
+            }
         }
     }
 
     pub fn delete_server(&self, id: &str) -> Result<(), String> {
         unsafe {
-            let c_id = CString::new(id)
-                .map_err(|e| format!("CString error: {}", e))?;
+            let c_id = CString::new(id).map_err(|e| format!("CString error: {}", e))?;
             let result = easyssh_delete_server(self.ptr, c_id.as_ptr());
-            if result == 0 { Ok(()) } else { Err("Failed to delete".to_string()) }
+            if result == 0 {
+                Ok(())
+            } else {
+                Err("Failed to delete".to_string())
+            }
         }
     }
 
     pub fn connect_native(&self, id: &str) -> Result<(), String> {
         unsafe {
-            let c_id = CString::new(id)
-                .map_err(|e| format!("CString error: {}", e))?;
+            let c_id = CString::new(id).map_err(|e| format!("CString error: {}", e))?;
             let result = easyssh_connect_native(self.ptr, c_id.as_ptr());
-            if result == 0 { Ok(()) } else { Err("Connection failed".to_string()) }
+            if result == 0 {
+                Ok(())
+            } else {
+                Err("Connection failed".to_string())
+            }
         }
     }
 }

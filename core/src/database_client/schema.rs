@@ -60,9 +60,7 @@ pub struct SchemaTable {
 
 impl SchemaTable {
     pub fn primary_key_columns(&self) -> Vec<&SchemaColumn> {
-        self.columns.iter()
-            .filter(|c| c.is_primary_key)
-            .collect()
+        self.columns.iter().filter(|c| c.is_primary_key).collect()
     }
 
     pub fn get_column(&self, name: &str) -> Option<&SchemaColumn> {
@@ -78,8 +76,7 @@ impl SchemaTable {
     }
 
     pub fn foreign_key_for_column(&self, column_name: &str) -> Option<&SchemaForeignKey> {
-        self.foreign_keys.iter()
-            .find(|fk| fk.column == column_name)
+        self.foreign_keys.iter().find(|fk| fk.column == column_name)
     }
 }
 
@@ -121,27 +118,47 @@ impl SchemaColumn {
         } else if upper.contains("FLOAT") || upper.contains("REAL") || upper.contains("DOUBLE") {
             if self.nullable { "Option<f64>" } else { "f64" }.to_string()
         } else if upper.contains("BOOL") {
-            if self.nullable { "Option<bool>" } else { "bool" }.to_string()
+            if self.nullable {
+                "Option<bool>"
+            } else {
+                "bool"
+            }
+            .to_string()
         } else if upper.contains("TIME") || upper.contains("DATE") {
-            if self.nullable { "Option<chrono::NaiveDateTime>" } else { "chrono::NaiveDateTime" }.to_string()
+            if self.nullable {
+                "Option<chrono::NaiveDateTime>"
+            } else {
+                "chrono::NaiveDateTime"
+            }
+            .to_string()
         } else if upper.contains("JSON") {
             "serde_json::Value".to_string()
         } else {
-            if self.nullable { "Option<String>" } else { "String" }.to_string()
+            if self.nullable {
+                "Option<String>"
+            } else {
+                "String"
+            }
+            .to_string()
         }
     }
 
     pub fn is_numeric(&self) -> bool {
         let upper = self.data_type.to_uppercase();
-        upper.contains("INT") || upper.contains("FLOAT") ||
-        upper.contains("REAL") || upper.contains("DOUBLE") ||
-        upper.contains("DECIMAL") || upper.contains("NUMERIC")
+        upper.contains("INT")
+            || upper.contains("FLOAT")
+            || upper.contains("REAL")
+            || upper.contains("DOUBLE")
+            || upper.contains("DECIMAL")
+            || upper.contains("NUMERIC")
     }
 
     pub fn is_text(&self) -> bool {
         let upper = self.data_type.to_uppercase();
-        upper.contains("CHAR") || upper.contains("TEXT") ||
-        upper.contains("VARCHAR") || upper.contains("STRING")
+        upper.contains("CHAR")
+            || upper.contains("TEXT")
+            || upper.contains("VARCHAR")
+            || upper.contains("STRING")
     }
 }
 
@@ -270,11 +287,14 @@ impl SchemaAnalyzer {
     /// Find orphaned tables (no foreign keys to or from)
     pub fn find_orphaned_tables(schema: &DatabaseSchema) -> Vec<String> {
         let relationships = Self::analyze_relationships(schema);
-        let related_tables: std::collections::HashSet<String> = relationships.iter()
+        let related_tables: std::collections::HashSet<String> = relationships
+            .iter()
             .flat_map(|r| vec![r.from_table.clone(), r.to_table.clone()])
             .collect();
 
-        schema.tables.iter()
+        schema
+            .tables
+            .iter()
             .filter(|t| !related_tables.contains(&t.name))
             .map(|t| t.name.clone())
             .collect()
@@ -327,15 +347,9 @@ impl SchemaAnalyzer {
     /// Generate table statistics
     pub fn generate_statistics(schema: &DatabaseSchema) -> SchemaStatistics {
         let total_tables = schema.tables.len();
-        let total_columns: usize = schema.tables.iter()
-            .map(|t| t.columns.len())
-            .sum();
-        let total_indexes: usize = schema.tables.iter()
-            .map(|t| t.indexes.len())
-            .sum();
-        let total_foreign_keys: usize = schema.tables.iter()
-            .map(|t| t.foreign_keys.len())
-            .sum();
+        let total_columns: usize = schema.tables.iter().map(|t| t.columns.len()).sum();
+        let total_indexes: usize = schema.tables.iter().map(|t| t.indexes.len()).sum();
+        let total_foreign_keys: usize = schema.tables.iter().map(|t| t.foreign_keys.len()).sum();
 
         let avg_columns_per_table = if total_tables > 0 {
             total_columns as f64 / total_tables as f64
@@ -343,7 +357,9 @@ impl SchemaAnalyzer {
             0.0
         };
 
-        let tables_with_pk = schema.tables.iter()
+        let tables_with_pk = schema
+            .tables
+            .iter()
             .filter(|t| t.columns.iter().any(|c| c.is_primary_key))
             .count();
 
@@ -453,12 +469,10 @@ impl SchemaComparer {
         let mut removed_tables = Vec::new();
         let mut modified_tables = Vec::new();
 
-        let old_table_names: std::collections::HashSet<_> = old.tables.iter()
-            .map(|t| &t.name)
-            .collect();
-        let new_table_names: std::collections::HashSet<_> = new.tables.iter()
-            .map(|t| &t.name)
-            .collect();
+        let old_table_names: std::collections::HashSet<_> =
+            old.tables.iter().map(|t| &t.name).collect();
+        let new_table_names: std::collections::HashSet<_> =
+            new.tables.iter().map(|t| &t.name).collect();
 
         // Find added tables
         for table in &new.tables {
@@ -496,12 +510,10 @@ impl SchemaComparer {
         let mut removed_columns = Vec::new();
         let mut modified_columns = Vec::new();
 
-        let old_col_names: std::collections::HashSet<_> = old.columns.iter()
-            .map(|c| &c.name)
-            .collect();
-        let new_col_names: std::collections::HashSet<_> = new.columns.iter()
-            .map(|c| &c.name)
-            .collect();
+        let old_col_names: std::collections::HashSet<_> =
+            old.columns.iter().map(|c| &c.name).collect();
+        let new_col_names: std::collections::HashSet<_> =
+            new.columns.iter().map(|c| &c.name).collect();
 
         for col in &new.columns {
             if !old_col_names.contains(&col.name) {
@@ -517,8 +529,7 @@ impl SchemaComparer {
 
         for new_col in &new.columns {
             if let Some(old_col) = old.get_column(&new_col.name) {
-                if old_col.data_type != new_col.data_type ||
-                   old_col.nullable != new_col.nullable {
+                if old_col.data_type != new_col.data_type || old_col.nullable != new_col.nullable {
                     modified_columns.push(ColumnDiff {
                         name: new_col.name.clone(),
                         old_type: old_col.data_type.clone(),
@@ -549,9 +560,9 @@ pub struct SchemaDiff {
 
 impl SchemaDiff {
     pub fn has_changes(&self) -> bool {
-        !self.added_tables.is_empty() ||
-        !self.removed_tables.is_empty() ||
-        !self.modified_tables.is_empty()
+        !self.added_tables.is_empty()
+            || !self.removed_tables.is_empty()
+            || !self.modified_tables.is_empty()
     }
 
     pub fn generate_sql(&self, db_type: crate::database_client::DatabaseType) -> Vec<String> {
@@ -572,10 +583,15 @@ impl SchemaDiff {
         statements
     }
 
-    fn generate_create_table(table: &SchemaTable, db_type: crate::database_client::DatabaseType) -> String {
+    fn generate_create_table(
+        table: &SchemaTable,
+        db_type: crate::database_client::DatabaseType,
+    ) -> String {
         let mut sql = format!("CREATE TABLE {} (\n", table.name);
 
-        let columns_sql: Vec<String> = table.columns.iter()
+        let columns_sql: Vec<String> = table
+            .columns
+            .iter()
             .map(|c| {
                 let mut col = format!("    {} {}", c.name, c.data_type);
                 if !c.nullable {
@@ -597,7 +613,10 @@ impl SchemaDiff {
         sql
     }
 
-    fn generate_alter_table(diff: &TableDiff, db_type: crate::database_client::DatabaseType) -> Vec<String> {
+    fn generate_alter_table(
+        diff: &TableDiff,
+        db_type: crate::database_client::DatabaseType,
+    ) -> Vec<String> {
         let mut statements = Vec::new();
 
         for col in &diff.added_columns {
@@ -639,9 +658,9 @@ pub struct TableDiff {
 
 impl TableDiff {
     pub fn has_changes(&self) -> bool {
-        !self.added_columns.is_empty() ||
-        !self.removed_columns.is_empty() ||
-        !self.modified_columns.is_empty()
+        !self.added_columns.is_empty()
+            || !self.removed_columns.is_empty()
+            || !self.modified_columns.is_empty()
     }
 }
 

@@ -1,6 +1,8 @@
 //! Remote file backup over SSH
 
-use super::{BackupError, BackupFilter, BackupResult, BackupSource, BackupTarget, CloudCredentials};
+use super::{
+    BackupError, BackupFilter, BackupResult, BackupSource, BackupTarget, CloudCredentials,
+};
 use crate::ssh::SshSessionManager;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -8,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Remote backup source configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,9 +167,15 @@ impl RemoteBackupSource for SshRemoteBackup {
         _filter: &BackupFilter,
     ) -> BackupResult<Vec<RemoteFileInfo>> {
         let find_cmd = if recursive {
-            format!("find '{}' -type f -printf '%p|%s|%T@|%m\\n' 2>/dev/null", path.display())
+            format!(
+                "find '{}' -type f -printf '%p|%s|%T@|%m\\n' 2>/dev/null",
+                path.display()
+            )
         } else {
-            format!("find '{}' -maxdepth 1 -type f -printf '%p|%s|%T@|%m\\n' 2>/dev/null", path.display())
+            format!(
+                "find '{}' -maxdepth 1 -type f -printf '%p|%s|%T@|%m\\n' 2>/dev/null",
+                path.display()
+            )
         };
 
         let output = self.execute(&find_cmd).await?;
@@ -205,7 +213,9 @@ impl RemoteBackupSource for SshRemoteBackup {
     ) -> BackupResult<u64> {
         // Create parent directory
         if let Some(parent) = local_path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(BackupError::Io)?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         // Use SCP or SFTP to download file
@@ -213,7 +223,9 @@ impl RemoteBackupSource for SshRemoteBackup {
         let cmd = format!("cat '{}' 2>/dev/null", remote_path.display());
         let data = self.execute(&cmd).await?;
 
-        tokio::fs::write(local_path, data.as_bytes()).await.map_err(BackupError::Io)?;
+        tokio::fs::write(local_path, data.as_bytes())
+            .await
+            .map_err(BackupError::Io)?;
 
         Ok(data.len() as u64)
     }
@@ -297,10 +309,15 @@ impl RemoteBackupSource for SftpRemoteBackup {
         ) -> BackupResult<()> {
             let full_path = base_path.join(current_path);
 
-            let readdir = sftp.readdir(&full_path).map_err(|e| BackupError::Ssh(e.to_string()))?;
+            let readdir = sftp
+                .readdir(&full_path)
+                .map_err(|e| BackupError::Ssh(e.to_string()))?;
 
             for (entry_path, stat) in readdir {
-                let relative_path = entry_path.strip_prefix(base_path).unwrap_or(&entry_path).to_path_buf();
+                let relative_path = entry_path
+                    .strip_prefix(base_path)
+                    .unwrap_or(&entry_path)
+                    .to_path_buf();
 
                 let is_directory = stat.is_dir();
 
@@ -308,8 +325,9 @@ impl RemoteBackupSource for SftpRemoteBackup {
                     collect_files(sftp, base_path, &relative_path, recursive, filter, files)?;
                 } else if !is_directory {
                     // Check filter
-                    let modified: DateTime<Utc> = DateTime::from_timestamp(stat.mtime.unwrap_or(0) as i64, 0)
-                        .unwrap_or_else(Utc::now);
+                    let modified: DateTime<Utc> =
+                        DateTime::from_timestamp(stat.mtime.unwrap_or(0) as i64, 0)
+                            .unwrap_or_else(Utc::now);
 
                     // Create metadata-like struct for filtering
                     let size = stat.size.unwrap_or(0);
@@ -353,19 +371,27 @@ impl RemoteBackupSource for SftpRemoteBackup {
     ) -> BackupResult<u64> {
         // Create parent directory
         if let Some(parent) = local_path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(BackupError::Io)?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         let sftp = self.create_sftp().await?;
 
         // Open remote file
-        let mut remote_file = sftp.open(remote_path).map_err(|e| BackupError::Ssh(e.to_string()))?;
+        let mut remote_file = sftp
+            .open(remote_path)
+            .map_err(|e| BackupError::Ssh(e.to_string()))?;
 
         // Create local file
-        let mut local_file = tokio::fs::File::create(local_path).await.map_err(BackupError::Io)?;
+        let mut local_file = tokio::fs::File::create(local_path)
+            .await
+            .map_err(BackupError::Io)?;
 
         // Get file size for progress
-        let metadata = remote_file.stat().map_err(|e| BackupError::Ssh(e.to_string()))?;
+        let metadata = remote_file
+            .stat()
+            .map_err(|e| BackupError::Ssh(e.to_string()))?;
         let total_size = metadata.size.unwrap_or(0);
 
         // Transfer with optional progress callback
@@ -378,7 +404,10 @@ impl RemoteBackupSource for SftpRemoteBackup {
             match remote_file.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(n) => {
-                    local_file.write_all(&buffer[..n]).await.map_err(BackupError::Io)?;
+                    local_file
+                        .write_all(&buffer[..n])
+                        .await
+                        .map_err(BackupError::Io)?;
                     downloaded += n as u64;
 
                     if let Some(ref callback) = progress_callback {
@@ -439,11 +468,17 @@ impl RemoteFileBackup {
 
         // List files
         info!("Listing files from remote...");
-        let files = self.source.list_files(&self.config.source_path, true, filter).await?;
+        let files = self
+            .source
+            .list_files(&self.config.source_path, true, filter)
+            .await?;
         let total_files = files.len() as u64;
         let total_size: u64 = files.iter().map(|f| f.size).sum();
 
-        info!("Found {} files, total size: {} bytes", total_files, total_size);
+        info!(
+            "Found {} files, total size: {} bytes",
+            total_files, total_size
+        );
 
         // Download files
         let mut downloaded_size = 0u64;
@@ -464,11 +499,15 @@ impl RemoteFileBackup {
 
             // Simplified download without progress callback in the closure
             // to avoid borrow checker issues
-            match self.source.download_file(
-                &remote_path,
-                &local_path,
-                None::<Box<dyn Fn(u64, u64) + Send + Sync>>,
-            ).await {
+            match self
+                .source
+                .download_file(
+                    &remote_path,
+                    &local_path,
+                    None::<Box<dyn Fn(u64, u64) + Send + Sync>>,
+                )
+                .await
+            {
                 Ok(size) => {
                     downloaded_size += size;
                     downloaded_count += 1;
@@ -482,7 +521,10 @@ impl RemoteFileBackup {
 
         let duration = start_time.elapsed().as_secs_f64();
 
-        info!("Remote backup completed: {}/{} files, {} bytes in {:.2}s", downloaded_count, total_files, downloaded_size, duration);
+        info!(
+            "Remote backup completed: {}/{} files, {} bytes in {:.2}s",
+            downloaded_count, total_files, downloaded_size, duration
+        );
 
         Ok(RemoteBackupResult {
             source_host: self.config.host.clone(),
@@ -578,7 +620,8 @@ impl RsyncRemoteBackup {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        let errors: Vec<String> = stderr.lines()
+        let errors: Vec<String> = stderr
+            .lines()
             .filter(|l| !l.is_empty() && !l.starts_with("sending incremental"))
             .map(|l| l.to_string())
             .collect();

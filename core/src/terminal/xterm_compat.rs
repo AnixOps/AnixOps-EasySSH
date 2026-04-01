@@ -1,7 +1,6 @@
 //! xterm.js 兼容性层
 //! 提供完整的 xterm 转义序列解析和模拟
 
-
 #[allow(unused_imports)]
 use std::sync::Arc;
 
@@ -248,7 +247,10 @@ pub enum EscapeSequence {
     /// 软重置
     SoftReset,
     /// 设置标题
-    SetTitle { icon: Option<String>, window: Option<String> },
+    SetTitle {
+        icon: Option<String>,
+        window: Option<String>,
+    },
     /// 设置图标标题
     SetIconTitle(String),
     /// 设置窗口标题
@@ -490,15 +492,24 @@ impl XtermCompat {
                             self.state = ParseState::Normal;
                         }
                         b'E' => {
-                            sequences.push(EscapeSequence::CursorPosition { row: self.cursor_row + 2, col: 1 });
+                            sequences.push(EscapeSequence::CursorPosition {
+                                row: self.cursor_row + 2,
+                                col: 1,
+                            });
                             self.state = ParseState::Normal;
                         }
                         b'F' => {
-                            sequences.push(EscapeSequence::CursorPosition { row: self.cursor_row.saturating_sub(1), col: 1 });
+                            sequences.push(EscapeSequence::CursorPosition {
+                                row: self.cursor_row.saturating_sub(1),
+                                col: 1,
+                            });
                             self.state = ParseState::Normal;
                         }
                         b'G' => {
-                            sequences.push(EscapeSequence::CursorPosition { row: self.cursor_row + 1, col: 1 });
+                            sequences.push(EscapeSequence::CursorPosition {
+                                row: self.cursor_row + 1,
+                                col: 1,
+                            });
                             self.state = ParseState::Normal;
                         }
                         b'H' => {
@@ -604,13 +615,32 @@ impl XtermCompat {
         };
 
         match final_byte {
-            b'A' => Some(EscapeSequence::CursorUp(param_values.get(0).copied().unwrap_or(1))),
-            b'B' => Some(EscapeSequence::CursorDown(param_values.get(0).copied().unwrap_or(1))),
-            b'C' => Some(EscapeSequence::CursorForward(param_values.get(0).copied().unwrap_or(1))),
-            b'D' => Some(EscapeSequence::CursorBackward(param_values.get(0).copied().unwrap_or(1))),
-            b'E' => Some(EscapeSequence::CursorPosition { row: self.cursor_row + param_values.get(0).copied().unwrap_or(1) + 1, col: 1 }),
-            b'F' => Some(EscapeSequence::CursorPosition { row: self.cursor_row.saturating_sub(param_values.get(0).copied().unwrap_or(1)), col: 1 }),
-            b'G' => Some(EscapeSequence::CursorPosition { row: self.cursor_row + 1, col: param_values.get(0).copied().unwrap_or(1) }),
+            b'A' => Some(EscapeSequence::CursorUp(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'B' => Some(EscapeSequence::CursorDown(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'C' => Some(EscapeSequence::CursorForward(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'D' => Some(EscapeSequence::CursorBackward(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'E' => Some(EscapeSequence::CursorPosition {
+                row: self.cursor_row + param_values.get(0).copied().unwrap_or(1) + 1,
+                col: 1,
+            }),
+            b'F' => Some(EscapeSequence::CursorPosition {
+                row: self
+                    .cursor_row
+                    .saturating_sub(param_values.get(0).copied().unwrap_or(1)),
+                col: 1,
+            }),
+            b'G' => Some(EscapeSequence::CursorPosition {
+                row: self.cursor_row + 1,
+                col: param_values.get(0).copied().unwrap_or(1),
+            }),
             b'H' | b'f' => {
                 let row = param_values.get(0).copied().unwrap_or(1);
                 let col = param_values.get(1).copied().unwrap_or(1);
@@ -635,24 +665,41 @@ impl XtermCompat {
                 };
                 Some(EscapeSequence::EraseLine(mode))
             }
-            b'L' => Some(EscapeSequence::InsertLines(param_values.get(0).copied().unwrap_or(1))),
-            b'M' => Some(EscapeSequence::DeleteLines(param_values.get(0).copied().unwrap_or(1))),
-            b'P' => Some(EscapeSequence::DeleteChars(param_values.get(0).copied().unwrap_or(1))),
-            b'S' => Some(EscapeSequence::ScrollUp(param_values.get(0).copied().unwrap_or(1))),
-            b'T' => Some(EscapeSequence::ScrollDown(param_values.get(0).copied().unwrap_or(1))),
-            b'X' => Some(EscapeSequence::EraseChars(param_values.get(0).copied().unwrap_or(1))),
+            b'L' => Some(EscapeSequence::InsertLines(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'M' => Some(EscapeSequence::DeleteLines(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'P' => Some(EscapeSequence::DeleteChars(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'S' => Some(EscapeSequence::ScrollUp(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'T' => Some(EscapeSequence::ScrollDown(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
+            b'X' => Some(EscapeSequence::EraseChars(
+                param_values.get(0).copied().unwrap_or(1),
+            )),
             b'd' => {
                 let row = param_values.get(0).copied().unwrap_or(1);
-                Some(EscapeSequence::CursorPosition { row, col: self.cursor_col + 1 })
+                Some(EscapeSequence::CursorPosition {
+                    row,
+                    col: self.cursor_col + 1,
+                })
             }
             b'h' => {
-                let modes = param_values.iter()
+                let modes = param_values
+                    .iter()
                     .filter_map(|&n| self.decode_mode(n, true))
                     .collect();
                 Some(EscapeSequence::SetMode(modes))
             }
             b'l' => {
-                let modes = param_values.iter()
+                let modes = param_values
+                    .iter()
                     .filter_map(|&n| self.decode_mode(n, false))
                     .collect();
                 Some(EscapeSequence::ResetMode(modes))
@@ -732,13 +779,17 @@ impl XtermCompat {
                 27 => attrs.push(GraphicRendition::NotInverse),
                 28 => attrs.push(GraphicRendition::Visible),
                 29 => attrs.push(GraphicRendition::NotStrikethrough),
-                30..=37 => attrs.push(GraphicRendition::ForegroundColor(Color::Ansi((code - 30) as u8))),
+                30..=37 => attrs.push(GraphicRendition::ForegroundColor(Color::Ansi(
+                    (code - 30) as u8,
+                ))),
                 38 => {
                     // 扩展前景色
                     if i + 1 < params.len() {
                         match params[i + 1] {
                             5 if i + 2 < params.len() => {
-                                attrs.push(GraphicRendition::ForegroundColor(Color::Indexed(params[i + 2] as u8)));
+                                attrs.push(GraphicRendition::ForegroundColor(Color::Indexed(
+                                    params[i + 2] as u8,
+                                )));
                                 i += 2;
                             }
                             2 if i + 4 < params.len() => {
@@ -754,13 +805,17 @@ impl XtermCompat {
                     }
                 }
                 39 => attrs.push(GraphicRendition::ForegroundColor(Color::Default)),
-                40..=47 => attrs.push(GraphicRendition::BackgroundColor(Color::Ansi((code - 40) as u8))),
+                40..=47 => attrs.push(GraphicRendition::BackgroundColor(Color::Ansi(
+                    (code - 40) as u8,
+                ))),
                 48 => {
                     // 扩展背景色
                     if i + 1 < params.len() {
                         match params[i + 1] {
                             5 if i + 2 < params.len() => {
-                                attrs.push(GraphicRendition::BackgroundColor(Color::Indexed(params[i + 2] as u8)));
+                                attrs.push(GraphicRendition::BackgroundColor(Color::Indexed(
+                                    params[i + 2] as u8,
+                                )));
                                 i += 2;
                             }
                             2 if i + 4 < params.len() => {
@@ -776,8 +831,12 @@ impl XtermCompat {
                     }
                 }
                 49 => attrs.push(GraphicRendition::BackgroundColor(Color::Default)),
-                90..=97 => attrs.push(GraphicRendition::ForegroundColor(Color::Ansi((code - 82) as u8))),
-                100..=107 => attrs.push(GraphicRendition::BackgroundColor(Color::Ansi((code - 92) as u8))),
+                90..=97 => attrs.push(GraphicRendition::ForegroundColor(Color::Ansi(
+                    (code - 82) as u8,
+                ))),
+                100..=107 => attrs.push(GraphicRendition::BackgroundColor(Color::Ansi(
+                    (code - 92) as u8,
+                ))),
                 _ => {}
             }
             i += 1;
@@ -789,24 +848,56 @@ impl XtermCompat {
     /// 解码模式
     fn decode_mode(&self, n: u16, set: bool) -> Option<Mode> {
         match n {
-            2 => Some(if set { Mode::KeyboardAction } else { Mode::KeyboardAction }),
+            2 => Some(if set {
+                Mode::KeyboardAction
+            } else {
+                Mode::KeyboardAction
+            }),
             4 => Some(if set { Mode::Insert } else { Mode::Insert }),
             6 => Some(if set { Mode::Origin } else { Mode::Origin }),
             7 => Some(if set { Mode::AutoWrap } else { Mode::AutoWrap }),
-            12 => Some(if set { Mode::AppCursorKeys } else { Mode::AppCursorKeys }),
-            20 => Some(if set { Mode::AutoCarriageReturn } else { Mode::AutoCarriageReturn }),
-            25 => Some(if set { Mode::ReverseColor } else { Mode::ReverseColor }),
-            47 | 1047 => Some(if set { Mode::AlternateScreen } else { Mode::AlternateScreen }),
+            12 => Some(if set {
+                Mode::AppCursorKeys
+            } else {
+                Mode::AppCursorKeys
+            }),
+            20 => Some(if set {
+                Mode::AutoCarriageReturn
+            } else {
+                Mode::AutoCarriageReturn
+            }),
+            25 => Some(if set {
+                Mode::ReverseColor
+            } else {
+                Mode::ReverseColor
+            }),
+            47 | 1047 => Some(if set {
+                Mode::AlternateScreen
+            } else {
+                Mode::AlternateScreen
+            }),
             1000 => Some(Mode::Mouse(0)),
             1001 => Some(Mode::MouseHighlight),
             1002 => Some(Mode::MouseButtonEvent),
             1003 => Some(Mode::MouseAnyEvent),
-            1004 => Some(if set { Mode::FocusEvent } else { Mode::FocusEvent }),
+            1004 => Some(if set {
+                Mode::FocusEvent
+            } else {
+                Mode::FocusEvent
+            }),
             1005 => Some(Mode::Mouse(5)),
             1006 => Some(Mode::MouseSGR),
             1015 => Some(Mode::Mouse(15)),
-            1048 => Some(if set { Mode::AlternateScreen } else { Mode::AlternateScreen }),
-            2004 => Some(if set { Mode::BracketedPaste } else { Mode::BracketedPaste }),
+            1048 => Some(if set {
+                Mode::AlternateScreen
+            } else {
+                Mode::AlternateScreen
+            }),
+            2004 => Some(if set {
+                Mode::BracketedPaste
+            } else {
+                Mode::BracketedPaste
+            }),
             _ => None,
         }
     }
@@ -933,7 +1024,10 @@ pub enum EscapeSequenceExt {
     ReverseIndex,
     DeleteChars(u16),
     EraseChars(u16),
-    SetWindowSize { rows: u16, cols: u16 },
+    SetWindowSize {
+        rows: u16,
+        cols: u16,
+    },
     DeviceStatusReport,
     DeviceAttributes,
     SecondaryDeviceAttributes,
@@ -946,12 +1040,21 @@ pub enum EscapeSequenceExt {
     RequestCharacterSize,
     RequestTextAreaSizeInChars,
     RequestStatusString(String),
-    RequestChecksumOfRect { top: u16, left: u16, bottom: u16, right: u16, page: u8 },
+    RequestChecksumOfRect {
+        top: u16,
+        left: u16,
+        bottom: u16,
+        right: u16,
+        page: u8,
+    },
     QuerySGR,
     QueryTabStops,
     QueryMode(Mode),
     QueryDECMode(Mode),
-    QueryColor { index: u8, query_type: ColorQueryType },
+    QueryColor {
+        index: u8,
+        query_type: ColorQueryType,
+    },
     QueryKeyboardType,
     QueryKeyboardModifiers,
 }

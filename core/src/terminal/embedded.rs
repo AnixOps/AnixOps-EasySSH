@@ -9,7 +9,9 @@ use std::time::Instant;
 use tokio::sync::{mpsc, Mutex, RwLock};
 
 use crate::error::LiteError;
-use crate::terminal::{TerminalOutput, TerminalSignal, TerminalSize, TerminalStats, TerminalSession};
+use crate::terminal::{
+    TerminalOutput, TerminalSession, TerminalSignal, TerminalSize, TerminalStats,
+};
 
 /// 终端仿真器抽象接口
 #[async_trait::async_trait]
@@ -91,7 +93,9 @@ impl PtyTerminal {
             .try_clone_reader()
             .map_err(|e| LiteError::TerminalEmulator(format!("Failed to clone reader: {}", e)))?;
 
-        let writer = pty_pair.master.take_writer()
+        let writer = pty_pair
+            .master
+            .take_writer()
             .map_err(|e| LiteError::TerminalEmulator(format!("Failed to take writer: {}", e)))?;
 
         let (output_tx, output_rx) = mpsc::unbounded_channel();
@@ -211,12 +215,16 @@ impl PtyTerminal {
         // 构建SSH命令
         let ssh_cmd = match &auth_method {
             SshAuthMethod::Password(pwd) => {
-                format!("sshpass -p '{}' ssh -p {} {}@{}",
-                    shell_escape(pwd), port, username, host)
+                format!(
+                    "sshpass -p '{}' ssh -p {} {}@{}",
+                    shell_escape(pwd),
+                    port,
+                    username,
+                    host
+                )
             }
             SshAuthMethod::Key(key_path) => {
-                format!("ssh -p {} -i {} {}@{}",
-                    port, key_path, username, host)
+                format!("ssh -p {} -i {} {}@{}", port, key_path, username, host)
             }
             SshAuthMethod::Agent => {
                 format!("ssh -p {} -A {}@{}", port, username, host)
@@ -240,7 +248,9 @@ impl PtyTerminal {
             .try_clone_reader()
             .map_err(|e| LiteError::TerminalEmulator(format!("Failed to clone reader: {}", e)))?;
 
-        let writer = pty_pair.master.take_writer()
+        let writer = pty_pair
+            .master
+            .take_writer()
             .map_err(|e| LiteError::TerminalEmulator(format!("Failed to take writer: {}", e)))?;
 
         let (output_tx, output_rx) = mpsc::unbounded_channel();
@@ -366,7 +376,9 @@ impl TerminalEmulator for PtyTerminal {
 
     async fn resize(&self, size: TerminalSize) -> Result<(), LiteError> {
         let pty_pair = self.pty_pair.lock().await;
-        pty_pair.master.resize(size.to_pty_size())
+        pty_pair
+            .master
+            .resize(size.to_pty_size())
             .map_err(|e| LiteError::TerminalEmulator(format!("Resize failed: {}", e)))?;
 
         let mut session = self.session.write().await;
@@ -377,7 +389,9 @@ impl TerminalEmulator for PtyTerminal {
 
     async fn write(&self, data: &str) -> Result<(), LiteError> {
         if !self.is_alive() {
-            return Err(LiteError::TerminalEmulator("Terminal is closed".to_string()));
+            return Err(LiteError::TerminalEmulator(
+                "Terminal is closed".to_string(),
+            ));
         }
 
         let mut writer = self.writer.lock().await;
@@ -399,7 +413,9 @@ impl TerminalEmulator for PtyTerminal {
 
     async fn write_bytes(&self, data: &[u8]) -> Result<(), LiteError> {
         if !self.is_alive() {
-            return Err(LiteError::TerminalEmulator("Terminal is closed".to_string()));
+            return Err(LiteError::TerminalEmulator(
+                "Terminal is closed".to_string(),
+            ));
         }
 
         let mut writer = self.writer.lock().await;
@@ -437,8 +453,10 @@ impl TerminalEmulator for PtyTerminal {
     }
 
     async fn close(&self) -> Result<(), LiteError> {
-        self.stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);
-        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.stop_flag
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        self.alive
+            .store(false, std::sync::atomic::Ordering::Relaxed);
 
         // 发送EOF信号给PTY
         let _ = self.send_signal(TerminalSignal::Eof).await;
@@ -467,9 +485,9 @@ pub enum SshAuthMethod {
 
 fn shell_escape(s: &str) -> String {
     s.replace('\\', "\\\\")
-     .replace('"', "\\\"")
-     .replace('\'', "\\'")
-     .replace('$', "\\$")
+        .replace('"', "\\\"")
+        .replace('\'', "\\'")
+        .replace('$', "\\$")
 }
 
 /// 终端管理器
@@ -509,7 +527,8 @@ impl TerminalManager {
         username: &str,
         auth_method: SshAuthMethod,
     ) -> Result<mpsc::UnboundedReceiver<TerminalOutput>, LiteError> {
-        let (terminal, receiver) = PtyTerminal::new_ssh(id, size, host, port, username, auth_method)?;
+        let (terminal, receiver) =
+            PtyTerminal::new_ssh(id, size, host, port, username, auth_method)?;
         let mut terminals = self.terminals.write().await;
         terminals.insert(id.to_string(), Arc::new(terminal));
         Ok(receiver)
@@ -523,28 +542,36 @@ impl TerminalManager {
 
     /// 写入终端
     pub async fn write(&self, id: &str, data: &str) -> Result<(), LiteError> {
-        let terminal = self.get(id).await
+        let terminal = self
+            .get(id)
+            .await
             .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", id)))?;
         terminal.write(data).await
     }
 
     /// 写入二进制数据
     pub async fn write_bytes(&self, id: &str, data: &[u8]) -> Result<(), LiteError> {
-        let terminal = self.get(id).await
+        let terminal = self
+            .get(id)
+            .await
             .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", id)))?;
         terminal.write_bytes(data).await
     }
 
     /// 调整大小
     pub async fn resize(&self, id: &str, size: TerminalSize) -> Result<(), LiteError> {
-        let terminal = self.get(id).await
+        let terminal = self
+            .get(id)
+            .await
             .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", id)))?;
         terminal.resize(size).await
     }
 
     /// 关闭终端
     pub async fn close(&self, id: &str) -> Result<(), LiteError> {
-        let terminal = self.get(id).await
+        let terminal = self
+            .get(id)
+            .await
             .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", id)))?;
         terminal.close().await?;
 
@@ -572,14 +599,18 @@ impl TerminalManager {
 
     /// 发送信号
     pub async fn send_signal(&self, id: &str, signal: TerminalSignal) -> Result<(), LiteError> {
-        let terminal = self.get(id).await
+        let terminal = self
+            .get(id)
+            .await
             .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", id)))?;
         terminal.send_signal(signal).await
     }
 
     /// 设置终端标题
     pub async fn set_title(&self, id: &str, title: &str) -> Result<(), LiteError> {
-        let terminal = self.get(id).await
+        let terminal = self
+            .get(id)
+            .await
             .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", id)))?;
         terminal.set_title(title).await;
         Ok(())
@@ -587,7 +618,9 @@ impl TerminalManager {
 
     /// 获取终端统计
     pub async fn get_stats(&self, id: &str) -> Result<TerminalStats, LiteError> {
-        let terminal = self.get(id).await
+        let terminal = self
+            .get(id)
+            .await
             .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", id)))?;
         Ok(terminal.stats())
     }
@@ -612,9 +645,7 @@ impl TerminalManager {
     /// 获取活跃终端数量
     pub async fn active_count(&self) -> usize {
         let terminals = self.terminals.read().await;
-        terminals.values()
-            .filter(|t| t.is_alive())
-            .count()
+        terminals.values().filter(|t| t.is_alive()).count()
     }
 }
 

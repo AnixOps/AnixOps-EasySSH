@@ -57,24 +57,24 @@
 //! ```
 
 #[cfg(feature = "git")]
-pub mod git_types;
-#[cfg(feature = "git")]
 pub mod git_client;
+#[cfg(feature = "git")]
+pub mod git_ffi;
 #[cfg(feature = "git")]
 pub mod git_manager;
 #[cfg(feature = "git")]
-pub mod git_ffi;
+pub mod git_types;
 #[cfg(feature = "git")]
 pub mod git_workflow;
 #[cfg(feature = "git")]
 pub mod git_workflow_executor;
 
 #[cfg(feature = "git")]
-pub use git_types::*;
-#[cfg(feature = "git")]
 pub use git_client::GitClient;
 #[cfg(feature = "git")]
 pub use git_manager::GitManager;
+#[cfg(feature = "git")]
+pub use git_types::*;
 #[cfg(feature = "git")]
 pub use git_workflow::*;
 #[cfg(feature = "git")]
@@ -89,18 +89,22 @@ pub mod kubernetes_ffi;
 #[cfg(all(feature = "kubernetes", feature = "tauri"))]
 pub mod kubernetes_tauri;
 
+pub mod ai_programming;
+#[cfg(feature = "database-client")]
+pub mod database_client;
 #[cfg(feature = "sync")]
 pub mod sync;
 #[cfg(feature = "sync")]
 pub mod sync_ffi;
-pub mod ai_programming;
-#[cfg(feature = "database-client")]
-pub mod database_client;
 
 #[cfg(feature = "database-client")]
 pub use database_client::*;
-pub mod connection_pool;
+#[cfg(feature = "audit")]
+pub mod audit;
+#[cfg(feature = "pro")]
+pub mod collaboration;
 pub mod config_import_export;
+pub mod connection_pool;
 pub mod crypto;
 pub mod db;
 pub mod debug_ws;
@@ -110,10 +114,10 @@ pub mod ffi;
 pub mod i18n;
 pub mod i18n_ffi;
 pub mod keychain;
-#[cfg(all(feature = "standard", target_os = "linux"))]
-pub mod linux_service;
 #[cfg(feature = "split-screen")]
 pub mod layout;
+#[cfg(all(feature = "standard", target_os = "linux"))]
+pub mod linux_service;
 #[cfg(feature = "log-monitor")]
 pub mod log_monitor;
 #[cfg(feature = "log-monitor")]
@@ -122,31 +126,25 @@ pub mod log_monitor_ffi;
 pub mod monitoring;
 #[cfg(feature = "pro")]
 pub mod pro;
-#[cfg(feature = "team")]
-pub mod team;
-#[cfg(feature = "pro")]
-pub mod collaboration;
-#[cfg(feature = "audit")]
-pub mod audit;
 #[cfg(feature = "pro")]
 pub mod rbac;
-#[cfg(feature = "sso")]
-pub mod sso;
-#[cfg(feature = "sftp")]
-pub mod sftp;
 #[cfg(feature = "tauri")]
 pub mod recording_commands;
+#[cfg(feature = "sftp")]
+pub mod sftp;
 pub mod ssh;
+#[cfg(feature = "sso")]
+pub mod sso;
+#[cfg(feature = "team")]
+pub mod team;
 #[cfg(feature = "telemetry")]
 pub mod telemetry;
 pub use ssh::{ConnectionHealth, PoolStats, SessionMetadata, SshSessionManager};
 #[cfg(feature = "embedded-terminal")]
 pub use terminal::{
-    TerminalEmulator, PtyTerminal, TerminalManager, TerminalSize, TerminalOutput,
-    TabManager, TabInfo, TabState,
-    TerminalTheme, ThemeManager, ColorPalette, CursorStyle,
-    WebGlRenderer, RenderStats, WebGlConfig,
-    XtermCompat, XtermMode, EscapeSequence,
+    ColorPalette, CursorStyle, EscapeSequence, PtyTerminal, RenderStats, TabInfo, TabManager,
+    TabState, TerminalEmulator, TerminalManager, TerminalOutput, TerminalSize, TerminalTheme,
+    ThemeManager, WebGlConfig, WebGlRenderer, XtermCompat, XtermMode,
 };
 pub mod terminal;
 pub mod vault;
@@ -161,6 +159,10 @@ pub use backup::*;
 
 // Workflow Automation System
 #[cfg(feature = "workflow")]
+pub mod macro_recorder;
+#[cfg(feature = "workflow")]
+pub mod script_library;
+#[cfg(feature = "workflow")]
 pub mod workflow_engine;
 #[cfg(feature = "workflow")]
 pub mod workflow_executor;
@@ -168,11 +170,11 @@ pub mod workflow_executor;
 pub mod workflow_scheduler;
 #[cfg(feature = "workflow")]
 pub mod workflow_variables;
-#[cfg(feature = "workflow")]
-pub mod macro_recorder;
-#[cfg(feature = "workflow")]
-pub mod script_library;
 
+#[cfg(feature = "workflow")]
+pub use macro_recorder::*;
+#[cfg(feature = "workflow")]
+pub use script_library::*;
 #[cfg(feature = "workflow")]
 pub use workflow_engine::*;
 #[cfg(feature = "workflow")]
@@ -181,10 +183,6 @@ pub use workflow_executor::*;
 pub use workflow_scheduler::*;
 #[cfg(feature = "workflow")]
 pub use workflow_variables::*;
-#[cfg(feature = "workflow")]
-pub use macro_recorder::*;
-#[cfg(feature = "workflow")]
-pub use script_library::*;
 
 pub mod security_tests;
 
@@ -195,156 +193,149 @@ pub mod docker;
 #[cfg(feature = "remote-desktop")]
 pub mod remote_desktop;
 
-pub mod port_forward;
 #[cfg(feature = "auto-update")]
 pub mod auto_update;
+pub mod port_forward;
 
-#[cfg(feature = "sync")]
-pub use sync::{
-    SyncManager, SyncConfig, SyncProvider, SyncScope, SyncStatus, SyncStats,
-    SyncDocument, SyncDocumentType, SyncOperation, SyncBundle, SyncMetadata,
-    SyncVersion, SyncConflict, SyncConflictResolution, DeviceInfo, SyncEvent,
-    LocalSyncBeacon, RawConfigData, LocalSyncHandler,
-};
 pub use ai_programming::{
     ai_build, ai_check_rust, ai_health_check, ai_list_files, ai_read_code, ai_run_tests,
     ai_search_code, debug_test_all, debug_test_crypto, debug_test_db, debug_test_pro,
     debug_test_ssh, debug_test_terminal, DebugTestReport, DebugTestResult,
 };
-pub use i18n::{
-    get_current_language, set_language, is_rtl, is_language_rtl, get_supported_languages,
-    get_language_display_name, t, t_args, format_number, format_date, format_datetime,
-    get_text_direction, get_rtl_class, TextDirection, init as init_i18n,
-    I18nError, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, RTL_LANGUAGES,
-};
 pub use config_import_export::{
-    ConfigManager, ConfigExport, ExportFormat, ImportFormat, ConflictResolution as ConfigConflictResolution, ImportResult,
-    ServerExport, GroupExport, HostExport, IdentityExport, SnippetExport, TagExport,
-    ServerCsvRecord,
+    ConfigExport, ConfigManager, ConflictResolution as ConfigConflictResolution, ExportFormat,
+    GroupExport, HostExport, IdentityExport, ImportFormat, ImportResult, ServerCsvRecord,
+    ServerExport, SnippetExport, TagExport,
+};
+pub use connection_pool::{
+    CompressedSessionData, CompressedSessionStore, ConnectionRateLimiter, EnhancedConnectionState,
+    EnhancedPoolStats, EnhancedSshManager, EnhancedSshManagerBuilder, HealthCheckConfig,
+    ReconnectConfig, SessionStoreStats,
 };
 pub use db::{
     AuditEventRecord, GroupRecord, HostRecord, IdentityRecord, LayoutRecord, NewAuditEvent,
-    NewGroup, NewHost, NewIdentity, NewLayout, NewServer, NewSession, NewSnippet, NewTag,
-    NewSyncState, SessionRecord, ServerRecord, SnippetRecord, SyncStateRecord, TagRecord,
-    UpdateGroup, UpdateHost, UpdateIdentity, UpdateLayout, UpdateServer, UpdateSession,
-    UpdateSnippet, UpdateTag, UpdateSyncState,
+    NewGroup, NewHost, NewIdentity, NewLayout, NewServer, NewSession, NewSnippet, NewSyncState,
+    NewTag, ServerRecord, SessionRecord, SnippetRecord, SyncStateRecord, TagRecord, UpdateGroup,
+    UpdateHost, UpdateIdentity, UpdateLayout, UpdateServer, UpdateSession, UpdateSnippet,
+    UpdateSyncState, UpdateTag,
 };
 pub use edition::{Edition, VersionInfo};
 pub use error::LiteError;
-#[cfg(feature = "sftp")]
-pub use sftp::SftpSessionManager;
-pub use connection_pool::{
-    CompressedSessionData, CompressedSessionStore, ConnectionRateLimiter,
-    EnhancedConnectionState, EnhancedPoolStats, EnhancedSshManager,
-    EnhancedSshManagerBuilder, HealthCheckConfig, ReconnectConfig, SessionStoreStats,
-};
-#[cfg(all(feature = "standard", target_os = "linux"))]
-pub use linux_service::{
-    DaemonConfig, LinuxServiceManager, ServiceInfo, ServiceState, SystemdNotifier,
-    generate_dbus_config, generate_systemd_service, install_systemd_service,
+pub use i18n::{
+    format_date, format_datetime, format_number, get_current_language, get_language_display_name,
+    get_rtl_class, get_supported_languages, get_text_direction, init as init_i18n, is_language_rtl,
+    is_rtl, set_language, t, t_args, I18nError, TextDirection, DEFAULT_LANGUAGE, RTL_LANGUAGES,
+    SUPPORTED_LANGUAGES,
 };
 #[cfg(feature = "split-screen")]
-pub use layout::{LayoutManager, Layout, Panel, SplitDirection, PanelContent};
+pub use layout::{Layout, LayoutManager, Panel, PanelContent, SplitDirection};
+#[cfg(all(feature = "standard", target_os = "linux"))]
+pub use linux_service::{
+    generate_dbus_config, generate_systemd_service, install_systemd_service, DaemonConfig,
+    LinuxServiceManager, ServiceInfo, ServiceState, SystemdNotifier,
+};
 #[cfg(feature = "log-monitor")]
 pub use log_monitor::{
-    LogMonitorCenter, LogMonitorWebSocketServer, LogSource, LogType, LogEntry, LogLevel,
-    LogFilter, LogStats, LogAnalysisResult, LogAlertRule, LogAlertCondition, LogAlertAction, LogAlertEvent,
-    ExportConfig, ParserConfig,
-    ErrorPattern, TimeSeriesPoint, Anomaly, Trend, LogTrendDirection,
+    Anomaly, ErrorPattern, ExportConfig, LogAlertAction, LogAlertCondition, LogAlertEvent,
+    LogAlertRule, LogAnalysisResult, LogEntry, LogFilter, LogLevel, LogMonitorCenter,
+    LogMonitorWebSocketServer, LogSource, LogStats, LogTrendDirection, LogType, ParserConfig,
+    TimeSeriesPoint, Trend,
+};
+#[cfg(feature = "sftp")]
+pub use sftp::SftpSessionManager;
+#[cfg(feature = "sync")]
+pub use sync::{
+    DeviceInfo, LocalSyncBeacon, LocalSyncHandler, RawConfigData, SyncBundle, SyncConfig,
+    SyncConflict, SyncConflictResolution, SyncDocument, SyncDocumentType, SyncEvent, SyncManager,
+    SyncMetadata, SyncOperation, SyncProvider, SyncScope, SyncStats, SyncStatus, SyncVersion,
 };
 
 // Monitoring exports
-#[cfg(feature = "monitoring")]
-pub use monitoring::{
-    MonitoringManager, MonitoringConfig, MonitoringError, ServerHealthStatus,
-    HealthSummary, ServerOverview, CustomDashboard, WidgetConfig, WidgetType, TimeRange,
-    ServerConnectionConfig, AlertEngine, AlertRule, Alert, AlertSeverity, AlertStatus,
-    AlertCondition, NotificationChannel, NotificationChannelType, ServerMetrics,
-    MetricType, MetricPoint, MetricCategory, ResourceType, PerformanceComparison,
-    CapacityForecast, SlaStats, TopologyNode, TopologyEdge, TopologyNodeType,
-    TopologyStatus, TopologyEdgeType, ServerTopology, TopologyLayout, LayoutAlgorithm,
-    DashboardViewModel, WidgetViewModel, WidgetData, DashboardBuilder, DashboardTemplates,
-    DashboardFormatter, ChartType, ChartSeries, TrendDirection, CapacityStatus, SlaStatus,
-};
-#[cfg(feature = "team")]
-pub use team::{TeamManager, Team, TeamMember, TeamRole, TeamInvite};
+#[cfg(feature = "audit")]
+pub use audit::{AuditAction, AuditEntry, AuditLogger, AuditTarget, AuditVerificationResult};
 #[cfg(feature = "pro")]
 pub use collaboration::{
-    CollaborationManager, CollaborationSession, CollaborationParticipant,
-    CollaborationRole, CollaborationSettings, CollaborationState,
-    Annotation, AnnotationType, Comment, CommentReply,
-    SharedClipboardItem, ClipboardContentType,
-    CollaborationHistory, CollaborationActionType,
-    CollaborationMessage, CursorPosition, WebRTCSignal, WebRTCSignalType,
-    CollaborationRecording, RecordingSegment,
+    Annotation, AnnotationType, ClipboardContentType, CollaborationActionType,
+    CollaborationHistory, CollaborationManager, CollaborationMessage, CollaborationParticipant,
+    CollaborationRecording, CollaborationRole, CollaborationSession, CollaborationSettings,
+    CollaborationState, Comment, CommentReply, CursorPosition, RecordingSegment,
+    SharedClipboardItem, WebRTCSignal, WebRTCSignalType,
 };
-#[cfg(feature = "audit")]
-pub use audit::{AuditLogger, AuditEntry, AuditAction, AuditTarget, AuditVerificationResult};
+#[cfg(feature = "monitoring")]
+pub use monitoring::{
+    Alert, AlertCondition, AlertEngine, AlertRule, AlertSeverity, AlertStatus, CapacityForecast,
+    CapacityStatus, ChartSeries, ChartType, CustomDashboard, DashboardBuilder, DashboardFormatter,
+    DashboardTemplates, DashboardViewModel, HealthSummary, LayoutAlgorithm, MetricCategory,
+    MetricPoint, MetricType, MonitoringConfig, MonitoringError, MonitoringManager,
+    NotificationChannel, NotificationChannelType, PerformanceComparison, ResourceType,
+    ServerConnectionConfig, ServerHealthStatus, ServerMetrics, ServerOverview, ServerTopology,
+    SlaStats, SlaStatus, TimeRange, TopologyEdge, TopologyEdgeType, TopologyLayout, TopologyNode,
+    TopologyNodeType, TopologyStatus, TrendDirection, WidgetConfig, WidgetData, WidgetType,
+    WidgetViewModel,
+};
 #[cfg(feature = "pro")]
-pub use rbac::{RbacManager, Permission, Resource, RoleDefinition};
+pub use rbac::{Permission, RbacManager, Resource, RoleDefinition};
 #[cfg(feature = "sso")]
 pub use sso::{
-    SsoManager, SsoProvider, SsoProviderType, SsoProviderConfig,
-    SamlConfig, OidcConfig, LdapConfig, SsoSession, SsoUserInfo,
-    SamlAuthRequest, SamlAuthResponse, OidcAuthRequest, OidcTokenResponse,
-    OidcUserInfo, SsoMetadata, NameIdFormat, SignatureAlgorithm,
-    SamlAttributeMapping, OidcAttributeMapping, TeamSsoMapping, GroupToRoleMapping,
+    GroupToRoleMapping, LdapConfig, NameIdFormat, OidcAttributeMapping, OidcAuthRequest,
+    OidcConfig, OidcTokenResponse, OidcUserInfo, SamlAttributeMapping, SamlAuthRequest,
+    SamlAuthResponse, SamlConfig, SignatureAlgorithm, SsoManager, SsoMetadata, SsoProvider,
+    SsoProviderConfig, SsoProviderType, SsoSession, SsoUserInfo, TeamSsoMapping,
 };
+#[cfg(feature = "team")]
+pub use team::{Team, TeamInvite, TeamManager, TeamMember, TeamRole};
 
 // Telemetry exports
+#[cfg(feature = "telemetry")]
+pub use telemetry::storage::{AnalyticsStorage, DataExport, RetentionResult, StorageStats};
+#[cfg(feature = "telemetry")]
+pub use telemetry::{track_event, track_feature};
 #[cfg(feature = "telemetry")]
 pub use telemetry::{
     AnonymousId, ConsentCategory, ConsentManager, ConsentStatus, DataRetentionPolicy,
     EventCollector, FeatureFlag, FeatureFlagManager, FeedbackCollector, FeedbackRating,
-    HealthCheck, HealthMonitor, HealthStatus, MetricsRegistry, PlatformInfo,
-    PrivacyCompliance, PrivacyRegion, PrivacyReport, ReporterStats, ServiceHealth,
-    TelemetryConfig, TelemetryEdition, TelemetryError, TelemetryEvent, TelemetryEventRecord,
-    TelemetryManager,
+    HealthCheck, HealthMonitor, HealthStatus, MetricsRegistry, PlatformInfo, PrivacyCompliance,
+    PrivacyRegion, PrivacyReport, ReporterStats, ServiceHealth, TelemetryConfig, TelemetryEdition,
+    TelemetryError, TelemetryEvent, TelemetryEventRecord, TelemetryManager,
 };
-#[cfg(feature = "telemetry")]
-pub use telemetry::storage::{AnalyticsStorage, StorageStats, DataExport, RetentionResult};
-#[cfg(feature = "telemetry")]
-pub use telemetry::{track_event, track_feature};
 
 // Port forwarding exports
 pub use port_forward::{
-    ForwardRule, ForwardRuleTemplate, ForwardStatus, ForwardTopology,
-    ForwardType, PortForwardManager, TopologyEdge as ForwardTopologyEdge,
-    TopologyEdgeType as ForwardTopologyEdgeType,
-    TopologyNode as ForwardTopologyNode, TopologyNodeType as ForwardTopologyNodeType,
-    TrafficStats, builtin_templates, init_with_templates,
+    builtin_templates, init_with_templates, ForwardRule, ForwardRuleTemplate, ForwardStatus,
+    ForwardTopology, ForwardType, PortForwardManager, TopologyEdge as ForwardTopologyEdge,
+    TopologyEdgeType as ForwardTopologyEdgeType, TopologyNode as ForwardTopologyNode,
+    TopologyNodeType as ForwardTopologyNodeType, TrafficStats,
 };
 
 #[cfg(feature = "kubernetes")]
 pub use kubernetes::{
-    K8sCluster, K8sConfigMap, K8sContainer, K8sContainerPort, K8sDeployment, K8sDeploymentCondition,
-    K8sError, K8sEvent, K8sManager, K8sNamespace, K8sNode, K8sNodeAddress, K8sNodeCondition,
-    K8sNodeResourceUsage, K8sObjectReference, K8sPod, K8sPodCondition, K8sPortForward, K8sResource,
-    K8sResourceMetadata, K8sResourceRequirements, K8sResourceUsage, K8sSecret, K8sService,
-    K8sServicePort, K8sVolume, ContainerState, ExecOptions, HelmChart, HelmMaintainer, HelmRelease,
-    HelmRepo, K8sContainer as K8sContainerInfo, LogOptions, PodStatus, Result as K8sResult,
+    ContainerState, ExecOptions, HelmChart, HelmMaintainer, HelmRelease, HelmRepo, K8sCluster,
+    K8sConfigMap, K8sContainer, K8sContainer as K8sContainerInfo, K8sContainerPort, K8sDeployment,
+    K8sDeploymentCondition, K8sError, K8sEvent, K8sManager, K8sNamespace, K8sNode, K8sNodeAddress,
+    K8sNodeCondition, K8sNodeResourceUsage, K8sObjectReference, K8sPod, K8sPodCondition,
+    K8sPortForward, K8sResource, K8sResourceMetadata, K8sResourceRequirements, K8sResourceUsage,
+    K8sSecret, K8sService, K8sServicePort, K8sVolume, LogOptions, PodStatus, Result as K8sResult,
 };
 
 // Vault exports
 pub use vault::{
-    EnterpriseVault, VaultItemType, SecurityLevel, HardwareAuthMethod,
-    VaultItemMetadata, EncryptedVaultItem, PasswordEntry, SshKeyEntry,
-    ApiKeyEntry, CertificateEntry, TOTPEntry, SecureNoteEntry, NoteFormat,
-    VaultFolder, TrustedContact, EmergencyAccessLevel, InvitationStatus,
-    PasswordStrength, PasswordWeakness, SecurityAuditResult, PasswordGeneratorConfig,
-    HardwareDeviceInfo, AutofillConfig, VaultStats, UnlockOptions,
+    ApiKeyEntry, AutofillConfig, CertificateEntry, EmergencyAccessLevel, EncryptedVaultItem,
+    EnterpriseVault, HardwareAuthMethod, HardwareDeviceInfo, InvitationStatus, NoteFormat,
+    PasswordEntry, PasswordGeneratorConfig, PasswordStrength, PasswordWeakness, SecureNoteEntry,
+    SecurityAuditResult, SecurityLevel, SshKeyEntry, TOTPEntry, TrustedContact, UnlockOptions,
+    VaultFolder, VaultItemMetadata, VaultItemType, VaultStats,
 };
 
 // Docker exports
 #[cfg(feature = "docker")]
 pub use docker::{
-    DockerManager, ContainerInfo, ContainerStatus, ImageInfo, NetworkInfo,
-    VolumeInfo, ComposeProject, ComposeService, ContainerStats, PortMapping,
-    MountPoint, DockerConnection, DockerHostType, DockerTlsConfig, RegistryConfig,
-    DockerSystemInfo, DockerEvent, LogStream, PidsStats, MemoryStats, CpuStats,
-    ThrottlingData, IoStats, IoEntry, NetworkStats, HostConfig, NetworkSettings,
-    ContainerNetworkInfo, IpamConfig, IpamSubnetConfig, NetworkContainer, VolumeUsageData,
-    PluginsInfo, RuntimeInfo, SwarmInfo, ClusterInfo, ClusterSpec, Actor,
+    Actor, ClusterInfo, ClusterSpec, ComposeProject, ComposeService, ContainerInfo,
+    ContainerNetworkInfo, ContainerStats, ContainerStatus, CpuStats, DockerConnection, DockerEvent,
+    DockerHostType, DockerManager, DockerSystemInfo, DockerTlsConfig, HostConfig, ImageInfo,
+    IoEntry, IoStats, IpamConfig, IpamSubnetConfig, LogStream, MemoryStats, MountPoint,
+    NetworkContainer, NetworkInfo, NetworkSettings, NetworkStats, PidsStats, PluginsInfo,
+    PortMapping, RegistryConfig, RuntimeInfo, SwarmInfo, ThrottlingData, VolumeInfo,
+    VolumeUsageData,
 };
 
 use std::sync::Arc;
@@ -451,13 +442,9 @@ impl AppState {
     }
 
     /// Create with custom SSH pool configuration
-    pub fn with_ssh_pool_config(
-        max_connections: usize,
-        idle_timeout: u64,
-        max_age: u64,
-    ) -> Self {
-        let ssh_manager = SshSessionManager::new()
-            .with_pool_config(max_connections, idle_timeout, max_age);
+    pub fn with_ssh_pool_config(max_connections: usize, idle_timeout: u64, max_age: u64) -> Self {
+        let ssh_manager =
+            SshSessionManager::new().with_pool_config(max_connections, idle_timeout, max_age);
 
         Self {
             db: StdMutex::new(None),
@@ -742,10 +729,7 @@ pub fn ssh_get_pool_stats(state: &AppState) -> PoolStats {
 }
 
 /// Get session metadata
-pub async fn ssh_get_metadata(
-    state: &AppState,
-    session_id: &str,
-) -> Option<SessionMetadata> {
+pub async fn ssh_get_metadata(state: &AppState, session_id: &str) -> Option<SessionMetadata> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.get_metadata(session_id)
 }
@@ -778,10 +762,7 @@ pub async fn ssh_interrupt(state: &AppState, session_id: &str) -> Result<(), Lit
 
 /// Create SFTP session
 #[cfg(feature = "sftp")]
-pub async fn ssh_create_sftp(
-    state: &AppState,
-    session_id: &str,
-) -> Result<ssh2::Sftp, LiteError> {
+pub async fn ssh_create_sftp(state: &AppState, session_id: &str) -> Result<ssh2::Sftp, LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.create_sftp(session_id).await
 }
@@ -797,7 +778,9 @@ pub async fn docker_list_containers(
 ) -> Result<Vec<ContainerInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.list_containers(&ssh_manager, ssh_session_id, all).await
+    docker_manager
+        .list_containers(&ssh_manager, ssh_session_id, all)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -809,7 +792,9 @@ pub async fn docker_start_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.start_container(&ssh_manager, ssh_session_id, container_id).await
+    docker_manager
+        .start_container(&ssh_manager, ssh_session_id, container_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -822,7 +807,9 @@ pub async fn docker_stop_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.stop_container(&ssh_manager, ssh_session_id, container_id, timeout).await
+    docker_manager
+        .stop_container(&ssh_manager, ssh_session_id, container_id, timeout)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -835,7 +822,9 @@ pub async fn docker_restart_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.restart_container(&ssh_manager, ssh_session_id, container_id, timeout).await
+    docker_manager
+        .restart_container(&ssh_manager, ssh_session_id, container_id, timeout)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -849,7 +838,9 @@ pub async fn docker_remove_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.remove_container(&ssh_manager, ssh_session_id, container_id, force, volumes).await
+    docker_manager
+        .remove_container(&ssh_manager, ssh_session_id, container_id, force, volumes)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -861,7 +852,9 @@ pub async fn docker_list_images(
 ) -> Result<Vec<ImageInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.list_images(&ssh_manager, ssh_session_id, all, false).await
+    docker_manager
+        .list_images(&ssh_manager, ssh_session_id, all, false)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -874,7 +867,9 @@ pub async fn docker_pull_image(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.pull_image(&ssh_manager, ssh_session_id, image, tag, None).await
+    docker_manager
+        .pull_image(&ssh_manager, ssh_session_id, image, tag, None)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -885,7 +880,9 @@ pub async fn docker_list_networks(
 ) -> Result<Vec<NetworkInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.list_networks(&ssh_manager, ssh_session_id).await
+    docker_manager
+        .list_networks(&ssh_manager, ssh_session_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -896,7 +893,9 @@ pub async fn docker_list_volumes(
 ) -> Result<Vec<VolumeInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.list_volumes(&ssh_manager, ssh_session_id).await
+    docker_manager
+        .list_volumes(&ssh_manager, ssh_session_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -910,7 +909,9 @@ pub async fn docker_stream_logs(
 ) -> Result<mpsc::UnboundedReceiver<String>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.stream_logs(&ssh_manager, ssh_session_id, container_id, follow, tail).await
+    docker_manager
+        .stream_logs(&ssh_manager, ssh_session_id, container_id, follow, tail)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -923,7 +924,18 @@ pub async fn docker_exec(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.exec_in_container(&ssh_manager, ssh_session_id, container_id, command, false, true, None, &[]).await
+    docker_manager
+        .exec_in_container(
+            &ssh_manager,
+            ssh_session_id,
+            container_id,
+            command,
+            false,
+            true,
+            None,
+            &[],
+        )
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -935,7 +947,9 @@ pub async fn docker_get_stats(
 ) -> Result<ContainerStats, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.get_container_stats(&ssh_manager, ssh_session_id, container_id).await
+    docker_manager
+        .get_container_stats(&ssh_manager, ssh_session_id, container_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -946,7 +960,9 @@ pub async fn docker_list_compose_projects(
 ) -> Result<Vec<ComposeProject>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.list_compose_projects(&ssh_manager, ssh_session_id).await
+    docker_manager
+        .list_compose_projects(&ssh_manager, ssh_session_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -958,7 +974,9 @@ pub async fn docker_compose_up(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.compose_up(&ssh_manager, ssh_session_id, project_dir, None, true, false).await
+    docker_manager
+        .compose_up(&ssh_manager, ssh_session_id, project_dir, None, true, false)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -970,7 +988,9 @@ pub async fn docker_compose_down(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.compose_down(&ssh_manager, ssh_session_id, project_dir, false, false).await
+    docker_manager
+        .compose_down(&ssh_manager, ssh_session_id, project_dir, false, false)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -986,7 +1006,17 @@ pub async fn docker_build_image(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.build_image(&ssh_manager, ssh_session_id, context_path, dockerfile_path, tag, build_args, no_cache).await
+    docker_manager
+        .build_image(
+            &ssh_manager,
+            ssh_session_id,
+            context_path,
+            dockerfile_path,
+            tag,
+            build_args,
+            no_cache,
+        )
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1002,7 +1032,17 @@ pub async fn docker_build_image_stream(
 ) -> Result<mpsc::UnboundedReceiver<String>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.build_image_stream(&ssh_manager, ssh_session_id, context_path, dockerfile_path, tag, build_args, no_cache).await
+    docker_manager
+        .build_image_stream(
+            &ssh_manager,
+            ssh_session_id,
+            context_path,
+            dockerfile_path,
+            tag,
+            build_args,
+            no_cache,
+        )
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1014,7 +1054,9 @@ pub async fn docker_stream_stats(
 ) -> Result<mpsc::UnboundedReceiver<ContainerStats>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.stream_stats(&ssh_manager, ssh_session_id, container_id).await
+    docker_manager
+        .stream_stats(&ssh_manager, ssh_session_id, container_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1025,7 +1067,9 @@ pub async fn docker_stop_stats_stream(
     container_id: &str,
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
-    docker_manager.stop_stats_stream(ssh_session_id, container_id).await
+    docker_manager
+        .stop_stats_stream(ssh_session_id, container_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1038,7 +1082,9 @@ pub async fn docker_export_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.export_container(&ssh_manager, ssh_session_id, container_id, output_path).await
+    docker_manager
+        .export_container(&ssh_manager, ssh_session_id, container_id, output_path)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1052,7 +1098,9 @@ pub async fn docker_import_image(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.import_image(&ssh_manager, ssh_session_id, input_path, repository, tag).await
+    docker_manager
+        .import_image(&ssh_manager, ssh_session_id, input_path, repository, tag)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1065,7 +1113,9 @@ pub async fn docker_save_image(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.save_image(&ssh_manager, ssh_session_id, image, output_path).await
+    docker_manager
+        .save_image(&ssh_manager, ssh_session_id, image, output_path)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1077,7 +1127,9 @@ pub async fn docker_load_image(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.load_image(&ssh_manager, ssh_session_id, input_path).await
+    docker_manager
+        .load_image(&ssh_manager, ssh_session_id, input_path)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1091,7 +1143,15 @@ pub async fn docker_copy_from_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.copy_from_container(&ssh_manager, ssh_session_id, container_id, container_path, host_path).await
+    docker_manager
+        .copy_from_container(
+            &ssh_manager,
+            ssh_session_id,
+            container_id,
+            container_path,
+            host_path,
+        )
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1105,7 +1165,15 @@ pub async fn docker_copy_to_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.copy_to_container(&ssh_manager, ssh_session_id, host_path, container_id, container_path).await
+    docker_manager
+        .copy_to_container(
+            &ssh_manager,
+            ssh_session_id,
+            host_path,
+            container_id,
+            container_path,
+        )
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1116,7 +1184,9 @@ pub async fn docker_get_system_info(
 ) -> Result<DockerSystemInfo, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.get_system_info(&ssh_manager, ssh_session_id).await
+    docker_manager
+        .get_system_info(&ssh_manager, ssh_session_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1130,7 +1200,9 @@ pub async fn docker_stream_events(
 ) -> Result<mpsc::UnboundedReceiver<DockerEvent>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.stream_events(&ssh_manager, ssh_session_id, since, until, filters).await
+    docker_manager
+        .stream_events(&ssh_manager, ssh_session_id, since, until, filters)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1152,7 +1224,9 @@ pub async fn docker_inspect_container(
 ) -> Result<ContainerInfo, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.inspect_container(&ssh_manager, ssh_session_id, container_id).await
+    docker_manager
+        .inspect_container(&ssh_manager, ssh_session_id, container_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1164,7 +1238,9 @@ pub async fn docker_inspect_image(
 ) -> Result<ImageInfo, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.inspect_image(&ssh_manager, ssh_session_id, image_id).await
+    docker_manager
+        .inspect_image(&ssh_manager, ssh_session_id, image_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1176,7 +1252,9 @@ pub async fn docker_top(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.top(&ssh_manager, ssh_session_id, container_id).await
+    docker_manager
+        .top(&ssh_manager, ssh_session_id, container_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1188,7 +1266,9 @@ pub async fn docker_wait(
 ) -> Result<i32, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.wait(&ssh_manager, ssh_session_id, container_id).await
+    docker_manager
+        .wait(&ssh_manager, ssh_session_id, container_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1201,7 +1281,9 @@ pub async fn docker_rename_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.rename_container(&ssh_manager, ssh_session_id, container_id, new_name).await
+    docker_manager
+        .rename_container(&ssh_manager, ssh_session_id, container_id, new_name)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1219,7 +1301,19 @@ pub async fn docker_update_container(
 ) -> Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.update_container(&ssh_manager, ssh_session_id, container_id, cpu_shares, memory, memory_swap, cpu_period, cpu_quota, restart_policy).await
+    docker_manager
+        .update_container(
+            &ssh_manager,
+            ssh_session_id,
+            container_id,
+            cpu_shares,
+            memory,
+            memory_swap,
+            cpu_period,
+            cpu_quota,
+            restart_policy,
+        )
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1241,7 +1335,23 @@ pub async fn docker_run_container(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.run_container(&ssh_manager, ssh_session_id, name, image, command, ports, volumes, env, network, restart, labels, detach, auto_remove).await
+    docker_manager
+        .run_container(
+            &ssh_manager,
+            ssh_session_id,
+            name,
+            image,
+            command,
+            ports,
+            volumes,
+            env,
+            network,
+            restart,
+            labels,
+            detach,
+            auto_remove,
+        )
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1252,7 +1362,9 @@ pub async fn docker_get_disk_usage(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.get_disk_usage(&ssh_manager, ssh_session_id).await
+    docker_manager
+        .get_disk_usage(&ssh_manager, ssh_session_id)
+        .await
 }
 
 #[cfg(feature = "docker")]
@@ -1265,5 +1377,7 @@ pub async fn docker_system_prune(
 ) -> Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
-    docker_manager.system_prune(&ssh_manager, ssh_session_id, all, volumes).await
+    docker_manager
+        .system_prune(&ssh_manager, ssh_session_id, all, volumes)
+        .await
 }

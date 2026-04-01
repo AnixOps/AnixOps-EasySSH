@@ -636,7 +636,12 @@ impl SftpSessionManager {
     }
 
     /// 创建目录
-    pub async fn mkdir(&self, session_id: &str, path: &str, mode: Option<i32>) -> Result<(), LiteError> {
+    pub async fn mkdir(
+        &self,
+        session_id: &str,
+        path: &str,
+        mode: Option<i32>,
+    ) -> Result<(), LiteError> {
         let sftp_mutex = self
             .sessions
             .get(session_id)
@@ -702,7 +707,7 @@ impl SftpSessionManager {
         sftp.rmdir(Path::new(path))
             .map_err(|e| LiteError::Io(format!("删除目录失败: {}", e)))?;
         Ok(())
-}
+    }
 
     /// 递归删除目录及其内容
     pub async fn rm_rf(&self, session_id: &str, path: &str) -> Result<(), LiteError> {
@@ -849,7 +854,8 @@ impl SftpSessionManager {
         }
 
         // 创建进度跟踪
-        let mut progress = TransferProgress::new(filename.clone(), Some(total_size), start_offset > 0);
+        let mut progress =
+            TransferProgress::new(filename.clone(), Some(total_size), start_offset > 0);
         progress.transferred = start_offset;
         progress.resume_offset = start_offset;
         progress.start();
@@ -858,7 +864,8 @@ impl SftpSessionManager {
 
         // 创建本地目录（如果不存在）
         if let Some(parent) = local_path_obj.parent() {
-            tokio::fs::create_dir_all(parent).await
+            tokio::fs::create_dir_all(parent)
+                .await
                 .map_err(|e| LiteError::Io(format!("创建本地目录失败: {}", e)))?;
         }
 
@@ -892,12 +899,14 @@ impl SftpSessionManager {
                 let sftp = sftp_mutex.lock().await;
 
                 // 打开远程文件
-                let mut remote_file = sftp.open(Path::new(&remote_path_owned))
+                let mut remote_file = sftp
+                    .open(Path::new(&remote_path_owned))
                     .map_err(|e| LiteError::Io(format!("打开远程文件失败: {}", e)))?;
 
                 // 如果需要续传，跳转到指定位置
                 if start_offset_owned > 0 {
-                    remote_file.seek(SeekFrom::Start(start_offset_owned))
+                    remote_file
+                        .seek(SeekFrom::Start(start_offset_owned))
                         .map_err(|e| LiteError::Io(format!("文件定位失败: {}", e)))?;
                 }
 
@@ -921,7 +930,8 @@ impl SftpSessionManager {
                         Ok(0) => break,
                         Ok(n) => {
                             // 关键修复：将数据写入本地文件
-                            local_file.write_all(&buffer[..n])
+                            local_file
+                                .write_all(&buffer[..n])
                                 .map_err(|e| LiteError::Io(format!("写入本地文件失败: {}", e)))?;
 
                             total_transferred += n as u64;
@@ -929,7 +939,8 @@ impl SftpSessionManager {
 
                             // 限速处理
                             if speed_limit > 0 {
-                                let expected = Duration::from_secs_f64(n as f64 / speed_limit as f64);
+                                let expected =
+                                    Duration::from_secs_f64(n as f64 / speed_limit as f64);
                                 let elapsed = last_update.elapsed();
                                 if elapsed < expected {
                                     std::thread::sleep(expected - elapsed);
@@ -937,7 +948,9 @@ impl SftpSessionManager {
                             }
 
                             // 定期更新
-                            if last_update.elapsed().as_millis() >= 100 || bytes_since_update >= 64 * 1024 {
+                            if last_update.elapsed().as_millis() >= 100
+                                || bytes_since_update >= 64 * 1024
+                            {
                                 last_update = Instant::now();
                                 bytes_since_update = 0;
                             }
@@ -947,7 +960,8 @@ impl SftpSessionManager {
                 }
 
                 // 确保所有数据写入磁盘
-                local_file.flush()
+                local_file
+                    .flush()
                     .map_err(|e| LiteError::Io(format!("刷新本地文件失败: {}", e)))?;
 
                 Ok::<u64, LiteError>(total_transferred)
@@ -965,12 +979,16 @@ impl SftpSessionManager {
         if options.preserve_time {
             if let Some(mtime) = remote_stat.mtime {
                 let mtime_std = std::time::UNIX_EPOCH + std::time::Duration::from_secs(mtime);
-                let _ = filetime::set_file_mtime(local_path_obj, filetime::FileTime::from_system_time(mtime_std));
+                let _ = filetime::set_file_mtime(
+                    local_path_obj,
+                    filetime::FileTime::from_system_time(mtime_std),
+                );
             }
         }
 
         // 发送最终进度
-        let mut final_progress = TransferProgress::new(filename, Some(total_size), start_offset > 0);
+        let mut final_progress =
+            TransferProgress::new(filename, Some(total_size), start_offset > 0);
         final_progress.transferred = bytes_transferred;
         final_progress.complete();
         progress_callback(final_progress);
@@ -980,7 +998,9 @@ impl SftpSessionManager {
             duration,
             average_speed: if duration.as_secs_f64() > 0.0 {
                 bytes_transferred as f64 / duration.as_secs_f64()
-            } else { 0.0 },
+            } else {
+                0.0
+            },
             was_resumed: start_offset > 0,
         })
     }
@@ -1004,7 +1024,8 @@ impl SftpSessionManager {
             .clone();
 
         // 获取本地文件信息
-        let local_metadata = tokio::fs::metadata(local_path).await
+        let local_metadata = tokio::fs::metadata(local_path)
+            .await
             .map_err(|e| LiteError::Io(format!("获取本地文件信息失败: {}", e)))?;
 
         let total_size = local_metadata.len();
@@ -1040,7 +1061,8 @@ impl SftpSessionManager {
         }
 
         // 创建进度跟踪
-        let mut progress = TransferProgress::new(filename.clone(), Some(total_size), start_offset > 0);
+        let mut progress =
+            TransferProgress::new(filename.clone(), Some(total_size), start_offset > 0);
         progress.transferred = start_offset;
         progress.resume_offset = start_offset;
         progress.start();
@@ -1050,7 +1072,9 @@ impl SftpSessionManager {
         // 创建远程目录（如果不存在）
         let remote_path_obj = Path::new(remote_path);
         if let Some(parent) = remote_path_obj.parent() {
-            self.mkdir_p(session_id, &parent.to_string_lossy()).await.ok();
+            self.mkdir_p(session_id, &parent.to_string_lossy())
+                .await
+                .ok();
         }
 
         let chunk_size = options.chunk_size;
@@ -1080,9 +1104,12 @@ impl SftpSessionManager {
                 // 如果是新文件，设置权限
                 if start_offset_owned == 0 {
                     let stat = ssh2::FileStat {
-                        size: None, uid: None, gid: None,
+                        size: None,
+                        uid: None,
+                        gid: None,
                         perm: Some(file_mode as u32),
-                        atime: None, mtime: None,
+                        atime: None,
+                        mtime: None,
                     };
                     sftp.setstat(Path::new(&remote_path_owned), stat).ok();
                 }
@@ -1093,7 +1120,8 @@ impl SftpSessionManager {
 
                 // 跳转到续传位置
                 if start_offset_owned > 0 {
-                    local_file.seek(SeekFrom::Start(start_offset_owned))
+                    local_file
+                        .seek(SeekFrom::Start(start_offset_owned))
                         .map_err(|e| LiteError::Io(format!("本地文件定位失败: {}", e)))?;
                 }
 
@@ -1105,7 +1133,8 @@ impl SftpSessionManager {
                     match local_file.read(&mut buffer) {
                         Ok(0) => break,
                         Ok(n) => {
-                            remote_file.write_all(&buffer[..n])
+                            remote_file
+                                .write_all(&buffer[..n])
                                 .map_err(|e| LiteError::Io(format!("写入远程文件失败: {}", e)))?;
 
                             total_transferred += n as u64;
@@ -1113,7 +1142,8 @@ impl SftpSessionManager {
 
                             // 限速处理
                             if speed_limit > 0 {
-                                let expected = Duration::from_secs_f64(n as f64 / speed_limit as f64);
+                                let expected =
+                                    Duration::from_secs_f64(n as f64 / speed_limit as f64);
                                 let elapsed = last_update.elapsed();
                                 if elapsed < expected {
                                     std::thread::sleep(expected - elapsed);
@@ -1121,7 +1151,9 @@ impl SftpSessionManager {
                             }
 
                             // 定期更新（这里不发送，在阻塞外部处理）
-                            if last_update.elapsed().as_millis() >= 100 || bytes_since_update >= 64 * 1024 {
+                            if last_update.elapsed().as_millis() >= 100
+                                || bytes_since_update >= 64 * 1024
+                            {
                                 last_update = Instant::now();
                                 bytes_since_update = 0;
                             }
@@ -1153,8 +1185,12 @@ impl SftpSessionManager {
                         .clone();
                     let sftp = sftp_mutex.lock().await;
                     let stat = ssh2::FileStat {
-                        size: None, uid: None, gid: None, perm: None,
-                        atime: None, mtime: Some(mtime),
+                        size: None,
+                        uid: None,
+                        gid: None,
+                        perm: None,
+                        atime: None,
+                        mtime: Some(mtime),
                     };
                     let _ = sftp.setstat(Path::new(remote_path), stat);
                 }
@@ -1162,7 +1198,8 @@ impl SftpSessionManager {
         }
 
         // 发送最终进度
-        let mut final_progress = TransferProgress::new(filename, Some(total_size), start_offset > 0);
+        let mut final_progress =
+            TransferProgress::new(filename, Some(total_size), start_offset > 0);
         final_progress.transferred = bytes_transferred;
         final_progress.complete();
         progress_callback(final_progress);
@@ -1172,7 +1209,9 @@ impl SftpSessionManager {
             duration,
             average_speed: if duration.as_secs_f64() > 0.0 {
                 bytes_transferred as f64 / duration.as_secs_f64()
-            } else { 0.0 },
+            } else {
+                0.0
+            },
             was_resumed: start_offset > 0,
         })
     }
@@ -1186,16 +1225,12 @@ impl SftpSessionManager {
     ) -> Result<Vec<u8>, LiteError> {
         let options = TransferOptions::default();
 
-        self.download_with_progress(
-            session_id,
-            remote_path,
-            local_path,
-            options,
-            |_progress| {},
-        ).await?;
+        self.download_with_progress(session_id, remote_path, local_path, options, |_progress| {})
+            .await?;
 
         // 读取下载的文件
-        let data = tokio::fs::read(local_path).await
+        let data = tokio::fs::read(local_path)
+            .await
             .map_err(|e| LiteError::Io(format!("读取下载文件失败: {}", e)))?;
 
         Ok(data)
@@ -1210,7 +1245,8 @@ impl SftpSessionManager {
     ) -> Result<(), LiteError> {
         // 先写入临时文件
         let temp_path = std::env::temp_dir().join(format!("sftp_upload_{}", uuid::Uuid::new_v4()));
-        tokio::fs::write(&temp_path, contents).await
+        tokio::fs::write(&temp_path, contents)
+            .await
             .map_err(|e| LiteError::Io(format!("写入临时文件失败: {}", e)))?;
 
         let options = TransferOptions::default();
@@ -1221,7 +1257,8 @@ impl SftpSessionManager {
             remote_path,
             options,
             |_progress| {},
-        ).await?;
+        )
+        .await?;
 
         // 删除临时文件
         let _ = tokio::fs::remove_file(&temp_path).await;
@@ -1245,7 +1282,8 @@ impl SftpSessionManager {
         let mut total_bytes = 0u64;
 
         // 创建本地目录
-        tokio::fs::create_dir_all(local_path).await
+        tokio::fs::create_dir_all(local_path)
+            .await
             .map_err(|e| LiteError::Io(format!("创建本地目录失败: {}", e)))?;
 
         for entry in entries {
@@ -1254,29 +1292,33 @@ impl SftpSessionManager {
 
             if entry.is_dir() {
                 // 递归下载子目录
-                let sub_bytes = self.download_dir(
-                    session_id,
-                    &remote_full_path,
-                    &local_full_path,
-                    options.clone(),
-                    |mut progress| {
-                        progress.filename = format!("{}/{}", remote_path, progress.filename);
-                        progress_callback(progress);
-                    },
-                ).await?;
+                let sub_bytes = self
+                    .download_dir(
+                        session_id,
+                        &remote_full_path,
+                        &local_full_path,
+                        options.clone(),
+                        |mut progress| {
+                            progress.filename = format!("{}/{}", remote_path, progress.filename);
+                            progress_callback(progress);
+                        },
+                    )
+                    .await?;
                 total_bytes += sub_bytes;
             } else {
                 // 下载文件
-                let result = self.download_with_progress(
-                    session_id,
-                    &remote_full_path,
-                    &local_full_path,
-                    options.clone(),
-                    |mut progress| {
-                        progress.filename = format!("{}/{}", remote_path, progress.filename);
-                        progress_callback(progress);
-                    },
-                ).await?;
+                let result = self
+                    .download_with_progress(
+                        session_id,
+                        &remote_full_path,
+                        &local_full_path,
+                        options.clone(),
+                        |mut progress| {
+                            progress.filename = format!("{}/{}", remote_path, progress.filename);
+                            progress_callback(progress);
+                        },
+                    )
+                    .await?;
                 total_bytes += result.bytes_transferred;
             }
         }
@@ -1299,7 +1341,8 @@ impl SftpSessionManager {
         let local_path_obj = Path::new(local_path);
 
         // 读取本地目录
-        let mut entries = tokio::fs::read_dir(local_path).await
+        let mut entries = tokio::fs::read_dir(local_path)
+            .await
             .map_err(|e| LiteError::Io(format!("读取本地目录失败: {}", e)))?;
 
         // 创建远程目录
@@ -1307,40 +1350,49 @@ impl SftpSessionManager {
 
         let mut total_bytes = 0u64;
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| LiteError::Io(format!("读取目录项失败: {}", e)))? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| LiteError::Io(format!("读取目录项失败: {}", e)))?
+        {
             let name = entry.file_name().to_string_lossy().to_string();
             let local_full_path = local_path_obj.join(&name).to_string_lossy().to_string();
             let remote_full_path = format!("{}/{}", remote_path.trim_end_matches('/'), name);
 
-            let metadata = entry.metadata().await
+            let metadata = entry
+                .metadata()
+                .await
                 .map_err(|e| LiteError::Io(format!("获取文件元数据失败: {}", e)))?;
 
             if metadata.is_dir() {
                 // 递归上传子目录
-                let sub_bytes = self.upload_dir(
-                    session_id,
-                    &local_full_path,
-                    &remote_full_path,
-                    options.clone(),
-                    |mut progress| {
-                        progress.filename = format!("{}/{}", remote_path, progress.filename);
-                        progress_callback(progress);
-                    },
-                ).await?;
+                let sub_bytes = self
+                    .upload_dir(
+                        session_id,
+                        &local_full_path,
+                        &remote_full_path,
+                        options.clone(),
+                        |mut progress| {
+                            progress.filename = format!("{}/{}", remote_path, progress.filename);
+                            progress_callback(progress);
+                        },
+                    )
+                    .await?;
                 total_bytes += sub_bytes;
             } else {
                 // 上传文件
-                let result = self.upload_with_progress(
-                    session_id,
-                    &local_full_path,
-                    &remote_full_path,
-                    options.clone(),
-                    |mut progress| {
-                        progress.filename = format!("{}/{}", remote_path, progress.filename);
-                        progress_callback(progress);
-                    },
-                ).await?;
+                let result = self
+                    .upload_with_progress(
+                        session_id,
+                        &local_full_path,
+                        &remote_full_path,
+                        options.clone(),
+                        |mut progress| {
+                            progress.filename = format!("{}/{}", remote_path, progress.filename);
+                            progress_callback(progress);
+                        },
+                    )
+                    .await?;
                 total_bytes += result.bytes_transferred;
             }
         }
@@ -1362,7 +1414,11 @@ impl SftpSessionManager {
 
         // 获取文件大小
         let stat = self.stat(&session_id_str, &remote_path_str).await?;
-        let total_size = if stat.is_file() { Some(stat.size as u64) } else { None };
+        let total_size = if stat.is_file() {
+            Some(stat.size as u64)
+        } else {
+            None
+        };
 
         let item = TransferItem::new(
             session_id_str,
@@ -1393,9 +1449,14 @@ impl SftpSessionManager {
         let remote_path_str = remote_path.into();
 
         // 获取文件大小
-        let metadata = tokio::fs::metadata(&local_path_str).await
+        let metadata = tokio::fs::metadata(&local_path_str)
+            .await
             .map_err(|e| LiteError::Io(format!("获取文件信息失败: {}", e)))?;
-        let total_size = if metadata.is_file() { Some(metadata.len()) } else { None };
+        let total_size = if metadata.is_file() {
+            Some(metadata.len())
+        } else {
+            None
+        };
 
         let item = TransferItem::new(
             session_id_str,
@@ -1479,7 +1540,8 @@ mod filetime {
 
     impl FileTime {
         pub fn from_system_time(time: SystemTime) -> Self {
-            let duration = time.duration_since(SystemTime::UNIX_EPOCH)
+            let duration = time
+                .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap_or_default();
             FileTime(duration.as_secs())
         }
@@ -1494,12 +1556,14 @@ mod filetime {
             tv_sec: mtime.seconds() as i64,
             tv_nsec: 0,
         }; 2];
-        let ret = unsafe { libc::utimensat(
-            libc::AT_FDCWD,
-            path.as_os_str().as_bytes().as_ptr() as *const _,
-            times.as_ptr(),
-            0
-        ) };
+        let ret = unsafe {
+            libc::utimensat(
+                libc::AT_FDCWD,
+                path.as_os_str().as_bytes().as_ptr() as *const _,
+                times.as_ptr(),
+                0,
+            )
+        };
         if ret == 0 {
             Ok(())
         } else {
@@ -1518,7 +1582,8 @@ mod filetime {
 
     impl FileTime {
         pub fn from_system_time(time: SystemTime) -> Self {
-            let duration = time.duration_since(SystemTime::UNIX_EPOCH)
+            let duration = time
+                .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap_or_default();
             FileTime(duration.as_secs())
         }
@@ -1852,7 +1917,10 @@ mod tests {
         };
 
         assert_eq!(stats.total, 10);
-        assert_eq!(stats.pending + stats.transferring + stats.completed + stats.failed, stats.total);
+        assert_eq!(
+            stats.pending + stats.transferring + stats.completed + stats.failed,
+            stats.total
+        );
     }
 
     #[test]

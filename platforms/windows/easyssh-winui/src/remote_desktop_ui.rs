@@ -19,7 +19,10 @@ pub fn render_remote_desktop_panel(ctx: &egui::Context, manager: &mut RemoteDesk
             ui.vertical(|ui| {
                 // Header
                 ui.horizontal(|ui| {
-                    ui.heading(egui::RichText::new("Remote Desktop").color(egui::Color32::from_rgb(220, 225, 235)));
+                    ui.heading(
+                        egui::RichText::new("Remote Desktop")
+                            .color(egui::Color32::from_rgb(220, 225, 235)),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("+").clicked() {
                             manager.show_add_dialog = true;
@@ -386,7 +389,7 @@ impl RemoteDesktopManagerUI {
                 id: session_id.clone(),
                 connection_id: connection_id.to_string(),
                 connection_name: connection.name.clone(),
-                protocol: connection.protocol.clone(),
+                protocol: connection.protocol,
                 status: SessionStatus::Connecting,
                 started_at: std::time::Instant::now(),
                 recording_active: false,
@@ -444,7 +447,8 @@ pub fn render_connections_list(ui: &mut egui::Ui, manager: &mut RemoteDesktopMan
     ui.separator();
 
     // Collect connection info first to avoid borrow issues
-    let connection_info: Vec<(String, String, String)> = manager.connections
+    let connection_info: Vec<(String, String, String)> = manager
+        .connections
         .iter()
         .map(|c| (c.id.clone(), c.name.clone(), c.host.clone()))
         .collect();
@@ -458,10 +462,7 @@ pub fn render_connections_list(ui: &mut egui::Ui, manager: &mut RemoteDesktopMan
     egui::ScrollArea::vertical().show(ui, |ui| {
         for (id, name, host) in &connection_info {
             let is_selected = manager.selected_connection.as_ref() == Some(id);
-            let response = ui.selectable_label(
-                is_selected,
-                format!("{} ({})", name, host)
-            );
+            let response = ui.selectable_label(is_selected, format!("{} ({})", name, host));
 
             if response.clicked() {
                 manager.selected_connection = Some(id.clone());
@@ -505,10 +506,26 @@ pub fn render_active_sessions(ui: &mut egui::Ui, manager: &mut RemoteDesktopMana
     ui.separator();
 
     // Collect session data first to avoid borrow issues
-    let session_data: Vec<(String, String, SessionStatus, RemoteDesktopProtocol, std::time::Instant, bool)> = manager
+    let session_data: Vec<(
+        String,
+        String,
+        SessionStatus,
+        RemoteDesktopProtocol,
+        std::time::Instant,
+        bool,
+    )> = manager
         .active_sessions
         .iter()
-        .map(|(id, s)| (id.clone(), s.connection_name.clone(), s.status, s.protocol, s.started_at, s.recording_active))
+        .map(|(id, s)| {
+            (
+                id.clone(),
+                s.connection_name.clone(),
+                s.status,
+                s.protocol,
+                s.started_at,
+                s.recording_active,
+            )
+        })
         .collect();
 
     // Track actions to execute after iteration
@@ -517,7 +534,9 @@ pub fn render_active_sessions(ui: &mut egui::Ui, manager: &mut RemoteDesktopMana
     let mut to_start_recording: Vec<String> = Vec::new();
     let mut view_mode_changes: Vec<(String, ViewMode)> = Vec::new();
 
-    for (session_id, connection_name, status, _protocol, started_at, recording_active) in session_data {
+    for (session_id, connection_name, status, _protocol, started_at, recording_active) in
+        session_data
+    {
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 ui.label(&connection_name);
@@ -603,15 +622,16 @@ fn format_duration(duration: std::time::Duration) -> String {
 }
 
 /// Render the add/edit connection dialog
-pub fn render_connection_dialog(
-    ctx: &egui::Context,
-    manager: &mut RemoteDesktopManagerUI,
-) -> bool {
+pub fn render_connection_dialog(ctx: &egui::Context, manager: &mut RemoteDesktopManagerUI) -> bool {
     let mut should_close = false;
 
     // Determine dialog state before any borrows
     let is_editing = manager.editing_connection.is_some();
-    let title = if is_editing { "Edit Connection" } else { "Add Connection" };
+    let title = if is_editing {
+        "Edit Connection"
+    } else {
+        "Add Connection"
+    };
 
     // Extract the connection to edit or use the new connection
     // Work with cloned data to avoid borrow issues in the closure
@@ -645,10 +665,26 @@ pub fn render_connection_dialog(
                         egui::ComboBox::from_id_source("protocol")
                             .selected_text(format!("{:?}", connection.protocol))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut connection.protocol, RemoteDesktopProtocol::Rdp, "RDP");
-                                ui.selectable_value(&mut connection.protocol, RemoteDesktopProtocol::Vnc, "VNC");
-                                ui.selectable_value(&mut connection.protocol, RemoteDesktopProtocol::SshTunnelRdp, "SSH Tunnel RDP");
-                                ui.selectable_value(&mut connection.protocol, RemoteDesktopProtocol::SshTunnelVnc, "SSH Tunnel VNC");
+                                ui.selectable_value(
+                                    &mut connection.protocol,
+                                    RemoteDesktopProtocol::Rdp,
+                                    "RDP",
+                                );
+                                ui.selectable_value(
+                                    &mut connection.protocol,
+                                    RemoteDesktopProtocol::Vnc,
+                                    "VNC",
+                                );
+                                ui.selectable_value(
+                                    &mut connection.protocol,
+                                    RemoteDesktopProtocol::SshTunnelRdp,
+                                    "SSH Tunnel RDP",
+                                );
+                                ui.selectable_value(
+                                    &mut connection.protocol,
+                                    RemoteDesktopProtocol::SshTunnelVnc,
+                                    "SSH Tunnel VNC",
+                                );
                             });
                     });
 
@@ -679,7 +715,10 @@ pub fn render_connection_dialog(
                 });
 
                 // SSH Tunnel settings (if applicable)
-                if matches!(connection.protocol, RemoteDesktopProtocol::SshTunnelRdp | RemoteDesktopProtocol::SshTunnelVnc) {
+                if matches!(
+                    connection.protocol,
+                    RemoteDesktopProtocol::SshTunnelRdp | RemoteDesktopProtocol::SshTunnelVnc
+                ) {
                     ui.group(|ui| {
                         ui.label("SSH Tunnel Settings");
                         ui.checkbox(&mut connection.use_ssh_tunnel, "Use SSH Tunnel");
@@ -705,16 +744,31 @@ pub fn render_connection_dialog(
                                 egui::ComboBox::from_id_source("ssh_auth")
                                     .selected_text(format!("{:?}", connection.ssh_auth_type))
                                     .show_ui(ui, |ui| {
-                                        ui.selectable_value(&mut connection.ssh_auth_type, SshAuthType::Agent, "SSH Agent");
-                                        ui.selectable_value(&mut connection.ssh_auth_type, SshAuthType::Password, "Password");
-                                        ui.selectable_value(&mut connection.ssh_auth_type, SshAuthType::Key, "Private Key");
+                                        ui.selectable_value(
+                                            &mut connection.ssh_auth_type,
+                                            SshAuthType::Agent,
+                                            "SSH Agent",
+                                        );
+                                        ui.selectable_value(
+                                            &mut connection.ssh_auth_type,
+                                            SshAuthType::Password,
+                                            "Password",
+                                        );
+                                        ui.selectable_value(
+                                            &mut connection.ssh_auth_type,
+                                            SshAuthType::Key,
+                                            "Private Key",
+                                        );
                                     });
                             });
 
                             if matches!(connection.ssh_auth_type, SshAuthType::Password) {
                                 ui.horizontal(|ui| {
                                     ui.label("SSH Password:");
-                                    ui.add(egui::TextEdit::singleline(&mut connection.ssh_password).password(true));
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut connection.ssh_password)
+                                            .password(true),
+                                    );
                                 });
                             }
                         }
@@ -756,7 +810,11 @@ pub fn render_connection_dialog(
         should_close = true;
     } else if save_clicked {
         // Update existing connection
-        if let Some(idx) = manager.connections.iter().position(|c| c.id == connection.id) {
+        if let Some(idx) = manager
+            .connections
+            .iter()
+            .position(|c| c.id == connection.id)
+        {
             manager.connections[idx] = connection;
         }
         manager.editing_connection = None;
@@ -779,174 +837,291 @@ pub fn render_connection_dialog(
 fn render_settings_sections(ui: &mut egui::Ui, connection: &mut RemoteDesktopConnectionUI) {
     // Display Settings
     let mut display_open = connection.expanded_section == Some(SettingsSection::Display);
-    egui::CollapsingHeader::new("Display Settings")
-        .show(ui, |ui| {
-            display_open = true;
-            ui.horizontal(|ui| {
-                ui.label("Resolution:");
-                ui.add(egui::DragValue::new(&mut connection.display.width));
-                ui.label("x");
-                ui.add(egui::DragValue::new(&mut connection.display.height));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Color Depth:");
-                egui::ComboBox::from_id_source("bpp")
-                    .selected_text(format!("{}-bit", connection.display.bpp))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut connection.display.bpp, 8, "8-bit");
-                        ui.selectable_value(&mut connection.display.bpp, 15, "15-bit");
-                        ui.selectable_value(&mut connection.display.bpp, 16, "16-bit");
-                        ui.selectable_value(&mut connection.display.bpp, 24, "24-bit");
-                        ui.selectable_value(&mut connection.display.bpp, 32, "32-bit");
-                    });
-            });
-
-            ui.checkbox(&mut connection.display.fullscreen, "Fullscreen");
-            ui.checkbox(&mut connection.display.multi_monitor, "Use all monitors");
-            ui.checkbox(&mut connection.display.smart_sizing, "Smart sizing");
-            ui.checkbox(&mut connection.display.dynamic_resolution, "Dynamic resolution update");
-            ui.checkbox(&mut connection.display.fit_session_to_window, "Fit session to window");
+    egui::CollapsingHeader::new("Display Settings").show(ui, |ui| {
+        display_open = true;
+        ui.horizontal(|ui| {
+            ui.label("Resolution:");
+            ui.add(egui::DragValue::new(&mut connection.display.width));
+            ui.label("x");
+            ui.add(egui::DragValue::new(&mut connection.display.height));
         });
+
+        ui.horizontal(|ui| {
+            ui.label("Color Depth:");
+            egui::ComboBox::from_id_source("bpp")
+                .selected_text(format!("{}-bit", connection.display.bpp))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut connection.display.bpp, 8, "8-bit");
+                    ui.selectable_value(&mut connection.display.bpp, 15, "15-bit");
+                    ui.selectable_value(&mut connection.display.bpp, 16, "16-bit");
+                    ui.selectable_value(&mut connection.display.bpp, 24, "24-bit");
+                    ui.selectable_value(&mut connection.display.bpp, 32, "32-bit");
+                });
+        });
+
+        ui.checkbox(&mut connection.display.fullscreen, "Fullscreen");
+        ui.checkbox(&mut connection.display.multi_monitor, "Use all monitors");
+        ui.checkbox(&mut connection.display.smart_sizing, "Smart sizing");
+        ui.checkbox(
+            &mut connection.display.dynamic_resolution,
+            "Dynamic resolution update",
+        );
+        ui.checkbox(
+            &mut connection.display.fit_session_to_window,
+            "Fit session to window",
+        );
+    });
     if display_open {
         connection.expanded_section = Some(SettingsSection::Display);
     }
 
     // Performance Settings
     let mut perf_open = connection.expanded_section == Some(SettingsSection::Performance);
-    egui::CollapsingHeader::new("Performance Settings")
-        .show(ui, |ui| {
-            perf_open = true;
-            ui.horizontal(|ui| {
-                ui.label("Connection Type:");
-                egui::ComboBox::from_id_source("conn_type")
-                    .selected_text(format!("{:?}", connection.performance.connection_type))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut connection.performance.connection_type, ConnectionType::Lan, "LAN");
-                        ui.selectable_value(&mut connection.performance.connection_type, ConnectionType::Wan, "WAN");
-                        ui.selectable_value(&mut connection.performance.connection_type, ConnectionType::HighSpeedBroadband, "High Speed Broadband");
-                        ui.selectable_value(&mut connection.performance.connection_type, ConnectionType::Satellite, "Satellite");
-                        ui.selectable_value(&mut connection.performance.connection_type, ConnectionType::LowSpeedBroadband, "Low Speed Broadband");
-                        ui.selectable_value(&mut connection.performance.connection_type, ConnectionType::Modem, "Modem");
-                    });
-            });
-
-            ui.checkbox(&mut connection.performance.disable_wallpaper, "Disable wallpaper");
-            ui.checkbox(&mut connection.performance.disable_themes, "Disable themes");
-            ui.checkbox(&mut connection.performance.disable_menu_animations, "Disable menu animations");
-            ui.checkbox(&mut connection.performance.disable_full_window_drag, "Disable full window drag");
-            ui.checkbox(&mut connection.performance.disable_font_smoothing, "Disable font smoothing");
-            ui.checkbox(&mut connection.performance.persistent_bitmap_caching, "Persistent bitmap caching");
-            ui.checkbox(&mut connection.performance.compression, "Enable compression");
+    egui::CollapsingHeader::new("Performance Settings").show(ui, |ui| {
+        perf_open = true;
+        ui.horizontal(|ui| {
+            ui.label("Connection Type:");
+            egui::ComboBox::from_id_source("conn_type")
+                .selected_text(format!("{:?}", connection.performance.connection_type))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut connection.performance.connection_type,
+                        ConnectionType::Lan,
+                        "LAN",
+                    );
+                    ui.selectable_value(
+                        &mut connection.performance.connection_type,
+                        ConnectionType::Wan,
+                        "WAN",
+                    );
+                    ui.selectable_value(
+                        &mut connection.performance.connection_type,
+                        ConnectionType::HighSpeedBroadband,
+                        "High Speed Broadband",
+                    );
+                    ui.selectable_value(
+                        &mut connection.performance.connection_type,
+                        ConnectionType::Satellite,
+                        "Satellite",
+                    );
+                    ui.selectable_value(
+                        &mut connection.performance.connection_type,
+                        ConnectionType::LowSpeedBroadband,
+                        "Low Speed Broadband",
+                    );
+                    ui.selectable_value(
+                        &mut connection.performance.connection_type,
+                        ConnectionType::Modem,
+                        "Modem",
+                    );
+                });
         });
+
+        ui.checkbox(
+            &mut connection.performance.disable_wallpaper,
+            "Disable wallpaper",
+        );
+        ui.checkbox(&mut connection.performance.disable_themes, "Disable themes");
+        ui.checkbox(
+            &mut connection.performance.disable_menu_animations,
+            "Disable menu animations",
+        );
+        ui.checkbox(
+            &mut connection.performance.disable_full_window_drag,
+            "Disable full window drag",
+        );
+        ui.checkbox(
+            &mut connection.performance.disable_font_smoothing,
+            "Disable font smoothing",
+        );
+        ui.checkbox(
+            &mut connection.performance.persistent_bitmap_caching,
+            "Persistent bitmap caching",
+        );
+        ui.checkbox(
+            &mut connection.performance.compression,
+            "Enable compression",
+        );
+    });
     if perf_open {
         connection.expanded_section = Some(SettingsSection::Performance);
     }
 
     // Local Resources
     let mut resources_open = connection.expanded_section == Some(SettingsSection::LocalResources);
-    egui::CollapsingHeader::new("Local Resources")
-        .show(ui, |ui| {
-            resources_open = true;
-            ui.checkbox(&mut connection.local_resources.clipboard, "Clipboard");
-            ui.checkbox(&mut connection.local_resources.printer, "Printers");
-            ui.checkbox(&mut connection.local_resources.smart_cards, "Smart cards");
-            ui.checkbox(&mut connection.local_resources.ports, "COM ports");
-            ui.checkbox(&mut connection.local_resources.microphone, "Microphone");
-            ui.checkbox(&mut connection.local_resources.video_capture, "Video capture device");
+    egui::CollapsingHeader::new("Local Resources").show(ui, |ui| {
+        resources_open = true;
+        ui.checkbox(&mut connection.local_resources.clipboard, "Clipboard");
+        ui.checkbox(&mut connection.local_resources.printer, "Printers");
+        ui.checkbox(&mut connection.local_resources.smart_cards, "Smart cards");
+        ui.checkbox(&mut connection.local_resources.ports, "COM ports");
+        ui.checkbox(&mut connection.local_resources.microphone, "Microphone");
+        ui.checkbox(
+            &mut connection.local_resources.video_capture,
+            "Video capture device",
+        );
 
-            ui.horizontal(|ui| {
-                ui.label("Drives:");
-                egui::ComboBox::from_id_source("drives")
-                    .selected_text(format!("{:?}", connection.local_resources.drives))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut connection.local_resources.drives, DriveRedirectionMode::Disabled, "Disabled");
-                        ui.selectable_value(&mut connection.local_resources.drives, DriveRedirectionMode::LocalDrives, "Local drives");
-                    });
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Audio:");
-                egui::ComboBox::from_id_source("audio")
-                    .selected_text(format!("{:?}", connection.local_resources.audio))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut connection.local_resources.audio, AudioRedirectionMode::Server, "Play on remote computer");
-                        ui.selectable_value(&mut connection.local_resources.audio, AudioRedirectionMode::Client, "Play on this computer");
-                        ui.selectable_value(&mut connection.local_resources.audio, AudioRedirectionMode::DoNotPlay, "Do not play");
-                    });
-            });
+        ui.horizontal(|ui| {
+            ui.label("Drives:");
+            egui::ComboBox::from_id_source("drives")
+                .selected_text(format!("{:?}", connection.local_resources.drives))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut connection.local_resources.drives,
+                        DriveRedirectionMode::Disabled,
+                        "Disabled",
+                    );
+                    ui.selectable_value(
+                        &mut connection.local_resources.drives,
+                        DriveRedirectionMode::LocalDrives,
+                        "Local drives",
+                    );
+                });
         });
+
+        ui.horizontal(|ui| {
+            ui.label("Audio:");
+            egui::ComboBox::from_id_source("audio")
+                .selected_text(format!("{:?}", connection.local_resources.audio))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut connection.local_resources.audio,
+                        AudioRedirectionMode::Server,
+                        "Play on remote computer",
+                    );
+                    ui.selectable_value(
+                        &mut connection.local_resources.audio,
+                        AudioRedirectionMode::Client,
+                        "Play on this computer",
+                    );
+                    ui.selectable_value(
+                        &mut connection.local_resources.audio,
+                        AudioRedirectionMode::DoNotPlay,
+                        "Do not play",
+                    );
+                });
+        });
+    });
     if resources_open {
         connection.expanded_section = Some(SettingsSection::LocalResources);
     }
 
     // Experience Settings
     let mut exp_open = connection.expanded_section == Some(SettingsSection::Experience);
-    egui::CollapsingHeader::new("Experience Settings")
-        .show(ui, |ui| {
-            exp_open = true;
-            ui.checkbox(&mut connection.experience.desktop_background, "Desktop background");
-            ui.checkbox(&mut connection.experience.font_smoothing, "Font smoothing");
-            ui.checkbox(&mut connection.experience.desktop_composition, "Desktop composition");
-            ui.checkbox(&mut connection.experience.show_window_contents, "Show window contents while dragging");
-            ui.checkbox(&mut connection.experience.menu_window_animation, "Menu and window animation");
-            ui.checkbox(&mut connection.experience.visual_styles, "Visual styles");
+    egui::CollapsingHeader::new("Experience Settings").show(ui, |ui| {
+        exp_open = true;
+        ui.checkbox(
+            &mut connection.experience.desktop_background,
+            "Desktop background",
+        );
+        ui.checkbox(&mut connection.experience.font_smoothing, "Font smoothing");
+        ui.checkbox(
+            &mut connection.experience.desktop_composition,
+            "Desktop composition",
+        );
+        ui.checkbox(
+            &mut connection.experience.show_window_contents,
+            "Show window contents while dragging",
+        );
+        ui.checkbox(
+            &mut connection.experience.menu_window_animation,
+            "Menu and window animation",
+        );
+        ui.checkbox(&mut connection.experience.visual_styles, "Visual styles");
 
-            ui.separator();
-            ui.checkbox(&mut connection.experience.reconnect_on_disconnect, "Reconnect if connection is dropped");
-            ui.checkbox(&mut connection.experience.auto_reconnect, "Auto reconnect");
-            if connection.experience.auto_reconnect {
-                ui.horizontal(|ui| {
-                    ui.label("Max attempts:");
-                    ui.add(egui::DragValue::new(&mut connection.experience.auto_reconnect_max_attempts));
-                });
-            }
-        });
+        ui.separator();
+        ui.checkbox(
+            &mut connection.experience.reconnect_on_disconnect,
+            "Reconnect if connection is dropped",
+        );
+        ui.checkbox(&mut connection.experience.auto_reconnect, "Auto reconnect");
+        if connection.experience.auto_reconnect {
+            ui.horizontal(|ui| {
+                ui.label("Max attempts:");
+                ui.add(egui::DragValue::new(
+                    &mut connection.experience.auto_reconnect_max_attempts,
+                ));
+            });
+        }
+    });
     if exp_open {
         connection.expanded_section = Some(SettingsSection::Experience);
     }
 
     // Recording Settings
     let mut rec_open = connection.expanded_section == Some(SettingsSection::Recording);
-    egui::CollapsingHeader::new("Recording Settings")
-        .show(ui, |ui| {
-            rec_open = true;
-            ui.checkbox(&mut connection.recording.enabled, "Enable session recording");
-            ui.checkbox(&mut connection.recording.auto_start, "Auto-start recording on connect");
+    egui::CollapsingHeader::new("Recording Settings").show(ui, |ui| {
+        rec_open = true;
+        ui.checkbox(
+            &mut connection.recording.enabled,
+            "Enable session recording",
+        );
+        ui.checkbox(
+            &mut connection.recording.auto_start,
+            "Auto-start recording on connect",
+        );
 
-            ui.horizontal(|ui| {
-                ui.label("Format:");
-                egui::ComboBox::from_id_source("format")
-                    .selected_text(format!("{:?}", connection.recording.format))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut connection.recording.format, RecordingFormat::Mkv, "MKV");
-                        ui.selectable_value(&mut connection.recording.format, RecordingFormat::Mp4, "MP4");
-                        ui.selectable_value(&mut connection.recording.format, RecordingFormat::Avi, "AVI");
-                    });
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Quality:");
-                egui::ComboBox::from_id_source("quality")
-                    .selected_text(format!("{:?}", connection.recording.quality))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut connection.recording.quality, RecordingQuality::Low, "Low");
-                        ui.selectable_value(&mut connection.recording.quality, RecordingQuality::Medium, "Medium");
-                        ui.selectable_value(&mut connection.recording.quality, RecordingQuality::High, "High");
-                        ui.selectable_value(&mut connection.recording.quality, RecordingQuality::Lossless, "Lossless");
-                    });
-            });
-
-            ui.checkbox(&mut connection.recording.include_audio, "Include audio");
-
-            ui.horizontal(|ui| {
-                ui.label("Output path:");
-                ui.text_edit_singleline(&mut connection.recording.output_path);
-                if ui.button("Browse").clicked() {
-                    // File browser dialog
-                }
-            });
+        ui.horizontal(|ui| {
+            ui.label("Format:");
+            egui::ComboBox::from_id_source("format")
+                .selected_text(format!("{:?}", connection.recording.format))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut connection.recording.format,
+                        RecordingFormat::Mkv,
+                        "MKV",
+                    );
+                    ui.selectable_value(
+                        &mut connection.recording.format,
+                        RecordingFormat::Mp4,
+                        "MP4",
+                    );
+                    ui.selectable_value(
+                        &mut connection.recording.format,
+                        RecordingFormat::Avi,
+                        "AVI",
+                    );
+                });
         });
+
+        ui.horizontal(|ui| {
+            ui.label("Quality:");
+            egui::ComboBox::from_id_source("quality")
+                .selected_text(format!("{:?}", connection.recording.quality))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut connection.recording.quality,
+                        RecordingQuality::Low,
+                        "Low",
+                    );
+                    ui.selectable_value(
+                        &mut connection.recording.quality,
+                        RecordingQuality::Medium,
+                        "Medium",
+                    );
+                    ui.selectable_value(
+                        &mut connection.recording.quality,
+                        RecordingQuality::High,
+                        "High",
+                    );
+                    ui.selectable_value(
+                        &mut connection.recording.quality,
+                        RecordingQuality::Lossless,
+                        "Lossless",
+                    );
+                });
+        });
+
+        ui.checkbox(&mut connection.recording.include_audio, "Include audio");
+
+        ui.horizontal(|ui| {
+            ui.label("Output path:");
+            ui.text_edit_singleline(&mut connection.recording.output_path);
+            if ui.button("Browse").clicked() {
+                // File browser dialog
+            }
+        });
+    });
     if rec_open {
         connection.expanded_section = Some(SettingsSection::Recording);
     }

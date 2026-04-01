@@ -13,19 +13,18 @@
 //!
 //! Uses Windows.UI.Notifications.ToastNotification API
 
+use chrono::{DateTime, Duration, Local};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Local, Duration};
 
 // Windows API imports for notifications
 use windows::{
-    core::{HSTRING, Result},
+    core::{Result, HSTRING},
     Data::Xml::Dom::XmlDocument,
     UI::Notifications::{
-        ToastNotification, ToastNotificationManager,
-        NotificationData, NotificationUpdateResult,
+        NotificationData, NotificationUpdateResult, ToastNotification, ToastNotificationManager,
     },
 };
 
@@ -87,8 +86,9 @@ impl NotificationType {
             NotificationType::ConnectionFailed => "ms-winsoundevent:Notification.IM",
             NotificationType::FileTransferComplete => "ms-winsoundevent:Notification.Mail",
             NotificationType::FileTransferFailed => "ms-winsoundevent:Notification.IM",
-            NotificationType::CpuAlert | NotificationType::MemoryAlert | NotificationType::DiskAlert =>
-                "ms-winsoundevent:Notification.Reminder",
+            NotificationType::CpuAlert
+            | NotificationType::MemoryAlert
+            | NotificationType::DiskAlert => "ms-winsoundevent:Notification.Reminder",
             NotificationType::SessionDisconnected => "ms-winsoundevent:Notification.SMS",
             _ => "ms-winsoundevent:Notification.Default",
         }
@@ -176,82 +176,115 @@ impl Default for NotificationSettings {
         let mut type_settings = HashMap::new();
 
         // Set defaults for each notification type
-        type_settings.insert(NotificationType::ConnectionSuccess, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: false,
-            show_in_history: true,
-            priority: NotificationPriority::Default,
-        });
+        type_settings.insert(
+            NotificationType::ConnectionSuccess,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: false,
+                show_in_history: true,
+                priority: NotificationPriority::Default,
+            },
+        );
 
-        type_settings.insert(NotificationType::ConnectionFailed, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: true,
-            show_in_history: true,
-            priority: NotificationPriority::High,
-        });
+        type_settings.insert(
+            NotificationType::ConnectionFailed,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: true,
+                show_in_history: true,
+                priority: NotificationPriority::High,
+            },
+        );
 
-        type_settings.insert(NotificationType::FileTransferComplete, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: false,
-            show_in_history: true,
-            priority: NotificationPriority::Default,
-        });
+        type_settings.insert(
+            NotificationType::FileTransferComplete,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: false,
+                show_in_history: true,
+                priority: NotificationPriority::Default,
+            },
+        );
 
-        type_settings.insert(NotificationType::FileTransferFailed, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: true,
-            show_in_history: true,
-            priority: NotificationPriority::High,
-        });
+        type_settings.insert(
+            NotificationType::FileTransferFailed,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: true,
+                show_in_history: true,
+                priority: NotificationPriority::High,
+            },
+        );
 
-        type_settings.insert(NotificationType::CpuAlert, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: true,
-            show_in_history: true,
-            priority: NotificationPriority::Urgent,
-        });
+        type_settings.insert(
+            NotificationType::CpuAlert,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: true,
+                show_in_history: true,
+                priority: NotificationPriority::Urgent,
+            },
+        );
 
-        type_settings.insert(NotificationType::MemoryAlert, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: true,
-            show_in_history: true,
-            priority: NotificationPriority::Urgent,
-        });
+        type_settings.insert(
+            NotificationType::MemoryAlert,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: true,
+                show_in_history: true,
+                priority: NotificationPriority::Urgent,
+            },
+        );
 
-        type_settings.insert(NotificationType::DiskAlert, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: true,
-            show_in_history: true,
-            priority: NotificationPriority::High,
-        });
+        type_settings.insert(
+            NotificationType::DiskAlert,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: true,
+                show_in_history: true,
+                priority: NotificationPriority::High,
+            },
+        );
 
-        type_settings.insert(NotificationType::BackgroundRunning, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: false,
-            show_in_history: false,
-            priority: NotificationPriority::Low,
-        });
+        type_settings.insert(
+            NotificationType::BackgroundRunning,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: false,
+                show_in_history: false,
+                priority: NotificationPriority::Low,
+            },
+        );
 
-        type_settings.insert(NotificationType::UpdateAvailable, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: false,
-            show_in_history: true,
-            priority: NotificationPriority::Default,
-        });
+        type_settings.insert(
+            NotificationType::UpdateAvailable,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: false,
+                show_in_history: true,
+                priority: NotificationPriority::Default,
+            },
+        );
 
-        type_settings.insert(NotificationType::SessionDisconnected, NotificationTypeSettings {
-            enabled: true,
-            sound_enabled: true,
-            show_in_history: true,
-            priority: NotificationPriority::High,
-        });
+        type_settings.insert(
+            NotificationType::SessionDisconnected,
+            NotificationTypeSettings {
+                enabled: true,
+                sound_enabled: true,
+                show_in_history: true,
+                priority: NotificationPriority::High,
+            },
+        );
 
-        type_settings.insert(NotificationType::SnippetExecuted, NotificationTypeSettings {
-            enabled: false,
-            sound_enabled: false,
-            show_in_history: true,
-            priority: NotificationPriority::Low,
-        });
+        type_settings.insert(
+            NotificationType::SnippetExecuted,
+            NotificationTypeSettings {
+                enabled: false,
+                sound_enabled: false,
+                show_in_history: true,
+                priority: NotificationPriority::Low,
+            },
+        );
 
         Self {
             global_enabled: true,
@@ -348,7 +381,9 @@ impl NotificationManager {
 
         // Check do-not-disturb (only for non-urgent notifications)
         if self.is_dnd_active() {
-            let type_settings = settings.type_settings.get(&notification_type)
+            let type_settings = settings
+                .type_settings
+                .get(&notification_type)
                 .cloned()
                 .unwrap_or_default();
             if type_settings.priority != NotificationPriority::Urgent {
@@ -357,7 +392,9 @@ impl NotificationManager {
         }
 
         // Check per-type settings
-        let type_settings = settings.type_settings.get(&notification_type)
+        let type_settings = settings
+            .type_settings
+            .get(&notification_type)
             .cloned()
             .unwrap_or_default();
 
@@ -391,7 +428,9 @@ impl NotificationManager {
             let record = NotificationRecord {
                 id: notification_id.clone(),
                 notification_type: notification_type.clone(),
-                title: title.unwrap_or(notification_type.default_title()).to_string(),
+                title: title
+                    .unwrap_or(notification_type.default_title())
+                    .to_string(),
                 message: message.to_string(),
                 timestamp: Local::now(),
                 priority: final_priority,
@@ -429,7 +468,8 @@ impl NotificationManager {
             format!("{{\"type\":\"{:?}\"}}", notification_type)
         };
 
-        format!(r#"<toast scenario="{scenario}" activationType="foreground" launch="{launch}">
+        format!(
+            r#"<toast scenario="{scenario}" activationType="foreground" launch="{launch}">
     <visual>
         <binding template="ToastGeneric">
             <text hint-maxLines="1">{icon} {title}</text>
@@ -465,7 +505,9 @@ impl NotificationManager {
         toast.SetTag(&HSTRING::from(tag))?;
 
         // Get the toast notifier for our app
-        let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&self.app_user_model_id))?;
+        let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(
+            &self.app_user_model_id,
+        ))?;
 
         // Show the notification
         notifier.Show(&toast)?;
@@ -590,7 +632,12 @@ impl NotificationManager {
     }
 
     /// Send file transfer complete notification
-    pub fn notify_transfer_complete(&self, file_name: &str, session_id: &str, path: &str) -> Option<String> {
+    pub fn notify_transfer_complete(
+        &self,
+        file_name: &str,
+        session_id: &str,
+        path: &str,
+    ) -> Option<String> {
         let action_data = NotificationActionData {
             action_type: "show_transfer".to_string(),
             server_id: None,
@@ -675,7 +722,11 @@ impl NotificationManager {
     }
 
     /// Send session disconnected notification
-    pub fn notify_session_disconnected(&self, _server_name: &str, session_id: &str) -> Option<String> {
+    pub fn notify_session_disconnected(
+        &self,
+        _server_name: &str,
+        session_id: &str,
+    ) -> Option<String> {
         let action_data = NotificationActionData {
             action_type: "reconnect_session".to_string(),
             server_id: None,
@@ -687,14 +738,19 @@ impl NotificationManager {
         self.notify(
             NotificationType::SessionDisconnected,
             None,
-            &format!("与服务器的连接已断开", ),
+            "与服务器的连接已断开",
             Some(NotificationPriority::High),
             Some(action_data),
         )
     }
 
     /// Update an existing notification with progress
-    pub fn update_notification_progress(&self, tag: &str, progress: u32, message: &str) -> Result<()> {
+    pub fn update_notification_progress(
+        &self,
+        tag: &str,
+        progress: u32,
+        message: &str,
+    ) -> Result<()> {
         let xml_doc = XmlDocument::new()?;
 
         let xml = format!(
@@ -716,7 +772,9 @@ impl NotificationManager {
         let data = NotificationData::new()?;
         data.SetSequenceNumber(progress)?;
 
-        let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&self.app_user_model_id))?;
+        let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(
+            &self.app_user_model_id,
+        ))?;
         let result = notifier.UpdateWithTag(&data, &HSTRING::from(tag))?;
 
         match result {
@@ -763,9 +821,18 @@ mod tests {
 
     #[test]
     fn test_notification_type_defaults() {
-        assert_eq!(NotificationType::ConnectionSuccess.default_title(), "连接成功");
-        assert_eq!(NotificationType::ConnectionFailed.default_title(), "连接失败");
-        assert_eq!(NotificationType::FileTransferComplete.default_title(), "文件传输完成");
+        assert_eq!(
+            NotificationType::ConnectionSuccess.default_title(),
+            "连接成功"
+        );
+        assert_eq!(
+            NotificationType::ConnectionFailed.default_title(),
+            "连接失败"
+        );
+        assert_eq!(
+            NotificationType::FileTransferComplete.default_title(),
+            "文件传输完成"
+        );
     }
 
     #[test]

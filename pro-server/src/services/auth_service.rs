@@ -1,7 +1,4 @@
-use crate::{
-    models::*,
-    redis_cache::RedisCache,
-};
+use crate::{models::*, redis_cache::RedisCache};
 use anyhow::Result;
 use chrono::Utc;
 use sqlx::AnyPool;
@@ -54,14 +51,15 @@ impl AuthService {
     pub async fn authenticate_user(&self, email: &str, password: &str) -> Result<User> {
         use bcrypt::verify;
 
-        let user: User = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE email = ? AND is_active = TRUE"
-        )
-        .bind(email)
-        .fetch_one(&self.db)
-        .await?;
+        let user: User =
+            sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ? AND is_active = TRUE")
+                .bind(email)
+                .fetch_one(&self.db)
+                .await?;
 
-        let hash = user.password_hash.as_ref()
+        let hash = user
+            .password_hash
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("No password set for user"))?;
 
         if !verify(password, hash)? {
@@ -79,12 +77,11 @@ impl AuthService {
     }
 
     pub async fn get_user_by_id(&self, user_id: &str) -> Result<User> {
-        let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE id = ? AND is_active = TRUE"
-        )
-        .bind(user_id)
-        .fetch_one(&self.db)
-        .await?;
+        let user =
+            sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ? AND is_active = TRUE")
+                .bind(user_id)
+                .fetch_one(&self.db)
+                .await?;
 
         Ok(user)
     }
@@ -158,7 +155,7 @@ impl AuthService {
 
     pub async fn list_api_keys(&self, user_id: &str) -> Result<Vec<ApiKey>> {
         let keys = sqlx::query_as::<_, ApiKey>(
-            "SELECT * FROM api_keys WHERE user_id = ? AND is_active = TRUE"
+            "SELECT * FROM api_keys WHERE user_id = ? AND is_active = TRUE",
         )
         .bind(user_id)
         .fetch_all(&self.db)
@@ -168,12 +165,11 @@ impl AuthService {
     }
 
     pub async fn get_api_key(&self, id: &str) -> Result<ApiKey> {
-        let key = sqlx::query_as::<_, ApiKey>(
-            "SELECT * FROM api_keys WHERE id = ? AND is_active = TRUE"
-        )
-        .bind(id)
-        .fetch_one(&self.db)
-        .await?;
+        let key =
+            sqlx::query_as::<_, ApiKey>("SELECT * FROM api_keys WHERE id = ? AND is_active = TRUE")
+                .bind(id)
+                .fetch_one(&self.db)
+                .await?;
 
         Ok(key)
     }

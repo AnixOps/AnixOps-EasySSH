@@ -15,9 +15,7 @@ impl RedisCache {
 
     pub async fn ping(&self) -> Result<()> {
         let mut conn = self.connection.clone();
-        let _: String = redis::cmd("PING")
-            .query_async(&mut conn)
-            .await?;
+        let _: String = redis::cmd("PING").query_async(&mut conn).await?;
         Ok(())
     }
 
@@ -64,8 +62,14 @@ impl RedisCache {
     }
 
     // Session management
-    pub async fn store_session(&self, session_id: &str, user_id: &str, ttl: Duration) -> Result<()> {
-        self.set(&format!("session:{}", session_id), user_id, ttl).await
+    pub async fn store_session(
+        &self,
+        session_id: &str,
+        user_id: &str,
+        ttl: Duration,
+    ) -> Result<()> {
+        self.set(&format!("session:{}", session_id), user_id, ttl)
+            .await
     }
 
     pub async fn get_session(&self, session_id: &str) -> Result<Option<String>> {
@@ -77,7 +81,12 @@ impl RedisCache {
     }
 
     // API Key management
-    pub async fn store_api_key(&self, api_key_hash: &str, user_id: &str, ttl: Option<Duration>) -> Result<()> {
+    pub async fn store_api_key(
+        &self,
+        api_key_hash: &str,
+        user_id: &str,
+        ttl: Option<Duration>,
+    ) -> Result<()> {
         let key = format!("apikey:{}", api_key_hash);
         match ttl {
             Some(duration) => self.set(&key, user_id, duration).await,
@@ -98,7 +107,12 @@ impl RedisCache {
     }
 
     // WebSocket connection management
-    pub async fn store_ws_connection(&self, user_id: &str, connection_id: &str, ttl: Duration) -> Result<()> {
+    pub async fn store_ws_connection(
+        &self,
+        user_id: &str,
+        connection_id: &str,
+        ttl: Duration,
+    ) -> Result<()> {
         let key = format!("ws:user:{}", user_id);
         let mut conn = self.connection.clone();
         conn.sadd(&key, connection_id).await?;
@@ -121,7 +135,12 @@ impl RedisCache {
     }
 
     // Real-time collaboration: lock management
-    pub async fn acquire_lock(&self, resource_id: &str, user_id: &str, ttl: Duration) -> Result<bool> {
+    pub async fn acquire_lock(
+        &self,
+        resource_id: &str,
+        user_id: &str,
+        ttl: Duration,
+    ) -> Result<bool> {
         let key = format!("lock:{}", resource_id);
         let mut conn = self.connection.clone();
 

@@ -28,8 +28,8 @@
 //! delete_password("server-1").unwrap();
 //! ```
 
-use crate::error::LiteError;
 use crate::crypto::CRYPTO_STATE;
+use crate::error::LiteError;
 use keyring::Entry;
 use std::fs;
 use std::path::PathBuf;
@@ -69,7 +69,8 @@ fn fallback_store_path() -> Result<PathBuf, LiteError> {
 }
 
 /// Load encrypted fallback store
-fn load_fallback_encrypted() -> Result<std::collections::HashMap<String, EncryptedEntry>, LiteError> {
+fn load_fallback_encrypted() -> Result<std::collections::HashMap<String, EncryptedEntry>, LiteError>
+{
     let path = fallback_store_path()?;
     if !path.exists() {
         return Ok(std::collections::HashMap::new());
@@ -81,7 +82,9 @@ fn load_fallback_encrypted() -> Result<std::collections::HashMap<String, Encrypt
     }
 
     // Use crypto state to decrypt the entire store
-    let crypto = CRYPTO_STATE.read().map_err(|e| LiteError::Crypto(e.to_string()))?;
+    let crypto = CRYPTO_STATE
+        .read()
+        .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
     if !crypto.is_unlocked() {
         // If not unlocked, return empty but don't fail
@@ -94,23 +97,25 @@ fn load_fallback_encrypted() -> Result<std::collections::HashMap<String, Encrypt
         return Ok(std::collections::HashMap::new());
     }
 
-    let decrypted = crypto.decrypt(&bytes)
+    let decrypted = crypto
+        .decrypt(&bytes)
         .map_err(|e| LiteError::Crypto(format!("Failed to decrypt keychain: {}", e)))?;
 
     let json = String::from_utf8(decrypted)
         .map_err(|_| LiteError::Crypto("Invalid UTF-8 in decrypted data".to_string()))?;
 
-    serde_json::from_str(&json)
-        .map_err(|e| LiteError::Keychain(e.to_string()))
+    serde_json::from_str(&json).map_err(|e| LiteError::Keychain(e.to_string()))
 }
 
 /// Save encrypted fallback store
 fn save_fallback_encrypted(
-    data: &std::collections::HashMap<String, EncryptedEntry>
+    data: &std::collections::HashMap<String, EncryptedEntry>,
 ) -> Result<(), LiteError> {
     let path = fallback_store_path()?;
 
-    let crypto = CRYPTO_STATE.read().map_err(|e| LiteError::Crypto(e.to_string()))?;
+    let crypto = CRYPTO_STATE
+        .read()
+        .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
     if !crypto.is_unlocked() {
         // Can't save without encryption - this is a security feature
@@ -118,14 +123,13 @@ fn save_fallback_encrypted(
         return Ok(());
     }
 
-    let json = serde_json::to_vec(data)
-        .map_err(|e| LiteError::Keychain(e.to_string()))?;
+    let json = serde_json::to_vec(data).map_err(|e| LiteError::Keychain(e.to_string()))?;
 
-    let encrypted = crypto.encrypt(&json)
+    let encrypted = crypto
+        .encrypt(&json)
         .map_err(|e| LiteError::Crypto(format!("Failed to encrypt keychain: {}", e)))?;
 
-    fs::write(&path, encrypted)
-        .map_err(|e| LiteError::Keychain(e.to_string()))?;
+    fs::write(&path, encrypted).map_err(|e| LiteError::Keychain(e.to_string()))?;
 
     Ok(())
 }
@@ -160,18 +164,24 @@ fn load_legacy_fallback() -> Result<std::collections::HashMap<String, String>, L
     // Migrate to encrypted format if crypto is available
     let mut encrypted_map = std::collections::HashMap::new();
     for (k, v) in &map {
-        if let Ok(decoded) = BASE64.decode(&v) {
+        if let Ok(decoded) = BASE64.decode(v) {
             if let Ok(password) = String::from_utf8(decoded) {
                 // Store in encrypted format
-                let crypto = CRYPTO_STATE.write().map_err(|e| LiteError::Crypto(e.to_string()))?;
+                let crypto = CRYPTO_STATE
+                    .write()
+                    .map_err(|e| LiteError::Crypto(e.to_string()))?;
                 if crypto.is_unlocked() {
-                    let encrypted = crypto.encrypt(password.as_bytes())
+                    let encrypted = crypto
+                        .encrypt(password.as_bytes())
                         .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
-                    encrypted_map.insert(k.clone(), EncryptedEntry {
-                        encrypted_data: BASE64.encode(&encrypted[12..]),
-                        nonce: BASE64.encode(&encrypted[..12]),
-                    });
+                    encrypted_map.insert(
+                        k.clone(),
+                        EncryptedEntry {
+                            encrypted_data: BASE64.encode(&encrypted[12..]),
+                            nonce: BASE64.encode(&encrypted[..12]),
+                        },
+                    );
                 }
             }
         }
@@ -193,17 +203,23 @@ pub fn store_password(server_id: &str, password: &str) -> Result<(), LiteError> 
     // 1) Always write encrypted fallback first (persistence guarantee)
     let mut map = load_fallback_encrypted()?;
 
-    let crypto = CRYPTO_STATE.read().map_err(|e| LiteError::Crypto(e.to_string()))?;
+    let crypto = CRYPTO_STATE
+        .read()
+        .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
     if crypto.is_unlocked() {
-        let encrypted = crypto.encrypt(password.as_bytes())
+        let encrypted = crypto
+            .encrypt(password.as_bytes())
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         // encrypted format: nonce (12 bytes) || ciphertext
-        map.insert(server_id.to_string(), EncryptedEntry {
-            encrypted_data: BASE64.encode(&encrypted[12..]),
-            nonce: BASE64.encode(&encrypted[..12]),
-        });
+        map.insert(
+            server_id.to_string(),
+            EncryptedEntry {
+                encrypted_data: BASE64.encode(&encrypted[12..]),
+                nonce: BASE64.encode(&encrypted[..12]),
+            },
+        );
 
         save_fallback_encrypted(&map)?;
     } else {
@@ -218,7 +234,10 @@ pub fn store_password(server_id: &str, password: &str) -> Result<(), LiteError> 
             }
         }
         Err(e) => {
-            log::warn!("Keychain entry creation failed, fallback still saved: {}", e);
+            log::warn!(
+                "Keychain entry creation failed, fallback still saved: {}",
+                e
+            );
         }
     }
 
@@ -229,22 +248,22 @@ pub fn store_password(server_id: &str, password: &str) -> Result<(), LiteError> 
 pub fn get_password(server_id: &str) -> Result<Option<String>, LiteError> {
     // 1) Try system keychain first (fastest)
     match Entry::new(SERVICE_NAME, server_id) {
-        Ok(entry) => {
-            match entry.get_password() {
-                Ok(password) => return Ok(Some(password)),
-                Err(keyring::Error::NoEntry) => {}
-                Err(e) => {
-                    log::warn!("Keychain read failed, trying fallback: {}", e);
-                }
+        Ok(entry) => match entry.get_password() {
+            Ok(password) => return Ok(Some(password)),
+            Err(keyring::Error::NoEntry) => {}
+            Err(e) => {
+                log::warn!("Keychain read failed, trying fallback: {}", e);
             }
-        }
+        },
         Err(e) => log::warn!("Keychain entry creation failed: {}", e),
     }
 
     // 2) Try encrypted fallback
     let map = load_fallback_encrypted()?;
     if let Some(entry) = map.get(server_id) {
-        let crypto = CRYPTO_STATE.read().map_err(|e| LiteError::Crypto(e.to_string()))?;
+        let crypto = CRYPTO_STATE
+            .read()
+            .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         if !crypto.is_unlocked() {
             return Err(LiteError::InvalidMasterPassword);
@@ -253,15 +272,18 @@ pub fn get_password(server_id: &str) -> Result<Option<String>, LiteError> {
         // Reconstruct encrypted blob: nonce || ciphertext
         let mut encrypted_blob = Vec::new();
         encrypted_blob.extend_from_slice(
-            &BASE64.decode(&entry.nonce)
-                .map_err(|_| LiteError::Crypto("Invalid nonce".to_string()))?
+            &BASE64
+                .decode(&entry.nonce)
+                .map_err(|_| LiteError::Crypto("Invalid nonce".to_string()))?,
         );
         encrypted_blob.extend_from_slice(
-            &BASE64.decode(&entry.encrypted_data)
-                .map_err(|_| LiteError::Crypto("Invalid ciphertext".to_string()))?
+            &BASE64
+                .decode(&entry.encrypted_data)
+                .map_err(|_| LiteError::Crypto("Invalid ciphertext".to_string()))?,
         );
 
-        let decrypted = crypto.decrypt(&encrypted_blob)
+        let decrypted = crypto
+            .decrypt(&encrypted_blob)
             .map_err(|_| LiteError::InvalidMasterPassword)?;
 
         let password = String::from_utf8(decrypted)
@@ -282,7 +304,8 @@ pub fn get_password(server_id: &str) -> Result<Option<String>, LiteError> {
 fn try_load_legacy(server_id: &str) -> Result<Option<String>, LiteError> {
     let map = load_legacy_fallback()?;
     if let Some(v) = map.get(server_id) {
-        let decoded = BASE64.decode(v)
+        let decoded = BASE64
+            .decode(v)
             .ok()
             .and_then(|b| String::from_utf8(b).ok());
         return Ok(decoded);
@@ -292,8 +315,8 @@ fn try_load_legacy(server_id: &str) -> Result<Option<String>, LiteError> {
 
 /// Delete password from keychain and fallback
 pub fn delete_password(server_id: &str) -> Result<(), LiteError> {
-    let entry = Entry::new(SERVICE_NAME, server_id)
-        .map_err(|e| LiteError::Keychain(e.to_string()))?;
+    let entry =
+        Entry::new(SERVICE_NAME, server_id).map_err(|e| LiteError::Keychain(e.to_string()))?;
 
     let _ = entry.delete_credential();
 
@@ -310,7 +333,8 @@ pub fn store_master_password_hash(hash: &str) -> Result<(), LiteError> {
     let entry = Entry::new(SERVICE_NAME, "master_password")
         .map_err(|e| LiteError::Keychain(e.to_string()))?;
 
-    entry.set_password(hash)
+    entry
+        .set_password(hash)
         .map_err(|e| LiteError::Keychain(e.to_string()))?;
 
     Ok(())
@@ -372,8 +396,7 @@ mod tests {
     #[test]
     fn test_encrypted_entry_deserialization() {
         let json = r#"{"encrypted_data":"dGVzdA==","nonce":"bm9uY2U="}"#;
-        let entry: EncryptedEntry =
-            serde_json::from_str(json).expect("Failed to deserialize");
+        let entry: EncryptedEntry = serde_json::from_str(json).expect("Failed to deserialize");
 
         assert_eq!(entry.encrypted_data, "dGVzdA==");
         assert_eq!(entry.nonce, "bm9uY2U=");
@@ -401,13 +424,11 @@ mod tests {
     fn test_legacy_fallback_path() {
         // This test just verifies the legacy path format
         // Actual migration testing requires file system access
-        let path = dirs::data_local_dir()
-            .or_else(dirs::home_dir)
-            .map(|mut p| {
-                p.push("EasySSH");
-                p.push("keychain_fallback.json");
-                p
-            });
+        let path = dirs::data_local_dir().or_else(dirs::home_dir).map(|mut p| {
+            p.push("EasySSH");
+            p.push("keychain_fallback.json");
+            p
+        });
 
         if let Some(p) = path {
             // Path should contain the expected components
@@ -460,8 +481,7 @@ mod tests {
         let hash = "argon2id_hash_test_string";
         let _result = store_master_password_hash(hash);
         // Clean up
-        let _ = Entry::new(SERVICE_NAME, "master_password")
-            .map(|e| e.delete_credential());
+        let _ = Entry::new(SERVICE_NAME, "master_password").map(|e| e.delete_credential());
     }
 
     #[test]

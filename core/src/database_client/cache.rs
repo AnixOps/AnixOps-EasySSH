@@ -48,11 +48,7 @@ struct CacheEntry {
 }
 
 impl CacheEntry {
-    fn new(
-        result: QueryResult,
-        ttl: Duration,
-        tables: HashSet<String>,
-    ) -> Self {
+    fn new(result: QueryResult, ttl: Duration, tables: HashSet<String>) -> Self {
         let now = Instant::now();
         let size_bytes = estimate_result_size(&result);
 
@@ -87,12 +83,16 @@ impl CacheEntry {
 /// Estimate memory size of a query result
 fn estimate_result_size(result: &QueryResult) -> usize {
     let base_size = std::mem::size_of::<QueryResult>();
-    let rows_size: usize = result.rows.iter()
+    let rows_size: usize = result
+        .rows
+        .iter()
         .map(|row| {
-            std::mem::size_of::<QueryRow>() +
-            row.cells.iter()
-                .map(|cell| std::mem::size_of_val(cell) + 32)
-                .sum::<usize>()
+            std::mem::size_of::<QueryRow>()
+                + row
+                    .cells
+                    .iter()
+                    .map(|cell| std::mem::size_of_val(cell) + 32)
+                    .sum::<usize>()
         })
         .sum();
 
@@ -414,7 +414,11 @@ impl QueryCache {
             self.remove_entry(key.as_str());
         }
 
-        debug!("Invalidated {} cached queries matching pattern: {}", keys_to_remove.len(), pattern);
+        debug!(
+            "Invalidated {} cached queries matching pattern: {}",
+            keys_to_remove.len(),
+            pattern
+        );
     }
 
     /// Clear all cached entries
@@ -648,13 +652,7 @@ impl MultiLevelCache {
     }
 
     /// Put into appropriate cache level
-    pub fn put(
-        &self,
-        query: &str,
-        params: Option<&[String]>,
-        result: QueryResult,
-        is_hot: bool,
-    ) {
+    pub fn put(&self, query: &str, params: Option<&[String]>, result: QueryResult, is_hot: bool) {
         if is_hot {
             self.hot_cache.put(query, params, result, None);
         } else {
@@ -763,7 +761,7 @@ mod tests {
         assert!(tables.contains("users"));
 
         let tables = QueryCache::extract_tables(
-            "SELECT * FROM users JOIN orders ON users.id = orders.user_id"
+            "SELECT * FROM users JOIN orders ON users.id = orders.user_id",
         );
         assert!(tables.contains("users"));
         assert!(tables.contains("orders"));

@@ -4,10 +4,10 @@
 
 #![allow(dead_code)]
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 use anyhow::Result;
 use regex::Regex;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::providers::{ChatRequest, Message, Role};
@@ -24,13 +24,13 @@ pub struct LogAnalysisRequest {
 /// 日志类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogType {
-    System,     // /var/log/syslog, messages
+    System,      // /var/log/syslog, messages
     Application, // Application logs
-    WebServer,  // nginx, apache
-    Database,   // PostgreSQL, MySQL
-    Container,  // Docker, Kubernetes
-    Security,   // Auth logs
-    Custom,     // User-defined
+    WebServer,   // nginx, apache
+    Database,    // PostgreSQL, MySQL
+    Container,   // Docker, Kubernetes
+    Security,    // Auth logs
+    Custom,      // User-defined
 }
 
 impl LogType {
@@ -51,11 +51,23 @@ impl LogType {
             Self::System => vec![
                 (r"(?i)kernel.*error", "Kernel error", LogSeverity::High),
                 (r"(?i)out of memory", "Out of memory", LogSeverity::Critical),
-                (r"(?i)oom killer", "OOM killer triggered", LogSeverity::Critical),
-                (r"(?i)segmentation fault", "Segmentation fault", LogSeverity::High),
+                (
+                    r"(?i)oom killer",
+                    "OOM killer triggered",
+                    LogSeverity::Critical,
+                ),
+                (
+                    r"(?i)segmentation fault",
+                    "Segmentation fault",
+                    LogSeverity::High,
+                ),
                 (r"(?i)segfault", "Segmentation fault", LogSeverity::High),
                 (r"(?i)panic", "System panic", LogSeverity::Critical),
-                (r"(?i)fail|failed|failure", "Operation failed", LogSeverity::Medium),
+                (
+                    r"(?i)fail|failed|failure",
+                    "Operation failed",
+                    LogSeverity::Medium,
+                ),
                 (r"(?i)warning", "Warning", LogSeverity::Low),
             ],
             Self::WebServer => vec![
@@ -63,35 +75,75 @@ impl LogType {
                 (r"(?i)500", "Internal server error", LogSeverity::High),
                 (r"(?i)502", "Bad gateway", LogSeverity::High),
                 (r"(?i)503", "Service unavailable", LogSeverity::High),
-                (r"(?i)connection timeout", "Connection timeout", LogSeverity::Medium),
+                (
+                    r"(?i)connection timeout",
+                    "Connection timeout",
+                    LogSeverity::Medium,
+                ),
                 (r"(?i)upstream.*error", "Upstream error", LogSeverity::High),
             ],
             Self::Database => vec![
                 (r"(?i)deadlock", "Deadlock detected", LogSeverity::High),
                 (r"(?i)lock.*timeout", "Lock timeout", LogSeverity::Medium),
-                (r"(?i)connection.*refused", "Connection refused", LogSeverity::High),
-                (r"(?i)too many connections", "Too many connections", LogSeverity::High),
+                (
+                    r"(?i)connection.*refused",
+                    "Connection refused",
+                    LogSeverity::High,
+                ),
+                (
+                    r"(?i)too many connections",
+                    "Too many connections",
+                    LogSeverity::High,
+                ),
                 (r"(?i)disk full", "Disk full", LogSeverity::Critical),
                 (r"(?i)corruption", "Data corruption", LogSeverity::Critical),
             ],
             Self::Container => vec![
                 (r"(?i)crashloopbackoff", "Crash loop", LogSeverity::Critical),
-                (r"(?i)imagepullbackoff", "Image pull failed", LogSeverity::High),
+                (
+                    r"(?i)imagepullbackoff",
+                    "Image pull failed",
+                    LogSeverity::High,
+                ),
                 (r"(?i)evicted", "Pod evicted", LogSeverity::High),
-                (r"(?i)outofmemory", "Container OOM killed", LogSeverity::Critical),
+                (
+                    r"(?i)outofmemory",
+                    "Container OOM killed",
+                    LogSeverity::Critical,
+                ),
                 (r"(?i)outofcpu", "CPU throttled", LogSeverity::Medium),
                 (r"(?i)unhealthy", "Health check failed", LogSeverity::High),
             ],
             Self::Security => vec![
-                (r"(?i)authentication failure", "Auth failure", LogSeverity::High),
+                (
+                    r"(?i)authentication failure",
+                    "Auth failure",
+                    LogSeverity::High,
+                ),
                 (r"(?i)failed password", "Failed password", LogSeverity::High),
-                (r"(?i)invalid user", "Invalid user login attempt", LogSeverity::High),
-                (r"(?i)brute force", "Possible brute force", LogSeverity::Critical),
-                (r"(?i)privilege escalation", "Privilege escalation", LogSeverity::Critical),
+                (
+                    r"(?i)invalid user",
+                    "Invalid user login attempt",
+                    LogSeverity::High,
+                ),
+                (
+                    r"(?i)brute force",
+                    "Possible brute force",
+                    LogSeverity::Critical,
+                ),
+                (
+                    r"(?i)privilege escalation",
+                    "Privilege escalation",
+                    LogSeverity::Critical,
+                ),
                 (r"(?i)root login", "Root login attempt", LogSeverity::High),
             ],
             _ => vec![
-                (r"(?i)error|exception", "Error/Exception", LogSeverity::Medium),
+                (
+                    r"(?i)error|exception",
+                    "Error/Exception",
+                    LogSeverity::Medium,
+                ),
                 (r"(?i)warning|warn", "Warning", LogSeverity::Low),
                 (r"(?i)fatal|critical", "Fatal error", LogSeverity::Critical),
             ],
@@ -239,7 +291,10 @@ impl LogAnalyzer {
             let line_lower = line.to_lowercase();
 
             // 统计严重程度
-            if line_lower.contains("error") || line_lower.contains("exception") || line_lower.contains("fatal") {
+            if line_lower.contains("error")
+                || line_lower.contains("exception")
+                || line_lower.contains("fatal")
+            {
                 error_count += 1;
             } else if line_lower.contains("warning") || line_lower.contains("warn") {
                 warning_count += 1;
@@ -404,14 +459,16 @@ RECOMMENDATIONS:
             issues: vec![],
             patterns: vec![],
             trends: vec![],
-            recommendations: vec![
-                "Review log for detailed analysis".to_string(),
-            ],
+            recommendations: vec!["Review log for detailed analysis".to_string()],
         }
     }
 
     /// 合并模式分析和AI分析结果
-    fn merge_results(&self, pattern: LogAnalysisResult, _ai: LogAnalysisResult) -> LogAnalysisResult {
+    fn merge_results(
+        &self,
+        pattern: LogAnalysisResult,
+        _ai: LogAnalysisResult,
+    ) -> LogAnalysisResult {
         // 优先使用模式分析的结果，因为它更准确
         pattern
     }
@@ -456,27 +513,60 @@ RECOMMENDATIONS:
         let start = index.saturating_sub(context_lines);
         let end = (index + context_lines + 1).min(lines.len());
 
-        lines[start..end]
-            .iter()
-            .map(|&s| s.to_string())
-            .collect()
+        lines[start..end].iter().map(|&s| s.to_string()).collect()
     }
 
     /// 获取建议操作
     fn get_suggested_action(&self, category: &str) -> Option<String> {
         let actions: HashMap<&str, &str> = [
-            ("Out of memory", "Check memory usage with 'free -h' and consider killing processes or adding swap"),
-            ("Kernel error", "Check kernel logs with 'dmesg' and consider system updates"),
-            ("Segmentation fault", "Check application logs and consider updating or debugging the application"),
-            ("Not found error", "Verify the resource exists and check paths/URLs"),
-            ("Internal server error", "Check application logs and restart services if needed"),
-            ("Deadlock detected", "Review database transactions and connection pooling settings"),
-            ("Too many connections", "Increase connection limits or implement connection pooling"),
-            ("Disk full", "Free up disk space by removing old files or expanding storage"),
-            ("Crash loop", "Check container logs and resource limits, fix underlying issue"),
-            ("OOM killed", "Increase memory limits for the container or optimize application"),
-            ("Auth failure", "Review authentication configuration and check for brute force attacks"),
-            ("Invalid user login attempt", "Review user accounts and check for unauthorized access attempts"),
+            (
+                "Out of memory",
+                "Check memory usage with 'free -h' and consider killing processes or adding swap",
+            ),
+            (
+                "Kernel error",
+                "Check kernel logs with 'dmesg' and consider system updates",
+            ),
+            (
+                "Segmentation fault",
+                "Check application logs and consider updating or debugging the application",
+            ),
+            (
+                "Not found error",
+                "Verify the resource exists and check paths/URLs",
+            ),
+            (
+                "Internal server error",
+                "Check application logs and restart services if needed",
+            ),
+            (
+                "Deadlock detected",
+                "Review database transactions and connection pooling settings",
+            ),
+            (
+                "Too many connections",
+                "Increase connection limits or implement connection pooling",
+            ),
+            (
+                "Disk full",
+                "Free up disk space by removing old files or expanding storage",
+            ),
+            (
+                "Crash loop",
+                "Check container logs and resource limits, fix underlying issue",
+            ),
+            (
+                "OOM killed",
+                "Increase memory limits for the container or optimize application",
+            ),
+            (
+                "Auth failure",
+                "Review authentication configuration and check for brute force attacks",
+            ),
+            (
+                "Invalid user login attempt",
+                "Review user accounts and check for unauthorized access attempts",
+            ),
         ]
         .iter()
         .cloned()
@@ -488,17 +578,38 @@ RECOMMENDATIONS:
     /// 获取模式严重程度
     fn get_pattern_severity(&self, pattern_name: &str) -> LogSeverity {
         match pattern_name {
-            "Out of memory" | "OOM killer triggered" | "System panic" | "Fatal error" |
-            "Disk full" | "Data corruption" | "Crash loop" | "Container OOM killed" |
-            "Possible brute force" | "Privilege escalation" => LogSeverity::Critical,
+            "Out of memory"
+            | "OOM killer triggered"
+            | "System panic"
+            | "Fatal error"
+            | "Disk full"
+            | "Data corruption"
+            | "Crash loop"
+            | "Container OOM killed"
+            | "Possible brute force"
+            | "Privilege escalation" => LogSeverity::Critical,
 
-            "Kernel error" | "Segmentation fault" | "Internal server error" | "Bad gateway" |
-            "Service unavailable" | "Deadlock detected" | "Too many connections" |
-            "Image pull failed" | "Pod evicted" | "Health check failed" |
-            "Auth failure" | "Failed password" | "Root login attempt" => LogSeverity::High,
+            "Kernel error"
+            | "Segmentation fault"
+            | "Internal server error"
+            | "Bad gateway"
+            | "Service unavailable"
+            | "Deadlock detected"
+            | "Too many connections"
+            | "Image pull failed"
+            | "Pod evicted"
+            | "Health check failed"
+            | "Auth failure"
+            | "Failed password"
+            | "Root login attempt" => LogSeverity::High,
 
-            "Operation failed" | "Connection timeout" | "Lock timeout" | "Connection refused" |
-            "Upstream error" | "CPU throttled" | "Invalid user login attempt" => LogSeverity::Medium,
+            "Operation failed"
+            | "Connection timeout"
+            | "Lock timeout"
+            | "Connection refused"
+            | "Upstream error"
+            | "CPU throttled"
+            | "Invalid user login attempt" => LogSeverity::Medium,
 
             _ => LogSeverity::Low,
         }
@@ -548,7 +659,7 @@ RECOMMENDATIONS:
         // 通用建议
         if patterns.len() > 5 {
             recommendations.push(
-                "High number of error patterns: Consider a comprehensive system review".to_string()
+                "High number of error patterns: Consider a comprehensive system review".to_string(),
             );
         }
 

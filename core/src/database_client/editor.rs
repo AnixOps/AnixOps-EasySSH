@@ -1,7 +1,7 @@
 //! Query editor with syntax highlighting support
 
+use crate::database_client::{DatabaseError, DatabaseType};
 use serde::{Deserialize, Serialize};
-use crate::database_client::{DatabaseType, DatabaseError};
 
 /// Syntax highlighting theme
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -119,7 +119,8 @@ impl SyntaxHighlighter {
 
         // Whitespace
         if c.is_whitespace() {
-            let len = chars[pos..].iter()
+            let len = chars[pos..]
+                .iter()
                 .position(|&ch| !ch.is_whitespace())
                 .unwrap_or(chars.len() - pos);
             return (TokenType::Whitespace, len);
@@ -127,7 +128,8 @@ impl SyntaxHighlighter {
 
         // Line comment
         if c == '-' && pos + 1 < chars.len() && chars[pos + 1] == '-' {
-            let len = chars[pos..].iter()
+            let len = chars[pos..]
+                .iter()
                 .position(|&ch| ch == '\n')
                 .unwrap_or(chars.len() - pos);
             return (TokenType::Comment, len);
@@ -163,15 +165,24 @@ impl SyntaxHighlighter {
 
         // Number
         if c.is_ascii_digit() {
-            let len = chars[pos..].iter()
-                .position(|&ch| !ch.is_ascii_digit() && ch != '.' && ch != 'e' && ch != 'E' && ch != '-' && ch != '+')
+            let len = chars[pos..]
+                .iter()
+                .position(|&ch| {
+                    !ch.is_ascii_digit()
+                        && ch != '.'
+                        && ch != 'e'
+                        && ch != 'E'
+                        && ch != '-'
+                        && ch != '+'
+                })
                 .unwrap_or(chars.len() - pos);
             return (TokenType::Number, len);
         }
 
         // Identifier or keyword
         if c.is_alphabetic() || c == '_' {
-            let len = chars[pos..].iter()
+            let len = chars[pos..]
+                .iter()
                 .position(|&ch| !ch.is_alphanumeric() && ch != '_')
                 .unwrap_or(chars.len() - pos);
 
@@ -200,7 +211,9 @@ impl SyntaxHighlighter {
         if "+-*/=<>!%&|^".contains(c) {
             let len = if pos + 1 < chars.len() {
                 let two_char = format!("{}{}", c, chars[pos + 1]);
-                if ["<=", ">=", "<>", "!=", "<=>", "||", "&&", "->", "->>"].contains(&two_char.as_str()) {
+                if ["<=", ">=", "<>", "!=", "<=>", "||", "&&", "->", "->>"]
+                    .contains(&two_char.as_str())
+                {
                     2
                 } else {
                     1
@@ -218,7 +231,8 @@ impl SyntaxHighlighter {
 
         // Variable (for some dialects)
         if c == '@' || c == ':' || c == '$' || c == '?' {
-            let len = chars[pos..].iter()
+            let len = chars[pos..]
+                .iter()
                 .skip(1)
                 .position(|&ch| !ch.is_alphanumeric() && ch != '_')
                 .map(|p| p + 1)
@@ -231,31 +245,142 @@ impl SyntaxHighlighter {
 
     fn is_keyword(&self, word: &str) -> bool {
         let keywords = match self.dialect {
-            SqlDialect::Standard | SqlDialect::MySQL | SqlDialect::PostgreSQL | SqlDialect::SQLite => vec![
-                "SELECT", "INSERT", "UPDATE", "DELETE", "FROM", "WHERE", "JOIN",
-                "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "ON", "USING",
-                "AND", "OR", "NOT", "NULL", "IS", "IN", "EXISTS", "BETWEEN", "LIKE",
-                "GROUP", "BY", "HAVING", "ORDER", "ASC", "DESC", "LIMIT", "OFFSET",
-                "CREATE", "ALTER", "DROP", "TABLE", "INDEX", "VIEW", "DATABASE", "SCHEMA",
-                "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "DEFAULT", "AUTO_INCREMENT",
-                "INT", "INTEGER", "VARCHAR", "TEXT", "DATE", "DATETIME", "TIMESTAMP", "BOOL", "BOOLEAN",
-                "AS", "DISTINCT", "ALL", "UNION", "INTERSECT", "EXCEPT",
-                "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION",
-                "IF", "ELSE", "WHILE", "CASE", "WHEN", "THEN", "END",
+            SqlDialect::Standard
+            | SqlDialect::MySQL
+            | SqlDialect::PostgreSQL
+            | SqlDialect::SQLite => vec![
+                "SELECT",
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "FROM",
+                "WHERE",
+                "JOIN",
+                "INNER",
+                "LEFT",
+                "RIGHT",
+                "FULL",
+                "OUTER",
+                "CROSS",
+                "ON",
+                "USING",
+                "AND",
+                "OR",
+                "NOT",
+                "NULL",
+                "IS",
+                "IN",
+                "EXISTS",
+                "BETWEEN",
+                "LIKE",
+                "GROUP",
+                "BY",
+                "HAVING",
+                "ORDER",
+                "ASC",
+                "DESC",
+                "LIMIT",
+                "OFFSET",
+                "CREATE",
+                "ALTER",
+                "DROP",
+                "TABLE",
+                "INDEX",
+                "VIEW",
+                "DATABASE",
+                "SCHEMA",
+                "PRIMARY",
+                "KEY",
+                "FOREIGN",
+                "REFERENCES",
+                "UNIQUE",
+                "DEFAULT",
+                "AUTO_INCREMENT",
+                "INT",
+                "INTEGER",
+                "VARCHAR",
+                "TEXT",
+                "DATE",
+                "DATETIME",
+                "TIMESTAMP",
+                "BOOL",
+                "BOOLEAN",
+                "AS",
+                "DISTINCT",
+                "ALL",
+                "UNION",
+                "INTERSECT",
+                "EXCEPT",
+                "BEGIN",
+                "COMMIT",
+                "ROLLBACK",
+                "TRANSACTION",
+                "IF",
+                "ELSE",
+                "WHILE",
+                "CASE",
+                "WHEN",
+                "THEN",
+                "END",
             ],
             SqlDialect::MongoDB => vec![
-                "find", "findOne", "insert", "insertOne", "insertMany",
-                "update", "updateOne", "updateMany", "delete", "deleteOne", "deleteMany",
-                "aggregate", "count", "distinct", "sort", "limit", "skip",
-                "db", "collection", "match", "project", "group", "lookup",
+                "find",
+                "findOne",
+                "insert",
+                "insertOne",
+                "insertMany",
+                "update",
+                "updateOne",
+                "updateMany",
+                "delete",
+                "deleteOne",
+                "deleteMany",
+                "aggregate",
+                "count",
+                "distinct",
+                "sort",
+                "limit",
+                "skip",
+                "db",
+                "collection",
+                "match",
+                "project",
+                "group",
+                "lookup",
             ],
             SqlDialect::Redis => vec![
-                "GET", "SET", "DEL", "EXISTS", "EXPIRE", "TTL",
-                "HGET", "HSET", "HDEL", "HGETALL", "HMSET",
-                "LPUSH", "RPUSH", "LPOP", "RPOP", "LRANGE", "LLEN",
-                "SADD", "SREM", "SMEMBERS", "SISMEMBER",
-                "ZADD", "ZREM", "ZRANGE", "ZREVRANGE", "ZSCORE",
-                "KEYS", "SCAN", "FLUSHDB", "FLUSHALL", "INFO", "CONFIG",
+                "GET",
+                "SET",
+                "DEL",
+                "EXISTS",
+                "EXPIRE",
+                "TTL",
+                "HGET",
+                "HSET",
+                "HDEL",
+                "HGETALL",
+                "HMSET",
+                "LPUSH",
+                "RPUSH",
+                "LPOP",
+                "RPOP",
+                "LRANGE",
+                "LLEN",
+                "SADD",
+                "SREM",
+                "SMEMBERS",
+                "SISMEMBER",
+                "ZADD",
+                "ZREM",
+                "ZRANGE",
+                "ZREVRANGE",
+                "ZSCORE",
+                "KEYS",
+                "SCAN",
+                "FLUSHDB",
+                "FLUSHALL",
+                "INFO",
+                "CONFIG",
             ],
         };
 
@@ -264,13 +389,31 @@ impl SyntaxHighlighter {
 
     fn is_type(&self, word: &str) -> bool {
         let types = vec![
-            "INT", "INTEGER", "BIGINT", "SMALLINT", "TINYINT",
-            "VARCHAR", "CHAR", "TEXT", "STRING",
-            "FLOAT", "DOUBLE", "REAL", "DECIMAL", "NUMERIC",
-            "DATE", "TIME", "DATETIME", "TIMESTAMP",
-            "BOOLEAN", "BOOL",
-            "BLOB", "BINARY", "VARBINARY",
-            "JSON", "XML",
+            "INT",
+            "INTEGER",
+            "BIGINT",
+            "SMALLINT",
+            "TINYINT",
+            "VARCHAR",
+            "CHAR",
+            "TEXT",
+            "STRING",
+            "FLOAT",
+            "DOUBLE",
+            "REAL",
+            "DECIMAL",
+            "NUMERIC",
+            "DATE",
+            "TIME",
+            "DATETIME",
+            "TIMESTAMP",
+            "BOOLEAN",
+            "BOOL",
+            "BLOB",
+            "BINARY",
+            "VARBINARY",
+            "JSON",
+            "XML",
         ];
 
         types.contains(&word)
@@ -386,7 +529,11 @@ impl SqlAutoCompleter {
         }
     }
 
-    pub fn update_schema(&mut self, tables: Vec<String>, columns: std::collections::HashMap<String, Vec<String>>) {
+    pub fn update_schema(
+        &mut self,
+        tables: Vec<String>,
+        columns: std::collections::HashMap<String, Vec<String>>,
+    ) {
         self.schema_tables = tables;
         self.schema_columns = columns;
     }
@@ -447,7 +594,9 @@ impl SqlAutoCompleter {
 
     fn get_word_prefix(sql: &str, pos: usize) -> String {
         let before = &sql[..pos.min(sql.len())];
-        before.chars().rev()
+        before
+            .chars()
+            .rev()
             .take_while(|&c| c.is_alphanumeric() || c == '_' || c == '.')
             .collect::<String>()
             .chars()
@@ -463,7 +612,11 @@ impl SqlAutoCompleter {
             if let Some(pos) = upper.find(keyword) {
                 let after = &sql[pos + keyword.len()..];
                 let table = after.split_whitespace().next()?;
-                return Some(table.trim_matches(&['(', ')', ',', ';', '\n'][..]).to_string());
+                return Some(
+                    table
+                        .trim_matches(&['(', ')', ',', ';', '\n'][..])
+                        .to_string(),
+                );
             }
         }
 
@@ -472,13 +625,48 @@ impl SqlAutoCompleter {
 
     fn get_keywords(&self) -> Vec<String> {
         let base = vec![
-            "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE",
-            "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "ON", "USING",
-            "AND", "OR", "NOT", "NULL", "IS", "IN", "EXISTS",
-            "GROUP", "BY", "HAVING", "ORDER", "ASC", "DESC",
-            "LIMIT", "OFFSET", "UNION", "DISTINCT", "ALL",
-            "CREATE", "ALTER", "DROP", "TABLE", "INDEX", "VIEW",
-            "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE",
+            "SELECT",
+            "FROM",
+            "WHERE",
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "JOIN",
+            "LEFT",
+            "RIGHT",
+            "INNER",
+            "OUTER",
+            "ON",
+            "USING",
+            "AND",
+            "OR",
+            "NOT",
+            "NULL",
+            "IS",
+            "IN",
+            "EXISTS",
+            "GROUP",
+            "BY",
+            "HAVING",
+            "ORDER",
+            "ASC",
+            "DESC",
+            "LIMIT",
+            "OFFSET",
+            "UNION",
+            "DISTINCT",
+            "ALL",
+            "CREATE",
+            "ALTER",
+            "DROP",
+            "TABLE",
+            "INDEX",
+            "VIEW",
+            "PRIMARY",
+            "KEY",
+            "FOREIGN",
+            "REFERENCES",
+            "UNIQUE",
         ];
 
         base.iter().map(|&s| s.to_string()).collect()
@@ -549,9 +737,13 @@ impl QueryFormatter {
                     let upper = token.text.to_uppercase();
 
                     // New line before certain keywords
-                    if ["SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER",
-                        "OUTER", "GROUP", "ORDER", "HAVING", "UNION", "INSERT", "UPDATE",
-                        "DELETE", "CREATE", "ALTER", "DROP"].contains(&upper.as_str()) {
+                    if [
+                        "SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER",
+                        "GROUP", "ORDER", "HAVING", "UNION", "INSERT", "UPDATE", "DELETE",
+                        "CREATE", "ALTER", "DROP",
+                    ]
+                    .contains(&upper.as_str())
+                    {
                         if !formatted.is_empty() && !prev_was_newline {
                             formatted.push('\n');
                         }

@@ -3,9 +3,7 @@
 //! Tests workflow engine, condition evaluation, and executor performance.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use easyssh_core::workflow_engine::{
-    StepConfig, StepType, Workflow, WorkflowStep,
-};
+use easyssh_core::workflow_engine::{StepConfig, StepType, Workflow, WorkflowStep};
 use easyssh_core::workflow_executor::ConditionEvaluator;
 use easyssh_core::workflow_variables::VariableResolver;
 
@@ -20,10 +18,7 @@ fn bench_workflow_creation(c: &mut Criterion) {
 
     group.bench_function("with_description", |b| {
         b.iter(|| {
-            let _ = black_box(
-                Workflow::new("Test Workflow")
-                    .with_description("A test workflow")
-            );
+            let _ = black_box(Workflow::new("Test Workflow").with_description("A test workflow"));
         });
     });
 
@@ -65,15 +60,11 @@ fn bench_step_creation(c: &mut Criterion) {
 
     for step_type in &step_types {
         let name = format!("{:?}", step_type);
-        group.bench_with_input(
-            BenchmarkId::new("new", name),
-            step_type,
-            |b, step_type| {
-                b.iter(|| {
-                    let _ = black_box(WorkflowStep::new(step_type.clone(), "Test Step"));
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("new", name), step_type, |b, step_type| {
+            b.iter(|| {
+                let _ = black_box(WorkflowStep::new(step_type.clone(), "Test Step"));
+            });
+        });
     }
 
     group.bench_function("with_builder", |b| {
@@ -82,7 +73,7 @@ fn bench_step_creation(c: &mut Criterion) {
                 WorkflowStep::new(StepType::SshCommand, "Command")
                     .with_description("Execute a command")
                     .with_timeout(30)
-                    .with_retry(3, 5)
+                    .with_retry(3, 5),
             );
         });
     });
@@ -137,17 +128,25 @@ fn bench_condition_evaluation(c: &mut Criterion) {
         });
     });
 
-    group.bench_with_input("contains", &"'hello world' contains 'world'", |b, condition| {
-        b.iter(|| {
-            let _ = black_box(ConditionEvaluator::evaluate(condition, &resolver));
-        });
-    });
+    group.bench_with_input(
+        "contains",
+        &"'hello world' contains 'world'",
+        |b, condition| {
+            b.iter(|| {
+                let _ = black_box(ConditionEvaluator::evaluate(condition, &resolver));
+            });
+        },
+    );
 
-    group.bench_with_input("regex", &"'test123' matches 'test[0-9]+'", |b, condition| {
-        b.iter(|| {
-            let _ = black_box(ConditionEvaluator::evaluate(condition, &resolver));
-        });
-    });
+    group.bench_with_input(
+        "regex",
+        &"'test123' matches 'test[0-9]+'",
+        |b, condition| {
+            b.iter(|| {
+                let _ = black_box(ConditionEvaluator::evaluate(condition, &resolver));
+            });
+        },
+    );
 
     group.finish();
 }

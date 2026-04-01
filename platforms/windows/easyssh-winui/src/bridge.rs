@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use std::ffi::{c_char, c_void, CStr, CString};
 use serde::{Deserialize, Serialize};
+use std::ffi::{c_char, c_void, CStr, CString};
 
 #[allow(dead_code)]
 pub struct BridgeHandle {
@@ -65,7 +65,11 @@ impl BridgeHandle {
         unsafe {
             let c_id = CString::new(id)?;
             let result = easyssh_connect_native(self.ptr, c_id.as_ptr());
-            if result == 0 { Ok(()) } else { anyhow::bail!("Connection failed") }
+            if result == 0 {
+                Ok(())
+            } else {
+                anyhow::bail!("Connection failed")
+            }
         }
     }
 }

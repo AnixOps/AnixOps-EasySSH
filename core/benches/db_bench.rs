@@ -3,9 +3,7 @@
 //! Tests SQLite database operations including CRUD, batch operations, and queries.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use easyssh_core::db::{
-    Database, NewGroup, NewHost, NewIdentity, NewServer, NewSnippet, NewTag,
-};
+use easyssh_core::db::{Database, NewGroup, NewHost, NewIdentity, NewServer, NewSnippet, NewTag};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::TempDir;
 

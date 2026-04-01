@@ -1,6 +1,6 @@
-use api_tester_core::*;
 use api_tester_core::collection::CollectionManager;
 use api_tester_core::history::HistoryManager;
+use api_tester_core::*;
 use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
@@ -113,7 +113,10 @@ pub async fn send_http_request(
 
 // Collection Commands
 #[tauri::command]
-pub async fn save_collection(state: State<'_, AppState>, collection: Collection) -> Result<(), String> {
+pub async fn save_collection(
+    state: State<'_, AppState>,
+    collection: Collection,
+) -> Result<(), String> {
     // Save to manager
     {
         let mut manager = state.collection_manager.lock().await;
@@ -126,7 +129,10 @@ pub async fn save_collection(state: State<'_, AppState>, collection: Collection)
 }
 
 #[tauri::command]
-pub async fn get_collection(state: State<'_, AppState>, id: String) -> Result<Option<Collection>, String> {
+pub async fn get_collection(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Option<Collection>, String> {
     // First check manager
     {
         let manager = state.collection_manager.lock().await;
@@ -170,7 +176,8 @@ pub async fn save_request(
     {
         let mut manager = state.collection_manager.lock().await;
         if let Some(cid) = &collection_id {
-            manager.add_request_to_collection(cid, request.clone(), folder_id.as_deref())
+            manager
+                .add_request_to_collection(cid, request.clone(), folder_id.as_deref())
                 .map_err(|e| e.to_string())?;
         }
     }
@@ -182,7 +189,10 @@ pub async fn save_request(
 }
 
 #[tauri::command]
-pub async fn get_request(state: State<'_, AppState>, id: String) -> Result<Option<ApiRequest>, String> {
+pub async fn get_request(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Option<ApiRequest>, String> {
     // Check manager first
     {
         let manager = state.collection_manager.lock().await;
@@ -210,13 +220,19 @@ pub async fn delete_request(state: State<'_, AppState>, id: String) -> Result<()
 }
 
 #[tauri::command]
-pub async fn duplicate_request(state: State<'_, AppState>, id: String) -> Result<ApiRequest, String> {
+pub async fn duplicate_request(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<ApiRequest, String> {
     let mut manager = state.collection_manager.lock().await;
     manager.duplicate_request(&id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn search_requests(state: State<'_, AppState>, query: String) -> Result<Vec<ApiRequest>, String> {
+pub async fn search_requests(
+    state: State<'_, AppState>,
+    query: String,
+) -> Result<Vec<ApiRequest>, String> {
     let manager = state.collection_manager.lock().await;
     Ok(manager.search(&query).into_iter().cloned().collect())
 }
@@ -236,7 +252,10 @@ pub async fn save_environment(state: State<'_, AppState>, env: Environment) -> R
 }
 
 #[tauri::command]
-pub async fn get_environment(state: State<'_, AppState>, id: String) -> Result<Option<Environment>, String> {
+pub async fn get_environment(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Option<Environment>, String> {
     // Check manager first
     {
         let manager = state.env_manager.lock().await;
@@ -257,14 +276,19 @@ pub async fn list_environments(state: State<'_, AppState>) -> Result<Vec<Environ
 }
 
 #[tauri::command]
-pub async fn set_active_environment(state: State<'_, AppState>, id: Option<String>) -> Result<(), String> {
+pub async fn set_active_environment(
+    state: State<'_, AppState>,
+    id: Option<String>,
+) -> Result<(), String> {
     let mut manager = state.env_manager.lock().await;
     manager.set_active(id);
     Ok(())
 }
 
 #[tauri::command]
-pub async fn get_active_environment(state: State<'_, AppState>) -> Result<Option<Environment>, String> {
+pub async fn get_active_environment(
+    state: State<'_, AppState>,
+) -> Result<Option<Environment>, String> {
     let manager = state.env_manager.lock().await;
     Ok(manager.get_active().cloned())
 }
@@ -284,7 +308,10 @@ pub async fn delete_environment(state: State<'_, AppState>, id: String) -> Resul
 
 // History Commands
 #[tauri::command]
-pub async fn get_history(state: State<'_, AppState>, limit: usize) -> Result<Vec<HistoryEntry>, String> {
+pub async fn get_history(
+    state: State<'_, AppState>,
+    limit: usize,
+) -> Result<Vec<HistoryEntry>, String> {
     // Check manager first
     {
         let manager = state.history_manager.lock().await;
@@ -300,13 +327,19 @@ pub async fn get_history(state: State<'_, AppState>, limit: usize) -> Result<Vec
 }
 
 #[tauri::command]
-pub async fn search_history(state: State<'_, AppState>, query: String) -> Result<Vec<HistoryEntry>, String> {
+pub async fn search_history(
+    state: State<'_, AppState>,
+    query: String,
+) -> Result<Vec<HistoryEntry>, String> {
     let manager = state.history_manager.lock().await;
     Ok(manager.search(&query).into_iter().cloned().collect())
 }
 
 #[tauri::command]
-pub async fn clear_history(state: State<'_, AppState>, older_than_days: Option<i64>) -> Result<(), String> {
+pub async fn clear_history(
+    state: State<'_, AppState>,
+    older_than_days: Option<i64>,
+) -> Result<(), String> {
     // Clear manager
     {
         let mut manager = state.history_manager.lock().await;
@@ -323,7 +356,10 @@ pub async fn clear_history(state: State<'_, AppState>, older_than_days: Option<i
 }
 
 #[tauri::command]
-pub async fn replay_request(state: State<'_, AppState>, entry_id: String) -> Result<Option<ApiRequest>, String> {
+pub async fn replay_request(
+    state: State<'_, AppState>,
+    entry_id: String,
+) -> Result<Option<ApiRequest>, String> {
     let manager = state.history_manager.lock().await;
     Ok(manager.replay_request(&entry_id))
 }
@@ -332,13 +368,17 @@ pub async fn replay_request(state: State<'_, AppState>, entry_id: String) -> Res
 #[tauri::command]
 pub fn import_postman_collection(data: String) -> Result<Collection, String> {
     let importer = Importer::new();
-    importer.import_postman_collection(&data).map_err(|e| e.to_string())
+    importer
+        .import_postman_collection(&data)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn import_postman_environment(data: String) -> Result<Environment, String> {
     let importer = Importer::new();
-    importer.import_postman_environment(&data).map_err(|e| e.to_string())
+    importer
+        .import_postman_environment(&data)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -350,13 +390,17 @@ pub fn import_curl_command(command: String) -> Result<ApiRequest, String> {
 #[tauri::command]
 pub fn export_postman_collection(collection: Collection) -> Result<String, String> {
     let exporter = Exporter::new();
-    exporter.export_postman_collection(&collection).map_err(|e| e.to_string())
+    exporter
+        .export_postman_collection(&collection)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn export_postman_environment(env: Environment) -> Result<String, String> {
     let exporter = Exporter::new();
-    exporter.export_postman_environment(&env).map_err(|e| e.to_string())
+    exporter
+        .export_postman_environment(&env)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -421,7 +465,10 @@ pub async fn ws_send(
 }
 
 #[tauri::command]
-pub async fn ws_get_messages(state: State<'_, WebSocketState>, id: String) -> Result<Vec<WebSocketMessage>, String> {
+pub async fn ws_get_messages(
+    state: State<'_, WebSocketState>,
+    id: String,
+) -> Result<Vec<WebSocketMessage>, String> {
     let clients = state.clients.read().await;
     let client = clients.get(&id).ok_or("WebSocket not found")?;
     Ok(client.get_messages().await)

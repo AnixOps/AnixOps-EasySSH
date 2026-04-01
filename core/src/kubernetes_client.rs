@@ -1,34 +1,31 @@
+use bytes::Bytes;
+use chrono::{DateTime, Utc};
+use futures::{AsyncBufReadExt, StreamExt};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use chrono::{DateTime, Utc};
-use futures::{StreamExt, AsyncBufReadExt};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::sync::{Mutex, RwLock, mpsc};
-use bytes::Bytes;
-use serde_json::json;
+use tokio::sync::{mpsc, Mutex, RwLock};
 
 #[cfg(feature = "kubernetes")]
 use k8s_openapi::api::core::v1::{
-    ConfigMap, Event, Namespace, Node, Pod, Secret,
-    Service, Container, Volume,
-    NodeAddress, NodeCondition,
+    ConfigMap, Container, Event, Namespace, Node, NodeAddress, NodeCondition, Pod, Secret, Service,
+    Volume,
 };
 
 #[cfg(feature = "kubernetes")]
-use k8s_openapi::api::apps::v1::{
-    Deployment,
-};
-
+use k8s_openapi::api::apps::v1::Deployment;
 
 #[cfg(feature = "kubernetes")]
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 
 #[cfg(feature = "kubernetes")]
 use kube::{
-    Client, Config, api::{Api, ListParams, DeleteParams, Patch, PatchParams, WatchParams, WatchEvent},
+    api::{Api, DeleteParams, ListParams, Patch, PatchParams, WatchEvent, WatchParams},
     config::{KubeConfigOptions, Kubeconfig},
+    Client, Config,
 };
 
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
@@ -170,9 +167,18 @@ pub struct K8sContainer {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase", tag = "state")]
 pub enum ContainerState {
-    Running { started_at: Option<DateTime<Utc>> },
-    Waiting { reason: String, message: String },
-    Terminated { exit_code: i32, reason: String, finished_at: Option<DateTime<Utc>> },
+    Running {
+        started_at: Option<DateTime<Utc>>,
+    },
+    Waiting {
+        reason: String,
+        message: String,
+    },
+    Terminated {
+        exit_code: i32,
+        reason: String,
+        finished_at: Option<DateTime<Utc>>,
+    },
     Unknown,
 }
 
@@ -519,7 +525,10 @@ impl K8sManager {
         if let Some(contexts) = kubeconfig.get("contexts").and_then(|c| c.as_array()) {
             for ctx in contexts {
                 if let Some(context_name) = ctx.get("name").and_then(|n| n.as_str()) {
-                    match self.parse_cluster_from_context(&kubeconfig, context_name, path, content).await {
+                    match self
+                        .parse_cluster_from_context(&kubeconfig, context_name, path, content)
+                        .await
+                    {
                         Ok(cluster) => clusters.push(cluster),
                         Err(e) => log::warn!("Failed to parse context {}: {}", context_name, e),
                     }
@@ -557,7 +566,9 @@ impl K8sManager {
                     .find(|c| c.get("name").and_then(|n| n.as_str()) == Some(context_name))
             })
             .and_then(|c| c.get("context"))
-            .ok_or_else(|| K8sError::InvalidKubeconfig(format!("Context not found: {}", context_name)))?;
+            .ok_or_else(|| {
+                K8sError::InvalidKubeconfig(format!("Context not found: {}", context_name))
+            })?;
 
         let cluster_name = context
             .get("cluster")
@@ -578,7 +589,9 @@ impl K8sManager {
                     .find(|c| c.get("name").and_then(|n| n.as_str()) == Some(cluster_name))
             })
             .and_then(|c| c.get("cluster"))
-            .ok_or_else(|| K8sError::InvalidKubeconfig(format!("Cluster not found: {}", cluster_name)))?;
+            .ok_or_else(|| {
+                K8sError::InvalidKubeconfig(format!("Cluster not found: {}", cluster_name))
+            })?;
 
         let server_url = cluster_info
             .get("server")
@@ -614,7 +627,9 @@ impl K8sManager {
         } else if let Some(content) = &cluster.kubeconfig_content {
             serde_yaml::from_str(content).map_err(|e| K8sError::InvalidKubeconfig(e.to_string()))?
         } else {
-            return Err(K8sError::InvalidKubeconfig("No kubeconfig available".to_string()));
+            return Err(K8sError::InvalidKubeconfig(
+                "No kubeconfig available".to_string(),
+            ));
         };
 
         let options = KubeConfigOptions {
@@ -627,18 +642,25 @@ impl K8sManager {
             .await
             .map_err(|e| K8sError::ConnectionFailed(e.to_string()))?;
 
-        let client = Client::try_from(config)
-            .map_err(|e| K8sError::ConnectionFailed(e.to_string()))?;
+        let client =
+            Client::try_from(config).map_err(|e| K8sError::ConnectionFailed(e.to_string()))?;
 
         // Test connection by listing namespaces
         let ns_api: Api<Namespace> = Api::all(client.clone());
-        ns_api.list(&ListParams::default().limit(1))
+        ns_api
+            .list(&ListParams::default().limit(1))
             .await
             .map_err(|e| K8sError::ConnectionFailed(e.to_string()))?;
 
         // Store client
         let mut clients = self.clients.write().await;
-        clients.insert(cluster_id.to_string(), ClusterClient { client, cluster: cluster.clone() });
+        clients.insert(
+            cluster_id.to_string(),
+            ClusterClient {
+                client,
+                cluster: cluster.clone(),
+            },
+        );
 
         // Update cluster status
         let mut clusters = self.clusters.write().await;
@@ -652,7 +674,9 @@ impl K8sManager {
 
     #[cfg(not(feature = "kubernetes"))]
     pub async fn connect_cluster(&self, _cluster_id: &str) -> Result<()> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Disconnect from cluster
@@ -671,7 +695,9 @@ impl K8sManager {
 
     #[cfg(not(feature = "kubernetes"))]
     pub async fn disconnect_cluster(&self, _cluster_id: &str) -> Result<()> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get all clusters
@@ -730,36 +756,55 @@ impl K8sManager {
     #[cfg(feature = "kubernetes")]
     pub async fn get_namespaces(&self, cluster_id: &str) -> Result<Vec<K8sNamespace>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Namespace> = Api::all(client.client.clone());
         let lp = ListParams::default();
-        let namespaces = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let namespaces = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = namespaces.items.into_iter().map(|ns| {
-            let status = ns.status.as_ref()
-                .and_then(|s| s.phase.as_ref())
-                .map(|p| p.to_string())
-                .unwrap_or_else(|| "Unknown".to_string());
+        let result = namespaces
+            .items
+            .into_iter()
+            .map(|ns| {
+                let status = ns
+                    .status
+                    .as_ref()
+                    .and_then(|s| s.phase.as_ref())
+                    .map(|p| p.to_string())
+                    .unwrap_or_else(|| "Unknown".to_string());
 
-            K8sNamespace {
-                name: ns.metadata.name.unwrap_or_default(),
-                status,
-                labels: ns.metadata.labels.unwrap_or_default().into_iter().collect(),
-                annotations: ns.metadata.annotations.unwrap_or_default().into_iter().collect(),
-                created_at: ns.metadata.creation_timestamp
-                    .map(|t| t.0)
-                    .unwrap_or_else(|| Utc::now()),
-            }
-        }).collect();
+                K8sNamespace {
+                    name: ns.metadata.name.unwrap_or_default(),
+                    status,
+                    labels: ns.metadata.labels.unwrap_or_default().into_iter().collect(),
+                    annotations: ns
+                        .metadata
+                        .annotations
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    created_at: ns
+                        .metadata
+                        .creation_timestamp
+                        .map(|t| t.0)
+                        .unwrap_or_else(|| Utc::now()),
+                }
+            })
+            .collect();
 
         Ok(result)
     }
 
     #[cfg(not(feature = "kubernetes"))]
     pub async fn get_namespaces(&self, _cluster_id: &str) -> Result<Vec<K8sNamespace>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get pods in namespace
@@ -771,7 +816,8 @@ impl K8sManager {
         label_selector: Option<&str>,
     ) -> Result<Vec<K8sPod>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Pod> = if namespace == "all" {
@@ -785,62 +831,83 @@ impl K8sManager {
             lp = lp.labels(selector);
         }
 
-        let pods = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let pods = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = pods.items.into_iter().map(|pod| {
-            let status = pod.status.as_ref();
-            let spec = pod.spec.as_ref();
+        let result = pods
+            .items
+            .into_iter()
+            .map(|pod| {
+                let status = pod.status.as_ref();
+                let spec = pod.spec.as_ref();
 
-            let phase = status.and_then(|s| s.phase.clone()).unwrap_or_default();
-            let pod_status = if pod.metadata.deletion_timestamp.is_some() {
-                PodStatus::Terminating
-            } else {
-                PodStatus::from(phase.as_str())
-            };
+                let phase = status.and_then(|s| s.phase.clone()).unwrap_or_default();
+                let pod_status = if pod.metadata.deletion_timestamp.is_some() {
+                    PodStatus::Terminating
+                } else {
+                    PodStatus::from(phase.as_str())
+                };
 
-            let restarts = status
-                .and_then(|s| s.container_statuses.as_ref())
-                .map(|cs| cs.iter().map(|c| c.restart_count).sum())
-                .unwrap_or(0);
+                let restarts = status
+                    .and_then(|s| s.container_statuses.as_ref())
+                    .map(|cs| cs.iter().map(|c| c.restart_count).sum())
+                    .unwrap_or(0);
 
-            let containers = spec
-                .map(|s| s.containers.iter().map(convert_container).collect())
-                .unwrap_or_default();
+                let containers = spec
+                    .map(|s| s.containers.iter().map(convert_container).collect())
+                    .unwrap_or_default();
 
-            let init_containers = spec
-                .and_then(|s| s.init_containers.as_ref())
-                .map(|cs| cs.iter().map(convert_container).collect())
-                .unwrap_or_default();
+                let init_containers = spec
+                    .and_then(|s| s.init_containers.as_ref())
+                    .map(|cs| cs.iter().map(convert_container).collect())
+                    .unwrap_or_default();
 
-            K8sPod {
-                name: pod.metadata.name.clone().unwrap_or_default(),
-                namespace: pod.metadata.namespace.clone().unwrap_or_default(),
-                status: pod_status,
-                phase,
-                restarts,
-                node: status.and_then(|s| s.nominated_node_name.clone()).unwrap_or_default(),
-                pod_ip: status.and_then(|s| s.pod_ip.clone()),
-                labels: pod.metadata.labels.clone().unwrap_or_default().into_iter().collect(),
-                annotations: pod.metadata.annotations.clone().unwrap_or_default().into_iter().collect(),
-                containers,
-                init_containers,
-                conditions: status
-                    .and_then(|s| s.conditions.clone())
-                    .map(|c| c.iter().map(convert_condition).collect())
-                    .unwrap_or_default(),
-                volumes: spec
-                    .and_then(|s| s.volumes.clone())
-                    .map(|v| v.iter().map(convert_volume).collect())
-                    .unwrap_or_default(),
-                created_at: pod.metadata.creation_timestamp
-                    .map(|t| t.0)
-                    .unwrap_or_else(|| Utc::now()),
-                started_at: status
-                    .and_then(|s| s.start_time.clone())
-                    .map(|t| t.0),
-                resource_usage: None,
-            }
-        }).collect();
+                K8sPod {
+                    name: pod.metadata.name.clone().unwrap_or_default(),
+                    namespace: pod.metadata.namespace.clone().unwrap_or_default(),
+                    status: pod_status,
+                    phase,
+                    restarts,
+                    node: status
+                        .and_then(|s| s.nominated_node_name.clone())
+                        .unwrap_or_default(),
+                    pod_ip: status.and_then(|s| s.pod_ip.clone()),
+                    labels: pod
+                        .metadata
+                        .labels
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    annotations: pod
+                        .metadata
+                        .annotations
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    containers,
+                    init_containers,
+                    conditions: status
+                        .and_then(|s| s.conditions.clone())
+                        .map(|c| c.iter().map(convert_condition).collect())
+                        .unwrap_or_default(),
+                    volumes: spec
+                        .and_then(|s| s.volumes.clone())
+                        .map(|v| v.iter().map(convert_volume).collect())
+                        .unwrap_or_default(),
+                    created_at: pod
+                        .metadata
+                        .creation_timestamp
+                        .map(|t| t.0)
+                        .unwrap_or_else(|| Utc::now()),
+                    started_at: status.and_then(|s| s.start_time.clone()).map(|t| t.0),
+                    resource_usage: None,
+                }
+            })
+            .collect();
 
         Ok(result)
     }
@@ -852,7 +919,9 @@ impl K8sManager {
         _namespace: &str,
         _label_selector: Option<&str>,
     ) -> Result<Vec<K8sPod>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get pod details
@@ -867,19 +936,24 @@ impl K8sManager {
     #[cfg(feature = "kubernetes")]
     pub async fn delete_pod(&self, cluster_id: &str, namespace: &str, name: &str) -> Result<()> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Pod> = Api::namespaced(client.client.clone(), namespace);
         let dp = DeleteParams::default();
-        api.delete(name, &dp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        api.delete(name, &dp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
         Ok(())
     }
 
     #[cfg(not(feature = "kubernetes"))]
     pub async fn delete_pod(&self, _cluster_id: &str, _namespace: &str, _name: &str) -> Result<()> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Restart pod (delete and let deployment recreate)
@@ -897,7 +971,8 @@ impl K8sManager {
         options: &LogOptions,
     ) -> Result<String> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Pod> = Api::namespaced(client.client.clone(), namespace);
@@ -911,7 +986,9 @@ impl K8sManager {
         lp.tail_lines = options.tail_lines;
         lp.since_seconds = options.since_seconds;
 
-        let logs = api.logs(pod_name, &lp).await
+        let logs = api
+            .logs(pod_name, &lp)
+            .await
             .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
         Ok(logs)
@@ -925,7 +1002,9 @@ impl K8sManager {
         _pod_name: &str,
         _options: &LogOptions,
     ) -> Result<String> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Stream pod logs
@@ -938,7 +1017,8 @@ impl K8sManager {
         options: &LogOptions,
     ) -> Result<mpsc::UnboundedReceiver<String>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Pod> = Api::namespaced(client.client.clone(), namespace);
@@ -954,7 +1034,9 @@ impl K8sManager {
 
         let (tx, rx) = mpsc::unbounded_channel();
 
-        let stream = api.log_stream(pod_name, &lp).await
+        let stream = api
+            .log_stream(pod_name, &lp)
+            .await
             .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
         tokio::spawn(async move {
@@ -975,7 +1057,9 @@ impl K8sManager {
         _pod_name: &str,
         _options: &LogOptions,
     ) -> Result<mpsc::UnboundedReceiver<String>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Exec command in pod (non-interactive)
@@ -988,7 +1072,8 @@ impl K8sManager {
         options: &ExecOptions,
     ) -> Result<String> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Pod> = Api::namespaced(client.client.clone(), namespace);
@@ -1002,7 +1087,9 @@ impl K8sManager {
             ..Default::default()
         };
 
-        let mut attached = api.exec(pod_name, &options.command, &ap).await
+        let mut attached = api
+            .exec(pod_name, &options.command, &ap)
+            .await
             .map_err(|e| K8sError::ExecError(e.to_string()))?;
 
         // Read stdout
@@ -1010,7 +1097,10 @@ impl K8sManager {
         if let Some(mut stdout_reader) = attached.stdout().take() {
             use tokio::io::AsyncReadExt;
             let mut buf = Vec::new();
-            stdout_reader.read_to_end(&mut buf).await.map_err(|e| K8sError::ExecError(e.to_string()))?;
+            stdout_reader
+                .read_to_end(&mut buf)
+                .await
+                .map_err(|e| K8sError::ExecError(e.to_string()))?;
             stdout = String::from_utf8_lossy(&buf).to_string();
         }
 
@@ -1019,7 +1109,10 @@ impl K8sManager {
         if let Some(mut stderr_reader) = attached.stderr().take() {
             use tokio::io::AsyncReadExt;
             let mut buf = Vec::new();
-            stderr_reader.read_to_end(&mut buf).await.map_err(|e| K8sError::ExecError(e.to_string()))?;
+            stderr_reader
+                .read_to_end(&mut buf)
+                .await
+                .map_err(|e| K8sError::ExecError(e.to_string()))?;
             stderr = String::from_utf8_lossy(&buf).to_string();
         }
 
@@ -1038,67 +1131,116 @@ impl K8sManager {
         _pod_name: &str,
         _options: &ExecOptions,
     ) -> Result<String> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get nodes
     #[cfg(feature = "kubernetes")]
     pub async fn get_nodes(&self, cluster_id: &str) -> Result<Vec<K8sNode>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Node> = Api::all(client.client.clone());
         let lp = ListParams::default();
-        let nodes = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let nodes = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = nodes.items.into_iter().map(|node| {
-            let metadata = &node.metadata;
-            let spec = node.spec.as_ref();
-            let status = node.status.as_ref();
+        let result = nodes
+            .items
+            .into_iter()
+            .map(|node| {
+                let metadata = &node.metadata;
+                let spec = node.spec.as_ref();
+                let status = node.status.as_ref();
 
-            let roles: Vec<String> = metadata.labels.as_ref()
-                .map(|l| {
-                    l.iter()
-                        .filter(|(k, _)| k.starts_with("node-role.kubernetes.io/"))
-                        .map(|(k, _)| k.trim_start_matches("node-role.kubernetes.io/").to_string())
-                        .collect()
-                })
-                .unwrap_or_default();
+                let roles: Vec<String> = metadata
+                    .labels
+                    .as_ref()
+                    .map(|l| {
+                        l.iter()
+                            .filter(|(k, _)| k.starts_with("node-role.kubernetes.io/"))
+                            .map(|(k, _)| {
+                                k.trim_start_matches("node-role.kubernetes.io/").to_string()
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
-            K8sNode {
-                name: metadata.name.clone().unwrap_or_default(),
-                status: status
-                    .and_then(|s| s.conditions.as_ref())
-                    .map(|c| c.iter().find(|c| c.type_ == "Ready").map(|c| c.status.clone()).unwrap_or_default())
-                    .unwrap_or_default(),
-                roles,
-                version: status.and_then(|s| s.node_info.as_ref()).map(|i| i.kubelet_version.clone()).unwrap_or_default(),
-                os_image: status.and_then(|s| s.node_info.as_ref()).map(|i| i.os_image.clone()).unwrap_or_default(),
-                kernel_version: status.and_then(|s| s.node_info.as_ref()).map(|i| i.kernel_version.clone()).unwrap_or_default(),
-                container_runtime: status.and_then(|s| s.node_info.as_ref()).map(|i| i.container_runtime_version.clone()).unwrap_or_default(),
-                labels: metadata.labels.clone().unwrap_or_default().into_iter().collect(),
-                annotations: metadata.annotations.clone().unwrap_or_default().into_iter().collect(),
-                addresses: status
-                    .and_then(|s| s.addresses.clone())
-                    .map(|a| a.iter().map(convert_node_address).collect())
-                    .unwrap_or_default(),
-                capacity: status.and_then(|s| s.capacity.clone()).map(convert_resources).unwrap_or_default(),
-                allocatable: status.and_then(|s| s.allocatable.clone()).map(convert_resources).unwrap_or_default(),
-                conditions: status
-                    .and_then(|s| s.conditions.clone())
-                    .map(|c| c.iter().map(convert_node_condition).collect())
-                    .unwrap_or_default(),
-                resource_usage: None,
-            }
-        }).collect();
+                K8sNode {
+                    name: metadata.name.clone().unwrap_or_default(),
+                    status: status
+                        .and_then(|s| s.conditions.as_ref())
+                        .map(|c| {
+                            c.iter()
+                                .find(|c| c.type_ == "Ready")
+                                .map(|c| c.status.clone())
+                                .unwrap_or_default()
+                        })
+                        .unwrap_or_default(),
+                    roles,
+                    version: status
+                        .and_then(|s| s.node_info.as_ref())
+                        .map(|i| i.kubelet_version.clone())
+                        .unwrap_or_default(),
+                    os_image: status
+                        .and_then(|s| s.node_info.as_ref())
+                        .map(|i| i.os_image.clone())
+                        .unwrap_or_default(),
+                    kernel_version: status
+                        .and_then(|s| s.node_info.as_ref())
+                        .map(|i| i.kernel_version.clone())
+                        .unwrap_or_default(),
+                    container_runtime: status
+                        .and_then(|s| s.node_info.as_ref())
+                        .map(|i| i.container_runtime_version.clone())
+                        .unwrap_or_default(),
+                    labels: metadata
+                        .labels
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    annotations: metadata
+                        .annotations
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    addresses: status
+                        .and_then(|s| s.addresses.clone())
+                        .map(|a| a.iter().map(convert_node_address).collect())
+                        .unwrap_or_default(),
+                    capacity: status
+                        .and_then(|s| s.capacity.clone())
+                        .map(convert_resources)
+                        .unwrap_or_default(),
+                    allocatable: status
+                        .and_then(|s| s.allocatable.clone())
+                        .map(convert_resources)
+                        .unwrap_or_default(),
+                    conditions: status
+                        .and_then(|s| s.conditions.clone())
+                        .map(|c| c.iter().map(convert_node_condition).collect())
+                        .unwrap_or_default(),
+                    resource_usage: None,
+                }
+            })
+            .collect();
 
         Ok(result)
     }
 
     #[cfg(not(feature = "kubernetes"))]
     pub async fn get_nodes(&self, _cluster_id: &str) -> Result<Vec<K8sNode>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get deployments
@@ -1109,48 +1251,72 @@ impl K8sManager {
         namespace: &str,
     ) -> Result<Vec<K8sDeployment>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Deployment> = Api::namespaced(client.client.clone(), namespace);
         let lp = ListParams::default();
-        let deployments = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let deployments = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = deployments.items.into_iter().map(|d| {
-            let metadata = &d.metadata;
-            let spec = d.spec.as_ref();
-            let status = d.status.as_ref();
+        let result = deployments
+            .items
+            .into_iter()
+            .map(|d| {
+                let metadata = &d.metadata;
+                let spec = d.spec.as_ref();
+                let status = d.status.as_ref();
 
-            let selector: HashMap<String, String> = spec
-                .and_then(|s| s.selector.match_labels.clone())
-                .map(|m| m.into_iter().collect())
-                .unwrap_or_default();
+                let selector: HashMap<String, String> = spec
+                    .and_then(|s| s.selector.match_labels.clone())
+                    .map(|m| m.into_iter().collect())
+                    .unwrap_or_default();
 
-            K8sDeployment {
-                name: metadata.name.clone().unwrap_or_default(),
-                namespace: metadata.namespace.clone().unwrap_or_default(),
-                replicas: spec.and_then(|s| s.replicas).unwrap_or(0),
-                available_replicas: status.map(|s| s.available_replicas.unwrap_or(0)).unwrap_or(0),
-                ready_replicas: status.map(|s| s.ready_replicas.unwrap_or(0)).unwrap_or(0),
-                updated_replicas: status.map(|s| s.updated_replicas.unwrap_or(0)).unwrap_or(0),
-                labels: metadata.labels.clone().unwrap_or_default().into_iter().collect(),
-                annotations: metadata.annotations.clone().unwrap_or_default().into_iter().collect(),
-                selector,
-                strategy: spec.and_then(|s| s.strategy.as_ref().and_then(|st| st.type_.clone())).unwrap_or_default(),
-                conditions: status
-                    .and_then(|s| s.conditions.clone())
-                    .map(|c| c.iter().map(convert_deployment_condition).collect())
-                    .unwrap_or_default(),
-                created_at: metadata.creation_timestamp
-                    .clone()
-                    .map(|t| t.0)
-                    .unwrap_or_else(|| Utc::now()),
-                updated_at: metadata.creation_timestamp
-                    .clone()
-                    .map(|t| t.0)
-                    .unwrap_or_else(|| Utc::now()),
-            }
-        }).collect();
+                K8sDeployment {
+                    name: metadata.name.clone().unwrap_or_default(),
+                    namespace: metadata.namespace.clone().unwrap_or_default(),
+                    replicas: spec.and_then(|s| s.replicas).unwrap_or(0),
+                    available_replicas: status
+                        .map(|s| s.available_replicas.unwrap_or(0))
+                        .unwrap_or(0),
+                    ready_replicas: status.map(|s| s.ready_replicas.unwrap_or(0)).unwrap_or(0),
+                    updated_replicas: status.map(|s| s.updated_replicas.unwrap_or(0)).unwrap_or(0),
+                    labels: metadata
+                        .labels
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    annotations: metadata
+                        .annotations
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    selector,
+                    strategy: spec
+                        .and_then(|s| s.strategy.as_ref().and_then(|st| st.type_.clone()))
+                        .unwrap_or_default(),
+                    conditions: status
+                        .and_then(|s| s.conditions.clone())
+                        .map(|c| c.iter().map(convert_deployment_condition).collect())
+                        .unwrap_or_default(),
+                    created_at: metadata
+                        .creation_timestamp
+                        .clone()
+                        .map(|t| t.0)
+                        .unwrap_or_else(|| Utc::now()),
+                    updated_at: metadata
+                        .creation_timestamp
+                        .clone()
+                        .map(|t| t.0)
+                        .unwrap_or_else(|| Utc::now()),
+                }
+            })
+            .collect();
 
         Ok(result)
     }
@@ -1161,7 +1327,9 @@ impl K8sManager {
         _cluster_id: &str,
         _namespace: &str,
     ) -> Result<Vec<K8sDeployment>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Scale deployment
@@ -1174,7 +1342,8 @@ impl K8sManager {
         replicas: i32,
     ) -> Result<()> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Deployment> = Api::namespaced(client.client.clone(), namespace);
@@ -1186,7 +1355,8 @@ impl K8sManager {
         });
 
         let pp = PatchParams::default();
-        api.patch(name, &pp, &Patch::Merge(&patch)).await
+        api.patch(name, &pp, &Patch::Merge(&patch))
+            .await
             .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
         Ok(())
@@ -1200,47 +1370,73 @@ impl K8sManager {
         _name: &str,
         _replicas: i32,
     ) -> Result<()> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get services
     #[cfg(feature = "kubernetes")]
-    pub async fn get_services(
-        &self,
-        cluster_id: &str,
-        namespace: &str,
-    ) -> Result<Vec<K8sService>> {
+    pub async fn get_services(&self, cluster_id: &str, namespace: &str) -> Result<Vec<K8sService>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Service> = Api::namespaced(client.client.clone(), namespace);
         let lp = ListParams::default();
-        let services = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let services = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = services.items.into_iter().map(|s| {
-            let metadata = &s.metadata;
-            let spec = s.spec.as_ref();
+        let result = services
+            .items
+            .into_iter()
+            .map(|s| {
+                let metadata = &s.metadata;
+                let spec = s.spec.as_ref();
 
-            K8sService {
-                name: metadata.name.clone().unwrap_or_default(),
-                namespace: metadata.namespace.clone().unwrap_or_default(),
-                service_type: spec.map(|s| s.type_.clone().unwrap_or_default()).unwrap_or_default(),
-                cluster_ip: spec.map(|s| s.cluster_ip.clone().unwrap_or_default()).unwrap_or_default(),
-                external_ips: spec.and_then(|s| s.external_ips.clone()).unwrap_or_default(),
-                ports: spec
-                    .and_then(|s| s.ports.clone())
-                    .map(|p| p.iter().map(convert_service_port).collect())
-                    .unwrap_or_default(),
-                selector: spec.and_then(|s| s.selector.clone()).map(|s| s.into_iter().collect()).unwrap_or_default(),
-                labels: metadata.labels.clone().unwrap_or_default().into_iter().collect(),
-                annotations: metadata.annotations.clone().unwrap_or_default().into_iter().collect(),
-                created_at: metadata.creation_timestamp
-                    .clone()
-                    .map(|t| t.0)
-                    .unwrap_or_else(|| Utc::now()),
-            }
-        }).collect();
+                K8sService {
+                    name: metadata.name.clone().unwrap_or_default(),
+                    namespace: metadata.namespace.clone().unwrap_or_default(),
+                    service_type: spec
+                        .map(|s| s.type_.clone().unwrap_or_default())
+                        .unwrap_or_default(),
+                    cluster_ip: spec
+                        .map(|s| s.cluster_ip.clone().unwrap_or_default())
+                        .unwrap_or_default(),
+                    external_ips: spec
+                        .and_then(|s| s.external_ips.clone())
+                        .unwrap_or_default(),
+                    ports: spec
+                        .and_then(|s| s.ports.clone())
+                        .map(|p| p.iter().map(convert_service_port).collect())
+                        .unwrap_or_default(),
+                    selector: spec
+                        .and_then(|s| s.selector.clone())
+                        .map(|s| s.into_iter().collect())
+                        .unwrap_or_default(),
+                    labels: metadata
+                        .labels
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    annotations: metadata
+                        .annotations
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    created_at: metadata
+                        .creation_timestamp
+                        .clone()
+                        .map(|t| t.0)
+                        .unwrap_or_else(|| Utc::now()),
+                }
+            })
+            .collect();
 
         Ok(result)
     }
@@ -1251,7 +1447,9 @@ impl K8sManager {
         _cluster_id: &str,
         _namespace: &str,
     ) -> Result<Vec<K8sService>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get ConfigMaps
@@ -1262,29 +1460,60 @@ impl K8sManager {
         namespace: &str,
     ) -> Result<Vec<K8sConfigMap>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<ConfigMap> = Api::namespaced(client.client.clone(), namespace);
         let lp = ListParams::default();
-        let configmaps = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let configmaps = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = configmaps.items.into_iter().map(|cm| {
-            let metadata = &cm.metadata;
+        let result = configmaps
+            .items
+            .into_iter()
+            .map(|cm| {
+                let metadata = &cm.metadata;
 
-            K8sConfigMap {
-                name: metadata.name.clone().unwrap_or_default(),
-                namespace: metadata.namespace.clone().unwrap_or_default(),
-                data: cm.data.clone().map(|d| d.into_iter().collect()).unwrap_or_default(),
-                binary_data: cm.binary_data.clone().map(|d| d.into_iter().map(|(k, v)| (k, String::from_utf8_lossy(&v.0).to_string())).collect()).unwrap_or_default(),
-                labels: metadata.labels.clone().unwrap_or_default().into_iter().collect(),
-                annotations: metadata.annotations.clone().unwrap_or_default().into_iter().collect(),
-                created_at: metadata.creation_timestamp
-                    .clone()
-                    .map(|t| t.0)
-                    .unwrap_or_else(|| Utc::now()),
-            }
-        }).collect();
+                K8sConfigMap {
+                    name: metadata.name.clone().unwrap_or_default(),
+                    namespace: metadata.namespace.clone().unwrap_or_default(),
+                    data: cm
+                        .data
+                        .clone()
+                        .map(|d| d.into_iter().collect())
+                        .unwrap_or_default(),
+                    binary_data: cm
+                        .binary_data
+                        .clone()
+                        .map(|d| {
+                            d.into_iter()
+                                .map(|(k, v)| (k, String::from_utf8_lossy(&v.0).to_string()))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    labels: metadata
+                        .labels
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    annotations: metadata
+                        .annotations
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    created_at: metadata
+                        .creation_timestamp
+                        .clone()
+                        .map(|t| t.0)
+                        .unwrap_or_else(|| Utc::now()),
+                }
+            })
+            .collect();
 
         Ok(result)
     }
@@ -1295,51 +1524,70 @@ impl K8sManager {
         _cluster_id: &str,
         _namespace: &str,
     ) -> Result<Vec<K8sConfigMap>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get Secrets
     #[cfg(feature = "kubernetes")]
-    pub async fn get_secrets(
-        &self,
-        cluster_id: &str,
-        namespace: &str,
-    ) -> Result<Vec<K8sSecret>> {
+    pub async fn get_secrets(&self, cluster_id: &str, namespace: &str) -> Result<Vec<K8sSecret>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Secret> = Api::namespaced(client.client.clone(), namespace);
         let lp = ListParams::default();
-        let secrets = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let secrets = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = secrets.items.into_iter().map(|s| {
-            let metadata = &s.metadata;
+        let result = secrets
+            .items
+            .into_iter()
+            .map(|s| {
+                let metadata = &s.metadata;
 
-            K8sSecret {
-                name: metadata.name.clone().unwrap_or_default(),
-                namespace: metadata.namespace.clone().unwrap_or_default(),
-                secret_type: s.type_.clone().unwrap_or_default(),
-                data_keys: s.data.clone().map(|d| d.keys().cloned().collect()).unwrap_or_default(),
-                labels: metadata.labels.clone().unwrap_or_default().into_iter().collect(),
-                annotations: metadata.annotations.clone().unwrap_or_default().into_iter().collect(),
-                created_at: metadata.creation_timestamp
-                    .clone()
-                    .map(|t| t.0)
-                    .unwrap_or_else(|| Utc::now()),
-            }
-        }).collect();
+                K8sSecret {
+                    name: metadata.name.clone().unwrap_or_default(),
+                    namespace: metadata.namespace.clone().unwrap_or_default(),
+                    secret_type: s.type_.clone().unwrap_or_default(),
+                    data_keys: s
+                        .data
+                        .clone()
+                        .map(|d| d.keys().cloned().collect())
+                        .unwrap_or_default(),
+                    labels: metadata
+                        .labels
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    annotations: metadata
+                        .annotations
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .collect(),
+                    created_at: metadata
+                        .creation_timestamp
+                        .clone()
+                        .map(|t| t.0)
+                        .unwrap_or_else(|| Utc::now()),
+                }
+            })
+            .collect();
 
         Ok(result)
     }
 
     #[cfg(not(feature = "kubernetes"))]
-    pub async fn get_secrets(
-        &self,
-        _cluster_id: &str,
-        _namespace: &str,
-    ) -> Result<Vec<K8sSecret>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+    pub async fn get_secrets(&self, _cluster_id: &str, _namespace: &str) -> Result<Vec<K8sSecret>> {
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get events
@@ -1352,7 +1600,8 @@ impl K8sManager {
         resource_name: Option<&str>,
     ) -> Result<Vec<K8sEvent>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Event> = if let Some(ns) = namespace {
@@ -1365,36 +1614,46 @@ impl K8sManager {
 
         if let Some(kind) = resource_kind {
             if let Some(name) = resource_name {
-                lp = lp.fields(&format!("involvedObject.kind={},involvedObject.name={}", kind, name));
+                lp = lp.fields(&format!(
+                    "involvedObject.kind={},involvedObject.name={}",
+                    kind, name
+                ));
             } else {
                 lp = lp.fields(&format!("involvedObject.kind={}", kind));
             }
         }
 
-        let events = api.list(&lp).await.map_err(|e| K8sError::ApiError(e.to_string()))?;
+        let events = api
+            .list(&lp)
+            .await
+            .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
-        let result = events.items.into_iter().map(|e| {
-            let metadata = &e.metadata;
-            let involved = e.involved_object;
+        let result = events
+            .items
+            .into_iter()
+            .map(|e| {
+                let metadata = &e.metadata;
+                let involved = e.involved_object;
 
-            K8sEvent {
-                name: metadata.name.clone().unwrap_or_default(),
-                namespace: metadata.namespace.clone(),
-                reason: e.reason.clone().unwrap_or_default(),
-                message: e.message.clone().unwrap_or_default(),
-                event_type: e.type_.clone().unwrap_or_default(),
-                involved_object: K8sObjectReference {
-                    kind: involved.kind.clone().unwrap_or_default(),
-                    name: involved.name.clone().unwrap_or_default(),
-                    namespace: involved.namespace.clone(),
-                    uid: involved.uid.clone(),
-                },
-                count: e.count.unwrap_or(1) as i32,
-                first_timestamp: e.first_timestamp.map(|t| t.0),
-                last_timestamp: e.last_timestamp.map(|t| t.0),
-                source: format!("{:?}", e.source),
-            }
-        }).collect();
+                K8sEvent {
+                    name: metadata.name.clone().unwrap_or_default(),
+                    namespace: metadata.namespace.clone(),
+                    reason: e.reason.clone().unwrap_or_default(),
+                    message: e.message.clone().unwrap_or_default(),
+                    event_type: e.type_.clone().unwrap_or_default(),
+                    involved_object: K8sObjectReference {
+                        kind: involved.kind.clone().unwrap_or_default(),
+                        name: involved.name.clone().unwrap_or_default(),
+                        namespace: involved.namespace.clone(),
+                        uid: involved.uid.clone(),
+                    },
+                    count: e.count.unwrap_or(1) as i32,
+                    first_timestamp: e.first_timestamp.map(|t| t.0),
+                    last_timestamp: e.last_timestamp.map(|t| t.0),
+                    source: format!("{:?}", e.source),
+                }
+            })
+            .collect();
 
         Ok(result)
     }
@@ -1407,7 +1666,9 @@ impl K8sManager {
         _resource_kind: Option<&str>,
         _resource_name: Option<&str>,
     ) -> Result<Vec<K8sEvent>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Watch events
@@ -1418,7 +1679,8 @@ impl K8sManager {
         namespace: Option<&str>,
     ) -> Result<mpsc::UnboundedReceiver<K8sEvent>> {
         let clients = self.clients.read().await;
-        let client = clients.get(cluster_id)
+        let client = clients
+            .get(cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?;
 
         let api: Api<Event> = if let Some(ns) = namespace {
@@ -1430,7 +1692,9 @@ impl K8sManager {
         let (tx, rx) = mpsc::unbounded_channel();
 
         let wp = WatchParams::default().timeout(300);
-        let stream = api.watch(&wp, "0").await
+        let stream = api
+            .watch(&wp, "0")
+            .await
             .map_err(|e| K8sError::ApiError(e.to_string()))?;
 
         tokio::spawn(async move {
@@ -1473,7 +1737,9 @@ impl K8sManager {
         _cluster_id: &str,
         _namespace: Option<&str>,
     ) -> Result<mpsc::UnboundedReceiver<K8sEvent>> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Apply YAML resource
@@ -1485,7 +1751,9 @@ impl K8sManager {
         _namespace: Option<&str>,
     ) -> Result<K8sResource> {
         // TODO: Fix http crate version conflict (kube uses http 0.2, we use http 1.0)
-        Err(K8sError::NotSupported("apply_yaml temporarily unavailable due to http crate version conflict".to_string()))
+        Err(K8sError::NotSupported(
+            "apply_yaml temporarily unavailable due to http crate version conflict".to_string(),
+        ))
     }
 
     #[cfg(not(feature = "kubernetes"))]
@@ -1495,7 +1763,9 @@ impl K8sManager {
         _yaml: &str,
         _namespace: Option<&str>,
     ) -> Result<K8sResource> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Get resource YAML
@@ -1508,7 +1778,10 @@ impl K8sManager {
         _namespace: &str,
     ) -> Result<String> {
         // TODO: Fix http crate version conflict (kube uses http 0.2, we use http 1.0)
-        Err(K8sError::NotSupported("get_resource_yaml temporarily unavailable due to http crate version conflict".to_string()))
+        Err(K8sError::NotSupported(
+            "get_resource_yaml temporarily unavailable due to http crate version conflict"
+                .to_string(),
+        ))
     }
 
     #[cfg(not(feature = "kubernetes"))]
@@ -1519,7 +1792,9 @@ impl K8sManager {
         _name: &str,
         _namespace: &str,
     ) -> Result<String> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Create port forward
@@ -1558,9 +1833,11 @@ impl K8sManager {
     #[cfg(feature = "kubernetes")]
     async fn start_port_forward(&self, pf: &K8sPortForward) -> Result<()> {
         let clients = self.clients.read().await;
-        let client = clients.get(&pf.cluster_id)
+        let client = clients
+            .get(&pf.cluster_id)
             .ok_or_else(|| K8sError::ConnectionFailed("Not connected".to_string()))?
-            .client.clone();
+            .client
+            .clone();
 
         let api: Api<Pod> = Api::namespaced(client, &pf.namespace);
         let pod_name = pf.pod_name.clone();
@@ -1577,7 +1854,9 @@ impl K8sManager {
 
     #[cfg(not(feature = "kubernetes"))]
     async fn start_port_forward(&self, _pf: &K8sPortForward) -> Result<()> {
-        Err(K8sError::NotSupported("Kubernetes feature not enabled".to_string()))
+        Err(K8sError::NotSupported(
+            "Kubernetes feature not enabled".to_string(),
+        ))
     }
 
     /// Create service port forward
@@ -1761,7 +2040,11 @@ impl K8sManager {
     }
 
     /// Get node metrics
-    pub async fn get_node_metrics(&self, _cluster_id: &str, _node_name: &str) -> Result<K8sNodeResourceUsage> {
+    pub async fn get_node_metrics(
+        &self,
+        _cluster_id: &str,
+        _node_name: &str,
+    ) -> Result<K8sNodeResourceUsage> {
         // Placeholder
         Err(K8sError::NotSupported("Not yet implemented".to_string()))
     }
@@ -1782,17 +2065,34 @@ fn convert_container(container: &Container) -> K8sContainer {
         ready: false,
         restart_count: 0,
         state: ContainerState::Unknown,
-        ports: container.ports.as_ref()
-            .map(|p| p.iter().map(|port| K8sContainerPort {
-                name: port.name.clone().unwrap_or_default(),
-                container_port: port.container_port,
-                protocol: port.protocol.clone().unwrap_or_else(|| "TCP".to_string()),
-            }).collect())
+        ports: container
+            .ports
+            .as_ref()
+            .map(|p| {
+                p.iter()
+                    .map(|port| K8sContainerPort {
+                        name: port.name.clone().unwrap_or_default(),
+                        container_port: port.container_port,
+                        protocol: port.protocol.clone().unwrap_or_else(|| "TCP".to_string()),
+                    })
+                    .collect()
+            })
             .unwrap_or_default(),
-        resources: container.resources.as_ref().map(|r| K8sResourceRequirements {
-            limits: r.limits.as_ref().map(|l| l.iter().map(|(k, v)| (k.clone(), v.0.clone())).collect()).unwrap_or_default(),
-            requests: r.requests.as_ref().map(|r| r.iter().map(|(k, v)| (k.clone(), v.0.clone())).collect()).unwrap_or_default(),
-        }),
+        resources: container
+            .resources
+            .as_ref()
+            .map(|r| K8sResourceRequirements {
+                limits: r
+                    .limits
+                    .as_ref()
+                    .map(|l| l.iter().map(|(k, v)| (k.clone(), v.0.clone())).collect())
+                    .unwrap_or_default(),
+                requests: r
+                    .requests
+                    .as_ref()
+                    .map(|r| r.iter().map(|(k, v)| (k.clone(), v.0.clone())).collect())
+                    .unwrap_or_default(),
+            }),
     }
 }
 
@@ -1801,10 +2101,8 @@ fn convert_condition(condition: &k8s_openapi::api::core::v1::PodCondition) -> K8
     K8sPodCondition {
         condition_type: condition.type_.clone(),
         status: condition.status.clone(),
-        last_probe_time: condition.last_probe_time.as_ref()
-            .map(|t| t.0),
-        last_transition_time: condition.last_transition_time.as_ref()
-            .map(|t| t.0),
+        last_probe_time: condition.last_probe_time.as_ref().map(|t| t.0),
+        last_transition_time: condition.last_transition_time.as_ref().map(|t| t.0),
         reason: condition.reason.clone().unwrap_or_default(),
         message: condition.message.clone().unwrap_or_default(),
     }
@@ -1812,14 +2110,23 @@ fn convert_condition(condition: &k8s_openapi::api::core::v1::PodCondition) -> K8
 
 #[cfg(feature = "kubernetes")]
 fn convert_volume(volume: &Volume) -> K8sVolume {
-    let volume_type = if volume.empty_dir.is_some() { "EmptyDir" }
-        else if volume.host_path.is_some() { "HostPath" }
-        else if volume.persistent_volume_claim.is_some() { "PVC" }
-        else if volume.config_map.is_some() { "ConfigMap" }
-        else if volume.secret.is_some() { "Secret" }
-        else if volume.projected.is_some() { "Projected" }
-        else if volume.downward_api.is_some() { "DownwardAPI" }
-        else { "Unknown" };
+    let volume_type = if volume.empty_dir.is_some() {
+        "EmptyDir"
+    } else if volume.host_path.is_some() {
+        "HostPath"
+    } else if volume.persistent_volume_claim.is_some() {
+        "PVC"
+    } else if volume.config_map.is_some() {
+        "ConfigMap"
+    } else if volume.secret.is_some() {
+        "Secret"
+    } else if volume.projected.is_some() {
+        "Projected"
+    } else if volume.downward_api.is_some() {
+        "DownwardAPI"
+    } else {
+        "Unknown"
+    };
 
     K8sVolume {
         name: volume.name.clone(),
@@ -1841,24 +2148,22 @@ fn convert_node_condition(condition: &NodeCondition) -> K8sNodeCondition {
     K8sNodeCondition {
         condition_type: condition.type_.clone(),
         status: condition.status.clone(),
-        last_heartbeat_time: condition.last_heartbeat_time.as_ref()
-            .map(|t| t.0),
-        last_transition_time: condition.last_transition_time.as_ref()
-            .map(|t| t.0),
+        last_heartbeat_time: condition.last_heartbeat_time.as_ref().map(|t| t.0),
+        last_transition_time: condition.last_transition_time.as_ref().map(|t| t.0),
         reason: condition.reason.clone().unwrap_or_default(),
         message: condition.message.clone().unwrap_or_default(),
     }
 }
 
 #[cfg(feature = "kubernetes")]
-fn convert_deployment_condition(condition: &k8s_openapi::api::apps::v1::DeploymentCondition) -> K8sDeploymentCondition {
+fn convert_deployment_condition(
+    condition: &k8s_openapi::api::apps::v1::DeploymentCondition,
+) -> K8sDeploymentCondition {
     K8sDeploymentCondition {
         condition_type: condition.type_.clone(),
         status: condition.status.clone(),
-        last_update_time: condition.last_update_time.as_ref()
-            .map(|t| t.0),
-        last_transition_time: condition.last_transition_time.as_ref()
-            .map(|t| t.0),
+        last_update_time: condition.last_update_time.as_ref().map(|t| t.0),
+        last_transition_time: condition.last_transition_time.as_ref().map(|t| t.0),
         reason: condition.reason.clone().unwrap_or_default(),
         message: condition.message.clone().unwrap_or_default(),
     }
@@ -1948,7 +2253,10 @@ users:
     fn test_pod_status_from_str() {
         assert!(matches!(PodStatus::from("Running"), PodStatus::Running));
         assert!(matches!(PodStatus::from("Pending"), PodStatus::Pending));
-        assert!(matches!(PodStatus::from("CrashLoopBackOff"), PodStatus::CrashLoopBackOff));
+        assert!(matches!(
+            PodStatus::from("CrashLoopBackOff"),
+            PodStatus::CrashLoopBackOff
+        ));
         assert!(matches!(PodStatus::from("Unknown"), PodStatus::Unknown));
     }
 }

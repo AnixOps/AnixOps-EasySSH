@@ -1,9 +1,9 @@
 //! Data import and export functionality
 
+use crate::database_client::query::QueryCell;
+use crate::database_client::{DatabaseConfig, DatabaseError, DatabaseType, QueryResult};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use crate::database_client::{DatabaseError, QueryResult, DatabaseConfig, DatabaseType};
-use crate::database_client::query::QueryCell;
 
 /// Import/Export format
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,7 +41,9 @@ impl DataFormat {
             DataFormat::Jsonl => "application/x-jsonlines",
             DataFormat::Sql => "application/sql",
             DataFormat::Xml => "application/xml",
-            DataFormat::Excel => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            DataFormat::Excel => {
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
             DataFormat::Parquet => "application/octet-stream",
             DataFormat::Markdown => "text/markdown",
             DataFormat::Html => "text/html",
@@ -190,9 +192,10 @@ impl DataImporter {
                 self.import_sql(file_path, config, &mut result).await?;
             }
             _ => {
-                return Err(DatabaseError::ImportExportError(
-                    format!("Import format {:?} not yet supported", config.format)
-                ));
+                return Err(DatabaseError::ImportExportError(format!(
+                    "Import format {:?} not yet supported",
+                    config.format
+                )));
             }
         }
 
@@ -337,9 +340,10 @@ impl DataImporter {
 
         let mut result = self.import(file_path, &config).await?;
 
-        result.preview.take().ok_or_else(||
-            DatabaseError::ImportExportError("No preview available".to_string())
-        )
+        result
+            .preview
+            .take()
+            .ok_or_else(|| DatabaseError::ImportExportError("No preview available".to_string()))
     }
 }
 
@@ -373,9 +377,10 @@ impl DataExporter {
             DataFormat::Markdown => self.to_markdown(result, config)?,
             DataFormat::Html => self.to_html(result, config)?,
             _ => {
-                return Err(DatabaseError::ImportExportError(
-                    format!("Export format {:?} not yet supported", config.format)
-                ));
+                return Err(DatabaseError::ImportExportError(format!(
+                    "Export format {:?} not yet supported",
+                    config.format
+                )));
             }
         };
 
@@ -395,7 +400,11 @@ impl DataExporter {
         })
     }
 
-    fn to_markdown(&self, result: &QueryResult, config: &ExportConfig) -> Result<String, DatabaseError> {
+    fn to_markdown(
+        &self,
+        result: &QueryResult,
+        config: &ExportConfig,
+    ) -> Result<String, DatabaseError> {
         let mut md = String::new();
 
         // Header
@@ -432,7 +441,11 @@ impl DataExporter {
         Ok(md)
     }
 
-    fn to_html(&self, result: &QueryResult, config: &ExportConfig) -> Result<String, DatabaseError> {
+    fn to_html(
+        &self,
+        result: &QueryResult,
+        config: &ExportConfig,
+    ) -> Result<String, DatabaseError> {
         let mut html = String::from(
             r#"<!DOCTYPE html>
 <html>
@@ -448,7 +461,7 @@ impl DataExporter {
 </head>
 <body>
     <table>
-"#
+"#,
         );
 
         // Headers
@@ -465,10 +478,7 @@ impl DataExporter {
             html.push_str("        <tr>\n");
             for cell in &row.cells {
                 let val = match cell {
-                    QueryCell::Null => format!(
-                        r#"<td class="null">{}</td>"#,
-                        config.null_value
-                    ),
+                    QueryCell::Null => format!(r#"<td class="null">{}</td>"#, config.null_value),
                     _ => format!("<td>{}</td>", cell.to_string()),
                 };
                 html.push_str(&format!("            {}\n", val));
@@ -479,7 +489,7 @@ impl DataExporter {
         html.push_str(
             r#"    </table>
 </body>
-</html>"#
+</html>"#,
         );
 
         Ok(html)

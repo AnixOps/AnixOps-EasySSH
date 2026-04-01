@@ -242,10 +242,7 @@ pub struct BatchContext {
 }
 
 impl BatchContext {
-    fn new(
-        progress_tx: Option<mpsc::Sender<BatchProgress>>,
-        total_rows: Option<u64>,
-    ) -> Self {
+    fn new(progress_tx: Option<mpsc::Sender<BatchProgress>>, total_rows: Option<u64>) -> Self {
         Self {
             cancelled: AtomicBool::new(false),
             rows_processed: AtomicU64::new(0),
@@ -277,9 +274,10 @@ impl BatchContext {
                 0.0
             };
 
-            let percentage = self.total_rows.map(|total| {
-                ((processed as f64 / total as f64) * 100.0).min(100.0) as f32
-            }).unwrap_or(0.0);
+            let percentage = self
+                .total_rows
+                .map(|total| ((processed as f64 / total as f64) * 100.0).min(100.0) as f32)
+                .unwrap_or(0.0);
 
             let eta_seconds = if rows_per_second > 0.0 {
                 self.total_rows.map(|total| {
@@ -407,10 +405,7 @@ impl BatchInserter {
     }
 
     /// Execute batch operation
-    async fn execute_batch(
-        &self,
-        operation: BatchOperation,
-    ) -> Result<BatchResult, DatabaseError> {
+    async fn execute_batch(&self, operation: BatchOperation) -> Result<BatchResult, DatabaseError> {
         let context = Arc::new(BatchContext::new(None, None));
         self.execute_batch_internal(operation, context).await
     }
@@ -436,7 +431,11 @@ impl BatchInserter {
 
         // Process batches
         match operation {
-            BatchOperation::Insert { table, columns, rows } => {
+            BatchOperation::Insert {
+                table,
+                columns,
+                rows,
+            } => {
                 let chunks: Vec<_> = rows.chunks(batch_size).enumerate().collect();
 
                 for (batch_idx, chunk) in chunks {
@@ -466,7 +465,12 @@ impl BatchInserter {
                     }
                 }
             }
-            BatchOperation::Upsert { table, columns, rows, key_columns } => {
+            BatchOperation::Upsert {
+                table,
+                columns,
+                rows,
+                key_columns,
+            } => {
                 let chunks: Vec<_> = rows.chunks(batch_size).enumerate().collect();
 
                 for (batch_idx, chunk) in chunks {
@@ -475,7 +479,13 @@ impl BatchInserter {
                     }
 
                     let result = self
-                        .execute_upsert_batch(&table, &columns, chunk, &key_columns, batch_idx as u32)
+                        .execute_upsert_batch(
+                            &table,
+                            &columns,
+                            chunk,
+                            &key_columns,
+                            batch_idx as u32,
+                        )
                         .await;
 
                     match result {
@@ -496,7 +506,12 @@ impl BatchInserter {
                     }
                 }
             }
-            BatchOperation::Update { table, set_clause, where_clause, conditions } => {
+            BatchOperation::Update {
+                table,
+                set_clause,
+                where_clause,
+                conditions,
+            } => {
                 let chunks: Vec<_> = conditions.chunks(batch_size).enumerate().collect();
 
                 for (batch_idx, chunk) in chunks {
@@ -505,7 +520,13 @@ impl BatchInserter {
                     }
 
                     let result = self
-                        .execute_update_batch(&table, &set_clause, &where_clause, chunk, batch_idx as u32)
+                        .execute_update_batch(
+                            &table,
+                            &set_clause,
+                            &where_clause,
+                            chunk,
+                            batch_idx as u32,
+                        )
                         .await;
 
                     match result {
@@ -526,7 +547,11 @@ impl BatchInserter {
                     }
                 }
             }
-            BatchOperation::Delete { table, where_clause, conditions } => {
+            BatchOperation::Delete {
+                table,
+                where_clause,
+                conditions,
+            } => {
                 let chunks: Vec<_> = conditions.chunks(batch_size).enumerate().collect();
 
                 for (batch_idx, chunk) in chunks {
@@ -635,9 +660,8 @@ impl BatchInserter {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| {
-            DatabaseError::QueryError("Insert batch failed".to_string())
-        }))
+        Err(last_error
+            .unwrap_or_else(|| DatabaseError::QueryError("Insert batch failed".to_string())))
     }
 
     /// Execute a single upsert batch
@@ -695,7 +719,16 @@ impl BatchInserter {
             StatementStrategy::MultiRow => {
                 let columns_str = columns.join(", ");
                 let placeholders: Vec<_> = (0..row_count)
-                    .map(|_| format!("({})", columns.iter().map(|_| "?".to_string()).collect::<Vec<_>>().join(", ")))
+                    .map(|_| {
+                        format!(
+                            "({})",
+                            columns
+                                .iter()
+                                .map(|_| "?".to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    })
                     .collect();
 
                 format!(
@@ -708,7 +741,11 @@ impl BatchInserter {
             _ => {
                 // Single row insert with prepared statement
                 let columns_str = columns.join(", ");
-                let placeholders = columns.iter().map(|_| "?".to_string()).collect::<Vec<_>>().join(", ");
+                let placeholders = columns
+                    .iter()
+                    .map(|_| "?".to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 format!(
                     "INSERT INTO {} ({}) VALUES ({})",
                     table, columns_str, placeholders
@@ -727,7 +764,16 @@ impl BatchInserter {
     ) -> String {
         let columns_str = columns.join(", ");
         let placeholders: Vec<_> = (0..row_count)
-            .map(|_| format!("({})", columns.iter().map(|_| "?".to_string()).collect::<Vec<_>>().join(", ")))
+            .map(|_| {
+                format!(
+                    "({})",
+                    columns
+                        .iter()
+                        .map(|_| "?".to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            })
             .collect();
 
         let update_clause = columns
@@ -796,7 +842,10 @@ impl BatchInserter {
         _conditions: &[Vec<Value>],
     ) -> String {
         // Build CASE statement for batch update
-        format!("UPDATE {} SET {} WHERE {}", table, "/* case statement */", where_clause)
+        format!(
+            "UPDATE {} SET {} WHERE {}",
+            table, "/* case statement */", where_clause
+        )
     }
 
     /// Build batch DELETE SQL
@@ -851,11 +900,8 @@ impl StreamingBatchProcessor {
 
             if buffer.len() >= self.config.batch_size {
                 let operation = processor(std::mem::take(&mut buffer));
-                let inserter = BatchInserter::new(
-                    self.pool.clone(),
-                    self.config.clone(),
-                    self.db_type,
-                );
+                let inserter =
+                    BatchInserter::new(self.pool.clone(), self.config.clone(), self.db_type);
 
                 match inserter.execute_batch(operation).await {
                     Ok(result) => results.push(result),
@@ -872,11 +918,7 @@ impl StreamingBatchProcessor {
         // Process remaining rows
         if !buffer.is_empty() {
             let operation = processor(buffer);
-            let inserter = BatchInserter::new(
-                self.pool.clone(),
-                self.config.clone(),
-                self.db_type,
-            );
+            let inserter = BatchInserter::new(self.pool.clone(), self.config.clone(), self.db_type);
 
             match inserter.execute_batch(operation).await {
                 Ok(result) => results.push(result),
@@ -1020,12 +1062,24 @@ mod tests {
     fn test_batch_operation_builder() {
         let operation = BatchOperationBuilder::new("users")
             .columns(&["id", "name", "email"])
-            .row(vec![Value::Integer(1), Value::String("Alice".to_string()), Value::String("alice@example.com".to_string())])
-            .row(vec![Value::Integer(2), Value::String("Bob".to_string()), Value::String("bob@example.com".to_string())])
+            .row(vec![
+                Value::Integer(1),
+                Value::String("Alice".to_string()),
+                Value::String("alice@example.com".to_string()),
+            ])
+            .row(vec![
+                Value::Integer(2),
+                Value::String("Bob".to_string()),
+                Value::String("bob@example.com".to_string()),
+            ])
             .build_insert();
 
         match operation {
-            BatchOperation::Insert { table, columns, rows } => {
+            BatchOperation::Insert {
+                table,
+                columns,
+                rows,
+            } => {
                 assert_eq!(table, "users");
                 assert_eq!(columns.len(), 3);
                 assert_eq!(rows.len(), 2);

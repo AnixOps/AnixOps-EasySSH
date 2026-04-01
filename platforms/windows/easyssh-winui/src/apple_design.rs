@@ -15,7 +15,9 @@
 //! @version 2.0.0 - Apple Level Polish
 //! @platform Windows (native egui)
 
-use egui::{Color32, Rounding, Shadow, Stroke, Vec2, Margin, FontId, FontFamily, Response, Widget, Ui, Pos2};
+use egui::{
+    Color32, FontFamily, FontId, Margin, Pos2, Response, Rounding, Shadow, Stroke, Ui, Vec2, Widget,
+};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -345,17 +347,17 @@ pub struct AppleTypography;
 
 impl AppleTypography {
     // Apple-style font sizes with perfect hierarchy
-    pub const CAPTION_2: f32 = 11.0;    // Smallest, labels
-    pub const CAPTION_1: f32 = 12.0;    // Captions
-    pub const FOOTNOTE: f32 = 13.0;     // Footnotes
-    pub const SUBHEAD: f32 = 14.0;      // Subheadings
-    pub const CALLOUT: f32 = 15.0;      // Callouts
-    pub const BODY: f32 = 16.0;         // Body text
-    pub const HEADLINE: f32 = 17.0;     // Headlines
-    pub const TITLE_3: f32 = 20.0;      // Small titles
-    pub const TITLE_2: f32 = 22.0;      // Medium titles
-    pub const TITLE_1: f32 = 28.0;      // Large titles
-    pub const LARGE_TITLE: f32 = 34.0;  // Hero titles
+    pub const CAPTION_2: f32 = 11.0; // Smallest, labels
+    pub const CAPTION_1: f32 = 12.0; // Captions
+    pub const FOOTNOTE: f32 = 13.0; // Footnotes
+    pub const SUBHEAD: f32 = 14.0; // Subheadings
+    pub const CALLOUT: f32 = 15.0; // Callouts
+    pub const BODY: f32 = 16.0; // Body text
+    pub const HEADLINE: f32 = 17.0; // Headlines
+    pub const TITLE_3: f32 = 20.0; // Small titles
+    pub const TITLE_2: f32 = 22.0; // Medium titles
+    pub const TITLE_1: f32 = 28.0; // Large titles
+    pub const LARGE_TITLE: f32 = 34.0; // Hero titles
 
     /// SF Pro style weights
     pub fn regular(size: f32) -> FontId {
@@ -490,9 +492,9 @@ pub enum ButtonStyle {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ButtonSize {
-    Small,      // 28px height
-    Medium,     // 36px height
-    Large,      // 44px height (WCAG compliant)
+    Small,  // 28px height
+    Medium, // 36px height
+    Large,  // 44px height (WCAG compliant)
 }
 
 impl<'a> AppleButton<'a> {
@@ -575,7 +577,7 @@ impl<'a> AppleButton<'a> {
                 let bg = Self::lerp_color(
                     Self::lerp_color(base_bg, hover_bg, hover),
                     active_bg,
-                    pressed * 0.5
+                    pressed * 0.5,
                 );
                 let text = theme.text_inverted;
                 let border = bg;
@@ -628,10 +630,7 @@ impl<'a> Widget for AppleButton<'a> {
         let font_size = self.font_size();
 
         // Calculate minimum size
-        let min_size = Vec2::new(
-            self.min_width.unwrap_or(height),
-            height
-        );
+        let min_size = Vec2::new(self.min_width.unwrap_or(height), height);
 
         // Build text with icon
         let text = if let Some(icon) = self.icon {
@@ -640,12 +639,10 @@ impl<'a> Widget for AppleButton<'a> {
             } else {
                 format!("{} {}", icon, self.label.text())
             }
+        } else if self.loading {
+            format!("{} {}", LucideIcons::LOADING, self.label.text())
         } else {
-            if self.loading {
-                format!("{} {}", LucideIcons::LOADING, self.label.text())
-            } else {
-                self.label.text().to_string()
-            }
+            self.label.text().to_string()
         };
 
         let rich_text = egui::RichText::new(text)
@@ -710,11 +707,11 @@ impl<'a> AppleCard<'a> {
             .stroke(Stroke::new(1.0, theme.border_subtle))
             .inner_margin(Margin::same(16.0));
 
-        let response = frame.show(ui, |ui| {
-            (self.content)(ui);
-        }).response;
-
-        response
+        frame
+            .show(ui, |ui| {
+                (self.content)(ui);
+            })
+            .response
     }
 }
 
@@ -761,7 +758,7 @@ impl<'a> EmptyState<'a> {
             ui.label(
                 egui::RichText::new(self.icon)
                     .size(64.0)
-                    .color(self.theme.text_tertiary)
+                    .color(self.theme.text_tertiary),
             );
 
             ui.add_space(24.0);
@@ -770,7 +767,7 @@ impl<'a> EmptyState<'a> {
             ui.label(
                 egui::RichText::new(self.title)
                     .font(AppleTypography::semibold(AppleTypography::TITLE_3))
-                    .color(self.theme.text_primary)
+                    .color(self.theme.text_primary),
             );
 
             ui.add_space(8.0);
@@ -779,7 +776,7 @@ impl<'a> EmptyState<'a> {
             ui.label(
                 egui::RichText::new(self.description)
                     .font(AppleTypography::body_text())
-                    .color(self.theme.text_secondary)
+                    .color(self.theme.text_secondary),
             );
 
             ui.add_space(24.0);
@@ -838,7 +835,7 @@ impl<'a> ErrorState<'a> {
             ui.label(
                 egui::RichText::new(LucideIcons::ERROR)
                     .size(48.0)
-                    .color(Color32::from_rgb(239, 68, 68))
+                    .color(Color32::from_rgb(239, 68, 68)),
             );
 
             ui.add_space(16.0);
@@ -847,7 +844,7 @@ impl<'a> ErrorState<'a> {
             ui.label(
                 egui::RichText::new("Something went wrong")
                     .font(AppleTypography::semibold(AppleTypography::TITLE_3))
-                    .color(self.theme.text_primary)
+                    .color(self.theme.text_primary),
             );
 
             ui.add_space(8.0);
@@ -856,7 +853,7 @@ impl<'a> ErrorState<'a> {
             ui.label(
                 egui::RichText::new(self.error)
                     .font(AppleTypography::body_text())
-                    .color(Color32::from_rgb(239, 68, 68))
+                    .color(Color32::from_rgb(239, 68, 68)),
             );
 
             // Suggestion
@@ -865,7 +862,7 @@ impl<'a> ErrorState<'a> {
                 ui.label(
                     egui::RichText::new(suggestion)
                         .font(AppleTypography::caption())
-                        .color(self.theme.text_tertiary)
+                        .color(self.theme.text_tertiary),
                 );
             }
 
@@ -946,9 +943,14 @@ pub fn show_tooltip(ui: &Ui, text: &str, theme: &DesignTheme) {
         .font(AppleTypography::caption())
         .color(theme.text_inverted);
 
-    egui::containers::popup::show_tooltip(ui.ctx(), ui.layer_id(), egui::Id::new("tooltip"), |ui| {
-        ui.label(rich_text);
-    });
+    egui::containers::popup::show_tooltip(
+        ui.ctx(),
+        ui.layer_id(),
+        egui::Id::new("tooltip"),
+        |ui| {
+            ui.label(rich_text);
+        },
+    );
 }
 
 // ============================================================================
@@ -964,10 +966,7 @@ impl Divider {
         let y = rect.min.y;
 
         painter.line_segment(
-            [
-                Pos2::new(rect.min.x, y),
-                Pos2::new(rect.max.x, y),
-            ],
+            [Pos2::new(rect.min.x, y), Pos2::new(rect.max.x, y)],
             Stroke::new(1.0, theme.border_subtle),
         );
 
@@ -980,10 +979,7 @@ impl Divider {
         let x = rect.min.x;
 
         painter.line_segment(
-            [
-                Pos2::new(x, rect.min.y),
-                Pos2::new(x, rect.min.y + height),
-            ],
+            [Pos2::new(x, rect.min.y), Pos2::new(x, rect.min.y + height)],
             Stroke::new(1.0, theme.border_subtle),
         );
 

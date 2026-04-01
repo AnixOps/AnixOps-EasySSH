@@ -103,24 +103,27 @@ fn list_servers(db: &Database) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    println!("{:<36} {:<12} {:<20} {:<10} {}", "ID", "Group", "Name", "Username", "Host:Port");
+    println!(
+        "{:<36} {:<12} {:<20} {:<10} {}",
+        "ID", "Group", "Name", "Username", "Host:Port"
+    );
     println!("{}", "-".repeat(100));
 
     for s in servers {
         let group_name = s
             .group_id
             .as_ref()
-            .and_then(|gid| groups.iter().find(|g| &g.id == gid).map(|g| g.name.as_str()))
+            .and_then(|gid| {
+                groups
+                    .iter()
+                    .find(|g| &g.id == gid)
+                    .map(|g| g.name.as_str())
+            })
             .unwrap_or("(none)");
 
         println!(
             "{:<36} {:<12} {:<20} {:<10} {}:{}",
-            s.id,
-            group_name,
-            s.name,
-            s.username,
-            s.host,
-            s.port
+            s.id, group_name, s.name, s.username, s.host, s.port
         );
     }
 
@@ -204,7 +207,10 @@ fn connect_server(db: &Database, args: &[String]) -> Result<(), Box<dyn Error>> 
         }
     };
 
-    println!("Connecting to {} ({}@{}:{})...", server.name, server.username, server.host, server.port);
+    println!(
+        "Connecting to {} ({}@{}:{})...",
+        server.name, server.username, server.host, server.port
+    );
     terminal::open_native_terminal(
         &server.host,
         server.port as u16,
@@ -221,7 +227,10 @@ fn start_debug_server(args: &[String]) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let host = args.get(2).cloned().unwrap_or_else(|| "127.0.0.1".to_string());
+    let host = args
+        .get(2)
+        .cloned()
+        .unwrap_or_else(|| "127.0.0.1".to_string());
     let port = args.get(3).and_then(|p| p.parse().ok()).unwrap_or(7878);
     let runtime = tokio::runtime::Runtime::new()?;
     runtime.block_on(async { easyssh_core::debug_ws::run_server(&host, port).await })?;

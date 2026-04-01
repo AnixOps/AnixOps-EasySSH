@@ -5,15 +5,15 @@
 
 use serde::{Deserialize, Serialize};
 
-pub mod providers;
-pub mod context;
-pub mod suggestions;
-pub mod completion;
-pub mod error_diagnosis;
-pub mod natural_language;
 pub mod command_explainer;
+pub mod completion;
+pub mod context;
+pub mod error_diagnosis;
 pub mod log_analyzer;
+pub mod natural_language;
+pub mod providers;
 pub mod security_audit;
+pub mod suggestions;
 
 pub use context::TerminalContext;
 pub use suggestions::AiSuggestion;
@@ -21,8 +21,9 @@ pub use suggestions::AiSuggestion;
 pub const VERSION: &str = "0.1.0";
 
 /// Operating system type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OsType {
+    #[default]
     Linux,
     MacOS,
     Windows,
@@ -30,24 +31,13 @@ pub enum OsType {
     Other,
 }
 
-impl Default for OsType {
-    fn default() -> Self {
-        OsType::Linux
-    }
-}
-
 /// Detail level for command explanations
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DetailLevel {
     Brief,
+    #[default]
     Standard,
     Detailed,
-}
-
-impl Default for DetailLevel {
-    fn default() -> Self {
-        DetailLevel::Standard
-    }
 }
 
 /// Log type for analysis
@@ -86,10 +76,7 @@ pub struct AiTerminalConfig {
 impl Default for AiTerminalConfig {
     fn default() -> Self {
         Self {
-            enabled_features: vec![
-                AiFeature::CommandCompletion,
-                AiFeature::ErrorDiagnosis,
-            ],
+            enabled_features: vec![AiFeature::CommandCompletion, AiFeature::ErrorDiagnosis],
             max_history: 50,
             cache_ttl_secs: 300,
             enable_local_fallback: true,
@@ -293,13 +280,19 @@ impl AiTerminal {
         Ok(Self { config })
     }
 
-    pub async fn complete_command(&self, _request: CommandCompletionRequest) -> anyhow::Result<CompletionResult> {
+    pub async fn complete_command(
+        &self,
+        _request: CommandCompletionRequest,
+    ) -> anyhow::Result<CompletionResult> {
         Ok(CompletionResult {
             suggestions: vec![],
         })
     }
 
-    pub async fn diagnose_error(&self, _request: ErrorDiagnosisRequest) -> anyhow::Result<DiagnosisResult> {
+    pub async fn diagnose_error(
+        &self,
+        _request: ErrorDiagnosisRequest,
+    ) -> anyhow::Result<DiagnosisResult> {
         Ok(DiagnosisResult {
             error_summary: "Stub implementation".to_string(),
             severity: "low".to_string(),
@@ -310,7 +303,10 @@ impl AiTerminal {
         })
     }
 
-    pub async fn natural_language_to_command(&self, request: NlToCommandRequest) -> anyhow::Result<NlToCommandResult> {
+    pub async fn natural_language_to_command(
+        &self,
+        request: NlToCommandRequest,
+    ) -> anyhow::Result<NlToCommandResult> {
         Ok(NlToCommandResult {
             generated_commands: vec![GeneratedCommand {
                 command: format!("echo '{}'", request.natural_language),
@@ -321,7 +317,10 @@ impl AiTerminal {
         })
     }
 
-    pub async fn explain_command(&self, request: ExplanationRequest) -> anyhow::Result<ExplanationResult> {
+    pub async fn explain_command(
+        &self,
+        request: ExplanationRequest,
+    ) -> anyhow::Result<ExplanationResult> {
         Ok(ExplanationResult {
             summary: format!("Command: {}", request.command),
             detailed_explanation: "Stub implementation".to_string(),
@@ -330,7 +329,10 @@ impl AiTerminal {
         })
     }
 
-    pub async fn audit_command(&self, request: SecurityAuditRequest) -> anyhow::Result<SecurityAuditResult> {
+    pub async fn audit_command(
+        &self,
+        request: SecurityAuditRequest,
+    ) -> anyhow::Result<SecurityAuditResult> {
         Ok(SecurityAuditResult {
             is_safe: true,
             risk_level: RiskLevel::Safe,
@@ -343,7 +345,10 @@ impl AiTerminal {
         })
     }
 
-    pub async fn analyze_logs(&self, request: LogAnalysisRequest) -> anyhow::Result<LogAnalysisResult> {
+    pub async fn analyze_logs(
+        &self,
+        request: LogAnalysisRequest,
+    ) -> anyhow::Result<LogAnalysisResult> {
         let lines = request.log_content.lines().count();
         Ok(LogAnalysisResult {
             summary: LogSummary {

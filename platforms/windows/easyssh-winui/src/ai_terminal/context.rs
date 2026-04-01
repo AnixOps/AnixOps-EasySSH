@@ -76,11 +76,7 @@ impl SessionContext {
     }
 
     pub fn get_recent_commands(&self, count: usize) -> Vec<&CommandHistory> {
-        self.command_history
-            .iter()
-            .rev()
-            .take(count)
-            .collect()
+        self.command_history.iter().rev().take(count).collect()
     }
 }
 
@@ -115,12 +111,7 @@ impl ContextTracker {
     }
 
     /// 添加命令到会话
-    pub fn add_command(
-        &self,
-        session_id: &str,
-        command: &str,
-        output: &str,
-    ) {
+    pub fn add_command(&self, session_id: &str, command: &str, output: &str) {
         let mut sessions = self.sessions.write().unwrap();
 
         if let Some(session) = sessions.get_mut(session_id) {
@@ -205,12 +196,7 @@ impl ContextTracker {
         let mut working_dir = String::new();
 
         for session in sessions.values() {
-            all_commands.extend(
-                session
-                    .command_history
-                    .iter()
-                    .map(|h| h.command.clone()),
-            );
+            all_commands.extend(session.command_history.iter().map(|h| h.command.clone()));
             if working_dir.is_empty() && !session.working_directory.is_empty() {
                 working_dir = session.working_directory.clone();
             }

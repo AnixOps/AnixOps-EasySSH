@@ -108,12 +108,10 @@ pub unsafe extern "C" fn easyssh_get_servers(handle: *mut EasySSHAppState) -> *m
                     Err(_) => ptr::null_mut(),
                 }
             }
-            Err(_) => {
-                match CString::new("[]") {
-                    Ok(cstr) => cstr.into_raw(),
-                    Err(_) => ptr::null_mut(),
-                }
-            }
+            Err(_) => match CString::new("[]") {
+                Ok(cstr) => cstr.into_raw(),
+                Err(_) => ptr::null_mut(),
+            },
         }
     } else {
         ptr::null_mut()
@@ -244,12 +242,10 @@ pub unsafe extern "C" fn easyssh_get_groups(handle: *mut EasySSHAppState) -> *mu
                     Err(_) => ptr::null_mut(),
                 }
             }
-            Err(_) => {
-                match CString::new("[]") {
-                    Ok(cstr) => cstr.into_raw(),
-                    Err(_) => ptr::null_mut(),
-                }
-            }
+            Err(_) => match CString::new("[]") {
+                Ok(cstr) => cstr.into_raw(),
+                Err(_) => ptr::null_mut(),
+            },
         }
     } else {
         ptr::null_mut()

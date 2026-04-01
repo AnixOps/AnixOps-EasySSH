@@ -9,10 +9,8 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 use crate::ai_terminal::{
-    AiTerminal,
-    CommandCompletionRequest, ErrorDiagnosisRequest,
-    NlToCommandRequest, ExplanationRequest, SecurityAuditRequest,
-    LogAnalysisRequest, OsType, DetailLevel, LogType,
+    AiTerminal, CommandCompletionRequest, DetailLevel, ErrorDiagnosisRequest, ExplanationRequest,
+    LogAnalysisRequest, LogType, NlToCommandRequest, OsType, SecurityAuditRequest,
 };
 
 /// AI终端面板状态
@@ -59,11 +57,11 @@ impl AiTerminalUi {
     /// 创建新的AI终端UI
     pub fn new(runtime: Arc<Runtime>) -> Self {
         let config = crate::ai_terminal::create_privacy_config();
-        let ai_terminal = Arc::new(
-            runtime.block_on(async {
-                AiTerminal::new(config).await.expect("Failed to create AI terminal")
-            })
-        );
+        let ai_terminal = Arc::new(runtime.block_on(async {
+            AiTerminal::new(config)
+                .await
+                .expect("Failed to create AI terminal")
+        }));
 
         Self {
             ai_terminal,
@@ -198,12 +196,11 @@ impl AiTerminalUi {
 
                 let button = ui.add_sized(
                     [80.0, 28.0],
-                    egui::Button::new(process_text)
-                        .sense(if self.is_processing {
-                            egui::Sense::hover()
-                        } else {
-                            egui::Sense::click()
-                        }),
+                    egui::Button::new(process_text).sense(if self.is_processing {
+                        egui::Sense::hover()
+                    } else {
+                        egui::Sense::click()
+                    }),
                 );
 
                 if button.clicked() && !self.is_processing {
@@ -277,10 +274,7 @@ impl AiTerminalUi {
             if self.selected_provider != ProviderType::Local {
                 ui.horizontal(|ui| {
                     ui.label("API Key:");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.api_key_input)
-                            .password(true)
-                    );
+                    ui.add(egui::TextEdit::singleline(&mut self.api_key_input).password(true));
                 });
             }
 
@@ -320,15 +314,27 @@ impl AiTerminalUi {
                 self.execute_completion(input, current_command, session_id);
             }
             AiTab::Explain => {
-                let cmd = if input.is_empty() { current_command } else { &input };
+                let cmd = if input.is_empty() {
+                    current_command
+                } else {
+                    &input
+                };
                 self.execute_explain(cmd.to_string());
             }
             AiTab::Audit => {
-                let cmd = if input.is_empty() { current_command } else { &input };
+                let cmd = if input.is_empty() {
+                    current_command
+                } else {
+                    &input
+                };
                 self.execute_audit(cmd.to_string());
             }
             AiTab::Diagnose => {
-                let error = if input.is_empty() { terminal_output } else { &input };
+                let error = if input.is_empty() {
+                    terminal_output
+                } else {
+                    &input
+                };
                 self.execute_diagnose(current_command.to_string(), error.to_string(), session_id);
             }
             AiTab::Logs => {
@@ -358,7 +364,8 @@ impl AiTerminalUi {
                 Ok(result) => {
                     let output = format!(
                         "Generated Commands:\\n\\n{}\\n\\nExplanation: {}",
-                        result.generated_commands
+                        result
+                            .generated_commands
                             .iter()
                             .map(|c| format!(
                                 "$ {}\\n   Risk: {:?}, Confidence: {:.0}%",
@@ -394,7 +401,8 @@ impl AiTerminalUi {
 
             match ai_terminal.complete_command(request).await {
                 Ok(result) => {
-                    let output = result.suggestions
+                    let output = result
+                        .suggestions
                         .iter()
                         .map(|s| format!("{} - {:?}", s.message, s.action))
                         .collect::<Vec<_>>()
@@ -572,7 +580,11 @@ impl AiTerminalUi {
             "diagnose" => {
                 self.active_tab = AiTab::Diagnose;
                 self.input_text = terminal_output.to_string();
-                self.execute_diagnose(current_command.to_string(), terminal_output.to_string(), "current_session".to_string());
+                self.execute_diagnose(
+                    current_command.to_string(),
+                    terminal_output.to_string(),
+                    "current_session".to_string(),
+                );
             }
             "audit" => {
                 self.active_tab = AiTab::Audit;
@@ -611,9 +623,7 @@ impl AiTerminalUi {
             };
 
             match ai_terminal.audit_command(request).await {
-                Ok(result) => {
-                    !result.requires_confirmation
-                }
+                Ok(result) => !result.requires_confirmation,
                 Err(_) => true,
             }
         })

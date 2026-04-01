@@ -30,7 +30,9 @@ impl GitManager {
             let mut client = GitClient::new();
             client.open(&path_buf)?;
             Ok::<GitClient, GitError>(client)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))??;
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))??;
 
         let id = uuid::Uuid::new_v4().to_string();
         let mut clients = self.clients.write().await;
@@ -62,7 +64,9 @@ impl GitManager {
             }
             client.clone(&url, &path_buf, &options)?;
             Ok::<GitClient, GitError>(client)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))??;
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))??;
 
         let id = uuid::Uuid::new_v4().to_string();
         let mut clients = self.clients.write().await;
@@ -82,7 +86,9 @@ impl GitManager {
             let mut client = GitClient::new();
             client.init(&path_buf, bare)?;
             Ok::<GitClient, GitError>(client)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))??;
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))??;
 
         let id = uuid::Uuid::new_v4().to_string();
         let mut clients = self.clients.write().await;
@@ -100,22 +106,27 @@ impl GitManager {
             id.to_string()
         } else {
             let active = self.active_repo.read().await;
-            active.as_ref().ok_or_else(|| {
-                GitError::RepositoryNotFound("No active repository".to_string())
-            })?.clone()
+            active
+                .as_ref()
+                .ok_or_else(|| GitError::RepositoryNotFound("No active repository".to_string()))?
+                .clone()
         };
 
         let clients = self.clients.read().await;
-        clients.get(&id).cloned().ok_or_else(|| {
-            GitError::RepositoryNotFound(format!("Repository {} not found", id))
-        })
+        clients
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| GitError::RepositoryNotFound(format!("Repository {} not found", id)))
     }
 
     /// Set the active repository
     pub async fn set_active_repo(&self, repo_id: &str) -> Result<(), GitError> {
         let clients = self.clients.read().await;
         if !clients.contains_key(repo_id) {
-            return Err(GitError::RepositoryNotFound(format!("Repository {} not found", repo_id)));
+            return Err(GitError::RepositoryNotFound(format!(
+                "Repository {} not found",
+                repo_id
+            )));
         }
 
         let mut active = self.active_repo.write().await;
@@ -130,7 +141,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.status()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get file statuses
@@ -140,7 +153,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.file_statuses()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Stage files
@@ -151,7 +166,9 @@ impl GitManager {
             let client = client.blocking_lock();
             let refs: Vec<&str> = paths.iter().map(|s| s.as_str()).collect();
             client.stage(&refs)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Unstage files
@@ -162,7 +179,9 @@ impl GitManager {
             let client = client.blocking_lock();
             let refs: Vec<&str> = paths.iter().map(|s| s.as_str()).collect();
             client.unstage(&refs)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Discard changes
@@ -173,17 +192,26 @@ impl GitManager {
             let client = client.blocking_lock();
             let refs: Vec<&str> = paths.iter().map(|s| s.as_str()).collect();
             client.discard(&refs)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Commit changes
-    pub async fn commit(&self, message: String, amend: bool, repo_id: Option<&str>) -> Result<String, GitError> {
+    pub async fn commit(
+        &self,
+        message: String,
+        amend: bool,
+        repo_id: Option<&str>,
+    ) -> Result<String, GitError> {
         let client = self.get_client(repo_id).await?;
 
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.commit(&message, amend)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get commit log
@@ -198,7 +226,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.log(branch.as_deref(), limit)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get diff for commit
@@ -212,7 +242,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.diff_commit(&commit_id)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get working directory diff
@@ -222,7 +254,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.diff_workdir()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get staged diff
@@ -232,7 +266,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.diff_staged()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get branches
@@ -242,7 +278,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.branches()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Create branch
@@ -257,7 +295,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.create_branch(&name, start_point.as_deref())
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Checkout branch
@@ -272,7 +312,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.checkout_branch(&name, create)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Delete branch
@@ -282,27 +324,40 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.delete_branch(&name)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Merge branch
-    pub async fn merge(&self, branch_name: String, repo_id: Option<&str>) -> Result<MergeResult, GitError> {
+    pub async fn merge(
+        &self,
+        branch_name: String,
+        repo_id: Option<&str>,
+    ) -> Result<MergeResult, GitError> {
         let client = self.get_client(repo_id).await?;
 
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.merge(&branch_name)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get conflicts
-    pub async fn get_conflicts(&self, repo_id: Option<&str>) -> Result<Vec<ConflictInfo>, GitError> {
+    pub async fn get_conflicts(
+        &self,
+        repo_id: Option<&str>,
+    ) -> Result<Vec<ConflictInfo>, GitError> {
         let client = self.get_client(repo_id).await?;
 
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.get_conflicts()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Resolve conflict
@@ -317,7 +372,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.resolve_conflict(&path, &content)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Abort merge
@@ -327,7 +384,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.abort_merge()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get remotes
@@ -337,7 +396,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.remotes()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Add remote
@@ -352,7 +413,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.add_remote(&name, &url)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Remove remote
@@ -362,7 +425,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.remove_remote(&name)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Fetch from remote
@@ -377,18 +442,30 @@ impl GitManager {
 
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
-            client.fetch(&FetchOptions { remote, prune, tags })
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+            client.fetch(&FetchOptions {
+                remote,
+                prune,
+                tags,
+            })
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Pull from remote
-    pub async fn pull(&self, remote: String, repo_id: Option<&str>) -> Result<MergeResult, GitError> {
+    pub async fn pull(
+        &self,
+        remote: String,
+        repo_id: Option<&str>,
+    ) -> Result<MergeResult, GitError> {
         let client = self.get_client(repo_id).await?;
 
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.pull(&remote)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Push to remote
@@ -404,8 +481,17 @@ impl GitManager {
 
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
-            client.push(&refspec, &PushOptions { remote, force, set_upstream })
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+            client.push(
+                &refspec,
+                &PushOptions {
+                    remote,
+                    force,
+                    set_upstream,
+                },
+            )
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get tags
@@ -415,7 +501,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.tags()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Create tag
@@ -431,7 +519,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.create_tag(&name, target.as_deref(), message.as_deref())
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Delete tag
@@ -441,7 +531,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.delete_tag(&name)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Push tag
@@ -456,7 +548,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.push_tag(&tag_name, &remote)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get stash list
@@ -466,7 +560,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.stash_list()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Save stash
@@ -481,7 +577,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.stash_save(message.as_deref(), include_untracked)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Pop stash
@@ -491,7 +589,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.stash_pop(index)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Apply stash
@@ -501,7 +601,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.stash_apply(index)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Drop stash
@@ -511,7 +613,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.stash_drop(index)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get submodules
@@ -521,7 +625,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.submodules()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Add submodule
@@ -536,7 +642,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.add_submodule(&url, &path)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Update submodules
@@ -546,12 +654,16 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             if let Some(ref repo) = client.repo {
-                let repo_guard = repo.lock().map_err(|_| GitError::RepositoryNotFound("Lock poisoned".to_string()))?;
+                let repo_guard = repo
+                    .lock()
+                    .map_err(|_| GitError::RepositoryNotFound("Lock poisoned".to_string()))?;
                 client.update_submodules(&*repo_guard, true)
             } else {
                 Err(GitError::RepositoryNotFound("No repository".to_string()))
             }
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Blame file
@@ -566,7 +678,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.blame(&path, oldest_commit.as_deref())
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get repository stats
@@ -576,7 +690,9 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.stats()
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Get file at commit
@@ -591,15 +707,24 @@ impl GitManager {
         task::spawn_blocking(move || {
             let client = client.blocking_lock();
             client.get_file_at_commit(&path, &commit_id)
-        }).await.map_err(|e| GitError::IoError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| GitError::IoError(e.to_string()))?
     }
 
     /// Set credentials for a repository
-    pub async fn set_credentials(&self, repo_id: &str, creds: CredentialType) -> Result<(), GitError> {
+    pub async fn set_credentials(
+        &self,
+        repo_id: &str,
+        creds: CredentialType,
+    ) -> Result<(), GitError> {
         let clients = self.clients.read().await;
-        let client = clients.get(repo_id).ok_or_else(|| {
-            GitError::RepositoryNotFound(format!("Repository {} not found", repo_id))
-        })?.clone();
+        let client = clients
+            .get(repo_id)
+            .ok_or_else(|| {
+                GitError::RepositoryNotFound(format!("Repository {} not found", repo_id))
+            })?
+            .clone();
 
         let mut client = client.lock().await;
         client.set_credentials(creds);
@@ -654,10 +779,7 @@ pub mod tauri_commands {
     pub struct GitState(pub Arc<GitManager>);
 
     #[tauri::command]
-    pub async fn git_open_repo(
-        path: String,
-        state: State<'_, GitState>,
-    ) -> Result<String, String> {
+    pub async fn git_open_repo(path: String, state: State<'_, GitState>) -> Result<String, String> {
         let path = PathBuf::from(path);
         state.0.open_repo(&path).await.map_err(|e| e.to_string())
     }
@@ -670,7 +792,11 @@ pub mod tauri_commands {
         state: State<'_, GitState>,
     ) -> Result<String, String> {
         let path = PathBuf::from(path);
-        state.0.clone_repo(&url, &path, &options, None).await.map_err(|e| e.to_string())
+        state
+            .0
+            .clone_repo(&url, &path, &options, None)
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -680,7 +806,11 @@ pub mod tauri_commands {
         state: State<'_, GitState>,
     ) -> Result<String, String> {
         let path = PathBuf::from(path);
-        state.0.init_repo(&path, bare).await.map_err(|e| e.to_string())
+        state
+            .0
+            .init_repo(&path, bare)
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -688,7 +818,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<RepoStatus, String> {
-        state.0.status(repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .status(repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -697,7 +831,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<(), String> {
-        state.0.stage(paths, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .stage(paths, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -706,7 +844,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<(), String> {
-        state.0.unstage(paths, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .unstage(paths, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -716,7 +858,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<String, String> {
-        state.0.commit(message, amend, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .commit(message, amend, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -726,7 +872,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<Vec<CommitInfo>, String> {
-        state.0.log(branch, limit, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .log(branch, limit, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -734,7 +884,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<Vec<BranchInfo>, String> {
-        state.0.branches(repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .branches(repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -744,7 +898,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<(), String> {
-        state.0.create_branch(name, start_point, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .create_branch(name, start_point, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -754,7 +912,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<(), String> {
-        state.0.checkout_branch(name, create, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .checkout_branch(name, create, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -763,7 +925,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<(), String> {
-        state.0.fetch(remote, false, false, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .fetch(remote, false, false, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -772,7 +938,11 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<MergeResult, String> {
-        state.0.pull(remote, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .pull(remote, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -783,6 +953,10 @@ pub mod tauri_commands {
         repo_id: Option<String>,
         state: State<'_, GitState>,
     ) -> Result<(), String> {
-        state.0.push(refspec, remote, force, false, repo_id.as_deref()).await.map_err(|e| e.to_string())
+        state
+            .0
+            .push(refspec, remote, force, false, repo_id.as_deref())
+            .await
+            .map_err(|e| e.to_string())
     }
 }

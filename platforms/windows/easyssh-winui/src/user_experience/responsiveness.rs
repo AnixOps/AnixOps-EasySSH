@@ -111,12 +111,13 @@ impl<T: Clone + PartialEq> DebouncedValue<T> {
 
     /// Check if debounced value should be committed
     pub fn update(&mut self) -> bool {
-        if self.has_pending && self.last_update.elapsed() >= self.debounce_duration {
-            if self.value != self.pending_value {
-                self.value = self.pending_value.clone();
-                self.has_pending = false;
-                return true;
-            }
+        if self.has_pending
+            && self.last_update.elapsed() >= self.debounce_duration
+            && self.value != self.pending_value
+        {
+            self.value = self.pending_value.clone();
+            self.has_pending = false;
+            return true;
         }
         false
     }
@@ -378,8 +379,14 @@ impl FrameRateMonitor {
             return 0.0;
         }
 
-        let duration = self.frame_times.back()
-            .and_then(|back| self.frame_times.front().map(|front| back.duration_since(*front)))
+        let duration = self
+            .frame_times
+            .back()
+            .and_then(|back| {
+                self.frame_times
+                    .front()
+                    .map(|front| back.duration_since(*front))
+            })
             .unwrap_or(Duration::ZERO);
 
         if duration.as_secs_f32() > 0.0 {
@@ -395,8 +402,14 @@ impl FrameRateMonitor {
             return 0.0;
         }
 
-        let total_duration = self.frame_times.back()
-            .and_then(|back| self.frame_times.front().map(|front| back.duration_since(*front)))
+        let total_duration = self
+            .frame_times
+            .back()
+            .and_then(|back| {
+                self.frame_times
+                    .front()
+                    .map(|front| back.duration_since(*front))
+            })
             .unwrap_or(Duration::ZERO);
 
         total_duration.as_secs_f32() * 1000.0 / self.frame_times.len().max(1) as f32
@@ -418,9 +431,9 @@ pub struct AdaptiveQuality {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum QualityLevel {
-    Low,      // Reduced animations, simpler rendering
-    Medium,   // Standard quality
-    High,     // Full effects
+    Low,    // Reduced animations, simpler rendering
+    Medium, // Standard quality
+    High,   // Full effects
 }
 
 impl AdaptiveQuality {
@@ -579,8 +592,7 @@ mod tests {
 
     #[test]
     fn test_virtual_list_range() {
-        let list = VirtualList::new(50.0, 10)
-            .with_items((0..100).collect());
+        let list = VirtualList::new(50.0, 10).with_items((0..100).collect());
 
         let (start, end) = list.visible_range();
         assert_eq!(start, 0);

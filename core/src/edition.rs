@@ -194,9 +194,10 @@ mod tests {
         let current = Edition::current();
         // Current edition depends on compile features
         // Just verify it returns a valid variant
-        assert!(
-            matches!(current, Edition::Lite | Edition::Standard | Edition::Pro)
-        );
+        assert!(matches!(
+            current,
+            Edition::Lite | Edition::Standard | Edition::Pro
+        ));
     }
 
     #[test]

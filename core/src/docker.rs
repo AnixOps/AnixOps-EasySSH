@@ -2,12 +2,13 @@
 
 use crate::error::LiteError;
 use crate::ssh::SshSessionManager;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Read;
+use std::time::Duration;
 use tokio::sync::{mpsc, RwLock};
 use tokio::task::JoinHandle;
-use std::time::Duration;
 
 /// Docker container status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -36,7 +37,10 @@ impl ContainerStatus {
     }
 
     pub fn can_restart(&self) -> bool {
-        matches!(self, Self::Running | Self::Exited | Self::Paused | Self::Dead)
+        matches!(
+            self,
+            Self::Running | Self::Exited | Self::Paused | Self::Dead
+        )
     }
 
     pub fn can_pause(&self) -> bool {
@@ -74,7 +78,10 @@ impl std::str::FromStr for ContainerStatus {
             "removing" => Ok(Self::Removing),
             "exited" => Ok(Self::Exited),
             "dead" => Ok(Self::Dead),
-            _ => Err(LiteError::Docker(format!("Unknown container status: {}", s))),
+            _ => Err(LiteError::Docker(format!(
+                "Unknown container status: {}",
+                s
+            ))),
         }
     }
 }
@@ -507,7 +514,10 @@ impl DockerManager {
         if output.trim() == container_id || output.trim() == container_id[..12].to_string() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to start container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to start container: {}",
+                output
+            )))
         }
     }
 
@@ -520,13 +530,21 @@ impl DockerManager {
         timeout: Option<u32>,
     ) -> Result<(), LiteError> {
         let timeout_flag = timeout.map(|t| format!(" -t {}", t)).unwrap_or_default();
-        let cmd = format!("docker stop{}{} {}", timeout_flag, if timeout_flag.is_empty() { "" } else { "" }, container_id);
+        let cmd = format!(
+            "docker stop{}{} {}",
+            timeout_flag,
+            if timeout_flag.is_empty() { "" } else { "" },
+            container_id
+        );
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         if output.trim() == container_id || output.trim() == container_id[..12].to_string() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to stop container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to stop container: {}",
+                output
+            )))
         }
     }
 
@@ -545,7 +563,10 @@ impl DockerManager {
         if output.trim() == container_id || output.trim() == container_id[..12].to_string() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to restart container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to restart container: {}",
+                output
+            )))
         }
     }
 
@@ -562,7 +583,10 @@ impl DockerManager {
         if output.trim() == container_id || output.trim() == container_id[..12].to_string() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to pause container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to pause container: {}",
+                output
+            )))
         }
     }
 
@@ -579,7 +603,10 @@ impl DockerManager {
         if output.trim() == container_id || output.trim() == container_id[..12].to_string() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to unpause container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to unpause container: {}",
+                output
+            )))
         }
     }
 
@@ -598,7 +625,10 @@ impl DockerManager {
         if output.trim() == container_id || output.trim() == container_id[..12].to_string() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to kill container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to kill container: {}",
+                output
+            )))
         }
     }
 
@@ -619,7 +649,10 @@ impl DockerManager {
         if output.trim().contains(&container_id[..12]) {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to remove container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to remove container: {}",
+                output
+            )))
         }
     }
 
@@ -632,15 +665,19 @@ impl DockerManager {
         image: &str,
         command: Option<&str>,
         ports: &[(u16, u16, &str)], // (host, container, protocol)
-        volumes: &[(&str, &str)], // (host, container)
+        volumes: &[(&str, &str)],   // (host, container)
         env: &[(&str, &str)],
         network: Option<&str>,
         restart: Option<&str>,
         labels: &[(&str, &str)],
     ) -> Result<String, LiteError> {
         let name_flag = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
-        let network_flag = network.map(|n| format!(" --network {}", n)).unwrap_or_default();
-        let restart_flag = restart.map(|r| format!(" --restart {}", r)).unwrap_or_default();
+        let network_flag = network
+            .map(|n| format!(" --network {}", n))
+            .unwrap_or_default();
+        let restart_flag = restart
+            .map(|r| format!(" --restart {}", r))
+            .unwrap_or_default();
 
         let mut ports_flags = String::new();
         for (host, container, proto) in ports {
@@ -666,8 +703,16 @@ impl DockerManager {
 
         let cmd = format!(
             "docker create{}{}{}{}{}{}{}{} {}{}",
-            name_flag, ports_flags, volumes_flags, env_flags,
-            network_flag, restart_flag, labels_flags, image, cmd_flag, ""
+            name_flag,
+            ports_flags,
+            volumes_flags,
+            env_flags,
+            network_flag,
+            restart_flag,
+            labels_flags,
+            image,
+            cmd_flag,
+            ""
         );
 
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
@@ -676,7 +721,10 @@ impl DockerManager {
         if container_id.len() == 64 && container_id.chars().all(|c| c.is_ascii_hexdigit()) {
             Ok(container_id.to_string())
         } else {
-            Err(LiteError::Docker(format!("Failed to create container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to create container: {}",
+                output
+            )))
         }
     }
 
@@ -689,7 +737,11 @@ impl DockerManager {
         dangling: bool,
     ) -> Result<Vec<ImageInfo>, LiteError> {
         let all_flag = if all { " -a" } else { "" };
-        let filter_flag = if dangling { " --filter dangling=true" } else { "" };
+        let filter_flag = if dangling {
+            " --filter dangling=true"
+        } else {
+            ""
+        };
 
         let cmd = format!(
             "docker images{} --format '{{{{json .}}}}' 2>/dev/null || docker images{}{} --format '{{{{.ID}}}}|{{{{.Repository}}}}|{{{{.Tag}}}}|{{{{.Size}}}}|{{{{.CreatedAt}}}}'",
@@ -749,10 +801,16 @@ impl DockerManager {
         let cmd = format!("docker pull {}", full_image);
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
-        if output.contains("Downloaded") || output.contains("up to date") || output.contains("Already exists") {
+        if output.contains("Downloaded")
+            || output.contains("up to date")
+            || output.contains("Already exists")
+        {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to pull image: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to pull image: {}",
+                output
+            )))
         }
     }
 
@@ -771,7 +829,10 @@ impl DockerManager {
         if output.contains("Deleted") || output.contains("Untagged") {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to remove image: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to remove image: {}",
+                output
+            )))
         }
     }
 
@@ -789,7 +850,10 @@ impl DockerManager {
         if output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to tag image: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to tag image: {}",
+                output
+            )))
         }
     }
 
@@ -806,7 +870,10 @@ impl DockerManager {
         if output.contains("pushed") || output.contains("Layer already exists") {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to push image: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to push image: {}",
+                output
+            )))
         }
     }
 
@@ -866,8 +933,12 @@ impl DockerManager {
     ) -> Result<String, LiteError> {
         let internal_flag = if internal { " --internal" } else { "" };
         let ipv6_flag = if ipv6 { " --ipv6" } else { "" };
-        let subnet_flag = subnet.map(|s| format!(" --subnet {}", s)).unwrap_or_default();
-        let gateway_flag = gateway.map(|g| format!(" --gateway {}", g)).unwrap_or_default();
+        let subnet_flag = subnet
+            .map(|s| format!(" --subnet {}", s))
+            .unwrap_or_default();
+        let gateway_flag = gateway
+            .map(|g| format!(" --gateway {}", g))
+            .unwrap_or_default();
 
         let cmd = format!(
             "docker network create{}{}{}{} --driver {} {}",
@@ -880,7 +951,10 @@ impl DockerManager {
         if network_id.len() >= 12 && network_id.chars().all(|c| c.is_ascii_hexdigit()) {
             Ok(network_id.to_string())
         } else {
-            Err(LiteError::Docker(format!("Failed to create network: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to create network: {}",
+                output
+            )))
         }
     }
 
@@ -897,7 +971,10 @@ impl DockerManager {
         if output.trim() == network_id || output.trim().contains(&network_id[..12]) {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to remove network: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to remove network: {}",
+                output
+            )))
         }
     }
 
@@ -919,7 +996,10 @@ impl DockerManager {
             }
         }
 
-        Err(LiteError::Docker(format!("Failed to inspect network: {}", output)))
+        Err(LiteError::Docker(format!(
+            "Failed to inspect network: {}",
+            output
+        )))
     }
 
     /// List volumes
@@ -973,14 +1053,19 @@ impl DockerManager {
             opts_flags.push_str(&format!(" -o {}={}", key, value));
         }
 
-        let cmd = format!("docker volume create{} --driver {} {}", opts_flags, driver, name);
+        let cmd = format!(
+            "docker volume create{} --driver {} {}",
+            opts_flags, driver, name
+        );
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         let vol_name = output.trim();
         if !vol_name.is_empty() {
             // Get volume details
             let inspect_cmd = format!("docker volume inspect {}", vol_name);
-            let inspect_output = ssh_manager.execute_via_sftp(ssh_session_id, &inspect_cmd).await?;
+            let inspect_output = ssh_manager
+                .execute_via_sftp(ssh_session_id, &inspect_cmd)
+                .await?;
 
             if let Ok(info) = serde_json::from_str::<serde_json::Value>(&inspect_output) {
                 if let Some(arr) = info.as_array() {
@@ -991,7 +1076,10 @@ impl DockerManager {
             }
         }
 
-        Err(LiteError::Docker(format!("Failed to create volume: {}", output)))
+        Err(LiteError::Docker(format!(
+            "Failed to create volume: {}",
+            output
+        )))
     }
 
     /// Remove volume
@@ -1009,7 +1097,10 @@ impl DockerManager {
         if output.trim() == volume_name {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to remove volume: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to remove volume: {}",
+                output
+            )))
         }
     }
 
@@ -1040,7 +1131,8 @@ impl DockerManager {
         let tail_flag = tail.map(|t| format!(" --tail {}", t)).unwrap_or_default();
         let cmd = format!("docker logs{}{} {}", follow_flag, tail_flag, container_id);
 
-        let session_arc = ssh_manager.get_sftp_session_arc(ssh_session_id)
+        let session_arc = ssh_manager
+            .get_sftp_session_arc(ssh_session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(ssh_session_id.to_string()))?;
 
         let container_id = container_id.to_string();
@@ -1084,22 +1176,33 @@ impl DockerManager {
                     }
                 }
                 let _ = channel.wait_close();
-            }).await;
+            })
+            .await;
 
             log::info!("Log stream ended for container {}", container_id_for_async);
         });
 
         let mut active_logs = self.active_logs.write().await;
-        active_logs.insert(format!("{}_{}", session_id_for_maps, container_id_for_maps), handle);
+        active_logs.insert(
+            format!("{}_{}", session_id_for_maps, container_id_for_maps),
+            handle,
+        );
 
         let mut log_channels = self.log_channels.write().await;
-        log_channels.insert(format!("{}_{}", session_id_for_maps, container_id_for_maps), tx_for_insert);
+        log_channels.insert(
+            format!("{}_{}", session_id_for_maps, container_id_for_maps),
+            tx_for_insert,
+        );
 
         Ok(rx)
     }
 
     /// Stop streaming logs
-    pub async fn stop_log_stream(&self, session_id: &str, container_id: &str) -> Result<(), LiteError> {
+    pub async fn stop_log_stream(
+        &self,
+        session_id: &str,
+        container_id: &str,
+    ) -> Result<(), LiteError> {
         let key = format!("{}_{}", session_id, container_id);
 
         let mut active_logs = self.active_logs.write().await;
@@ -1124,13 +1227,19 @@ impl DockerManager {
         build_args: &[(&str, &str)],
         no_cache: bool,
     ) -> Result<String, LiteError> {
-        let dockerfile_flag = dockerfile_path.map(|d| format!(" -f {}", d)).unwrap_or_default();
+        let dockerfile_flag = dockerfile_path
+            .map(|d| format!(" -f {}", d))
+            .unwrap_or_default();
         let tag_flag = tag.map(|t| format!(" -t {}", t)).unwrap_or_default();
         let no_cache_flag = if no_cache { " --no-cache" } else { "" };
 
         let mut build_args_flags = String::new();
         for (key, value) in build_args {
-            build_args_flags.push_str(&format!(" --build-arg {}='{}'", key, value.replace("'", "'\\''")));
+            build_args_flags.push_str(&format!(
+                " --build-arg {}='{}'",
+                key,
+                value.replace("'", "'\\''")
+            ));
         }
 
         let cmd = format!(
@@ -1141,7 +1250,8 @@ impl DockerManager {
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         // Parse build output to find image ID
-        let image_id = output.lines()
+        let image_id = output
+            .lines()
             .filter(|line| line.contains("Successfully built "))
             .last()
             .and_then(|line| line.split("Successfully built ").nth(1))
@@ -1154,7 +1264,8 @@ impl DockerManager {
                     Err(LiteError::Docker(format!("Build failed: {}", output)))
                 } else {
                     // Try to find image ID from 'writing image' line
-                    let img_id = output.lines()
+                    let img_id = output
+                        .lines()
                         .filter(|line| line.contains("writing image "))
                         .last()
                         .and_then(|line| {
@@ -1165,7 +1276,10 @@ impl DockerManager {
 
                     match img_id {
                         Some(id) => Ok(id),
-                        None => Err(LiteError::Docker(format!("Build output unclear: {}", output)))
+                        None => Err(LiteError::Docker(format!(
+                            "Build output unclear: {}",
+                            output
+                        ))),
                     }
                 }
             }
@@ -1185,13 +1299,19 @@ impl DockerManager {
     ) -> Result<mpsc::UnboundedReceiver<String>, LiteError> {
         let (tx, rx) = mpsc::unbounded_channel();
 
-        let dockerfile_flag = dockerfile_path.map(|d| format!(" -f {}", d)).unwrap_or_default();
+        let dockerfile_flag = dockerfile_path
+            .map(|d| format!(" -f {}", d))
+            .unwrap_or_default();
         let tag_flag = tag.map(|t| format!(" -t {}", t)).unwrap_or_default();
         let no_cache_flag = if no_cache { " --no-cache" } else { "" };
 
         let mut build_args_flags = String::new();
         for (key, value) in build_args {
-            build_args_flags.push_str(&format!(" --build-arg {}='{}'", key, value.replace("'", "'\\''")));
+            build_args_flags.push_str(&format!(
+                " --build-arg {}='{}'",
+                key,
+                value.replace("'", "'\\''")
+            ));
         }
 
         let cmd = format!(
@@ -1199,7 +1319,8 @@ impl DockerManager {
             context_path, dockerfile_flag, tag_flag, no_cache_flag, build_args_flags
         );
 
-        let session_arc = ssh_manager.get_sftp_session_arc(ssh_session_id)
+        let session_arc = ssh_manager
+            .get_sftp_session_arc(ssh_session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(ssh_session_id.to_string()))?;
 
         let handle = tokio::spawn(async move {
@@ -1234,13 +1355,18 @@ impl DockerManager {
                     }
                 }
                 let _ = channel.wait_close();
-            }).await;
+            })
+            .await;
 
             log::info!("Build stream ended");
         });
 
         // Store handle for potential cancellation
-        let build_key = format!("build_{}_{}", ssh_session_id, context_path.replace('/', "_"));
+        let build_key = format!(
+            "build_{}_{}",
+            ssh_session_id,
+            context_path.replace('/', "_")
+        );
         let mut active_logs = self.active_logs.write().await;
         active_logs.insert(build_key.clone(), handle);
 
@@ -1258,7 +1384,8 @@ impl DockerManager {
 
         let cmd = format!("docker stats {} --format '{{{{json .}}}}'", container_id);
 
-        let session_arc = ssh_manager.get_sftp_session_arc(ssh_session_id)
+        let session_arc = ssh_manager
+            .get_sftp_session_arc(ssh_session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(ssh_session_id.to_string()))?;
 
         let container_id = container_id.to_string();
@@ -1309,9 +1436,13 @@ impl DockerManager {
                     }
                 }
                 let _ = channel.wait_close();
-            }).await;
+            })
+            .await;
 
-            log::info!("Stats stream ended for container {}", container_id_for_async);
+            log::info!(
+                "Stats stream ended for container {}",
+                container_id_for_async
+            );
         });
 
         let stats_key = format!("stats_{}_{}", ssh_session_id, container_id);
@@ -1322,7 +1453,11 @@ impl DockerManager {
     }
 
     /// Stop stats stream
-    pub async fn stop_stats_stream(&self, session_id: &str, container_id: &str) -> Result<(), LiteError> {
+    pub async fn stop_stats_stream(
+        &self,
+        session_id: &str,
+        container_id: &str,
+    ) -> Result<(), LiteError> {
         let key = format!("stats_{}_{}", session_id, container_id);
 
         let mut active_logs = self.active_logs.write().await;
@@ -1347,7 +1482,10 @@ impl DockerManager {
         if output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to export container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to export container: {}",
+                output
+            )))
         }
     }
 
@@ -1363,14 +1501,20 @@ impl DockerManager {
         let repo_flag = repository.map(|r| format!("- {} ", r)).unwrap_or_default();
         let tag_flag = tag.map(|t| format!("{}:", t)).unwrap_or_default();
 
-        let cmd = format!("cat {} | docker import {}{}-", input_path, repo_flag, tag_flag);
+        let cmd = format!(
+            "cat {} | docker import {}{}-",
+            input_path, repo_flag, tag_flag
+        );
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         let image_id = output.trim();
         if !image_id.is_empty() && image_id.starts_with("sha256:") {
             Ok(image_id.to_string())
         } else {
-            Err(LiteError::Docker(format!("Failed to import image: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to import image: {}",
+                output
+            )))
         }
     }
 
@@ -1388,7 +1532,10 @@ impl DockerManager {
         if output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to save image: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to save image: {}",
+                output
+            )))
         }
     }
 
@@ -1403,7 +1550,8 @@ impl DockerManager {
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         // Parse output to find loaded image
-        let image = output.lines()
+        let image = output
+            .lines()
             .filter(|line| line.contains("Loaded image: "))
             .last()
             .and_then(|line| line.split("Loaded image: ").nth(1))
@@ -1415,7 +1563,10 @@ impl DockerManager {
                 if output.contains("Loaded image") {
                     Ok(output.trim().to_string())
                 } else {
-                    Err(LiteError::Docker(format!("Failed to load image: {}", output)))
+                    Err(LiteError::Docker(format!(
+                        "Failed to load image: {}",
+                        output
+                    )))
                 }
             }
         }
@@ -1430,13 +1581,19 @@ impl DockerManager {
         container_path: &str,
         host_path: &str,
     ) -> Result<(), LiteError> {
-        let cmd = format!("docker cp {}:{} {}", container_id, container_path, host_path);
+        let cmd = format!(
+            "docker cp {}:{} {}",
+            container_id, container_path, host_path
+        );
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         if output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to copy from container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to copy from container: {}",
+                output
+            )))
         }
     }
 
@@ -1449,13 +1606,19 @@ impl DockerManager {
         container_id: &str,
         container_path: &str,
     ) -> Result<(), LiteError> {
-        let cmd = format!("docker cp {} {}:{}", host_path, container_id, container_path);
+        let cmd = format!(
+            "docker cp {} {}:{}",
+            host_path, container_id, container_path
+        );
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         if output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to copy to container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to copy to container: {}",
+                output
+            )))
         }
     }
 
@@ -1491,9 +1654,13 @@ impl DockerManager {
             filter_flags.push_str(&format!(" --filter '{}={}'", key, value));
         }
 
-        let cmd = format!("docker events{} {}{} --format '{{{{json .}}}}'", since_flag, until_flag, filter_flags);
+        let cmd = format!(
+            "docker events{} {}{} --format '{{{{json .}}}}'",
+            since_flag, until_flag, filter_flags
+        );
 
-        let session_arc = ssh_manager.get_sftp_session_arc(ssh_session_id)
+        let session_arc = ssh_manager
+            .get_sftp_session_arc(ssh_session_id)
             .ok_or_else(|| LiteError::SshSessionNotFound(ssh_session_id.to_string()))?;
 
         let handle = tokio::spawn(async move {
@@ -1540,7 +1707,8 @@ impl DockerManager {
                     }
                 }
                 let _ = channel.wait_close();
-            }).await;
+            })
+            .await;
 
             log::info!("Events stream ended");
         });
@@ -1573,14 +1741,21 @@ impl DockerManager {
         all: bool,
         filters: &[(&str, &str)],
     ) -> Result<String, LiteError> {
-        let all_flag = if all && resource_type == "containers" { " -a" } else { "" };
+        let all_flag = if all && resource_type == "containers" {
+            " -a"
+        } else {
+            ""
+        };
 
         let mut filter_flags = String::new();
         for (key, value) in filters {
             filter_flags.push_str(&format!(" --filter '{}={}'", key, value));
         }
 
-        let cmd = format!("docker {} prune -f{}{}", resource_type, all_flag, filter_flags);
+        let cmd = format!(
+            "docker {} prune -f{}{}",
+            resource_type, all_flag, filter_flags
+        );
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
         Ok(output)
@@ -1604,7 +1779,10 @@ impl DockerManager {
             }
         }
 
-        Err(LiteError::Docker(format!("Failed to inspect container: {}", output)))
+        Err(LiteError::Docker(format!(
+            "Failed to inspect container: {}",
+            output
+        )))
     }
 
     /// Inspect image
@@ -1625,7 +1803,10 @@ impl DockerManager {
             }
         }
 
-        Err(LiteError::Docker(format!("Failed to inspect image: {}", output)))
+        Err(LiteError::Docker(format!(
+            "Failed to inspect image: {}",
+            output
+        )))
     }
 
     /// Get container processes (top)
@@ -1650,7 +1831,9 @@ impl DockerManager {
         let cmd = format!("docker wait {}", container_id);
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
 
-        output.trim().parse::<i32>()
+        output
+            .trim()
+            .parse::<i32>()
             .map_err(|_| LiteError::Docker(format!("Failed to parse exit code: {}", output)))
     }
 
@@ -1668,7 +1851,10 @@ impl DockerManager {
         if output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to rename container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to rename container: {}",
+                output
+            )))
         }
     }
 
@@ -1712,7 +1898,10 @@ impl DockerManager {
         if output.trim().contains(&container_id[..12]) || output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Failed to update container: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Failed to update container: {}",
+                output
+            )))
         }
     }
 
@@ -1734,8 +1923,12 @@ impl DockerManager {
         auto_remove: bool,
     ) -> Result<String, LiteError> {
         let name_flag = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
-        let network_flag = network.map(|n| format!(" --network {}", n)).unwrap_or_default();
-        let restart_flag = restart.map(|r| format!(" --restart {}", r)).unwrap_or_default();
+        let network_flag = network
+            .map(|n| format!(" --network {}", n))
+            .unwrap_or_default();
+        let restart_flag = restart
+            .map(|r| format!(" --restart {}", r))
+            .unwrap_or_default();
         let detach_flag = if detach { " -d" } else { "" };
         let rm_flag = if auto_remove { " --rm" } else { "" };
 
@@ -1763,9 +1956,17 @@ impl DockerManager {
 
         let cmd = format!(
             "docker run{}{}{}{}{}{}{}{}{} {}{}",
-            name_flag, ports_flags, volumes_flags, env_flags,
-            network_flag, restart_flag, detach_flag, rm_flag, labels_flags,
-            image, cmd_flag
+            name_flag,
+            ports_flags,
+            volumes_flags,
+            env_flags,
+            network_flag,
+            restart_flag,
+            detach_flag,
+            rm_flag,
+            labels_flags,
+            image,
+            cmd_flag
         );
 
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
@@ -1776,7 +1977,10 @@ impl DockerManager {
             if result.len() == 64 && result.chars().all(|c| c.is_ascii_hexdigit()) {
                 Ok(result.to_string())
             } else {
-                Err(LiteError::Docker(format!("Failed to run container: {}", output)))
+                Err(LiteError::Docker(format!(
+                    "Failed to run container: {}",
+                    output
+                )))
             }
         } else {
             // In foreground mode, output is command output
@@ -1825,7 +2029,9 @@ impl DockerManager {
     ) -> Result<String, LiteError> {
         let tty_flag = if tty { " -t" } else { "" };
         let interactive_flag = if interactive { " -i" } else { "" };
-        let workdir_flag = working_dir.map(|w| format!(" -w {}", w)).unwrap_or_default();
+        let workdir_flag = working_dir
+            .map(|w| format!(" -w {}", w))
+            .unwrap_or_default();
 
         let mut env_flags = String::new();
         for (key, value) in env {
@@ -1853,11 +2059,13 @@ impl DockerManager {
         let create_cmd = format!(
             "docker exec -i {} sh -c 'echo {}'",
             container_id,
-            base64::encode(command)
+            STANDARD.encode(command)
         );
         let _ = create_cmd;
 
-        let output = ssh_manager.execute_via_sftp(ssh_session_id, &create_cmd).await?;
+        let output = ssh_manager
+            .execute_via_sftp(ssh_session_id, &create_cmd)
+            .await?;
         let exec_id = output.trim().to_string();
 
         self.exec_sessions.write().await.insert(
@@ -1925,12 +2133,20 @@ impl DockerManager {
     ) -> Result<String, LiteError> {
         let detached_flag = if detached { " -d" } else { "" };
         let build_flag = if build { " --build" } else { "" };
-        let services_flag = services.map(|s| format!(" {}", s.join(" "))).unwrap_or_default();
+        let services_flag = services
+            .map(|s| format!(" {}", s.join(" ")))
+            .unwrap_or_default();
 
         let cmd = format!(
             "cd {} && docker compose up{}{}{} 2>&1 || cd {} && docker-compose up{}{}{} 2>&1",
-            project_dir, detached_flag, build_flag, services_flag,
-            project_dir, detached_flag, build_flag, services_flag
+            project_dir,
+            detached_flag,
+            build_flag,
+            services_flag,
+            project_dir,
+            detached_flag,
+            build_flag,
+            services_flag
         );
 
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
@@ -1951,8 +2167,7 @@ impl DockerManager {
 
         let cmd = format!(
             "cd {} && docker compose down{}{} 2>&1 || cd {} && docker-compose down{}{} 2>&1",
-            project_dir, volumes_flag, images_flag,
-            project_dir, volumes_flag, images_flag
+            project_dir, volumes_flag, images_flag, project_dir, volumes_flag, images_flag
         );
 
         let output = ssh_manager.execute_via_sftp(ssh_session_id, &cmd).await?;
@@ -1989,7 +2204,10 @@ impl DockerManager {
         if output.trim().is_empty() {
             Ok(())
         } else {
-            Err(LiteError::Docker(format!("Compose file validation failed: {}", output)))
+            Err(LiteError::Docker(format!(
+                "Compose file validation failed: {}",
+                output
+            )))
         }
     }
 
@@ -1998,8 +2216,13 @@ impl DockerManager {
     fn parse_container_json(&self, json: serde_json::Value) -> Result<ContainerInfo, LiteError> {
         Ok(ContainerInfo {
             id: json["Id"].as_str().unwrap_or("").to_string(),
-            names: json["Names"].as_array()
-                .map(|a| a.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+            names: json["Names"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| v.as_str().unwrap_or("").to_string())
+                        .collect()
+                })
                 .unwrap_or_default(),
             image: json["Image"].as_str().unwrap_or("").to_string(),
             image_id: json["ImageID"].as_str().unwrap_or("").to_string(),
@@ -2012,7 +2235,10 @@ impl DockerManager {
             size_rw: json["SizeRw"].as_i64(),
             size_root_fs: json["SizeRootFs"].as_i64(),
             host_config: HostConfig {
-                network_mode: json["HostConfig"]["NetworkMode"].as_str().unwrap_or("").to_string(),
+                network_mode: json["HostConfig"]["NetworkMode"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string(),
                 cpu_shares: json["HostConfig"]["CpuShares"].as_i64(),
                 memory: json["HostConfig"]["Memory"].as_i64(),
                 memory_swap: json["HostConfig"]["MemorySwap"].as_i64(),
@@ -2042,8 +2268,10 @@ impl DockerManager {
                     ("0.0.0.0", public)
                 };
 
-                if let (Ok(pub_port), Ok(priv_port)) = (pub_port.parse::<u16>(),
-                    private.split('/').next().unwrap_or("0").parse::<u16>()) {
+                if let (Ok(pub_port), Ok(priv_port)) = (
+                    pub_port.parse::<u16>(),
+                    private.split('/').next().unwrap_or("0").parse::<u16>(),
+                ) {
                     ports.push(PortMapping {
                         ip: ip.to_string(),
                         private_port: priv_port,
@@ -2057,36 +2285,54 @@ impl DockerManager {
     }
 
     fn parse_ports_json(&self, ports: &serde_json::Value) -> Vec<PortMapping> {
-        ports.as_array()
-            .map(|a| a.iter().filter_map(|v| {
-                Some(PortMapping {
-                    ip: v["IP"].as_str()?.to_string(),
-                    private_port: v["PrivatePort"].as_u64()? as u16,
-                    public_port: v["PublicPort"].as_u64()? as u16,
-                    protocol: v["Type"].as_str()?.to_string(),
-                })
-            }).collect())
+        ports
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| {
+                        Some(PortMapping {
+                            ip: v["IP"].as_str()?.to_string(),
+                            private_port: v["PrivatePort"].as_u64()? as u16,
+                            public_port: v["PublicPort"].as_u64()? as u16,
+                            protocol: v["Type"].as_str()?.to_string(),
+                        })
+                    })
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
     fn parse_labels_json(&self, labels: &serde_json::Value) -> HashMap<String, String> {
-        labels.as_object()
-            .map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
+        labels
+            .as_object()
+            .map(|o| {
+                o.iter()
+                    .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
     fn parse_network_settings_json(&self, settings: &serde_json::Value) -> NetworkSettings {
-        let networks = settings["Networks"].as_object()
-            .map(|o| o.iter().map(|(k, v)| {
-                (k.clone(), ContainerNetworkInfo {
-                    network_id: v["NetworkID"].as_str().unwrap_or("").to_string(),
-                    endpoint_id: v["EndpointID"].as_str().unwrap_or("").to_string(),
-                    gateway: v["Gateway"].as_str().unwrap_or("").to_string(),
-                    ip_address: v["IPAddress"].as_str().unwrap_or("").to_string(),
-                    ip_prefix_len: v["IPPrefixLen"].as_i64().unwrap_or(0) as i32,
-                    mac_address: v["MacAddress"].as_str().unwrap_or("").to_string(),
-                })
-            }).collect())
+        let networks = settings["Networks"]
+            .as_object()
+            .map(|o| {
+                o.iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            ContainerNetworkInfo {
+                                network_id: v["NetworkID"].as_str().unwrap_or("").to_string(),
+                                endpoint_id: v["EndpointID"].as_str().unwrap_or("").to_string(),
+                                gateway: v["Gateway"].as_str().unwrap_or("").to_string(),
+                                ip_address: v["IPAddress"].as_str().unwrap_or("").to_string(),
+                                ip_prefix_len: v["IPPrefixLen"].as_i64().unwrap_or(0) as i32,
+                                mac_address: v["MacAddress"].as_str().unwrap_or("").to_string(),
+                            },
+                        )
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
         NetworkSettings {
@@ -2098,30 +2344,45 @@ impl DockerManager {
     }
 
     fn parse_mounts_json(&self, mounts: &serde_json::Value) -> Vec<MountPoint> {
-        mounts.as_array()
-            .map(|a| a.iter().filter_map(|v| {
-                Some(MountPoint {
-                    mount_type: v["Type"].as_str()?.to_string(),
-                    name: v["Name"].as_str().map(|s| s.to_string()),
-                    source: v["Source"].as_str()?.to_string(),
-                    destination: v["Destination"].as_str()?.to_string(),
-                    driver: v["Driver"].as_str().map(|s| s.to_string()),
-                    mode: v["Mode"].as_str().unwrap_or("").to_string(),
-                    rw: v["RW"].as_bool().unwrap_or(false),
-                    propagation: v["Propagation"].as_str().unwrap_or("").to_string(),
-                })
-            }).collect())
+        mounts
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| {
+                        Some(MountPoint {
+                            mount_type: v["Type"].as_str()?.to_string(),
+                            name: v["Name"].as_str().map(|s| s.to_string()),
+                            source: v["Source"].as_str()?.to_string(),
+                            destination: v["Destination"].as_str()?.to_string(),
+                            driver: v["Driver"].as_str().map(|s| s.to_string()),
+                            mode: v["Mode"].as_str().unwrap_or("").to_string(),
+                            rw: v["RW"].as_bool().unwrap_or(false),
+                            propagation: v["Propagation"].as_str().unwrap_or("").to_string(),
+                        })
+                    })
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
     fn parse_image_json(&self, json: serde_json::Value) -> Result<ImageInfo, LiteError> {
         Ok(ImageInfo {
             id: json["Id"].as_str().unwrap_or("").to_string(),
-            repo_tags: json["RepoTags"].as_array()
-                .map(|a| a.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+            repo_tags: json["RepoTags"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| v.as_str().unwrap_or("").to_string())
+                        .collect()
+                })
                 .unwrap_or_default(),
-            repo_digests: json["RepoDigests"].as_array()
-                .map(|a| a.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+            repo_digests: json["RepoDigests"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| v.as_str().unwrap_or("").to_string())
+                        .collect()
+                })
                 .unwrap_or_default(),
             parent: json["Parent"].as_str().unwrap_or("").to_string(),
             comment: json["Comment"].as_str().unwrap_or("").to_string(),
@@ -2143,18 +2404,36 @@ impl DockerManager {
             internal: json["Internal"].as_bool().unwrap_or(false),
             enable_ipv6: json["EnableIPv6"].as_bool().unwrap_or(false),
             ipam: IpamConfig {
-                driver: json["IPAM"]["Driver"].as_str().unwrap_or("default").to_string(),
-                config: json["IPAM"]["Config"].as_array()
-                    .map(|a| a.iter().filter_map(|v| {
-                        Some(IpamSubnetConfig {
-                            subnet: v["Subnet"].as_str()?.to_string(),
-                            gateway: v["Gateway"].as_str()?.to_string(),
-                            ip_range: v["IPRange"].as_str().map(|s| s.to_string()),
-                            auxiliary_addresses: v["AuxiliaryAddresses"].as_object()
-                                .map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
-                                .unwrap_or_default(),
-                        })
-                    }).collect())
+                driver: json["IPAM"]["Driver"]
+                    .as_str()
+                    .unwrap_or("default")
+                    .to_string(),
+                config: json["IPAM"]["Config"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| {
+                                Some(IpamSubnetConfig {
+                                    subnet: v["Subnet"].as_str()?.to_string(),
+                                    gateway: v["Gateway"].as_str()?.to_string(),
+                                    ip_range: v["IPRange"].as_str().map(|s| s.to_string()),
+                                    auxiliary_addresses: v["AuxiliaryAddresses"]
+                                        .as_object()
+                                        .map(|o| {
+                                            o.iter()
+                                                .map(|(k, v)| {
+                                                    (
+                                                        k.clone(),
+                                                        v.as_str().unwrap_or("").to_string(),
+                                                    )
+                                                })
+                                                .collect()
+                                        })
+                                        .unwrap_or_default(),
+                                })
+                            })
+                            .collect()
+                    })
                     .unwrap_or_default(),
                 options: self.parse_labels_json(&json["IPAM"]["Options"]),
             },
@@ -2164,21 +2443,35 @@ impl DockerManager {
         })
     }
 
-    fn parse_network_inspect_json(&self, json: serde_json::Value) -> Result<NetworkInfo, LiteError> {
+    fn parse_network_inspect_json(
+        &self,
+        json: serde_json::Value,
+    ) -> Result<NetworkInfo, LiteError> {
         self.parse_network_json(json)
     }
 
-    fn parse_network_containers_json(&self, containers: &serde_json::Value) -> HashMap<String, NetworkContainer> {
-        containers.as_object()
-            .map(|o| o.iter().filter_map(|(k, v)| {
-                Some((k.clone(), NetworkContainer {
-                    name: v["Name"].as_str()?.to_string(),
-                    endpoint_id: v["EndpointID"].as_str()?.to_string(),
-                    mac_address: v["MacAddress"].as_str()?.to_string(),
-                    ipv4_address: v["IPv4Address"].as_str()?.to_string(),
-                    ipv6_address: v["IPv6Address"].as_str()?.to_string(),
-                }))
-            }).collect())
+    fn parse_network_containers_json(
+        &self,
+        containers: &serde_json::Value,
+    ) -> HashMap<String, NetworkContainer> {
+        containers
+            .as_object()
+            .map(|o| {
+                o.iter()
+                    .filter_map(|(k, v)| {
+                        Some((
+                            k.clone(),
+                            NetworkContainer {
+                                name: v["Name"].as_str()?.to_string(),
+                                endpoint_id: v["EndpointID"].as_str()?.to_string(),
+                                mac_address: v["MacAddress"].as_str()?.to_string(),
+                                ipv4_address: v["IPv4Address"].as_str()?.to_string(),
+                                ipv6_address: v["IPv6Address"].as_str()?.to_string(),
+                            },
+                        ))
+                    })
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -2188,12 +2481,16 @@ impl DockerManager {
             driver: json["Driver"].as_str().unwrap_or("local").to_string(),
             mountpoint: json["Mountpoint"].as_str().unwrap_or("").to_string(),
             created_at: json["CreatedAt"].as_str().unwrap_or("").to_string(),
-            status: json["Status"].as_object()
+            status: json["Status"]
+                .as_object()
                 .map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
             labels: self.parse_labels_json(&json["Labels"]),
             scope: json["Scope"].as_str().unwrap_or("local").to_string(),
-            options: json["Options"].as_object()
-                .map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect()),
+            options: json["Options"].as_object().map(|o| {
+                o.iter()
+                    .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                    .collect()
+            }),
             usage_data: json["UsageData"].as_object().map(|o| VolumeUsageData {
                 size: o["Size"].as_i64().unwrap_or(0),
                 ref_count: o["RefCount"].as_i64().unwrap_or(0) as i32,
@@ -2273,24 +2570,37 @@ impl DockerManager {
         })
     }
 
-    fn parse_compose_project_json(&self, json: serde_json::Value) -> Result<ComposeProject, LiteError> {
+    fn parse_compose_project_json(
+        &self,
+        json: serde_json::Value,
+    ) -> Result<ComposeProject, LiteError> {
         Ok(ComposeProject {
             name: json["Name"].as_str().unwrap_or("").to_string(),
             status: json["Status"].as_str().unwrap_or("").to_string(),
-            config_files: json["ConfigFiles"].as_array()
-                .map(|a| a.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+            config_files: json["ConfigFiles"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| v.as_str().unwrap_or("").to_string())
+                        .collect()
+                })
                 .unwrap_or_default(),
-            services: json["Services"].as_array()
-                .map(|a| a.iter().filter_map(|v| {
-                    Some(ComposeService {
-                        name: v["Name"].as_str()?.to_string(),
-                        image: v["Image"].as_str().unwrap_or("").to_string(),
-                        state: v["State"].as_str()?.to_string(),
-                        replicas: v["Replicas"].as_i64().unwrap_or(0) as i32,
-                        ports: self.parse_ports_json(&v["Ports"]),
-                        health: v["Health"].as_str().map(|s| s.to_string()),
-                    })
-                }).collect())
+            services: json["Services"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| {
+                            Some(ComposeService {
+                                name: v["Name"].as_str()?.to_string(),
+                                image: v["Image"].as_str().unwrap_or("").to_string(),
+                                state: v["State"].as_str()?.to_string(),
+                                replicas: v["Replicas"].as_i64().unwrap_or(0) as i32,
+                                ports: self.parse_ports_json(&v["Ports"]),
+                                health: v["Health"].as_str().map(|s| s.to_string()),
+                            })
+                        })
+                        .collect()
+                })
                 .unwrap_or_default(),
         })
     }
@@ -2499,7 +2809,10 @@ mod tests {
     fn test_parse_size() {
         let manager = DockerManager::new();
         assert_eq!(manager.parse_size("100 MB"), 100 * 1024 * 1024);
-        assert_eq!(manager.parse_size("2.5 GB"), (2.5 * 1024.0 * 1024.0 * 1024.0) as i64);
+        assert_eq!(
+            manager.parse_size("2.5 GB"),
+            (2.5 * 1024.0 * 1024.0 * 1024.0) as i64
+        );
         assert_eq!(manager.parse_size("500 KB"), 500 * 1024);
     }
 

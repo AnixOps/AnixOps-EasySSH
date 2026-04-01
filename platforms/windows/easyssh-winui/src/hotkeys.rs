@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 #![allow(dead_code)]
 
 //! Professional Hotkey System for EasySSH Windows
@@ -21,59 +20,61 @@ use tracing::{debug, error, info, warn};
 #[cfg(windows)]
 use windows::Win32::Foundation::{HWND, WPARAM};
 #[cfg(windows)]
-use windows::Win32::UI::Input::KeyboardAndMouse::{RegisterHotKey, UnregisterHotKey, MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, HOT_KEY_MODIFIERS};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS, MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN,
+};
 
 /// Unique identifier for a hotkey action
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HotkeyAction {
     // Global hotkeys
-    QuickConnectLast,      // Ctrl+Alt+T
-    NewConnectionWindow,   // Ctrl+Alt+N
+    QuickConnectLast,    // Ctrl+Alt+T
+    NewConnectionWindow, // Ctrl+Alt+N
 
     // App hotkeys - Tabs
-    NewTab,                // Ctrl+T
-    CloseTab,              // Ctrl+W
-    NextTab,               // Ctrl+Tab
-    PrevTab,               // Ctrl+Shift+Tab
-    SwitchTab1,            // Ctrl+1
-    SwitchTab2,            // Ctrl+2
-    SwitchTab3,            // Ctrl+3
-    SwitchTab4,            // Ctrl+4
-    SwitchTab5,            // Ctrl+5
-    SwitchTab6,            // Ctrl+6
-    SwitchTab7,            // Ctrl+7
-    SwitchTab8,            // Ctrl+8
-    SwitchTab9,            // Ctrl+9
+    NewTab,     // Ctrl+T
+    CloseTab,   // Ctrl+W
+    NextTab,    // Ctrl+Tab
+    PrevTab,    // Ctrl+Shift+Tab
+    SwitchTab1, // Ctrl+1
+    SwitchTab2, // Ctrl+2
+    SwitchTab3, // Ctrl+3
+    SwitchTab4, // Ctrl+4
+    SwitchTab5, // Ctrl+5
+    SwitchTab6, // Ctrl+6
+    SwitchTab7, // Ctrl+7
+    SwitchTab8, // Ctrl+8
+    SwitchTab9, // Ctrl+9
 
     // App hotkeys - UI
-    CommandPalette,        // Ctrl+K
-    GlobalSearch,          // Ctrl+Shift+F
-    ToggleFullscreen,      // F11
+    CommandPalette,   // Ctrl+K
+    GlobalSearch,     // Ctrl+Shift+F
+    ToggleFullscreen, // F11
 
     // App hotkeys - Terminal
-    TerminalZoomIn,        // Ctrl+Plus
-    TerminalZoomOut,       // Ctrl+Minus
-    TerminalZoomReset,     // Ctrl+0
-    TerminalCopy,          // Ctrl+C (when terminal focused)
-    TerminalPaste,         // Ctrl+V (when terminal focused)
-    TerminalClear,         // Ctrl+L
+    TerminalZoomIn,    // Ctrl+Plus
+    TerminalZoomOut,   // Ctrl+Minus
+    TerminalZoomReset, // Ctrl+0
+    TerminalCopy,      // Ctrl+C (when terminal focused)
+    TerminalPaste,     // Ctrl+V (when terminal focused)
+    TerminalClear,     // Ctrl+L
 
     // App hotkeys - Navigation
-    FocusServers,          // Ctrl+Shift+S
-    FocusTerminal,         // Ctrl+Shift+T
-    FocusFileBrowser,      // Ctrl+Shift+B
-    ToggleSidebar,         // Ctrl+B
+    FocusServers,     // Ctrl+Shift+S
+    FocusTerminal,    // Ctrl+Shift+T
+    FocusFileBrowser, // Ctrl+Shift+B
+    ToggleSidebar,    // Ctrl+B
 
     // App hotkeys - Snippets
-    OpenSnippets,          // Ctrl+Shift+P
-    InsertSnippet,         // Ctrl+Shift+Space
+    OpenSnippets,  // Ctrl+Shift+P
+    InsertSnippet, // Ctrl+Shift+Space
 
     // App hotkeys - Split Layout
-    SplitHorizontal,       // Ctrl+Shift+H - Split current panel horizontally
-    SplitVertical,         // Ctrl+Shift+V - Split current panel vertically
-    ClosePanel,            // Ctrl+Shift+W - Close current panel
-    NextPanel,             // Alt+Right - Switch to next panel
-    PrevPanel,             // Alt+Left - Switch to previous panel
+    SplitHorizontal, // Ctrl+Shift+H - Split current panel horizontally
+    SplitVertical,   // Ctrl+Shift+V - Split current panel vertically
+    ClosePanel,      // Ctrl+Shift+W - Close current panel
+    NextPanel,       // Alt+Right - Switch to next panel
+    PrevPanel,       // Alt+Left - Switch to previous panel
 
     // Custom user-defined
     Custom(String),
@@ -124,18 +125,38 @@ impl HotkeyAction {
     pub fn category(&self) -> &'static str {
         match self {
             Self::QuickConnectLast | Self::NewConnectionWindow => "Global",
-            Self::NewTab | Self::CloseTab | Self::NextTab | Self::PrevTab |
-            Self::SwitchTab1 | Self::SwitchTab2 | Self::SwitchTab3 | Self::SwitchTab4 |
-            Self::SwitchTab5 | Self::SwitchTab6 | Self::SwitchTab7 | Self::SwitchTab8 |
-            Self::SwitchTab9 => "Tabs",
-            Self::CommandPalette | Self::GlobalSearch | Self::ToggleFullscreen |
-            Self::FocusServers | Self::FocusTerminal | Self::FocusFileBrowser |
-            Self::ToggleSidebar => "Navigation",
-            Self::TerminalZoomIn | Self::TerminalZoomOut | Self::TerminalZoomReset |
-            Self::TerminalCopy | Self::TerminalPaste | Self::TerminalClear => "Terminal",
+            Self::NewTab
+            | Self::CloseTab
+            | Self::NextTab
+            | Self::PrevTab
+            | Self::SwitchTab1
+            | Self::SwitchTab2
+            | Self::SwitchTab3
+            | Self::SwitchTab4
+            | Self::SwitchTab5
+            | Self::SwitchTab6
+            | Self::SwitchTab7
+            | Self::SwitchTab8
+            | Self::SwitchTab9 => "Tabs",
+            Self::CommandPalette
+            | Self::GlobalSearch
+            | Self::ToggleFullscreen
+            | Self::FocusServers
+            | Self::FocusTerminal
+            | Self::FocusFileBrowser
+            | Self::ToggleSidebar => "Navigation",
+            Self::TerminalZoomIn
+            | Self::TerminalZoomOut
+            | Self::TerminalZoomReset
+            | Self::TerminalCopy
+            | Self::TerminalPaste
+            | Self::TerminalClear => "Terminal",
             Self::OpenSnippets | Self::InsertSnippet => "Snippets",
-            Self::SplitHorizontal | Self::SplitVertical | Self::ClosePanel |
-            Self::NextPanel | Self::PrevPanel => "Layout",
+            Self::SplitHorizontal
+            | Self::SplitVertical
+            | Self::ClosePanel
+            | Self::NextPanel
+            | Self::PrevPanel => "Layout",
             Self::Custom(_) => "Custom",
         }
     }
@@ -143,8 +164,12 @@ impl HotkeyAction {
     pub fn default_hotkey(&self) -> Option<KeyBinding> {
         match self {
             // Global hotkeys
-            Self::QuickConnectLast => Some(KeyBinding::new(vec![Key::Control, Key::Alt, Key::T]).global(true)),
-            Self::NewConnectionWindow => Some(KeyBinding::new(vec![Key::Control, Key::Alt, Key::N]).global(true)),
+            Self::QuickConnectLast => {
+                Some(KeyBinding::new(vec![Key::Control, Key::Alt, Key::T]).global(true))
+            }
+            Self::NewConnectionWindow => {
+                Some(KeyBinding::new(vec![Key::Control, Key::Alt, Key::N]).global(true))
+            }
 
             // App hotkeys - Tabs
             Self::NewTab => Some(KeyBinding::new(vec![Key::Control, Key::T])),
@@ -180,7 +205,9 @@ impl HotkeyAction {
 
             // App hotkeys - Snippets
             Self::OpenSnippets => Some(KeyBinding::new(vec![Key::Control, Key::Shift, Key::P])),
-            Self::InsertSnippet => Some(KeyBinding::new(vec![Key::Control, Key::Shift, Key::Space])),
+            Self::InsertSnippet => {
+                Some(KeyBinding::new(vec![Key::Control, Key::Shift, Key::Space]))
+            }
 
             // App hotkeys - Split Layout
             Self::SplitHorizontal => Some(KeyBinding::new(vec![Key::Control, Key::Shift, Key::H])),
@@ -201,25 +228,101 @@ impl HotkeyAction {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Key {
     // Modifiers
-    Control, Alt, Shift, Win,
+    Control,
+    Alt,
+    Shift,
+    Win,
     // Letters
-    A, B, C, D, E, F, G, H, I, J, K, L, M,
-    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
     // Numbers (top row)
-    Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+    Num0,
+    Num1,
+    Num2,
+    Num3,
+    Num4,
+    Num5,
+    Num6,
+    Num7,
+    Num8,
+    Num9,
     // Numpad
-    Numpad0, Numpad1, Numpad2, Numpad3, Numpad4,
-    Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+    Numpad0,
+    Numpad1,
+    Numpad2,
+    Numpad3,
+    Numpad4,
+    Numpad5,
+    Numpad6,
+    Numpad7,
+    Numpad8,
+    Numpad9,
     // Function keys
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
     // Special keys
-    Tab, Space, Enter, Escape, Backspace, Delete,
-    Insert, Home, End, PageUp, PageDown,
+    Tab,
+    Space,
+    Enter,
+    Escape,
+    Backspace,
+    Delete,
+    Insert,
+    Home,
+    End,
+    PageUp,
+    PageDown,
     // Arrow keys
-    Up, Down, Left, Right,
+    Up,
+    Down,
+    Left,
+    Right,
     // Symbols
-    Plus, Minus, Equals, BracketLeft, BracketRight,
-    Backslash, Semicolon, Quote, Comma, Period, Slash,
+    Plus,
+    Minus,
+    Equals,
+    BracketLeft,
+    BracketRight,
+    Backslash,
+    Semicolon,
+    Quote,
+    Comma,
+    Period,
+    Slash,
     Grave,
 }
 
@@ -372,7 +475,7 @@ impl KeyBinding {
 
     /// Check if this is currently pressed in egui input state
     pub fn is_pressed(&self, ctx: &egui::Context) -> bool {
-        let input = ctx.input(|i| {
+        ctx.input(|i| {
             let mut pressed = true;
             for key in &self.keys {
                 let is_down = match key {
@@ -442,13 +545,12 @@ impl KeyBinding {
                 }
             }
             pressed
-        });
-        input
+        })
     }
 
     /// Check if this keybinding was just pressed
     pub fn just_pressed(&self, ctx: &egui::Context) -> bool {
-        let input = ctx.input(|i| {
+        ctx.input(|i| {
             let mut just_pressed = true;
             for key in &self.keys {
                 let was_pressed = match key {
@@ -518,8 +620,7 @@ impl KeyBinding {
                 }
             }
             just_pressed
-        });
-        input
+        })
     }
 
     /// Convert to display string (e.g., "Ctrl+K")
@@ -534,10 +635,10 @@ impl KeyBinding {
         let mut modifiers = HOT_KEY_MODIFIERS(0);
         for key in &self.keys {
             match key {
-                Key::Control => modifiers.0 |= MOD_CONTROL.0 as u32,
-                Key::Alt => modifiers.0 |= MOD_ALT.0 as u32,
-                Key::Shift => modifiers.0 |= MOD_SHIFT.0 as u32,
-                Key::Win => modifiers.0 |= MOD_WIN.0 as u32,
+                Key::Control => modifiers.0 |= MOD_CONTROL.0,
+                Key::Alt => modifiers.0 |= MOD_ALT.0,
+                Key::Shift => modifiers.0 |= MOD_SHIFT.0,
+                Key::Win => modifiers.0 |= MOD_WIN.0,
                 _ => {}
             }
         }
@@ -685,7 +786,11 @@ impl HotkeyManager {
     }
 
     /// Register a key binding for an action
-    pub fn register_binding(&mut self, action: HotkeyAction, binding: KeyBinding) -> Result<(), String> {
+    pub fn register_binding(
+        &mut self,
+        action: HotkeyAction,
+        binding: KeyBinding,
+    ) -> Result<(), String> {
         // Check for conflicts
         if let Some(existing_action) = self.reverse_bindings.get(&binding) {
             if *existing_action != action {
@@ -710,7 +815,8 @@ impl HotkeyManager {
 
         // Register new binding
         self.bindings.insert(action.clone(), binding.clone());
-        self.reverse_bindings.insert(binding.clone(), action.clone());
+        self.reverse_bindings
+            .insert(binding.clone(), action.clone());
 
         // Register global hotkey if needed
         #[cfg(windows)]
@@ -718,7 +824,11 @@ impl HotkeyManager {
             self.register_global_hotkey(&action, &binding)?;
         }
 
-        info!("Registered hotkey: {} -> {}", binding.display_string(), action.display_name());
+        info!(
+            "Registered hotkey: {} -> {}",
+            binding.display_string(),
+            action.display_name()
+        );
         Ok(())
     }
 
@@ -739,7 +849,11 @@ impl HotkeyManager {
     }
 
     /// Check for conflicts with a proposed binding
-    pub fn check_conflict(&self, binding: &KeyBinding, exclude: Option<&HotkeyAction>) -> Option<HotkeyAction> {
+    pub fn check_conflict(
+        &self,
+        binding: &KeyBinding,
+        exclude: Option<&HotkeyAction>,
+    ) -> Option<HotkeyAction> {
         if let Some(action) = self.reverse_bindings.get(binding) {
             if let Some(exclude) = exclude {
                 if action != exclude {
@@ -800,14 +914,22 @@ impl HotkeyManager {
         // Register all global hotkeys
         for (action, binding) in global_hotkeys {
             if let Err(e) = self.register_global_hotkey(&action, &binding) {
-                error!("Failed to register global hotkey {}: {}", action.display_name(), e);
+                error!(
+                    "Failed to register global hotkey {}: {}",
+                    action.display_name(),
+                    e
+                );
             }
         }
     }
 
     /// Register a global hotkey with Windows
     #[cfg(windows)]
-    fn register_global_hotkey(&mut self, action: &HotkeyAction, binding: &KeyBinding) -> Result<(), String> {
+    fn register_global_hotkey(
+        &mut self,
+        action: &HotkeyAction,
+        binding: &KeyBinding,
+    ) -> Result<(), String> {
         let hwnd = self.hwnd.ok_or("No window handle set")?;
         let id = self.next_hotkey_id;
         self.next_hotkey_id += 1;
@@ -823,7 +945,11 @@ impl HotkeyManager {
             match RegisterHotKey(hwnd, id, modifiers, vk) {
                 Ok(_) => {
                     self.global_hotkeys.insert(id, action.clone());
-                    info!("Registered global hotkey: {} (id={})", action.display_name(), id);
+                    info!(
+                        "Registered global hotkey: {} (id={})",
+                        action.display_name(),
+                        id
+                    );
                     Ok(())
                 }
                 Err(e) => Err(format!("RegisterHotKey failed: {:?}", e)),
@@ -839,7 +965,8 @@ impl HotkeyManager {
             None => return,
         };
 
-        let ids_to_remove: Vec<i32> = self.global_hotkeys
+        let ids_to_remove: Vec<i32> = self
+            .global_hotkeys
             .iter()
             .filter(|(_, a)| a == &action)
             .map(|(id, _)| *id)
@@ -921,7 +1048,8 @@ impl HotkeyManager {
 
     /// Save configuration to file
     pub fn save_config(&self) -> Result<String, serde_json::Error> {
-        let config: HashMap<String, KeyBinding> = self.bindings
+        let config: HashMap<String, KeyBinding> = self
+            .bindings
             .iter()
             .map(|(action, binding)| (format!("{:?}", action), binding.clone()))
             .collect();
@@ -930,8 +1058,8 @@ impl HotkeyManager {
 
     /// Load configuration from JSON string
     pub fn load_config(&mut self, json: &str) -> Result<(), String> {
-        let config: HashMap<String, KeyBinding> = serde_json::from_str(json)
-            .map_err(|e| format!("Failed to parse config: {}", e))?;
+        let config: HashMap<String, KeyBinding> =
+            serde_json::from_str(json).map_err(|e| format!("Failed to parse config: {}", e))?;
 
         // Clear existing bindings first
         self.bindings.clear();
@@ -942,7 +1070,8 @@ impl HotkeyManager {
             if let Some(action) = Self::parse_action_from_string(&action_str) {
                 // Register the binding without conflict checking (we're restoring)
                 self.bindings.insert(action.clone(), binding.clone());
-                self.reverse_bindings.insert(binding.clone(), action.clone());
+                self.reverse_bindings
+                    .insert(binding.clone(), action.clone());
 
                 // Register global hotkey if needed
                 #[cfg(windows)]
@@ -956,7 +1085,11 @@ impl HotkeyManager {
                             unsafe {
                                 if RegisterHotKey(hwnd, id, modifiers, vk).is_ok() {
                                     self.global_hotkeys.insert(id, action.clone());
-                                    info!("Restored global hotkey: {} (id={})", action.display_name(), id);
+                                    info!(
+                                        "Restored global hotkey: {} (id={})",
+                                        action.display_name(),
+                                        id
+                                    );
                                 }
                             }
                         }
@@ -983,7 +1116,7 @@ impl HotkeyManager {
             if let Some(start) = s.find('"') {
                 if let Some(end) = s.rfind('"') {
                     if start < end {
-                        let name = &s[start+1..end];
+                        let name = &s[start + 1..end];
                         return Some(HotkeyAction::Custom(name.to_string()));
                     }
                 }
@@ -1045,7 +1178,8 @@ impl HotkeyManager {
             std::fs::create_dir_all(parent)?;
         }
 
-        let content = self.save_config()
+        let content = self
+            .save_config()
             .map_err(|e| anyhow::anyhow!("Failed to serialize config: {}", e))?;
 
         std::fs::write(&config_path, content)?;
@@ -1064,7 +1198,10 @@ impl HotkeyManager {
                 .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?;
             info!("Hotkey configuration loaded from: {:?}", config_path);
         } else {
-            info!("No hotkey config file found at {:?}, using defaults", config_path);
+            info!(
+                "No hotkey config file found at {:?}, using defaults",
+                config_path
+            );
         }
 
         Ok(())
@@ -1183,12 +1320,14 @@ impl CommandPalette {
     fn filter_commands(&mut self) {
         let query_lower = self.query.to_lowercase();
 
-        self.filtered_commands = self.commands
+        self.filtered_commands = self
+            .commands
             .iter()
             .enumerate()
             .filter(|(_, cmd)| {
                 let label_match = cmd.label.to_lowercase().contains(&query_lower);
-                let desc_match = cmd.description
+                let desc_match = cmd
+                    .description
                     .as_ref()
                     .map(|d| d.to_lowercase().contains(&query_lower))
                     .unwrap_or(false);
@@ -1203,8 +1342,14 @@ impl CommandPalette {
     fn sort_by_recency(&mut self) {
         // Recent commands first
         self.filtered_commands.sort_by(|a, b| {
-            let a_recent = self.recent_commands.iter().position(|id| id == &self.commands[*a].id);
-            let b_recent = self.recent_commands.iter().position(|id| id == &self.commands[*b].id);
+            let a_recent = self
+                .recent_commands
+                .iter()
+                .position(|id| id == &self.commands[*a].id);
+            let b_recent = self
+                .recent_commands
+                .iter()
+                .position(|id| id == &self.commands[*b].id);
 
             match (a_recent, b_recent) {
                 (Some(a_pos), Some(b_pos)) => a_pos.cmp(&b_pos),
@@ -1304,11 +1449,8 @@ impl CommandPalette {
         let screen_rect = ctx.screen_rect();
 
         // Darken background
-        ui.painter().rect_filled(
-            screen_rect,
-            0.0,
-            egui::Color32::from_black_alpha(128),
-        );
+        ui.painter()
+            .rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(128));
 
         // Center palette
         let palette_width = 600.0;
@@ -1322,11 +1464,8 @@ impl CommandPalette {
         );
 
         // Palette background
-        ui.painter().rect_filled(
-            palette_rect,
-            8.0,
-            ui.visuals().panel_fill,
-        );
+        ui.painter()
+            .rect_filled(palette_rect, 8.0, ui.visuals().panel_fill);
 
         // Shadow
         ui.painter().rect_stroke(
@@ -1344,10 +1483,12 @@ impl CommandPalette {
                 // Search icon + input
                 ui.horizontal(|ui| {
                     ui.label("🔍");
-                    ui.add(egui::TextEdit::singleline(&mut query_clone)
-                        .font(egui::TextStyle::Heading)
-                        .hint_text("Type a command...")
-                        .desired_width(ui.available_width()));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut query_clone)
+                            .font(egui::TextStyle::Heading)
+                            .hint_text("Type a command...")
+                            .desired_width(ui.available_width()),
+                    );
                 });
 
                 // Update query
@@ -1370,13 +1511,15 @@ impl CommandPalette {
 
                             let response = ui.selectable_label(
                                 is_selected,
-                                format!("{} {}  -  {}",
+                                format!(
+                                    "{} {}  -  {}",
                                     cmd.icon.as_deref().unwrap_or("⚡"),
                                     cmd.label,
-                                    cmd.shortcut.as_ref()
+                                    cmd.shortcut
+                                        .as_ref()
                                         .map(|s| s.display_string())
                                         .unwrap_or_default()
-                                )
+                                ),
                             );
 
                             if response.clicked() {
@@ -1385,9 +1528,8 @@ impl CommandPalette {
                             }
 
                             // Description on hover
-                            response.on_hover_text(
-                                cmd.description.as_deref().unwrap_or(&cmd.category)
-                            );
+                            response
+                                .on_hover_text(cmd.description.as_deref().unwrap_or(&cmd.category));
                         }
 
                         if filtered.is_empty() {
@@ -1511,40 +1653,39 @@ impl HotkeySettingsUI {
                 // Search bar
                 ui.horizontal(|ui| {
                     ui.label("🔍");
-                    ui.add(egui::TextEdit::singleline(&mut self.search_query)
-                        .hint_text("Search shortcuts..."));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.search_query)
+                            .hint_text("Search shortcuts..."),
+                    );
                 });
 
                 ui.separator();
 
                 // Recording overlay
                 if self.recording_binding {
-                    egui::Frame::popup(ui.style())
-                        .show(ui, |ui| {
-                            ui.vertical_centered(|ui| {
-                                ui.heading("Press key combination...");
-                                ui.label("Modifiers + key (e.g., Ctrl+Shift+K)");
-                                ui.label("");
+                    egui::Frame::popup(ui.style()).show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.heading("Press key combination...");
+                            ui.label("Modifiers + key (e.g., Ctrl+Shift+K)");
+                            ui.label("");
 
-                                // Show currently recorded keys
-                                if !self.recorded_keys.is_empty() {
-                                    let binding = KeyBinding::new(self.recorded_keys.clone());
-                                    ui.heading(binding.display_string());
+                            // Show currently recorded keys
+                            if !self.recorded_keys.is_empty() {
+                                let binding = KeyBinding::new(self.recorded_keys.clone());
+                                ui.heading(binding.display_string());
+                            }
+
+                            ui.label("");
+                            ui.horizontal(|ui| {
+                                if ui.button("Cancel").clicked() {
+                                    self.cancel_recording();
                                 }
-
-                                ui.label("");
-                                ui.horizontal(|ui| {
-                                    if ui.button("Cancel").clicked() {
-                                        self.cancel_recording();
-                                    }
-                                    if !self.recorded_keys.is_empty() {
-                                        if ui.button("Clear").clicked() {
-                                            self.recorded_keys.clear();
-                                        }
-                                    }
-                                });
+                                if !self.recorded_keys.is_empty() && ui.button("Clear").clicked() {
+                                    self.recorded_keys.clear();
+                                }
                             });
                         });
+                    });
                 }
 
                 // Conflict warning
@@ -1554,7 +1695,8 @@ impl HotkeySettingsUI {
 
                 // Hotkey list grouped by category
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    let bindings: Vec<_> = manager.get_all_bindings()
+                    let bindings: Vec<_> = manager
+                        .get_all_bindings()
                         .iter()
                         .filter(|(action, _)| {
                             let query = self.search_query.to_lowercase();
@@ -1577,28 +1719,38 @@ impl HotkeySettingsUI {
                             ui.label(action.display_name())
                                 .on_hover_text(action.category());
 
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                // Edit button
-                                let is_editing = self.editing_action.as_ref() == Some(&action);
-                                let btn_text = if is_editing && self.recording_binding {
-                                    "Recording..."
-                                } else {
-                                    &binding.display_string()
-                                };
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    // Edit button
+                                    let is_editing = self.editing_action.as_ref() == Some(&action);
+                                    let btn_text = if is_editing && self.recording_binding {
+                                        "Recording..."
+                                    } else {
+                                        &binding.display_string()
+                                    };
 
-                                if ui.button(btn_text).clicked() && !self.recording_binding {
-                                    self.start_recording(action.clone());
-                                }
+                                    if ui.button(btn_text).clicked() && !self.recording_binding {
+                                        self.start_recording(action.clone());
+                                    }
 
-                                // Reset button
-                                if ui.small_button("↺").on_hover_text("Reset to default").clicked() {
-                                    if let Some(default) = action.default_hotkey() {
-                                        if manager.register_binding(action.clone(), default).is_ok() {
-                                            self.trigger_save();
+                                    // Reset button
+                                    if ui
+                                        .small_button("↺")
+                                        .on_hover_text("Reset to default")
+                                        .clicked()
+                                    {
+                                        if let Some(default) = action.default_hotkey() {
+                                            if manager
+                                                .register_binding(action.clone(), default)
+                                                .is_ok()
+                                            {
+                                                self.trigger_save();
+                                            }
                                         }
                                     }
-                                }
-                            });
+                                },
+                            );
                         });
                     }
                 });
@@ -1608,7 +1760,12 @@ impl HotkeySettingsUI {
                 ui.horizontal(|ui| {
                     if ui.button("Reset All to Defaults").clicked() {
                         // Clear all and reload defaults
-                        for action in manager.get_all_bindings().keys().cloned().collect::<Vec<_>>() {
+                        for action in manager
+                            .get_all_bindings()
+                            .keys()
+                            .cloned()
+                            .collect::<Vec<_>>()
+                        {
                             manager.remove_binding(&action);
                         }
                         manager.load_default_bindings();
@@ -1645,10 +1802,8 @@ impl HotkeySettingsUI {
 
                     // Check for conflicts
                     if let Some(conflict) = manager.check_conflict(&binding, Some(action)) {
-                        self.conflict_warning = Some(format!(
-                            "Conflicts with: {}",
-                            conflict.display_name()
-                        ));
+                        self.conflict_warning =
+                            Some(format!("Conflicts with: {}", conflict.display_name()));
                     } else {
                         // Apply the binding
                         if let Err(e) = manager.register_binding(action.clone(), binding) {
@@ -1680,30 +1835,60 @@ impl HotkeySettingsUI {
 
             // Detect other keys (only when pressed, not held)
             let key_map = [
-                (egui::Key::A, Key::A), (egui::Key::B, Key::B), (egui::Key::C, Key::C),
-                (egui::Key::D, Key::D), (egui::Key::E, Key::E), (egui::Key::F, Key::F),
-                (egui::Key::G, Key::G), (egui::Key::H, Key::H), (egui::Key::I, Key::I),
-                (egui::Key::J, Key::J), (egui::Key::K, Key::K), (egui::Key::L, Key::L),
-                (egui::Key::M, Key::M), (egui::Key::N, Key::N), (egui::Key::O, Key::O),
-                (egui::Key::P, Key::P), (egui::Key::Q, Key::Q), (egui::Key::R, Key::R),
-                (egui::Key::S, Key::S), (egui::Key::T, Key::T), (egui::Key::U, Key::U),
-                (egui::Key::V, Key::V), (egui::Key::W, Key::W), (egui::Key::X, Key::X),
-                (egui::Key::Y, Key::Y), (egui::Key::Z, Key::Z),
-                (egui::Key::Num0, Key::Num0), (egui::Key::Num1, Key::Num1),
-                (egui::Key::Num2, Key::Num2), (egui::Key::Num3, Key::Num3),
-                (egui::Key::Num4, Key::Num4), (egui::Key::Num5, Key::Num5),
-                (egui::Key::Num6, Key::Num6), (egui::Key::Num7, Key::Num7),
-                (egui::Key::Num8, Key::Num8), (egui::Key::Num9, Key::Num9),
-                (egui::Key::Tab, Key::Tab), (egui::Key::Space, Key::Space),
-                (egui::Key::Enter, Key::Enter), (egui::Key::Escape, Key::Escape),
-                (egui::Key::Backspace, Key::Backspace), (egui::Key::Delete, Key::Delete),
-                (egui::Key::Insert, Key::Insert), (egui::Key::Home, Key::Home),
-                (egui::Key::End, Key::End), (egui::Key::PageUp, Key::PageUp),
+                (egui::Key::A, Key::A),
+                (egui::Key::B, Key::B),
+                (egui::Key::C, Key::C),
+                (egui::Key::D, Key::D),
+                (egui::Key::E, Key::E),
+                (egui::Key::F, Key::F),
+                (egui::Key::G, Key::G),
+                (egui::Key::H, Key::H),
+                (egui::Key::I, Key::I),
+                (egui::Key::J, Key::J),
+                (egui::Key::K, Key::K),
+                (egui::Key::L, Key::L),
+                (egui::Key::M, Key::M),
+                (egui::Key::N, Key::N),
+                (egui::Key::O, Key::O),
+                (egui::Key::P, Key::P),
+                (egui::Key::Q, Key::Q),
+                (egui::Key::R, Key::R),
+                (egui::Key::S, Key::S),
+                (egui::Key::T, Key::T),
+                (egui::Key::U, Key::U),
+                (egui::Key::V, Key::V),
+                (egui::Key::W, Key::W),
+                (egui::Key::X, Key::X),
+                (egui::Key::Y, Key::Y),
+                (egui::Key::Z, Key::Z),
+                (egui::Key::Num0, Key::Num0),
+                (egui::Key::Num1, Key::Num1),
+                (egui::Key::Num2, Key::Num2),
+                (egui::Key::Num3, Key::Num3),
+                (egui::Key::Num4, Key::Num4),
+                (egui::Key::Num5, Key::Num5),
+                (egui::Key::Num6, Key::Num6),
+                (egui::Key::Num7, Key::Num7),
+                (egui::Key::Num8, Key::Num8),
+                (egui::Key::Num9, Key::Num9),
+                (egui::Key::Tab, Key::Tab),
+                (egui::Key::Space, Key::Space),
+                (egui::Key::Enter, Key::Enter),
+                (egui::Key::Escape, Key::Escape),
+                (egui::Key::Backspace, Key::Backspace),
+                (egui::Key::Delete, Key::Delete),
+                (egui::Key::Insert, Key::Insert),
+                (egui::Key::Home, Key::Home),
+                (egui::Key::End, Key::End),
+                (egui::Key::PageUp, Key::PageUp),
                 (egui::Key::PageDown, Key::PageDown),
-                (egui::Key::ArrowUp, Key::Up), (egui::Key::ArrowDown, Key::Down),
-                (egui::Key::ArrowLeft, Key::Left), (egui::Key::ArrowRight, Key::Right),
+                (egui::Key::ArrowUp, Key::Up),
+                (egui::Key::ArrowDown, Key::Down),
+                (egui::Key::ArrowLeft, Key::Left),
+                (egui::Key::ArrowRight, Key::Right),
                 (egui::Key::F11, Key::F11),
-                (egui::Key::Plus, Key::Plus), (egui::Key::Minus, Key::Minus),
+                (egui::Key::Plus, Key::Plus),
+                (egui::Key::Minus, Key::Minus),
             ];
 
             for (egui_key, our_key) in key_map.iter() {
@@ -1755,7 +1940,12 @@ impl ShortcutCheatsheet {
     }
 
     /// Render the shortcut cheatsheet
-    pub fn render(&mut self, ctx: &egui::Context, manager: &HotkeyManager, theme: &crate::design::DesignTheme) {
+    pub fn render(
+        &mut self,
+        ctx: &egui::Context,
+        manager: &HotkeyManager,
+        theme: &crate::design::DesignTheme,
+    ) {
         if !self.visible {
             return;
         }
@@ -1771,7 +1961,7 @@ impl ShortcutCheatsheet {
                     ui.add(
                         egui::TextEdit::singleline(&mut self.search_query)
                             .hint_text("搜索快捷键...")
-                            .desired_width(ui.available_width())
+                            .desired_width(ui.available_width()),
                     );
                 });
 
@@ -1781,7 +1971,9 @@ impl ShortcutCheatsheet {
                 ui.horizontal_wrapped(|ui| {
                     let categories = vec!["全部", "全局", "标签页", "导航", "终端", "代码片段"];
                     for category in categories {
-                        let is_selected = self.selected_category.as_ref()
+                        let is_selected = self
+                            .selected_category
+                            .as_ref()
                             .map(|c| c == category)
                             .unwrap_or(category == "全部");
 
@@ -1819,7 +2011,7 @@ impl ShortcutCheatsheet {
                     ui.label(
                         egui::RichText::new("提示：按 Ctrl+Shift+/ 快速打开此面板")
                             .size(12.0)
-                            .color(theme.text_tertiary)
+                            .color(theme.text_tertiary),
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1831,11 +2023,17 @@ impl ShortcutCheatsheet {
             });
     }
 
-    fn render_shortcuts_list(&self, ui: &mut egui::Ui, manager: &HotkeyManager, theme: &crate::design::DesignTheme) {
+    fn render_shortcuts_list(
+        &self,
+        ui: &mut egui::Ui,
+        manager: &HotkeyManager,
+        theme: &crate::design::DesignTheme,
+    ) {
         let bindings = manager.get_all_bindings();
 
         // Group by category
-        let mut grouped: std::collections::HashMap<&str, Vec<(&HotkeyAction, &KeyBinding)>> = std::collections::HashMap::new();
+        let mut grouped: std::collections::HashMap<&str, Vec<(&HotkeyAction, &KeyBinding)>> =
+            std::collections::HashMap::new();
 
         for (action, binding) in bindings.iter() {
             let category = action.category();
@@ -1877,14 +2075,25 @@ impl ShortcutCheatsheet {
             ui.collapsing(format!("📂 {}", category), |ui| {
                 if let Some(shortcuts) = grouped.get(category) {
                     for (action, binding) in shortcuts.iter() {
-                        self.render_shortcut_row(ui, theme, &action.display_name(), &binding.display_string());
+                        self.render_shortcut_row(
+                            ui,
+                            theme,
+                            &action.display_name(),
+                            &binding.display_string(),
+                        );
                     }
                 }
             });
         }
     }
 
-    fn render_shortcut_row(&self, ui: &mut egui::Ui, theme: &crate::design::DesignTheme, action: &str, shortcut: &str) {
+    fn render_shortcut_row(
+        &self,
+        ui: &mut egui::Ui,
+        theme: &crate::design::DesignTheme,
+        action: &str,
+        shortcut: &str,
+    ) {
         ui.horizontal(|ui| {
             // Shortcut keys display
             egui::Frame::group(ui.style())
@@ -1900,7 +2109,7 @@ impl ShortcutCheatsheet {
             ui.label(
                 egui::RichText::new(action)
                     .size(14.0)
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
         });
 
@@ -1915,7 +2124,10 @@ pub struct ShortcutHint {
 }
 
 impl ShortcutHint {
-    pub fn new(action: HotkeyAction, manager: std::sync::Arc<std::sync::Mutex<HotkeyManager>>) -> Self {
+    pub fn new(
+        action: HotkeyAction,
+        manager: std::sync::Arc<std::sync::Mutex<HotkeyManager>>,
+    ) -> Self {
         Self { action, manager }
     }
 
@@ -1942,18 +2154,12 @@ impl ShortcutHint {
 
 /// Check if a modifier combination is pressed
 pub fn modifiers_pressed(ctx: &egui::Context, ctrl: bool, alt: bool, shift: bool) -> bool {
-    ctx.input(|i| {
-        i.modifiers.ctrl == ctrl &&
-        i.modifiers.alt == alt &&
-        i.modifiers.shift == shift
-    })
+    ctx.input(|i| i.modifiers.ctrl == ctrl && i.modifiers.alt == alt && i.modifiers.shift == shift)
 }
 
 /// Create a global hotkey-enabled window hook (Windows-specific)
 #[cfg(windows)]
 pub fn setup_global_hotkeys(hwnd: HWND, manager: &Arc<Mutex<HotkeyManager>>) {
-    
-
     // Set the window handle in the manager
     if let Ok(mut mgr) = manager.lock() {
         mgr.set_window_handle(hwnd);

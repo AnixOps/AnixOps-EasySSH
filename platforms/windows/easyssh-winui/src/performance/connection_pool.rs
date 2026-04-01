@@ -1,14 +1,13 @@
 #![allow(dead_code)]
 
+use parking_lot::Mutex;
 /// Connection Pool Optimizer
 /// Maximizes TCP connection reuse and minimizes latency
-
 use std::collections::{HashMap, VecDeque};
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use parking_lot::Mutex;
 
 /// Optimized connection pool with predictive pre-warming
 pub struct OptimizedConnectionPool {
@@ -128,10 +127,13 @@ impl OptimizedConnectionPool {
             let mut connections = self.connections.lock();
             if let Some(pool) = connections.get_mut(&endpoint) {
                 // Find best connection (lowest health score)
-                let best_idx = pool.iter()
+                let best_idx = pool
+                    .iter()
                     .enumerate()
                     .filter(|(_, c)| !c.is_expired(&self.config))
-                    .min_by(|(_, a), (_, b)| a.health_score().partial_cmp(&b.health_score()).unwrap())
+                    .min_by(|(_, a), (_, b)| {
+                        a.health_score().partial_cmp(&b.health_score()).unwrap()
+                    })
                     .map(|(idx, _)| idx);
 
                 if let Some(idx) = best_idx {
@@ -140,10 +142,9 @@ impl OptimizedConnectionPool {
                     conn.last_used = Instant::now();
 
                     self.stats.reused.fetch_add(1, Ordering::Relaxed);
-                    self.stats.total_wait_time_ms.fetch_add(
-                        start.elapsed().as_millis() as u64,
-                        Ordering::Relaxed,
-                    );
+                    self.stats
+                        .total_wait_time_ms
+                        .fetch_add(start.elapsed().as_millis() as u64, Ordering::Relaxed);
 
                     return Ok(ConnectionGuard {
                         stream: Some(conn.stream),
@@ -160,10 +161,9 @@ impl OptimizedConnectionPool {
         match self.create_connection(host, port) {
             Ok(stream) => {
                 self.stats.created.fetch_add(1, Ordering::Relaxed);
-                self.stats.total_wait_time_ms.fetch_add(
-                    start.elapsed().as_millis() as u64,
-                    Ordering::Relaxed,
-                );
+                self.stats
+                    .total_wait_time_ms
+                    .fetch_add(start.elapsed().as_millis() as u64, Ordering::Relaxed);
 
                 Ok(ConnectionGuard {
                     stream: Some(stream),
@@ -184,17 +184,20 @@ impl OptimizedConnectionPool {
     fn create_connection(&self, host: &str, port: u16) -> Result<TcpStream, ConnectionError> {
         let addr = format!("{}:{}", host, port);
 
-        let stream = TcpStream::connect(&addr)
-            .map_err(|e| ConnectionError::ConnectFailed(e.to_string()))?;
+        let stream =
+            TcpStream::connect(&addr).map_err(|e| ConnectionError::ConnectFailed(e.to_string()))?;
 
         // Optimize TCP settings for SSH
-        stream.set_nodelay(true)
+        stream
+            .set_nodelay(true)
             .map_err(|e| ConnectionError::ConfigurationFailed(e.to_string()))?;
 
-        stream.set_read_timeout(Some(self.config.idle_timeout))
+        stream
+            .set_read_timeout(Some(self.config.idle_timeout))
             .map_err(|e| ConnectionError::ConfigurationFailed(e.to_string()))?;
 
-        stream.set_write_timeout(Some(Duration::from_secs(30)))
+        stream
+            .set_write_timeout(Some(Duration::from_secs(30)))
             .map_err(|e| ConnectionError::ConfigurationFailed(e.to_string()))?;
 
         Ok(stream)
@@ -247,7 +250,9 @@ impl OptimizedConnectionPool {
                     // Remove empty pools
                     conns.retain(|_, p| !p.is_empty());
 
-                    stats.expired.fetch_add(expired_count as u64, Ordering::Relaxed);
+                    stats
+                        .expired
+                        .fetch_add(expired_count as u64, Ordering::Relaxed);
                 }
 
                 // Process pre-warm queue
@@ -255,7 +260,11 @@ impl OptimizedConnectionPool {
                     let mut queue = prewarm_queue.lock();
                     while let Some(endpoint) = queue.pop() {
                         // Would create connection here
-                        log::debug!("Pre-warming connection to {}:{}", endpoint.host, endpoint.port);
+                        log::debug!(
+                            "Pre-warming connection to {}:{}",
+                            endpoint.host,
+                            endpoint.port
+                        );
                     }
                 }
             }
@@ -275,7 +284,8 @@ impl OptimizedConnectionPool {
             failed: self.stats.failed.load(Ordering::Relaxed),
             avg_wait_time_ms: if self.stats.reused.load(Ordering::Relaxed) > 0 {
                 self.stats.total_wait_time_ms.load(Ordering::Relaxed) as f64
-                    / (self.stats.created.load(Ordering::Relaxed) + self.stats.reused.load(Ordering::Relaxed)) as f64
+                    / (self.stats.created.load(Ordering::Relaxed)
+                        + self.stats.reused.load(Ordering::Relaxed)) as f64
             } else {
                 0.0
             },
@@ -324,9 +334,7 @@ impl Drop for ConnectionGuard {
                     bytes_transferred: 0,
                 };
 
-                pool.entry(self.endpoint.clone())
-                    .or_insert_with(Vec::new)
-                    .push(pooled);
+                pool.entry(self.endpoint.clone()).or_default().push(pooled);
             }
         }
     }
@@ -371,9 +379,9 @@ impl LatencyOptimizer {
         let endpoint = Endpoint::new(host, port);
         let mut history = self.latency_history.lock();
 
-        let samples = history.entry(endpoint.clone()).or_insert_with(|| {
-            VecDeque::with_capacity(100)
-        });
+        let samples = history
+            .entry(endpoint.clone())
+            .or_insert_with(|| VecDeque::with_capacity(100));
 
         if samples.len() >= 100 {
             samples.pop_front();
@@ -386,8 +394,9 @@ impl LatencyOptimizer {
         let mut optimal = self.optimal_cache.lock();
         let current_optimal = optimal.get(host);
 
-        if let Some(ref current) = current_optimal {
-            let current_avg = history.get(current)
+        if let Some(current) = current_optimal {
+            let current_avg = history
+                .get(current)
                 .map(|s| s.iter().sum::<Duration>() / s.len() as u32)
                 .unwrap_or(Duration::MAX);
 
@@ -416,7 +425,5 @@ use std::sync::OnceLock;
 static GLOBAL_CONNECTION_POOL: OnceLock<OptimizedConnectionPool> = OnceLock::new();
 
 pub fn global_connection_pool() -> &'static OptimizedConnectionPool {
-    GLOBAL_CONNECTION_POOL.get_or_init(|| {
-        OptimizedConnectionPool::new(PoolConfig::default())
-    })
+    GLOBAL_CONNECTION_POOL.get_or_init(|| OptimizedConnectionPool::new(PoolConfig::default()))
 }

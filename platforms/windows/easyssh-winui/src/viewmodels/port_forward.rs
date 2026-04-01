@@ -5,10 +5,7 @@
 //! Provides port forwarding management with visualization,
 //! traffic monitoring, and rule templates.
 
-use easyssh_core::port_forward::{
-    ForwardRule,
-    ForwardType, builtin_templates,
-};
+use easyssh_core::port_forward::{builtin_templates, ForwardRule, ForwardType};
 use easyssh_core::AppState;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -211,17 +208,22 @@ impl PortForwardViewModel {
             "local" => ForwardType::Local,
             "remote" => ForwardType::Remote,
             "dynamic" => ForwardType::Dynamic,
-            _ => return Err(anyhow::anyhow!("Invalid forward type: {}", request.forward_type)),
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Invalid forward type: {}",
+                    request.forward_type
+                ))
+            }
         };
 
         let rule = match forward_type {
             ForwardType::Local => {
-                let remote_host = request.remote_host.ok_or_else(|| {
-                    anyhow::anyhow!("Remote host required for local forward")
-                })?;
-                let remote_port = request.remote_port.ok_or_else(|| {
-                    anyhow::anyhow!("Remote port required for local forward")
-                })?;
+                let remote_host = request
+                    .remote_host
+                    .ok_or_else(|| anyhow::anyhow!("Remote host required for local forward"))?;
+                let remote_port = request
+                    .remote_port
+                    .ok_or_else(|| anyhow::anyhow!("Remote port required for local forward"))?;
                 ForwardRule::new_local(
                     &request.name,
                     &request.server_id,
@@ -231,14 +233,15 @@ impl PortForwardViewModel {
                 )
             }
             ForwardType::Remote => {
-                let remote_addr = request.remote_host.map(|h| {
-                    format!("{}:{}", h, request.remote_port.unwrap_or(0))
-                });
+                let remote_addr = request
+                    .remote_host
+                    .map(|h| format!("{}:{}", h, request.remote_port.unwrap_or(0)));
                 let parts: Vec<&str> = request.local_addr.split(':').collect();
-                let local_host = parts.get(0).map(|s| s.to_string()).unwrap_or_else(|| "127.0.0.1".to_string());
-                let local_port: u16 = parts.get(1)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(8080);
+                let local_host = parts
+                    .first()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "127.0.0.1".to_string());
+                let local_port: u16 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
 
                 ForwardRule::new_remote(
                     &request.name,
@@ -278,11 +281,7 @@ impl PortForwardViewModel {
     }
 
     /// Start a forward rule
-    pub fn start_forward(
-        &self,
-        rule: ForwardRuleDto,
-        session_id: &str,
-    ) -> anyhow::Result<()> {
+    pub fn start_forward(&self, rule: ForwardRuleDto, session_id: &str) -> anyhow::Result<()> {
         let rt = self.runtime.clone();
         let state = self.app_state.lock().unwrap();
         let pf_mgr = state.port_forward_manager.clone();
@@ -291,7 +290,8 @@ impl PortForwardViewModel {
         rt.block_on(async {
             // Get the SSH session
             let ssh_lock = ssh_mgr.lock().await;
-            let session = ssh_lock.get_session_arc(session_id)
+            let session = ssh_lock
+                .get_session_arc(session_id)
                 .ok_or_else(|| anyhow::anyhow!("SSH session not found: {}", session_id))?;
             drop(ssh_lock);
 
@@ -321,7 +321,8 @@ impl PortForwardViewModel {
             };
 
             let mgr = pf_mgr.write().await;
-            mgr.start_forward(forward_rule, session_id, session).await
+            mgr.start_forward(forward_rule, session_id, session)
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to start forward: {}", e))
         })
     }
@@ -334,7 +335,8 @@ impl PortForwardViewModel {
 
         rt.block_on(async {
             let mgr = pf_mgr.read().await;
-            mgr.stop_forward(rule_id).await
+            mgr.stop_forward(rule_id)
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to stop forward: {}", e))
         })
     }
@@ -377,7 +379,9 @@ impl PortForwardViewModel {
 
         rt.block_on(async {
             let mgr = pf_mgr.read().await;
-            let rule = mgr.create_from_template(template_id, server_id, custom_name).await
+            let rule = mgr
+                .create_from_template(template_id, server_id, custom_name)
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to create from template: {}", e))?;
 
             Ok(ForwardRuleDto {
@@ -412,7 +416,8 @@ impl PortForwardViewModel {
             let topology = mgr.get_topology().await;
 
             ForwardTopologyDto {
-                nodes: topology.nodes
+                nodes: topology
+                    .nodes
                     .into_iter()
                     .map(|n| TopologyNodeDto {
                         id: n.id,
@@ -421,7 +426,8 @@ impl PortForwardViewModel {
                         address: n.address,
                     })
                     .collect(),
-                edges: topology.edges
+                edges: topology
+                    .edges
                     .into_iter()
                     .map(|e| TopologyEdgeDto {
                         from: e.from,

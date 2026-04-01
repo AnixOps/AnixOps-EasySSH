@@ -22,7 +22,8 @@ impl FileHash {
     /// Create from file path
     pub async fn from_file(path: &Path) -> BackupResult<Self> {
         let metadata = tokio::fs::metadata(path).await.map_err(BackupError::Io)?;
-        let modified: DateTime<Utc> = metadata.modified()
+        let modified: DateTime<Utc> = metadata
+            .modified()
             .map_err(|e| BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?
             .into();
 
@@ -281,7 +282,10 @@ impl IncrementalBackupManager {
             // Calculate hash for files
             let hash = if is_symlink {
                 // Hash the symlink target path
-                let target = symlink_target.as_ref().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+                let target = symlink_target
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default();
                 FileHash::from_data(target.as_bytes())
             } else {
                 FileHash::from_file(path).await?
@@ -318,7 +322,9 @@ impl IncrementalBackupManager {
         let parent_index = self.load_index(parent_id).await?;
 
         // Build new index
-        let new_index = self.build_index(source, snapshot_id, Some(parent_id), filter).await?;
+        let new_index = self
+            .build_index(source, snapshot_id, Some(parent_id), filter)
+            .await?;
 
         // Calculate diff
         let diff = new_index.diff(&parent_index);
@@ -330,7 +336,9 @@ impl IncrementalBackupManager {
     pub async fn save_index(&mut self, index: &IncrementalIndex) -> BackupResult<()> {
         let path = self.index_path(index.snapshot_id);
         let json = index.to_json()?;
-        tokio::fs::write(&path, json).await.map_err(BackupError::Io)?;
+        tokio::fs::write(&path, json)
+            .await
+            .map_err(BackupError::Io)?;
 
         // Update cache
         self.cache.insert(index.snapshot_id, index.clone());
@@ -346,7 +354,9 @@ impl IncrementalBackupManager {
         }
 
         let path = self.index_path(snapshot_id);
-        let json = tokio::fs::read_to_string(&path).await.map_err(BackupError::Io)?;
+        let json = tokio::fs::read_to_string(&path)
+            .await
+            .map_err(BackupError::Io)?;
         let index = IncrementalIndex::from_json(&json)?;
 
         Ok(index)
@@ -372,7 +382,9 @@ impl IncrementalBackupManager {
 
     /// List all stored indices
     pub async fn list_indices(&self) -> BackupResult<Vec<SnapshotId>> {
-        let mut entries = tokio::fs::read_dir(&self.index_dir).await.map_err(BackupError::Io)?;
+        let mut entries = tokio::fs::read_dir(&self.index_dir)
+            .await
+            .map_err(BackupError::Io)?;
         let mut indices = Vec::new();
 
         while let Some(entry) = entries.next_entry().await.map_err(BackupError::Io)? {
@@ -392,7 +404,9 @@ impl IncrementalBackupManager {
     /// Delete an index
     pub async fn delete_index(&mut self, snapshot_id: SnapshotId) -> BackupResult<()> {
         let path = self.index_path(snapshot_id);
-        tokio::fs::remove_file(&path).await.map_err(BackupError::Io)?;
+        tokio::fs::remove_file(&path)
+            .await
+            .map_err(BackupError::Io)?;
         self.cache.remove(&snapshot_id);
         Ok(())
     }
@@ -520,7 +534,9 @@ mod tests {
     async fn test_file_hash() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        tokio::fs::write(&file_path, b"Hello, World!").await.unwrap();
+        tokio::fs::write(&file_path, b"Hello, World!")
+            .await
+            .unwrap();
 
         let hash = FileHash::from_file(&file_path).await.unwrap();
         assert_eq!(hash.size, 13);
@@ -535,15 +551,26 @@ mod tests {
         // Create test directory structure
         let source_dir = temp_dir.path().join("source");
         tokio::fs::create_dir_all(&source_dir).await.unwrap();
-        tokio::fs::write(source_dir.join("file1.txt"), b"content1").await.unwrap();
-        tokio::fs::write(source_dir.join("file2.txt"), b"content2").await.unwrap();
-        tokio::fs::create_dir_all(source_dir.join("subdir")).await.unwrap();
-        tokio::fs::write(source_dir.join("subdir/file3.txt"), b"content3").await.unwrap();
+        tokio::fs::write(source_dir.join("file1.txt"), b"content1")
+            .await
+            .unwrap();
+        tokio::fs::write(source_dir.join("file2.txt"), b"content2")
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(source_dir.join("subdir"))
+            .await
+            .unwrap();
+        tokio::fs::write(source_dir.join("subdir/file3.txt"), b"content3")
+            .await
+            .unwrap();
 
         // Build index
         let snapshot_id = SnapshotId::new();
         let filter = super::super::BackupFilter::default();
-        let index = manager.build_index(&source_dir, snapshot_id, None, &filter).await.unwrap();
+        let index = manager
+            .build_index(&source_dir, snapshot_id, None, &filter)
+            .await
+            .unwrap();
 
         assert_eq!(index.file_count, 3); // file1, file2, file3
         assert_eq!(index.directory_count, 1); // subdir

@@ -5,8 +5,8 @@
 //! This module provides helper functions for the professional hotkey system.
 //! These are called from main.rs to handle hotkey actions.
 
+use crate::hotkeys::{Command, HotkeyAction};
 use crate::{EasySSHApp, SessionTab};
-use crate::hotkeys::{HotkeyAction, Command};
 use eframe::egui;
 use tracing::{error, info};
 
@@ -44,17 +44,20 @@ impl EasySSHApp {
         // Process registered hotkeys
         let triggered = if let Ok(mut mgr) = self.hotkey_manager.lock() {
             mgr.process_input(ctx)
-        } else { vec![] };
+        } else {
+            vec![]
+        };
 
         for action in triggered {
             self.execute_hotkey_action(action, ctx, frame);
         }
 
         // Terminal: Ctrl+C SIGINT
-        if self.is_terminal_active && self.current_session_id.is_some() {
-            if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C)) {
-                self.stop_current_command();
-            }
+        if self.is_terminal_active
+            && self.current_session_id.is_some()
+            && ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C))
+        {
+            self.stop_current_command();
         }
 
         // Terminal font zoom
@@ -71,7 +74,9 @@ impl EasySSHApp {
         // Tab switching
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Tab)) {
             self.switch_to_next_tab();
-        } else if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::Tab)) {
+        } else if ctx
+            .input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::Tab))
+        {
             self.switch_to_prev_tab();
         }
 
@@ -86,7 +91,9 @@ impl EasySSHApp {
         }
 
         // Ctrl+K Command Palette
-        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::K)) && !self.is_terminal_active {
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::K))
+            && !self.is_terminal_active
+        {
             self.open_command_palette();
         }
 
@@ -107,9 +114,17 @@ impl EasySSHApp {
 
         // Ctrl+1..9 Switch tabs
         for idx in 0..9 {
-            let key = [egui::Key::Num1, egui::Key::Num2, egui::Key::Num3,
-                      egui::Key::Num4, egui::Key::Num5, egui::Key::Num6,
-                      egui::Key::Num7, egui::Key::Num8, egui::Key::Num9][idx];
+            let key = [
+                egui::Key::Num1,
+                egui::Key::Num2,
+                egui::Key::Num3,
+                egui::Key::Num4,
+                egui::Key::Num5,
+                egui::Key::Num6,
+                egui::Key::Num7,
+                egui::Key::Num8,
+                egui::Key::Num9,
+            ][idx];
             if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(key)) {
                 self.switch_to_tab_by_index(idx);
                 break;
@@ -123,23 +138,42 @@ impl EasySSHApp {
 
         // Escape close overlays
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-            if self.theme_gallery.is_open { self.theme_gallery.close(); }
-            else if self.theme_editor.is_open { self.theme_editor.close(); }
-            else if self.settings_panel.is_open { self.settings_panel.close(); }
-            else if self.show_global_search { self.show_global_search = false; }
-            else if self.show_add_dialog { self.show_add_dialog = false; }
-            else if self.show_connect_dialog { self.show_connect_dialog = false; }
-            else if self.show_hotkey_settings { self.show_hotkey_settings = false; }
-            else if self.show_shortcut_cheatsheet { self.show_shortcut_cheatsheet = false; }
-            else if self.show_performance_panel { self.show_performance_panel = false; }
+            if self.theme_gallery.is_open {
+                self.theme_gallery.close();
+            } else if self.theme_editor.is_open {
+                self.theme_editor.close();
+            } else if self.settings_panel.is_open {
+                self.settings_panel.close();
+            } else if self.show_global_search {
+                self.show_global_search = false;
+            } else if self.show_add_dialog {
+                self.show_add_dialog = false;
+            } else if self.show_connect_dialog {
+                self.show_connect_dialog = false;
+            } else if self.show_hotkey_settings {
+                self.show_hotkey_settings = false;
+            } else if self.show_shortcut_cheatsheet {
+                self.show_shortcut_cheatsheet = false;
+            } else if self.show_performance_panel {
+                self.show_performance_panel = false;
+            }
         }
     }
 
     /// Execute a hotkey action
-    pub fn execute_hotkey_action(&mut self, action: HotkeyAction, _ctx: &egui::Context, frame: &mut eframe::Frame) {
+    pub fn execute_hotkey_action(
+        &mut self,
+        action: HotkeyAction,
+        _ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+    ) {
         match action {
             HotkeyAction::QuickConnectLast => {
-                let last = self.hotkey_manager.lock().ok().and_then(|m| m.get_last_server().cloned());
+                let last = self
+                    .hotkey_manager
+                    .lock()
+                    .ok()
+                    .and_then(|m| m.get_last_server().cloned());
                 if let Some(id) = last {
                     if let Some(srv) = self.servers.iter().find(|s| s.id == id).cloned() {
                         self.connect_server = Some(srv);
@@ -164,8 +198,12 @@ impl EasySSHApp {
             HotkeyAction::CommandPalette => self.open_command_palette(),
             HotkeyAction::GlobalSearch => self.open_global_search(),
             HotkeyAction::ToggleFullscreen => self.toggle_fullscreen(frame),
-            HotkeyAction::TerminalZoomIn => self.terminal_font_zoom = (self.terminal_font_zoom + 0.1).clamp(0.5, 3.0),
-            HotkeyAction::TerminalZoomOut => self.terminal_font_zoom = (self.terminal_font_zoom - 0.1).clamp(0.5, 3.0),
+            HotkeyAction::TerminalZoomIn => {
+                self.terminal_font_zoom = (self.terminal_font_zoom + 0.1).clamp(0.5, 3.0)
+            }
+            HotkeyAction::TerminalZoomOut => {
+                self.terminal_font_zoom = (self.terminal_font_zoom - 0.1).clamp(0.5, 3.0)
+            }
             HotkeyAction::TerminalZoomReset => self.terminal_font_zoom = 1.0,
             HotkeyAction::TerminalClear => self.terminal_output.clear(),
             HotkeyAction::FocusServers => info!("Focus servers list"),
@@ -173,7 +211,11 @@ impl EasySSHApp {
             HotkeyAction::FocusFileBrowser => self.show_file_browser = true,
             HotkeyAction::ToggleSidebar => info!("Toggle sidebar"),
             HotkeyAction::OpenSnippets => self.show_snippets_panel = !self.show_snippets_panel,
-            HotkeyAction::InsertSnippet => { if !self.session_tabs.is_empty() { self.show_snippets_panel = true; } }
+            HotkeyAction::InsertSnippet => {
+                if !self.session_tabs.is_empty() {
+                    self.show_snippets_panel = true;
+                }
+            }
             HotkeyAction::SplitHorizontal => self.split_panel_horizontal(),
             HotkeyAction::SplitVertical => self.split_panel_vertical(),
             HotkeyAction::ClosePanel => self.close_current_tab(),
@@ -201,15 +243,22 @@ impl EasySSHApp {
     pub fn setup_command_palette(&mut self) {
         self.command_palette.commands.clear();
         let actions = vec![
-            HotkeyAction::NewTab, HotkeyAction::CloseTab, HotkeyAction::CommandPalette,
-            HotkeyAction::GlobalSearch, HotkeyAction::ToggleFullscreen, HotkeyAction::TerminalClear,
+            HotkeyAction::NewTab,
+            HotkeyAction::CloseTab,
+            HotkeyAction::CommandPalette,
+            HotkeyAction::GlobalSearch,
+            HotkeyAction::ToggleFullscreen,
+            HotkeyAction::TerminalClear,
         ];
         for action in actions {
             let cmd = Command {
-                id: format!("{:?}", action), action: action.clone(),
-                label: action.display_name(), category: action.category().to_string(),
+                id: format!("{:?}", action),
+                action: action.clone(),
+                label: action.display_name(),
+                category: action.category().to_string(),
                 description: Some(format!("Category: {}", action.category())),
-                icon: Some("⚡".to_string()), shortcut: action.default_hotkey(),
+                icon: Some("⚡".to_string()),
+                shortcut: action.default_hotkey(),
                 execute: std::sync::Arc::new(move || info!("Command: {:?}", action)),
             };
             self.command_palette.register_command(cmd);
@@ -228,9 +277,12 @@ impl EasySSHApp {
     pub fn new_tab(&mut self) {
         let id = uuid::Uuid::new_v4().to_string();
         self.session_tabs.push(SessionTab {
-            session_id: id.clone(), server_id: String::new(),
-            title: "New Tab".to_string(), output: String::new(),
-            input: String::new(), connected: false,
+            session_id: id.clone(),
+            server_id: String::new(),
+            title: "New Tab".to_string(),
+            output: String::new(),
+            input: String::new(),
+            connected: false,
         });
         self.active_tab = Some(id);
     }
@@ -244,7 +296,11 @@ impl EasySSHApp {
                     self.current_session_id = None;
                 }
             }
-            if let Some(idx) = self.session_tabs.iter().position(|t| &t.session_id == active) {
+            if let Some(idx) = self
+                .session_tabs
+                .iter()
+                .position(|t| &t.session_id == active)
+            {
                 self.session_tabs.remove(idx);
                 if !self.session_tabs.is_empty() {
                     let new_idx = idx.min(self.session_tabs.len() - 1);
@@ -261,7 +317,11 @@ impl EasySSHApp {
     /// Switch to next tab
     pub fn switch_to_next_tab(&mut self) {
         if let Some(active) = &self.active_tab {
-            if let Some(idx) = self.session_tabs.iter().position(|t| &t.session_id == active) {
+            if let Some(idx) = self
+                .session_tabs
+                .iter()
+                .position(|t| &t.session_id == active)
+            {
                 let next = (idx + 1) % self.session_tabs.len();
                 self.active_tab = Some(self.session_tabs[next].session_id.clone());
                 self.terminal_output = self.session_tabs[next].output.clone();
@@ -274,8 +334,16 @@ impl EasySSHApp {
     /// Switch to previous tab
     pub fn switch_to_prev_tab(&mut self) {
         if let Some(active) = &self.active_tab {
-            if let Some(idx) = self.session_tabs.iter().position(|t| &t.session_id == active) {
-                let prev = if idx == 0 { self.session_tabs.len() - 1 } else { idx - 1 };
+            if let Some(idx) = self
+                .session_tabs
+                .iter()
+                .position(|t| &t.session_id == active)
+            {
+                let prev = if idx == 0 {
+                    self.session_tabs.len() - 1
+                } else {
+                    idx - 1
+                };
                 self.active_tab = Some(self.session_tabs[prev].session_id.clone());
                 self.terminal_output = self.session_tabs[prev].output.clone();
             }
@@ -309,7 +377,7 @@ impl EasySSHApp {
             let new_id = self.split_layout_manager.split_horizontal(
                 active_panel,
                 crate::split_layout::PanelType::Terminal,
-                "Terminal"
+                "Terminal",
             );
             if let Some(id) = new_id {
                 info!("Split panel horizontally, new panel: {:?}", id);
@@ -324,7 +392,7 @@ impl EasySSHApp {
             let new_id = self.split_layout_manager.split_vertical(
                 active_panel,
                 crate::split_layout::PanelType::Terminal,
-                "Terminal"
+                "Terminal",
             );
             if let Some(id) = new_id {
                 info!("Split panel vertically, new panel: {:?}", id);
@@ -369,7 +437,13 @@ impl EasySSHApp {
     }
 
     /// Render a panel based on its type
-    pub fn render_panel_content(&mut self, ui: &mut egui::Ui, panel_id: crate::split_layout::PanelId, content: &crate::split_layout::PanelContent, is_active: bool) {
+    pub fn render_panel_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        panel_id: crate::split_layout::PanelId,
+        content: &crate::split_layout::PanelContent,
+        is_active: bool,
+    ) {
         use crate::split_layout::PanelType;
 
         // Panel title bar
@@ -423,14 +497,28 @@ impl EasySSHApp {
             ui.horizontal_wrapped(|ui| {
                 for (idx, tab) in self.session_tabs.iter().enumerate() {
                     let is_active = self.active_tab.as_ref() == Some(&tab.session_id);
-                    let shortcut = if idx < 9 { format!(" Ctrl+{}", idx + 1) } else { String::new() };
-                    let label = format!("{}{}{}", if is_active { "●" } else { "○" }, tab.title, shortcut);
+                    let shortcut = if idx < 9 {
+                        format!(" Ctrl+{}", idx + 1)
+                    } else {
+                        String::new()
+                    };
+                    let label = format!(
+                        "{}{}{}",
+                        if is_active { "●" } else { "○" },
+                        tab.title,
+                        shortcut
+                    );
 
-                    let btn = egui::Button::new(
-                        egui::RichText::new(label)
-                            .color(if is_active { Color32::WHITE } else { Color32::from_rgb(150, 158, 175) })
-                    )
-                    .fill(if is_active { Color32::from_rgb(50, 80, 70) } else { Color32::from_rgb(45, 50, 58) })
+                    let btn = egui::Button::new(egui::RichText::new(label).color(if is_active {
+                        Color32::WHITE
+                    } else {
+                        Color32::from_rgb(150, 158, 175)
+                    }))
+                    .fill(if is_active {
+                        Color32::from_rgb(50, 80, 70)
+                    } else {
+                        Color32::from_rgb(45, 50, 58)
+                    })
                     .rounding(4.0);
 
                     if ui.add(btn).clicked() {
@@ -451,7 +539,8 @@ impl EasySSHApp {
             rounding: egui::Rounding::same(4.0),
             stroke: egui::Stroke::new(1.0, term_fg.linear_multiply(0.3)),
             ..Default::default()
-        }.show(ui, |ui| {
+        }
+        .show(ui, |ui| {
             ui.set_min_height(available_height);
             ui.set_max_height(available_height);
 
@@ -459,10 +548,12 @@ impl EasySSHApp {
                 .auto_shrink([false; 2])
                 .stick_to_bottom(true)
                 .show(ui, |ui| {
-                    ui.label(egui::RichText::new(&self.terminal_output)
-                        .monospace()
-                        .size(14.0 * self.terminal_font_zoom)
-                        .color(term_fg));
+                    ui.label(
+                        egui::RichText::new(&self.terminal_output)
+                            .monospace()
+                            .size(14.0 * self.terminal_font_zoom)
+                            .color(term_fg),
+                    );
                 });
         });
 
@@ -493,7 +584,10 @@ impl EasySSHApp {
 
             ui.memory_mut(|m| m.request_focus(response.id));
 
-            if ui.add(egui::Button::new("Execute").min_size([80.0, 36.0].into())).clicked() {
+            if ui
+                .add(egui::Button::new("Execute").min_size([80.0, 36.0].into()))
+                .clicked()
+            {
                 self.execute_command();
             }
         });

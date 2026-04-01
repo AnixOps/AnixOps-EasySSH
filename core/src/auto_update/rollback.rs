@@ -30,18 +30,13 @@ struct BackupMetadata {
 }
 
 impl RollbackManager {
-    pub async fn new(
-        temp_dir: Option<PathBuf>,
-        max_backups: u32,
-    ) -> anyhow::Result<Self> {
-        let backup_dir = temp_dir
-            .map(|d| d.join("backups"))
-            .unwrap_or_else(|| {
-                dirs::data_local_dir()
-                    .unwrap_or_else(|| std::env::temp_dir())
-                    .join("easyssh")
-                    .join("backups")
-            });
+    pub async fn new(temp_dir: Option<PathBuf>, max_backups: u32) -> anyhow::Result<Self> {
+        let backup_dir = temp_dir.map(|d| d.join("backups")).unwrap_or_else(|| {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| std::env::temp_dir())
+                .join("easyssh")
+                .join("backups")
+        });
 
         fs::create_dir_all(&backup_dir).await?;
 
@@ -80,7 +75,9 @@ impl RollbackManager {
         }
 
         // Sort by timestamp (oldest first)
-        backups.make_contiguous().sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        backups
+            .make_contiguous()
+            .sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
         Ok(backups)
     }
@@ -95,11 +92,7 @@ impl RollbackManager {
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs();
 
-        let backup_name = format!(
-            "easyssh-backup-{}-{}",
-            super::CURRENT_VERSION,
-            timestamp
-        );
+        let backup_name = format!("easyssh-backup-{}-{}", super::CURRENT_VERSION, timestamp);
 
         let backup_path = self.backup_dir.join(&backup_name);
         let metadata_path = backup_path.with_extension("json");
@@ -127,7 +120,9 @@ impl RollbackManager {
     /// Perform rollback to previous version
     pub async fn rollback(&self) -> anyhow::Result<String> {
         // Get most recent backup
-        let backup = self.backups.back()
+        let backup = self
+            .backups
+            .back()
             .ok_or_else(|| anyhow::anyhow!("No backup available for rollback"))?;
 
         let current_exe = std::env::current_exe()?;
@@ -143,7 +138,8 @@ impl RollbackManager {
             super::platform::windows::WindowsUpdater::schedule_replace_on_reboot(
                 &backup.path,
                 &current_exe,
-            ).await?;
+            )
+            .await?;
 
             // Schedule restart
             tokio::spawn(async {
@@ -351,10 +347,9 @@ mod tests {
     #[tokio::test]
     async fn test_backup_creation() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let manager = RollbackManager::new(
-            Some(temp_dir.path().to_path_buf()),
-            3,
-        ).await.unwrap();
+        let manager = RollbackManager::new(Some(temp_dir.path().to_path_buf()), 3)
+            .await
+            .unwrap();
 
         // Create a test file to backup
         let test_file = temp_dir.path().join("test.exe");
@@ -370,28 +365,28 @@ mod tests {
     #[tokio::test]
     async fn test_backup_cleanup() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let manager = RollbackManager::new(
-            Some(temp_dir.path().to_path_buf()),
-            2,
-        ).await.unwrap();
+        let manager = RollbackManager::new(Some(temp_dir.path().to_path_buf()), 2)
+            .await
+            .unwrap();
 
         // Create multiple backups
         let test_file = temp_dir.path().join("test.exe");
         fs::write(&test_file, b"test").await.unwrap();
 
         for i in 0..5 {
-            let manager = RollbackManager::new(
-                Some(temp_dir.path().to_path_buf()),
-                2,
-            ).await.unwrap();
-            manager.create_backup(&test_file, &format!("1.0.{}", i)).await.unwrap();
+            let manager = RollbackManager::new(Some(temp_dir.path().to_path_buf()), 2)
+                .await
+                .unwrap();
+            manager
+                .create_backup(&test_file, &format!("1.0.{}", i))
+                .await
+                .unwrap();
         }
 
         // Check that old backups are cleaned up
-        let final_manager = RollbackManager::new(
-            Some(temp_dir.path().to_path_buf()),
-            2,
-        ).await.unwrap();
+        let final_manager = RollbackManager::new(Some(temp_dir.path().to_path_buf()), 2)
+            .await
+            .unwrap();
 
         assert_eq!(final_manager.get_available_backups().len(), 2);
     }

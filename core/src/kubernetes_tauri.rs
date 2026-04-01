@@ -1,17 +1,15 @@
-use tauri::State;
-use crate::AppState;
 use crate::kubernetes_client::{
-    K8sCluster, K8sPod, K8sNamespace, K8sNode, K8sDeployment, K8sService,
-    K8sConfigMap, K8sSecret, K8sEvent, K8sPortForward, LogOptions, ExecOptions,
-    HelmRelease, HelmRepo, HelmChart, K8sResource,
+    ExecOptions, HelmChart, HelmRelease, HelmRepo, K8sCluster, K8sConfigMap, K8sDeployment,
+    K8sEvent, K8sNamespace, K8sNode, K8sPod, K8sPortForward, K8sResource, K8sSecret, K8sService,
+    LogOptions,
 };
+use crate::AppState;
 use std::sync::Arc;
+use tauri::State;
 
 /// Get all Kubernetes clusters
 #[tauri::command]
-pub async fn k8s_get_clusters(
-    state: State<'_, AppState>,
-) -> Result<Vec<K8sCluster>, String> {
+pub async fn k8s_get_clusters(state: State<'_, AppState>) -> Result<Vec<K8sCluster>, String> {
     let k8s_manager = state.k8s_manager.read().await;
     Ok(k8s_manager.get_clusters().await)
 }
@@ -23,7 +21,8 @@ pub async fn k8s_import_kubeconfig_path(
     path: String,
 ) -> Result<Vec<K8sCluster>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.import_kubeconfig_from_path(&path)
+    k8s_manager
+        .import_kubeconfig_from_path(&path)
         .await
         .map_err(|e| e.to_string())
 }
@@ -35,7 +34,8 @@ pub async fn k8s_import_kubeconfig_content(
     content: String,
 ) -> Result<Vec<K8sCluster>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.import_kubeconfig(&content, None)
+    k8s_manager
+        .import_kubeconfig(&content, None)
         .await
         .map_err(|e| e.to_string())
 }
@@ -47,7 +47,8 @@ pub async fn k8s_connect_cluster(
     cluster_id: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.connect_cluster(&cluster_id)
+    k8s_manager
+        .connect_cluster(&cluster_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -59,7 +60,8 @@ pub async fn k8s_disconnect_cluster(
     cluster_id: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.disconnect_cluster(&cluster_id)
+    k8s_manager
+        .disconnect_cluster(&cluster_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -71,7 +73,8 @@ pub async fn k8s_delete_cluster(
     cluster_id: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.delete_cluster(&cluster_id)
+    k8s_manager
+        .delete_cluster(&cluster_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -83,7 +86,8 @@ pub async fn k8s_update_cluster(
     cluster: K8sCluster,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.update_cluster(cluster)
+    k8s_manager
+        .update_cluster(cluster)
         .await
         .map_err(|e| e.to_string())
 }
@@ -95,7 +99,8 @@ pub async fn k8s_get_namespaces(
     cluster_id: String,
 ) -> Result<Vec<K8sNamespace>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_namespaces(&cluster_id)
+    k8s_manager
+        .get_namespaces(&cluster_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -108,7 +113,8 @@ pub async fn k8s_set_namespace(
     namespace: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.set_namespace(&cluster_id, &namespace)
+    k8s_manager
+        .set_namespace(&cluster_id, &namespace)
         .await
         .map_err(|e| e.to_string())
 }
@@ -122,7 +128,8 @@ pub async fn k8s_get_pods(
     label_selector: Option<String>,
 ) -> Result<Vec<K8sPod>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_pods(&cluster_id, &namespace, label_selector.as_deref())
+    k8s_manager
+        .get_pods(&cluster_id, &namespace, label_selector.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -136,7 +143,8 @@ pub async fn k8s_delete_pod(
     pod_name: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.delete_pod(&cluster_id, &namespace, &pod_name)
+    k8s_manager
+        .delete_pod(&cluster_id, &namespace, &pod_name)
         .await
         .map_err(|e| e.to_string())
 }
@@ -150,7 +158,8 @@ pub async fn k8s_restart_pod(
     pod_name: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.restart_pod(&cluster_id, &namespace, &pod_name)
+    k8s_manager
+        .restart_pod(&cluster_id, &namespace, &pod_name)
         .await
         .map_err(|e| e.to_string())
 }
@@ -178,7 +187,8 @@ pub async fn k8s_get_pod_logs(
         previous,
         container,
     };
-    k8s_manager.get_pod_logs(&cluster_id, &namespace, &pod_name, &options)
+    k8s_manager
+        .get_pod_logs(&cluster_id, &namespace, &pod_name, &options)
         .await
         .map_err(|e| e.to_string())
 }
@@ -204,17 +214,21 @@ pub async fn k8s_stream_pod_logs(
         container: container.clone(),
     };
 
-    let mut rx = k8s_manager.stream_pod_logs(&cluster_id, &namespace, &pod_name, &options)
+    let mut rx = k8s_manager
+        .stream_pod_logs(&cluster_id, &namespace, &pod_name, &options)
         .await
         .map_err(|e| e.to_string())?;
 
     tokio::spawn(async move {
         while let Some(log) = rx.recv().await {
-            let _ = window.emit("k8s-log", serde_json::json!({
-                "podName": pod_name,
-                "container": container,
-                "log": log,
-            }));
+            let _ = window.emit(
+                "k8s-log",
+                serde_json::json!({
+                    "podName": pod_name,
+                    "container": container,
+                    "log": log,
+                }),
+            );
         }
     });
 
@@ -238,7 +252,8 @@ pub async fn k8s_exec_in_pod(
         tty: false,
         command: command.split_whitespace().map(|s| s.to_string()).collect(),
     };
-    k8s_manager.exec_in_pod(&cluster_id, &namespace, &pod_name, &options)
+    k8s_manager
+        .exec_in_pod(&cluster_id, &namespace, &pod_name, &options)
         .await
         .map_err(|e| e.to_string())
 }
@@ -250,7 +265,8 @@ pub async fn k8s_get_nodes(
     cluster_id: String,
 ) -> Result<Vec<K8sNode>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_nodes(&cluster_id)
+    k8s_manager
+        .get_nodes(&cluster_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -263,7 +279,8 @@ pub async fn k8s_get_deployments(
     namespace: String,
 ) -> Result<Vec<K8sDeployment>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_deployments(&cluster_id, &namespace)
+    k8s_manager
+        .get_deployments(&cluster_id, &namespace)
         .await
         .map_err(|e| e.to_string())
 }
@@ -278,7 +295,8 @@ pub async fn k8s_scale_deployment(
     replicas: i32,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.scale_deployment(&cluster_id, &namespace, &deployment_name, replicas)
+    k8s_manager
+        .scale_deployment(&cluster_id, &namespace, &deployment_name, replicas)
         .await
         .map_err(|e| e.to_string())
 }
@@ -291,7 +309,8 @@ pub async fn k8s_get_services(
     namespace: String,
 ) -> Result<Vec<K8sService>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_services(&cluster_id, &namespace)
+    k8s_manager
+        .get_services(&cluster_id, &namespace)
         .await
         .map_err(|e| e.to_string())
 }
@@ -304,7 +323,8 @@ pub async fn k8s_get_configmaps(
     namespace: String,
 ) -> Result<Vec<K8sConfigMap>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_configmaps(&cluster_id, &namespace)
+    k8s_manager
+        .get_configmaps(&cluster_id, &namespace)
         .await
         .map_err(|e| e.to_string())
 }
@@ -317,7 +337,8 @@ pub async fn k8s_get_secrets(
     namespace: String,
 ) -> Result<Vec<K8sSecret>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_secrets(&cluster_id, &namespace)
+    k8s_manager
+        .get_secrets(&cluster_id, &namespace)
         .await
         .map_err(|e| e.to_string())
 }
@@ -330,7 +351,8 @@ pub async fn k8s_get_events(
     namespace: Option<String>,
 ) -> Result<Vec<K8sEvent>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_events(&cluster_id, namespace.as_deref(), None, None)
+    k8s_manager
+        .get_events(&cluster_id, namespace.as_deref(), None, None)
         .await
         .map_err(|e| e.to_string())
 }
@@ -344,7 +366,8 @@ pub async fn k8s_watch_events(
     window: tauri::Window,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    let mut rx = k8s_manager.watch_events(&cluster_id, namespace.as_deref())
+    let mut rx = k8s_manager
+        .watch_events(&cluster_id, namespace.as_deref())
         .await
         .map_err(|e| e.to_string())?;
 
@@ -368,7 +391,8 @@ pub async fn k8s_create_port_forward(
     remote_port: u16,
 ) -> Result<K8sPortForward, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.create_port_forward(&cluster_id, &namespace, &pod_name, local_port, remote_port)
+    k8s_manager
+        .create_port_forward(&cluster_id, &namespace, &pod_name, local_port, remote_port)
         .await
         .map_err(|e| e.to_string())
 }
@@ -389,7 +413,8 @@ pub async fn k8s_stop_port_forward(
     forward_id: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.stop_port_forward(&forward_id)
+    k8s_manager
+        .stop_port_forward(&forward_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -401,7 +426,8 @@ pub async fn k8s_delete_port_forward(
     forward_id: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.delete_port_forward(&forward_id)
+    k8s_manager
+        .delete_port_forward(&forward_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -414,7 +440,8 @@ pub async fn k8s_get_helm_releases(
     namespace: Option<String>,
 ) -> Result<Vec<HelmRelease>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_helm_releases(&cluster_id, namespace.as_deref())
+    k8s_manager
+        .get_helm_releases(&cluster_id, namespace.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -430,7 +457,16 @@ pub async fn k8s_helm_install(
     version: Option<String>,
 ) -> Result<HelmRelease, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.helm_install(&cluster_id, &release_name, &chart, &namespace, None, version.as_deref(), None)
+    k8s_manager
+        .helm_install(
+            &cluster_id,
+            &release_name,
+            &chart,
+            &namespace,
+            None,
+            version.as_deref(),
+            None,
+        )
         .await
         .map_err(|e| e.to_string())
 }
@@ -446,7 +482,15 @@ pub async fn k8s_helm_upgrade(
     version: Option<String>,
 ) -> Result<HelmRelease, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.helm_upgrade(&cluster_id, &release_name, &chart, &namespace, None, version.as_deref())
+    k8s_manager
+        .helm_upgrade(
+            &cluster_id,
+            &release_name,
+            &chart,
+            &namespace,
+            None,
+            version.as_deref(),
+        )
         .await
         .map_err(|e| e.to_string())
 }
@@ -461,7 +505,8 @@ pub async fn k8s_helm_rollback(
     revision: i32,
 ) -> Result<HelmRelease, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.helm_rollback(&cluster_id, &release_name, &namespace, revision)
+    k8s_manager
+        .helm_rollback(&cluster_id, &release_name, &namespace, revision)
         .await
         .map_err(|e| e.to_string())
 }
@@ -475,18 +520,18 @@ pub async fn k8s_helm_uninstall(
     namespace: String,
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.helm_uninstall(&cluster_id, &release_name, &namespace)
+    k8s_manager
+        .helm_uninstall(&cluster_id, &release_name, &namespace)
         .await
         .map_err(|e| e.to_string())
 }
 
 /// List Helm repositories
 #[tauri::command]
-pub async fn k8s_list_helm_repos(
-    state: State<'_, AppState>,
-) -> Result<Vec<HelmRepo>, String> {
+pub async fn k8s_list_helm_repos(state: State<'_, AppState>) -> Result<Vec<HelmRepo>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.list_helm_repos()
+    k8s_manager
+        .list_helm_repos()
         .await
         .map_err(|e| e.to_string())
 }
@@ -499,7 +544,8 @@ pub async fn k8s_add_helm_repo(
     url: String,
 ) -> Result<HelmRepo, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.add_helm_repo(&name, &url)
+    k8s_manager
+        .add_helm_repo(&name, &url)
         .await
         .map_err(|e| e.to_string())
 }
@@ -511,7 +557,8 @@ pub async fn k8s_search_helm_charts(
     keyword: String,
 ) -> Result<Vec<HelmChart>, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.search_helm_charts(&keyword)
+    k8s_manager
+        .search_helm_charts(&keyword)
         .await
         .map_err(|e| e.to_string())
 }
@@ -525,7 +572,8 @@ pub async fn k8s_apply_yaml(
     namespace: Option<String>,
 ) -> Result<K8sResource, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.apply_yaml(&cluster_id, &yaml, namespace.as_deref())
+    k8s_manager
+        .apply_yaml(&cluster_id, &yaml, namespace.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -540,7 +588,8 @@ pub async fn k8s_get_resource_yaml(
     namespace: String,
 ) -> Result<String, String> {
     let k8s_manager = state.k8s_manager.read().await;
-    k8s_manager.get_resource_yaml(&cluster_id, &kind, &name, &namespace)
+    k8s_manager
+        .get_resource_yaml(&cluster_id, &kind, &name, &namespace)
         .await
         .map_err(|e| e.to_string())
 }
@@ -556,7 +605,8 @@ pub async fn k8s_delete_resource(
 ) -> Result<(), String> {
     let k8s_manager = state.k8s_manager.read().await;
     // Get resource YAML first to verify it exists
-    let _ = k8s_manager.get_resource_yaml(&cluster_id, &kind, &name, &namespace)
+    let _ = k8s_manager
+        .get_resource_yaml(&cluster_id, &kind, &name, &namespace)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())

@@ -540,7 +540,11 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
     }
 
     // 2. 测试 SSH Agent 参数
@@ -551,10 +555,18 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_ssh_agent".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { "Agent forwarding 启用".to_string() } else { "Agent forwarding 未启用".to_string() },
+            message: if valid {
+                "Agent forwarding 启用".to_string()
+            } else {
+                "Agent forwarding 未启用".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
     }
 
     // 3. 测试终端尺寸
@@ -572,7 +584,11 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
     }
 
     // 4. 测试终端信号
@@ -583,17 +599,25 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_signals".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { "终端信号值正确".to_string() } else { "终端信号值错误".to_string() },
+            message: if valid {
+                "终端信号值正确".to_string()
+            } else {
+                "终端信号值错误".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
     }
 
     // 5. 测试主题系统（如果启用 embedded-terminal）
     #[cfg(feature = "embedded-terminal")]
     {
-        use crate::terminal::{TerminalTheme, ColorPalette, CursorStyle};
         use crate::terminal::theme::FontConfig;
+        use crate::terminal::{ColorPalette, CursorStyle, TerminalTheme};
 
         // 主题创建
         let theme = TerminalTheme::dracula();
@@ -602,10 +626,18 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_theme_creation".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { "Dracula主题创建成功".to_string() } else { "主题创建失败".to_string() },
+            message: if valid {
+                "Dracula主题创建成功".to_string()
+            } else {
+                "主题创建失败".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // 调色板
         let palette = ColorPalette::one_dark();
@@ -614,10 +646,18 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_palette".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { "One Dark调色板正确".to_string() } else { "调色板错误".to_string() },
+            message: if valid {
+                "One Dark调色板正确".to_string()
+            } else {
+                "调色板错误".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // 光标样式
         let cursor = CursorStyle::Bar;
@@ -626,10 +666,18 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_cursor_style".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { "光标样式正确".to_string() } else { "光标样式错误".to_string() },
+            message: if valid {
+                "光标样式正确".to_string()
+            } else {
+                "光标样式错误".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // 字体配置
         let font = FontConfig::default();
@@ -638,10 +686,18 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_font_config".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { format!("字体配置正确: {} {}px", font.family, font.size) } else { "字体配置错误".to_string() },
+            message: if valid {
+                format!("字体配置正确: {} {}px", font.family, font.size)
+            } else {
+                "字体配置错误".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // 256色支持
         let color_256 = ColorPalette::dracula().get_256_color(196); // 红色
@@ -650,10 +706,18 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_256_color".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { format!("256色支持正常: #{:06X}", color_256) } else { "256色支持错误".to_string() },
+            message: if valid {
+                format!("256色支持正常: #{:06X}", color_256)
+            } else {
+                "256色支持错误".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // WebGL 配置
         let config = crate::terminal::WebGlConfig::default();
@@ -662,10 +726,21 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_webgl_config".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { format!("WebGL配置正常: {}FPS, 批处理阈值{}", config.target_fps, config.batch_threshold) } else { "WebGL配置错误".to_string() },
+            message: if valid {
+                format!(
+                    "WebGL配置正常: {}FPS, 批处理阈值{}",
+                    config.target_fps, config.batch_threshold
+                )
+            } else {
+                "WebGL配置错误".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // xterm 兼容模式
         let xterm = crate::terminal::XtermCompat::new(crate::terminal::XtermMode::Xterm256, 24, 80);
@@ -674,10 +749,18 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
             name: "terminal_xterm_compat".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { "xterm兼容层可用".to_string() } else { "xterm兼容层不可用".to_string() },
+            message: if valid {
+                "xterm兼容层可用".to_string()
+            } else {
+                "xterm兼容层不可用".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
     }
 
     // 6. 测试主题管理器（如果启用 embedded-terminal）
@@ -687,16 +770,31 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
 
         let _manager = ThemeManager::new();
         // 获取主题列表（由于是同步获取，需要运行时支持）
-        let themes = vec!["Dracula", "One Dark", "Monokai", "Solarized Dark", "Solarized Light", "GitHub Light"];
+        let themes = vec![
+            "Dracula",
+            "One Dark",
+            "Monokai",
+            "Solarized Dark",
+            "Solarized Light",
+            "GitHub Light",
+        ];
         let valid = themes.len() >= 6;
         results.push(DebugTestResult {
             name: "terminal_theme_manager".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { format!("主题管理器初始化成功，{}个内置主题", themes.len()) } else { "主题管理器初始化失败".to_string() },
+            message: if valid {
+                format!("主题管理器初始化成功，{}个内置主题", themes.len())
+            } else {
+                "主题管理器初始化失败".to_string()
+            },
             details: Some(format!("可用主题: {:?}", themes)),
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
     }
 
     // 7. 测试 CSS 变量生成
@@ -705,15 +803,24 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
         use crate::terminal::TerminalTheme;
         let theme = TerminalTheme::dracula();
         let css_vars = theme.to_css_variables();
-        let valid = css_vars.contains_key("--terminal-bg") && css_vars.contains_key("--terminal-fg");
+        let valid =
+            css_vars.contains_key("--terminal-bg") && css_vars.contains_key("--terminal-fg");
         results.push(DebugTestResult {
             name: "terminal_css_variables".to_string(),
             category: "terminal".to_string(),
             passed: valid,
-            message: if valid { format!("CSS变量生成成功，共{}个变量", css_vars.len()) } else { "CSS变量生成失败".to_string() },
+            message: if valid {
+                format!("CSS变量生成成功，共{}个变量", css_vars.len())
+            } else {
+                "CSS变量生成失败".to_string()
+            },
             details: None,
         });
-        if valid { passed += 1; } else { failed += 1; }
+        if valid {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
     }
 
     Ok(DebugTestReport {

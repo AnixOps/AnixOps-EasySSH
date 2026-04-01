@@ -1,5 +1,5 @@
-pub mod auth_service;
 pub mod audit_service;
+pub mod auth_service;
 pub mod collaboration_service;
 pub mod rbac_service;
 pub mod resource_service;

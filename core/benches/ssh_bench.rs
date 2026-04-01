@@ -19,10 +19,7 @@ fn bench_session_manager_creation(c: &mut Criterion) {
 
     group.bench_function("with_pool_config", |b| {
         b.iter(|| {
-            let _ = black_box(
-                SshSessionManager::new()
-                    .with_pool_config(10, 600, 3600)
-            );
+            let _ = black_box(SshSessionManager::new().with_pool_config(10, 600, 3600));
         });
     });
 
@@ -174,7 +171,8 @@ fn bench_ansi_stripping(c: &mut Criterion) {
 
     let simple_ansi = "\x1b[31mRed Text\x1b[0m";
     let complex_ansi = "\x1b[1;31mBold Red\x1b[0m \x1b[32mGreen\x1b[0m \x1b[33mYellow\x1b[0m";
-    let real_world_ansi = "\x1b[0m\x1b[01;34mtest_dir\x1b[0m\x1b[0m  \x1b[01;32mscript.sh\x1b[0m\x1b[0m";
+    let real_world_ansi =
+        "\x1b[0m\x1b[01;34mtest_dir\x1b[0m\x1b[0m  \x1b[01;32mscript.sh\x1b[0m\x1b[0m";
     let no_ansi = "Plain text without any ANSI codes";
 
     group.bench_with_input("simple", &simple_ansi, |b, input| {

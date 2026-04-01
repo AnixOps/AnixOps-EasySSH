@@ -9,8 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::{
-    AnonymousId, ConsentManager, PlatformInfo, TelemetryError, TelemetryEvent,
-    TelemetryEventRecord,
+    AnonymousId, ConsentManager, PlatformInfo, TelemetryError, TelemetryEvent, TelemetryEventRecord,
 };
 
 /// Event filter for selective collection
@@ -96,7 +95,10 @@ pub trait EventStorage: Send + Sync {
     async fn store(&self, events: Vec<TelemetryEventRecord>) -> Result<(), TelemetryError>;
 
     /// Retrieve events for reporting
-    async fn retrieve(&self, batch_size: usize) -> Result<Vec<TelemetryEventRecord>, TelemetryError>;
+    async fn retrieve(
+        &self,
+        batch_size: usize,
+    ) -> Result<Vec<TelemetryEventRecord>, TelemetryError>;
 
     /// Delete events
     async fn delete(&self, event_ids: Vec<String>) -> Result<(), TelemetryError>;
@@ -178,7 +180,10 @@ impl EventCollector {
     }
 
     /// Get events from storage
-    pub async fn retrieve_events(&self, count: usize) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
+    pub async fn retrieve_events(
+        &self,
+        count: usize,
+    ) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
         self.storage.retrieve(count).await
     }
 }
@@ -204,7 +209,10 @@ impl EventStorage for InMemoryStorage {
         Ok(())
     }
 
-    async fn retrieve(&self, batch_size: usize) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
+    async fn retrieve(
+        &self,
+        batch_size: usize,
+    ) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
         let events = self.events.lock().unwrap();
         Ok(events.iter().take(batch_size).cloned().collect())
     }
@@ -312,7 +320,10 @@ impl EventStorage for SqliteStorage {
         Ok(())
     }
 
-    async fn retrieve(&self, batch_size: usize) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
+    async fn retrieve(
+        &self,
+        batch_size: usize,
+    ) -> Result<Vec<TelemetryEventRecord>, TelemetryError> {
         use rusqlite::params;
 
         let conn = rusqlite::Connection::open(&self.db_path)?;
@@ -321,7 +332,7 @@ impl EventStorage for SqliteStorage {
              FROM telemetry_events
              WHERE synced = 0
              ORDER BY timestamp ASC
-             LIMIT ?1"
+             LIMIT ?1",
         )?;
 
         let rows = stmt.query_map(params![batch_size as i64], |row| {
@@ -372,11 +383,9 @@ impl EventStorage for SqliteStorage {
 
     async fn count(&self) -> Result<usize, TelemetryError> {
         let conn = rusqlite::Connection::open(&self.db_path)?;
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM telemetry_events",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM telemetry_events", [], |row| {
+            row.get(0)
+        })?;
         Ok(count as usize)
     }
 

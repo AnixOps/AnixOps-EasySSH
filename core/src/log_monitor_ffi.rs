@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
 use crate::log_monitor::*;
+use serde_json;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde_json;
 
 /// FFI opaque handle for LogMonitorCenter
 pub struct LogMonitorHandle {
@@ -211,7 +211,9 @@ pub extern "C" fn log_monitor_get_stats(
     }
 
     let handle = unsafe { &mut *handle };
-    let stats = handle.rt.block_on(handle.center.get_stats(time_range_seconds));
+    let stats = handle
+        .rt
+        .block_on(handle.center.get_stats(time_range_seconds));
 
     match serde_json::to_string(&stats) {
         Ok(json) => {
@@ -248,7 +250,9 @@ pub extern "C" fn log_monitor_analyze(
     }
 
     let handle = unsafe { &mut *handle };
-    let result = handle.rt.block_on(handle.center.analyze(time_range_seconds));
+    let result = handle
+        .rt
+        .block_on(handle.center.analyze(time_range_seconds));
 
     match serde_json::to_string(&result) {
         Ok(json) => {
@@ -303,11 +307,7 @@ pub extern "C" fn log_monitor_add_alert(
         let bytes = c_id.as_bytes_with_nul();
         let len = bytes.len().min(rule_id_len - 1);
         unsafe {
-            std::ptr::copy_nonoverlapping(
-                bytes.as_ptr() as *const c_char,
-                rule_id_out,
-                len,
-            );
+            std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, rule_id_out, len);
             *rule_id_out.add(len) = 0;
         }
     }
@@ -335,7 +335,10 @@ pub extern "C" fn log_monitor_export(
         Err(_) => return -1,
     };
 
-    match handle.rt.block_on(handle.center.export(&config, &output_path)) {
+    match handle
+        .rt
+        .block_on(handle.center.export(&config, &output_path))
+    {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -444,10 +447,7 @@ pub extern "C" fn log_monitor_start_rotation(handle: *mut LogMonitorHandle) -> c
 
 /// Start WebSocket server
 #[no_mangle]
-pub extern "C" fn log_monitor_start_ws(
-    handle: *mut LogMonitorHandle,
-    _port: u16,
-) -> c_int {
+pub extern "C" fn log_monitor_start_ws(handle: *mut LogMonitorHandle, _port: u16) -> c_int {
     if handle.is_null() {
         return -1;
     }

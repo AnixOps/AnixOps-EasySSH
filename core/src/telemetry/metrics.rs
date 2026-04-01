@@ -270,11 +270,14 @@ impl MetricsRegistry {
         }
 
         let counter = Counter::new(name.clone());
-        counters.insert(name.clone(), Counter {
-            name: name.clone(),
-            value: Arc::clone(&counter.value),
-            labels: HashMap::new(),
-        });
+        counters.insert(
+            name.clone(),
+            Counter {
+                name: name.clone(),
+                value: Arc::clone(&counter.value),
+                labels: HashMap::new(),
+            },
+        );
         counter
     }
 
@@ -292,11 +295,14 @@ impl MetricsRegistry {
         }
 
         let gauge = Gauge::new(name.clone());
-        gauges.insert(name.clone(), Gauge {
-            name: name.clone(),
-            value: Arc::clone(&gauge.value),
-            labels: HashMap::new(),
-        });
+        gauges.insert(
+            name.clone(),
+            Gauge {
+                name: name.clone(),
+                value: Arc::clone(&gauge.value),
+                labels: HashMap::new(),
+            },
+        );
         gauge
     }
 
@@ -315,12 +321,15 @@ impl MetricsRegistry {
         }
 
         let hist = Histogram::new(name.clone(), max_samples);
-        histograms.insert(name.clone(), Histogram {
-            name: name.clone(),
-            values: Arc::clone(&hist.values),
-            max_samples,
-            labels: HashMap::new(),
-        });
+        histograms.insert(
+            name.clone(),
+            Histogram {
+                name: name.clone(),
+                values: Arc::clone(&hist.values),
+                max_samples,
+                labels: HashMap::new(),
+            },
+        );
         hist
     }
 
@@ -446,12 +455,7 @@ impl MetricsRegistry {
                 let mut counters: PROCESS_MEMORY_COUNTERS = std::mem::zeroed();
                 counters.cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
 
-                if GetProcessMemoryInfo(
-                    GetCurrentProcess(),
-                    &mut counters,
-                    counters.cb,
-                ) != 0
-                {
+                if GetProcessMemoryInfo(GetCurrentProcess(), &mut counters, counters.cb) != 0 {
                     metrics.insert(
                         "memory_working_set_mb".to_string(),
                         counters.WorkingSetSize as f64 / (1024.0 * 1024.0),

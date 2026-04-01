@@ -112,17 +112,13 @@ impl ConnectionPoolMonitor {
         session_count: usize,
     ) {
         self.total_pools_label.set_text(&total_pools.to_string());
-        self.global_connections_label.set_text(&format!(
-            "{}/{}",
-            global_connections,
-            max_global
-        ));
+        self.global_connections_label
+            .set_text(&format!("{}/{}", global_connections, max_global));
         self.rate_limited_label.set_text(&rate_limited.to_string());
-        self.compression_ratio_label.set_text(&format!(
-            "{:.1}%",
-            compression_ratio
-        ));
-        self.session_count_label.set_text(&session_count.to_string());
+        self.compression_ratio_label
+            .set_text(&format!("{:.1}%", compression_ratio));
+        self.session_count_label
+            .set_text(&session_count.to_string());
     }
 
     /// Clear session list

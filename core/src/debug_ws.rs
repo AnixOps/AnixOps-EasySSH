@@ -6,7 +6,6 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::{net::TcpListener, net::TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
-
 #[derive(Debug, Deserialize)]
 struct WsRequest {
     #[serde(default, rename = "type")]
@@ -183,8 +182,7 @@ where
 {
     writer
         .send(Message::Text(
-            serde_json::to_string(&response)
-                .map_err(|e| format!("序列化响应失败: {e}"))?,
+            serde_json::to_string(&response).map_err(|e| format!("序列化响应失败: {e}"))?,
         ))
         .await
         .map_err(|e| format!("发送响应失败: {e}"))
@@ -192,131 +190,172 @@ where
 
 async fn dispatch(op: &str, params: Value) -> Result<Value, WsError> {
     match op {
-        "health.check" => serde_json::to_value(ai_programming::ai_health_check().map_err(|e| WsError {
-            code: "health_error".to_string(),
-            message: e,
-            details: None,
-        })?)
-        .map_err(|e| serde_json_error("health_error", e)),
+        "health.check" => {
+            serde_json::to_value(ai_programming::ai_health_check().map_err(|e| WsError {
+                code: "health_error".to_string(),
+                message: e,
+                details: None,
+            })?)
+            .map_err(|e| serde_json_error("health_error", e))
+        }
 
         "capabilities.list" => Ok(json!({"ops": capabilities_list()})),
 
         "fs.read" => {
             let path = param_string(&params, "path")?;
-            let content = ai_programming::ai_read_code(path.clone()).await.map_err(|e| WsError {
-                code: "fs_read_error".to_string(),
-                message: e,
-                details: Some(json!({"path": path})),
-            })?;
+            let content = ai_programming::ai_read_code(path.clone())
+                .await
+                .map_err(|e| WsError {
+                    code: "fs_read_error".to_string(),
+                    message: e,
+                    details: Some(json!({"path": path})),
+                })?;
             Ok(json!({"path": path, "content": content}))
         }
 
         "fs.list" => {
             let dir = param_string(&params, "dir")?;
-            let pattern = params.get("pattern").and_then(Value::as_str).map(ToOwned::to_owned);
-            let files = ai_programming::ai_list_files(dir.clone(), pattern.clone()).await.map_err(|e| WsError {
-                code: "fs_list_error".to_string(),
-                message: e,
-                details: Some(json!({"dir": dir, "pattern": pattern})),
-            })?;
+            let pattern = params
+                .get("pattern")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            let files = ai_programming::ai_list_files(dir.clone(), pattern.clone())
+                .await
+                .map_err(|e| WsError {
+                    code: "fs_list_error".to_string(),
+                    message: e,
+                    details: Some(json!({"dir": dir, "pattern": pattern})),
+                })?;
             Ok(json!({"files": files}))
         }
 
         "code.search" => {
             let query = param_string(&params, "query")?;
-            let path = params.get("path").and_then(Value::as_str).map(ToOwned::to_owned);
-            let results = ai_programming::ai_search_code(query.clone(), path.clone()).await.map_err(|e| WsError {
-                code: "search_error".to_string(),
-                message: e,
-                details: Some(json!({"query": query, "path": path})),
-            })?;
+            let path = params
+                .get("path")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            let results = ai_programming::ai_search_code(query.clone(), path.clone())
+                .await
+                .map_err(|e| WsError {
+                    code: "search_error".to_string(),
+                    message: e,
+                    details: Some(json!({"query": query, "path": path})),
+                })?;
             Ok(serde_json::to_value(results).map_err(|e| serde_json_error("search_error", e))?)
         }
 
-        "rust.check" => serde_json::to_value(ai_programming::ai_check_rust().await.map_err(|e| WsError {
-            code: "rust_check_error".to_string(),
-            message: e,
-            details: None,
-        })?)
-        .map_err(|e| serde_json_error("rust_check_error", e)),
+        "rust.check" => {
+            serde_json::to_value(ai_programming::ai_check_rust().await.map_err(|e| WsError {
+                code: "rust_check_error".to_string(),
+                message: e,
+                details: None,
+            })?)
+            .map_err(|e| serde_json_error("rust_check_error", e))
+        }
 
-        "test.run" => serde_json::to_value(ai_programming::ai_run_tests().await.map_err(|e| WsError {
-            code: "test_run_error".to_string(),
-            message: e,
-            details: None,
-        })?)
-        .map_err(|e| serde_json_error("test_run_error", e)),
+        "test.run" => {
+            serde_json::to_value(ai_programming::ai_run_tests().await.map_err(|e| WsError {
+                code: "test_run_error".to_string(),
+                message: e,
+                details: None,
+            })?)
+            .map_err(|e| serde_json_error("test_run_error", e))
+        }
 
-        "build.run" => serde_json::to_value(ai_programming::ai_build().await.map_err(|e| WsError {
-            code: "build_run_error".to_string(),
-            message: e,
-            details: None,
-        })?)
-        .map_err(|e| serde_json_error("build_run_error", e)),
+        "build.run" => {
+            serde_json::to_value(ai_programming::ai_build().await.map_err(|e| WsError {
+                code: "build_run_error".to_string(),
+                message: e,
+                details: None,
+            })?)
+            .map_err(|e| serde_json_error("build_run_error", e))
+        }
 
-        "debug.quick_check" => serde_json::to_value(ai_programming::debug_quick_check().map_err(|e| WsError {
-            code: "debug_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("debug_error", e)),
+        "debug.quick_check" => {
+            serde_json::to_value(ai_programming::debug_quick_check().map_err(|e| WsError {
+                code: "debug_error".to_string(),
+                message: e,
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("debug_error", e))
+        }
 
-        "debug.test_all" => serde_json::to_value(ai_programming::debug_test_all().map_err(|e| WsError {
-            code: "debug_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("debug_error", e)),
+        "debug.test_all" => {
+            serde_json::to_value(ai_programming::debug_test_all().map_err(|e| WsError {
+                code: "debug_error".to_string(),
+                message: e,
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("debug_error", e))
+        }
 
-        "debug.test_db" => serde_json::to_value(ai_programming::debug_test_db().map_err(|e| WsError {
-            code: "debug_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("debug_error", e)),
+        "debug.test_db" => {
+            serde_json::to_value(ai_programming::debug_test_db().map_err(|e| WsError {
+                code: "debug_error".to_string(),
+                message: e,
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("debug_error", e))
+        }
 
-        "debug.test_crypto" => serde_json::to_value(ai_programming::debug_test_crypto().map_err(|e| WsError {
-            code: "debug_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("debug_error", e)),
+        "debug.test_crypto" => {
+            serde_json::to_value(ai_programming::debug_test_crypto().map_err(|e| WsError {
+                code: "debug_error".to_string(),
+                message: e,
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("debug_error", e))
+        }
 
-        "debug.test_ssh" => serde_json::to_value(ai_programming::debug_test_ssh().map_err(|e| WsError {
-            code: "debug_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("debug_error", e)),
+        "debug.test_ssh" => {
+            serde_json::to_value(ai_programming::debug_test_ssh().map_err(|e| WsError {
+                code: "debug_error".to_string(),
+                message: e,
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("debug_error", e))
+        }
 
-        "debug.test_terminal" => serde_json::to_value(ai_programming::debug_test_terminal().map_err(|e| WsError {
-            code: "debug_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("debug_error", e)),
+        "debug.test_terminal" => {
+            serde_json::to_value(ai_programming::debug_test_terminal().map_err(|e| WsError {
+                code: "debug_error".to_string(),
+                message: e,
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("debug_error", e))
+        }
 
-        "debug.test_pro" => serde_json::to_value(ai_programming::debug_test_pro().map_err(|e| WsError {
-            code: "debug_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("debug_error", e)),
+        "debug.test_pro" => {
+            serde_json::to_value(ai_programming::debug_test_pro().map_err(|e| WsError {
+                code: "debug_error".to_string(),
+                message: e,
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("debug_error", e))
+        }
 
-        "git.status" => serde_json::to_value(ai_programming::git_status().await.map_err(|e| WsError {
-            code: "git_error".to_string(),
-            message: e,
-            details: Some(json!({"op": op})),
-        })?)
-        .map_err(|e| serde_json_error("git_error", e)),
-
-        "git.diff" => {
-            let path = params.get("path").and_then(Value::as_str).map(ToOwned::to_owned);
-            let diff = ai_programming::git_diff(path.clone()).await.map_err(|e| WsError {
+        "git.status" => {
+            serde_json::to_value(ai_programming::git_status().await.map_err(|e| WsError {
                 code: "git_error".to_string(),
                 message: e,
-                details: Some(json!({"path": path})),
-            })?;
+                details: Some(json!({"op": op})),
+            })?)
+            .map_err(|e| serde_json_error("git_error", e))
+        }
+
+        "git.diff" => {
+            let path = params
+                .get("path")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            let diff = ai_programming::git_diff(path.clone())
+                .await
+                .map_err(|e| WsError {
+                    code: "git_error".to_string(),
+                    message: e,
+                    details: Some(json!({"path": path})),
+                })?;
             Ok(json!({"diff": diff}))
         }
 
@@ -330,21 +369,25 @@ async fn dispatch(op: &str, params: Value) -> Result<Value, WsError> {
             Ok(serde_json::to_value(log).map_err(|e| serde_json_error("git_error", e))?)
         }
 
-        "git.branch" => serde_json::to_value(ai_programming::git_branch().await.map_err(|e| WsError {
-            code: "git_error".to_string(),
-            message: e,
-            details: None,
-        })?)
-        .map_err(|e| serde_json_error("git_error", e)),
+        "git.branch" => {
+            serde_json::to_value(ai_programming::git_branch().await.map_err(|e| WsError {
+                code: "git_error".to_string(),
+                message: e,
+                details: None,
+            })?)
+            .map_err(|e| serde_json_error("git_error", e))
+        }
 
         "fs.write" => {
             let path = param_string(&params, "path")?;
             let content = param_string(&params, "content")?;
-            ai_programming::write_file(path.clone(), content.clone()).await.map_err(|e| WsError {
-                code: "fs_write_error".to_string(),
-                message: e,
-                details: Some(json!({"path": path})),
-            })?;
+            ai_programming::write_file(path.clone(), content.clone())
+                .await
+                .map_err(|e| WsError {
+                    code: "fs_write_error".to_string(),
+                    message: e,
+                    details: Some(json!({"path": path})),
+                })?;
             Ok(json!({"written": true}))
         }
 
@@ -352,11 +395,13 @@ async fn dispatch(op: &str, params: Value) -> Result<Value, WsError> {
             let path = param_string(&params, "path")?;
             let old_string = param_string(&params, "old_string")?;
             let new_string = param_string(&params, "new_string")?;
-            let result = ai_programming::edit_file(path.clone(), old_string, new_string).await.map_err(|e| WsError {
-                code: "fs_edit_error".to_string(),
-                message: e,
-                details: Some(json!({"path": path})),
-            })?;
+            let result = ai_programming::edit_file(path.clone(), old_string, new_string)
+                .await
+                .map_err(|e| WsError {
+                    code: "fs_edit_error".to_string(),
+                    message: e,
+                    details: Some(json!({"path": path})),
+                })?;
             Ok(serde_json::to_value(result).map_err(|e| serde_json_error("fs_edit_error", e))?)
         }
 

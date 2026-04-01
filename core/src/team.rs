@@ -1,11 +1,16 @@
 //! 团队管理模块 (Pro版本)
 //! 提供团队创建、成员管理、邀请系统、资源共享等功能
 
-use crate::error::LiteError;
 #[cfg(feature = "audit")]
-use crate::audit::{Actor, AuditAction, AuditEntry, AuditLogger, AuditResult, AuditTarget, ClientInfo};
+use crate::audit::{
+    Actor, AuditAction, AuditEntry, AuditLogger, AuditResult, AuditTarget, ClientInfo,
+};
+use crate::error::LiteError;
 #[cfg(feature = "pro")]
-use crate::rbac::{Permission, PermissionContext, Resource, ResourceType, Operation, RbacManager, UserRoleAssignment};
+use crate::rbac::{
+    Operation, Permission, PermissionContext, RbacManager, Resource, ResourceType,
+    UserRoleAssignment,
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,10 +20,10 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TeamRole {
-    Owner,   // 所有者 - 完整权限
-    Admin,   // 管理员 - 管理团队和服务器
-    Member,  // 成员 - 管理服务器
-    Viewer,  // 观察者 - 只读访问
+    Owner,  // 所有者 - 完整权限
+    Admin,  // 管理员 - 管理团队和服务器
+    Member, // 成员 - 管理服务器
+    Viewer, // 观察者 - 只读访问
 }
 
 impl Default for TeamRole {
@@ -97,7 +102,7 @@ impl TeamRole {
     #[cfg(feature = "pro")]
     pub fn to_rbac_role_id(&self) -> &'static str {
         match self {
-            TeamRole::Owner => "team_admin",      // Owner maps to team_admin with extra ownership
+            TeamRole::Owner => "team_admin", // Owner maps to team_admin with extra ownership
             TeamRole::Admin => "team_admin",
             TeamRole::Member => "team_member",
             TeamRole::Viewer => "team_viewer",
@@ -139,13 +144,7 @@ pub enum MemberStatus {
 
 impl TeamMember {
     /// 创建新成员
-    pub fn new(
-        team_id: &str,
-        user_id: &str,
-        username: &str,
-        email: &str,
-        role: TeamRole,
-    ) -> Self {
+    pub fn new(team_id: &str, user_id: &str, username: &str, email: &str, role: TeamRole) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             team_id: team_id.to_string(),
@@ -227,7 +226,7 @@ pub struct SharedResource {
     pub resource_type: ShareableResourceType,
     pub resource_id: String,
     pub resource_name: String,
-    pub shared_by: String,      // 分享者用户ID
+    pub shared_by: String, // 分享者用户ID
     pub shared_at: DateTime<Utc>,
     pub share_type: ShareType,
     pub permissions: Vec<ResourceAccessPermission>,
@@ -241,9 +240,9 @@ pub struct SharedResource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ShareType {
-    Full,       // 完全共享（所有团队成员）
-    Selective,  // 选择性共享（指定成员）
-    ReadOnly,   // 只读共享
+    Full,      // 完全共享（所有团队成员）
+    Selective, // 选择性共享（指定成员）
+    ReadOnly,  // 只读共享
 }
 
 /// 资源访问权限
@@ -252,9 +251,9 @@ pub enum ShareType {
 pub enum ResourceAccessPermission {
     View,
     Edit,
-    Execute,    // 执行命令、连接等
+    Execute, // 执行命令、连接等
     Delete,
-    Share,      // 再次分享
+    Share, // 再次分享
 }
 
 impl SharedResource {
@@ -334,7 +333,8 @@ impl SharedResource {
             ShareType::Full => true,
             ShareType::Selective => {
                 // 检查是否在允许列表中（通过metadata存储）
-                self.metadata.get("allowed_members")
+                self.metadata
+                    .get("allowed_members")
                     .map(|allowed| allowed.split(',').any(|id| id == user_id))
                     .unwrap_or(false)
             }
@@ -375,9 +375,9 @@ pub struct TeamSettings {
     pub sso_enabled: bool,
     pub sso_provider_id: Option<String>,
     #[serde(default)]
-    pub allow_guest_access: bool,        // 允许访客访问
+    pub allow_guest_access: bool, // 允许访客访问
     #[serde(default)]
-    pub require_2fa: bool,               // 要求2FA
+    pub require_2fa: bool, // 要求2FA
     #[serde(default)]
     pub auto_expire_shares: Option<i64>, // 自动过期分享（天数）
     #[serde(default)]
@@ -451,12 +451,18 @@ impl Team {
 
     /// 获取所有管理员
     pub fn get_admins(&self) -> Vec<&TeamMember> {
-        self.members.iter().filter(|m| m.role.can_manage_members()).collect()
+        self.members
+            .iter()
+            .filter(|m| m.role.can_manage_members())
+            .collect()
     }
 
     /// 获取所有所有者
     pub fn get_owners(&self) -> Vec<&TeamMember> {
-        self.members.iter().filter(|m| matches!(m.role, TeamRole::Owner)).collect()
+        self.members
+            .iter()
+            .filter(|m| matches!(m.role, TeamRole::Owner))
+            .collect()
     }
 
     /// 更新设置
@@ -467,7 +473,10 @@ impl Team {
 
     /// 是否达到最大成员限制
     pub fn is_at_capacity(&self) -> bool {
-        self.settings.max_members.map(|max| self.members.len() >= max as usize).unwrap_or(false)
+        self.settings
+            .max_members
+            .map(|max| self.members.len() >= max as usize)
+            .unwrap_or(false)
     }
 
     /// 添加共享资源
@@ -478,7 +487,10 @@ impl Team {
 
     /// 移除共享资源
     pub fn remove_shared_resource(&mut self, resource_id: &str) -> Option<SharedResource> {
-        let pos = self.shared_resources.iter().position(|r| r.id == resource_id)?;
+        let pos = self
+            .shared_resources
+            .iter()
+            .position(|r| r.id == resource_id)?;
         Some(self.shared_resources.remove(pos))
     }
 
@@ -489,7 +501,9 @@ impl Team {
 
     /// 清理过期分享
     pub fn cleanup_expired_shares(&mut self) -> Vec<SharedResource> {
-        let expired: Vec<_> = self.shared_resources.iter()
+        let expired: Vec<_> = self
+            .shared_resources
+            .iter()
             .filter(|r| r.is_expired())
             .cloned()
             .collect();
@@ -505,7 +519,8 @@ impl Team {
 
     /// 获取用户可访问的资源
     pub fn get_accessible_resources(&self, user_id: &str) -> Vec<&SharedResource> {
-        self.shared_resources.iter()
+        self.shared_resources
+            .iter()
             .filter(|r| r.can_access(user_id, &self.members))
             .collect()
     }
@@ -531,7 +546,7 @@ pub struct TeamInvite {
     pub created_at: DateTime<Utc>,
     pub accepted_at: Option<DateTime<Utc>>,
     #[serde(default)]
-    pub invite_code: String,      // 邀请码（用于链接邀请）
+    pub invite_code: String, // 邀请码（用于链接邀请）
     #[serde(default)]
     pub invite_link: Option<String>, // 邀请链接
     #[serde(default)]
@@ -597,7 +612,10 @@ impl TeamInvite {
 
     /// 设置邀请链接
     pub fn with_invite_link(mut self, base_url: &str) -> Self {
-        self.invite_link = Some(format!("{}/join/{}?code={}", base_url, self.team_id, self.invite_code));
+        self.invite_link = Some(format!(
+            "{}/join/{}?code={}",
+            base_url, self.team_id, self.invite_code
+        ));
         self
     }
 
@@ -726,7 +744,7 @@ impl TeamManager {
             &id,
             owner_id,
             owner_name.unwrap_or(owner_id),
-            "",       // Empty email initially
+            "", // Empty email initially
             TeamRole::Owner,
         );
         team.members.push(owner_member);
@@ -739,7 +757,12 @@ impl TeamManager {
 
         // 记录审计日志
         #[cfg(feature = "audit")]
-        self.log_audit(AuditAction::TeamCreate, owner_id, &id, AuditTarget::Team { id: id.clone() });
+        self.log_audit(
+            AuditAction::TeamCreate,
+            owner_id,
+            &id,
+            AuditTarget::Team { id: id.clone() },
+        );
 
         Ok(team)
     }
@@ -762,7 +785,14 @@ impl TeamManager {
 
             // 记录审计日志
             #[cfg(feature = "audit")]
-            self.log_audit(AuditAction::TeamUpdate, updated_by, &team_id, AuditTarget::Team { id: team_id.clone() });
+            self.log_audit(
+                AuditAction::TeamUpdate,
+                updated_by,
+                &team_id,
+                AuditTarget::Team {
+                    id: team_id.clone(),
+                },
+            );
 
             Ok(())
         } else {
@@ -772,7 +802,9 @@ impl TeamManager {
 
     /// 删除团队
     pub fn delete_team(&mut self, team_id: &str, requester_id: &str) -> Result<(), LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         if team.owner_id != requester_id {
@@ -780,9 +812,7 @@ impl TeamManager {
         }
 
         // 收集所有成员ID
-        let member_ids: Vec<String> = team.members.iter()
-            .map(|m| m.user_id.clone())
-            .collect();
+        let member_ids: Vec<String> = team.members.iter().map(|m| m.user_id.clone()).collect();
 
         let team_id_owned = team_id.to_string();
         self.teams.remove(team_id);
@@ -793,11 +823,19 @@ impl TeamManager {
         }
 
         // 清理相关邀请
-        self.invites.retain(|_, invite| invite.team_id != team_id_owned);
+        self.invites
+            .retain(|_, invite| invite.team_id != team_id_owned);
 
         // 记录审计日志
         #[cfg(feature = "audit")]
-        self.log_audit(AuditAction::TeamDelete, requester_id, &team_id_owned, AuditTarget::Team { id: team_id_owned.clone() });
+        self.log_audit(
+            AuditAction::TeamDelete,
+            requester_id,
+            &team_id_owned,
+            AuditTarget::Team {
+                id: team_id_owned.clone(),
+            },
+        );
 
         Ok(())
     }
@@ -807,7 +845,8 @@ impl TeamManager {
         self.user_teams
             .get(user_id)
             .map(|team_ids| {
-                team_ids.iter()
+                team_ids
+                    .iter()
                     .filter_map(|id| self.teams.get(id))
                     .collect()
             })
@@ -822,11 +861,17 @@ impl TeamManager {
     /// 搜索团队
     pub fn search_teams(&self, query: &str) -> Vec<&Team> {
         let query_lower = query.to_lowercase();
-        self.teams.values()
+        self.teams
+            .values()
             .filter(|t| {
-                t.name.to_lowercase().contains(&query_lower) ||
-                t.description.as_ref().map(|d| d.to_lowercase().contains(&query_lower)).unwrap_or(false) ||
-                t.tags.iter().any(|tag| tag.to_lowercase().contains(&query_lower))
+                t.name.to_lowercase().contains(&query_lower)
+                    || t.description
+                        .as_ref()
+                        .map(|d| d.to_lowercase().contains(&query_lower))
+                        .unwrap_or(false)
+                    || t.tags
+                        .iter()
+                        .any(|tag| tag.to_lowercase().contains(&query_lower))
             })
             .collect()
     }
@@ -840,13 +885,17 @@ impl TeamManager {
         invited_by: &str,
         custom_message: Option<&str>,
     ) -> Result<TeamInvite, LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         // 检查权限
         if let Some(member) = team.find_member(invited_by) {
             if !member.role.can_invite_members() {
-                return Err(LiteError::Team("No permission to invite members".to_string()));
+                return Err(LiteError::Team(
+                    "No permission to invite members".to_string(),
+                ));
             }
         } else {
             return Err(LiteError::Team("Not a team member".to_string()));
@@ -858,8 +907,12 @@ impl TeamManager {
         }
 
         // 检查是否已有待处理邀请，如果有则撤销旧邀请
-        let existing_invite_ids: Vec<String> = self.invites.values()
-            .filter(|i| i.team_id == team_id && i.email == email && i.status == InviteStatus::Pending)
+        let existing_invite_ids: Vec<String> = self
+            .invites
+            .values()
+            .filter(|i| {
+                i.team_id == team_id && i.email == email && i.status == InviteStatus::Pending
+            })
             .map(|i| i.id.clone())
             .collect();
 
@@ -888,11 +941,23 @@ impl TeamManager {
         self.invites.insert(id.clone(), invite.clone());
 
         // 记录活动
-        self.record_activity(team_id, invited_by, ActivityType::InviteSent, &format!("邀请了 {}", email));
+        self.record_activity(
+            team_id,
+            invited_by,
+            ActivityType::InviteSent,
+            &format!("邀请了 {}", email),
+        );
 
         // 记录审计日志
         #[cfg(feature = "audit")]
-        self.log_audit(AuditAction::MemberInvite, invited_by, team_id, AuditTarget::User { id: email.to_string() });
+        self.log_audit(
+            AuditAction::MemberInvite,
+            invited_by,
+            team_id,
+            AuditTarget::User {
+                id: email.to_string(),
+            },
+        );
 
         Ok(invite)
     }
@@ -905,7 +970,9 @@ impl TeamManager {
         username: &str,
         email: &str,
     ) -> Result<TeamMember, LiteError> {
-        let invite = self.invites.values_mut()
+        let invite = self
+            .invites
+            .values_mut()
             .find(|i| i.invite_code == invite_code && i.status == InviteStatus::Pending)
             .ok_or_else(|| LiteError::Team("Invalid or expired invite code".to_string()))?;
 
@@ -923,7 +990,12 @@ impl TeamManager {
         let member = self.add_member_internal(&team_id, user_id, username, email, role)?;
 
         // 记录活动
-        self.record_activity(&team_id, user_id, ActivityType::InviteAccepted, &format!("通过邀请码加入"));
+        self.record_activity(
+            &team_id,
+            user_id,
+            ActivityType::InviteAccepted,
+            &format!("通过邀请码加入"),
+        );
 
         Ok(member)
     }
@@ -936,7 +1008,9 @@ impl TeamManager {
         username: &str,
         email: &str,
     ) -> Result<TeamMember, LiteError> {
-        let invite = self.invites.get_mut(invite_id)
+        let invite = self
+            .invites
+            .get_mut(invite_id)
             .ok_or_else(|| LiteError::Team(format!("Invite {} not found", invite_id)))?;
 
         if invite.status != InviteStatus::Pending {
@@ -950,7 +1024,9 @@ impl TeamManager {
 
         // 验证邮箱匹配
         if invite.email != email {
-            return Err(LiteError::Team("Email does not match invitation".to_string()));
+            return Err(LiteError::Team(
+                "Email does not match invitation".to_string(),
+            ));
         }
 
         // 克隆需要的字段
@@ -964,7 +1040,14 @@ impl TeamManager {
 
         // 记录审计日志
         #[cfg(feature = "audit")]
-        self.log_audit(AuditAction::MemberJoin, user_id, &team_id, AuditTarget::Team { id: team_id.clone() });
+        self.log_audit(
+            AuditAction::MemberJoin,
+            user_id,
+            &team_id,
+            AuditTarget::Team {
+                id: team_id.clone(),
+            },
+        );
 
         Ok(member)
     }
@@ -978,7 +1061,9 @@ impl TeamManager {
         email: &str,
         role: TeamRole,
     ) -> Result<TeamMember, LiteError> {
-        let team = self.teams.get_mut(team_id)
+        let team = self
+            .teams
+            .get_mut(team_id)
             .ok_or_else(|| LiteError::Team("Team not found".to_string()))?;
 
         // 检查容量
@@ -992,13 +1077,7 @@ impl TeamManager {
         }
 
         // 创建成员
-        let member = TeamMember::new(
-            team_id,
-            user_id,
-            username,
-            email,
-            role,
-        );
+        let member = TeamMember::new(team_id, user_id, username, email, role);
 
         team.members.push(member.clone());
         team.updated_at = Utc::now();
@@ -1006,12 +1085,18 @@ impl TeamManager {
         self.add_user_to_team(user_id, team_id);
 
         // 记录活动
-        self.record_activity(team_id, user_id, ActivityType::MemberJoined, &format!("{} 加入了团队", username));
+        self.record_activity(
+            team_id,
+            user_id,
+            ActivityType::MemberJoined,
+            &format!("{} 加入了团队", username),
+        );
 
         // 设置RBAC角色
         #[cfg(feature = "pro")]
         if let Some(ref mut rbac) = self.rbac_manager {
-            let assignment = UserRoleAssignment::new(user_id, Some(team_id), role.to_rbac_role_id(), "system");
+            let assignment =
+                UserRoleAssignment::new(user_id, Some(team_id), role.to_rbac_role_id(), "system");
             let _ = rbac.assign_role(assignment);
         }
 
@@ -1020,7 +1105,9 @@ impl TeamManager {
 
     /// 拒绝邀请
     pub fn decline_invite(&mut self, invite_id: &str) -> Result<(), LiteError> {
-        let invite = self.invites.get_mut(invite_id)
+        let invite = self
+            .invites
+            .get_mut(invite_id)
             .ok_or_else(|| LiteError::Team(format!("Invite {} not found", invite_id)))?;
 
         if invite.status != InviteStatus::Pending {
@@ -1033,16 +1120,22 @@ impl TeamManager {
 
     /// 撤销邀请
     pub fn revoke_invite(&mut self, invite_id: &str, revoked_by: &str) -> Result<(), LiteError> {
-        let invite = self.invites.get_mut(invite_id)
+        let invite = self
+            .invites
+            .get_mut(invite_id)
             .ok_or_else(|| LiteError::Team(format!("Invite {} not found", invite_id)))?;
 
-        let team = self.teams.get(&invite.team_id)
+        let team = self
+            .teams
+            .get(&invite.team_id)
             .ok_or_else(|| LiteError::Team("Team not found".to_string()))?;
 
         // 检查权限
         if let Some(member) = team.find_member(revoked_by) {
             if !member.role.can_manage_members() {
-                return Err(LiteError::Team("No permission to revoke invite".to_string()));
+                return Err(LiteError::Team(
+                    "No permission to revoke invite".to_string(),
+                ));
             }
         } else {
             return Err(LiteError::Team("Not a team member".to_string()));
@@ -1057,21 +1150,28 @@ impl TeamManager {
         invite.revoke();
 
         // 记录活动
-        self.record_activity(&team_id, revoked_by, ActivityType::InviteRevoked, &format!("撤销了对 {} 的邀请", email));
+        self.record_activity(
+            &team_id,
+            revoked_by,
+            ActivityType::InviteRevoked,
+            &format!("撤销了对 {} 的邀请", email),
+        );
 
         Ok(())
     }
 
     /// 获取团队的待处理邀请
     pub fn get_pending_invites(&self, team_id: &str) -> Vec<&TeamInvite> {
-        self.invites.values()
+        self.invites
+            .values()
             .filter(|i| i.team_id == team_id && i.status == InviteStatus::Pending)
             .collect()
     }
 
     /// 获取用户的待处理邀请
     pub fn get_user_pending_invites(&self, email: &str) -> Vec<&TeamInvite> {
-        self.invites.values()
+        self.invites
+            .values()
             .filter(|i| i.email == email && i.status == InviteStatus::Pending && !i.is_expired())
             .collect()
     }
@@ -1083,7 +1183,9 @@ impl TeamManager {
         member_user_id: &str,
         removed_by: &str,
     ) -> Result<(), LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         // 检查权限
@@ -1093,7 +1195,9 @@ impl TeamManager {
         match (remover_role, target_role) {
             (Some(remover), Some(target)) => {
                 if !remover.can_remove_member(&target) {
-                    return Err(LiteError::Team("Cannot remove member with higher or equal role".to_string()));
+                    return Err(LiteError::Team(
+                        "Cannot remove member with higher or equal role".to_string(),
+                    ));
                 }
             }
             _ => return Err(LiteError::Team("Member not found".to_string())),
@@ -1105,18 +1209,33 @@ impl TeamManager {
         }
 
         let team = self.teams.get_mut(team_id).unwrap();
-        let member_name = team.find_member(member_user_id).map(|m| m.username.clone()).unwrap_or_default();
+        let member_name = team
+            .find_member(member_user_id)
+            .map(|m| m.username.clone())
+            .unwrap_or_default();
         team.members.retain(|m| m.user_id != member_user_id);
         team.updated_at = Utc::now();
 
         self.remove_user_from_team(member_user_id, team_id);
 
         // 记录活动
-        self.record_activity(team_id, removed_by, ActivityType::MemberRemoved, &format!("移除了成员 {}", member_name));
+        self.record_activity(
+            team_id,
+            removed_by,
+            ActivityType::MemberRemoved,
+            &format!("移除了成员 {}", member_name),
+        );
 
         // 记录审计日志
         #[cfg(feature = "audit")]
-        self.log_audit(AuditAction::MemberRemove, removed_by, team_id, AuditTarget::User { id: member_user_id.to_string() });
+        self.log_audit(
+            AuditAction::MemberRemove,
+            removed_by,
+            team_id,
+            AuditTarget::User {
+                id: member_user_id.to_string(),
+            },
+        );
 
         Ok(())
     }
@@ -1129,7 +1248,9 @@ impl TeamManager {
         new_role: TeamRole,
         changed_by: &str,
     ) -> Result<(), LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         // 检查权限
@@ -1138,7 +1259,9 @@ impl TeamManager {
                 return Err(LiteError::Team("No permission to change roles".to_string()));
             }
             if changer.role.level() <= new_role.level() {
-                return Err(LiteError::Team("Cannot assign role higher or equal to yours".to_string()));
+                return Err(LiteError::Team(
+                    "Cannot assign role higher or equal to yours".to_string(),
+                ));
             }
         } else {
             return Err(LiteError::Team("Not a team member".to_string()));
@@ -1160,12 +1283,26 @@ impl TeamManager {
             team.updated_at = Utc::now();
 
             // 记录活动
-            self.record_activity(team_id, changed_by, ActivityType::RoleChanged,
-                &format!("将 {} 的角色从 {:?} 更改为 {:?}", username, old_role, new_role));
+            self.record_activity(
+                team_id,
+                changed_by,
+                ActivityType::RoleChanged,
+                &format!(
+                    "将 {} 的角色从 {:?} 更改为 {:?}",
+                    username, old_role, new_role
+                ),
+            );
 
             // 记录审计日志
             #[cfg(feature = "audit")]
-            self.log_audit(AuditAction::MemberRoleChange, changed_by, team_id, AuditTarget::User { id: member_user_id.to_string() });
+            self.log_audit(
+                AuditAction::MemberRoleChange,
+                changed_by,
+                team_id,
+                AuditTarget::User {
+                    id: member_user_id.to_string(),
+                },
+            );
 
             Ok(())
         } else {
@@ -1175,15 +1312,22 @@ impl TeamManager {
 
     /// 成员离开团队
     pub fn leave_team(&mut self, team_id: &str, user_id: &str) -> Result<(), LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         // 所有者不能离开，必须先转让所有权
         if team.owner_id == user_id {
-            return Err(LiteError::Team("Owner must transfer ownership before leaving".to_string()));
+            return Err(LiteError::Team(
+                "Owner must transfer ownership before leaving".to_string(),
+            ));
         }
 
-        let member_name = team.find_member(user_id).map(|m| m.username.clone()).unwrap_or_default();
+        let member_name = team
+            .find_member(user_id)
+            .map(|m| m.username.clone())
+            .unwrap_or_default();
 
         let team = self.teams.get_mut(team_id).unwrap();
         team.members.retain(|m| m.user_id != user_id);
@@ -1192,7 +1336,12 @@ impl TeamManager {
         self.remove_user_from_team(user_id, team_id);
 
         // 记录活动
-        self.record_activity(team_id, user_id, ActivityType::MemberLeft, &format!("{} 离开了团队", member_name));
+        self.record_activity(
+            team_id,
+            user_id,
+            ActivityType::MemberLeft,
+            &format!("{} 离开了团队", member_name),
+        );
 
         Ok(())
     }
@@ -1204,17 +1353,23 @@ impl TeamManager {
         new_owner_id: &str,
         current_owner_id: &str,
     ) -> Result<(), LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         // 验证当前所有者
         if team.owner_id != current_owner_id {
-            return Err(LiteError::Team("Only owner can transfer ownership".to_string()));
+            return Err(LiteError::Team(
+                "Only owner can transfer ownership".to_string(),
+            ));
         }
 
         // 验证新所有者存在
         if team.find_member(new_owner_id).is_none() {
-            return Err(LiteError::Team("New owner must be a team member".to_string()));
+            return Err(LiteError::Team(
+                "New owner must be a team member".to_string(),
+            ));
         }
 
         let team = self.teams.get_mut(team_id).unwrap();
@@ -1233,8 +1388,12 @@ impl TeamManager {
         team.updated_at = Utc::now();
 
         // 记录活动
-        self.record_activity(team_id, current_owner_id, ActivityType::RoleChanged,
-            &format!("将所有权转让给 {}", new_owner_id));
+        self.record_activity(
+            team_id,
+            current_owner_id,
+            ActivityType::RoleChanged,
+            &format!("将所有权转让给 {}", new_owner_id),
+        );
 
         Ok(())
     }
@@ -1259,13 +1418,17 @@ impl TeamManager {
         share_type: ShareType,
         permissions: Vec<ResourceAccessPermission>,
     ) -> Result<SharedResource, LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         // 检查权限
         if let Some(member) = team.find_member(shared_by) {
             if !member.role.can_share_resources() {
-                return Err(LiteError::Team("No permission to share resources".to_string()));
+                return Err(LiteError::Team(
+                    "No permission to share resources".to_string(),
+                ));
             }
         } else {
             return Err(LiteError::Team("Not a team member".to_string()));
@@ -1278,7 +1441,8 @@ impl TeamManager {
             resource_name,
             shared_by,
             share_type,
-        ).with_permissions(permissions);
+        )
+        .with_permissions(permissions);
 
         let _resource_id_clone = resource.id.clone();
 
@@ -1286,8 +1450,12 @@ impl TeamManager {
         team.add_shared_resource(resource.clone());
 
         // 记录活动
-        self.record_activity(team_id, shared_by, ActivityType::ResourceShared,
-            &format!("分享了 {:?}: {}", resource_type, resource_name));
+        self.record_activity(
+            team_id,
+            shared_by,
+            ActivityType::ResourceShared,
+            &format!("分享了 {:?}: {}", resource_type, resource_name),
+        );
 
         Ok(resource)
     }
@@ -1299,11 +1467,14 @@ impl TeamManager {
         resource_id: &str,
         unshared_by: &str,
     ) -> Result<SharedResource, LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         // 检查权限：资源所有者或团队管理员
-        let resource = team.find_shared_resource(resource_id)
+        let resource = team
+            .find_shared_resource(resource_id)
             .ok_or_else(|| LiteError::Team("Resource not found".to_string()))?;
 
         let can_unshare = if let Some(member) = team.find_member(unshared_by) {
@@ -1313,19 +1484,26 @@ impl TeamManager {
         };
 
         if !can_unshare {
-            return Err(LiteError::Team("No permission to unshare this resource".to_string()));
+            return Err(LiteError::Team(
+                "No permission to unshare this resource".to_string(),
+            ));
         }
 
         let resource_name = resource.resource_name.clone();
         let resource_type = resource.resource_type;
 
         let team = self.teams.get_mut(team_id).unwrap();
-        let resource = team.remove_shared_resource(resource_id)
+        let resource = team
+            .remove_shared_resource(resource_id)
             .ok_or_else(|| LiteError::Team("Resource not found".to_string()))?;
 
         // 记录活动
-        self.record_activity(team_id, unshared_by, ActivityType::ResourceUnshared,
-            &format!("取消了 {:?}: {} 的分享", resource_type, resource_name));
+        self.record_activity(
+            team_id,
+            unshared_by,
+            ActivityType::ResourceUnshared,
+            &format!("取消了 {:?}: {} 的分享", resource_type, resource_name),
+        );
 
         Ok(resource)
     }
@@ -1336,7 +1514,9 @@ impl TeamManager {
         team_id: &str,
         user_id: &str,
     ) -> Result<Vec<&SharedResource>, LiteError> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| LiteError::Team(format!("Team {} not found", team_id)))?;
 
         Ok(team.get_accessible_resources(user_id))
@@ -1346,21 +1526,25 @@ impl TeamManager {
     pub fn get_team_stats(&self, team_id: &str) -> Option<TeamStats> {
         let team = self.teams.get(team_id)?;
 
-        let active_members = team.members.iter()
+        let active_members = team
+            .members
+            .iter()
             .filter(|m| m.status == MemberStatus::Active)
             .count();
 
         let pending_invites = self.get_pending_invites(team_id).len();
 
         // 获取最后活动时间
-        let last_activity = team.members.iter()
-            .filter_map(|m| m.last_active_at)
-            .max();
+        let last_activity = team.members.iter().filter_map(|m| m.last_active_at).max();
 
         Some(TeamStats {
             total_members: team.members.len(),
             active_members,
-            servers_count: team.shared_resources.iter().filter(|r| matches!(r.resource_type, ShareableResourceType::Server)).count(),
+            servers_count: team
+                .shared_resources
+                .iter()
+                .filter(|r| matches!(r.resource_type, ShareableResourceType::Server))
+                .count(),
             sessions_today: 0, // 需要与审计模块集成
             pending_invites,
             shared_resources: team.shared_resources.len(),
@@ -1370,14 +1554,16 @@ impl TeamManager {
 
     /// 检查用户是否是团队成员
     pub fn is_team_member(&self, team_id: &str, user_id: &str) -> bool {
-        self.teams.get(team_id)
+        self.teams
+            .get(team_id)
             .map(|t| t.find_member(user_id).is_some())
             .unwrap_or(false)
     }
 
     /// 获取用户在团队中的角色
     pub fn get_member_role(&self, team_id: &str, user_id: &str) -> Option<TeamRole> {
-        self.teams.get(team_id)
+        self.teams
+            .get(team_id)
             .and_then(|t| t.find_member(user_id).map(|m| m.role))
     }
 
@@ -1388,7 +1574,8 @@ impl TeamManager {
         user_id: &str,
         permission: TeamPermission,
     ) -> bool {
-        self.teams.get(team_id)
+        self.teams
+            .get(team_id)
             .and_then(|t| t.find_member(user_id))
             .map(|m| m.has_permission(permission))
             .unwrap_or(false)
@@ -1396,7 +1583,9 @@ impl TeamManager {
 
     /// 清理过期邀请
     pub fn cleanup_expired_invites(&mut self) -> Vec<TeamInvite> {
-        let expired: Vec<_> = self.invites.values_mut()
+        let expired: Vec<_> = self
+            .invites
+            .values_mut()
             .filter(|i| i.status == InviteStatus::Pending && i.is_expired())
             .map(|i| {
                 i.mark_expired();
@@ -1424,7 +1613,13 @@ impl TeamManager {
     }
 
     /// 记录活动
-    fn record_activity(&mut self, team_id: &str, user_id: &str, activity_type: ActivityType, description: &str) {
+    fn record_activity(
+        &mut self,
+        team_id: &str,
+        user_id: &str,
+        activity_type: ActivityType,
+        description: &str,
+    ) {
         let activity = TeamActivity {
             id: Uuid::new_v4().to_string(),
             team_id: team_id.to_string(),
@@ -1439,7 +1634,8 @@ impl TeamManager {
 
     /// 获取团队活动
     pub fn get_team_activities(&self, team_id: &str, limit: usize) -> Vec<&TeamActivity> {
-        self.activities.iter()
+        self.activities
+            .iter()
             .filter(|a| a.team_id == team_id)
             .rev()
             .take(limit)
@@ -1448,7 +1644,8 @@ impl TeamManager {
 
     /// 获取用户活动
     pub fn get_user_activities(&self, user_id: &str, limit: usize) -> Vec<&TeamActivity> {
-        self.activities.iter()
+        self.activities
+            .iter()
             .filter(|a| a.user_id == user_id)
             .rev()
             .take(limit)
@@ -1457,7 +1654,13 @@ impl TeamManager {
 
     /// 记录审计日志（内部方法）
     #[cfg(feature = "audit")]
-    fn log_audit(&mut self, action: AuditAction, actor_id: &str, team_id: &str, target: AuditTarget) {
+    fn log_audit(
+        &mut self,
+        action: AuditAction,
+        actor_id: &str,
+        team_id: &str,
+        target: AuditTarget,
+    ) {
         if let Some(ref mut audit) = self.audit_logger {
             let actor = Actor {
                 user_id: actor_id.to_string(),
@@ -1466,8 +1669,7 @@ impl TeamManager {
                 role: None,
             };
 
-            let entry = AuditEntry::new(action, actor, target)
-                .with_result(AuditResult::Success);
+            let entry = AuditEntry::new(action, actor, target).with_result(AuditResult::Success);
 
             audit.log(entry);
         }
@@ -1585,7 +1787,9 @@ mod tests {
     #[test]
     fn test_create_team() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "user1", Some("User 1")).unwrap();
+        let team = manager
+            .create_team("Test Team", "user1", Some("User 1"))
+            .unwrap();
 
         assert_eq!(team.name, "Test Team");
         assert_eq!(team.owner_id, "user1");
@@ -1596,23 +1800,38 @@ mod tests {
 
         // 验证所有者是成员
         assert!(manager.is_team_member(&team.id, "user1"));
-        assert_eq!(manager.get_member_role(&team.id, "user1"), Some(TeamRole::Owner));
+        assert_eq!(
+            manager.get_member_role(&team.id, "user1"),
+            Some(TeamRole::Owner)
+        );
     }
 
     #[test]
     fn test_invite_and_accept() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 邀请成员
-        let invite = manager.invite_member(&team.id, "test@example.com", TeamRole::Member, "owner1", None).unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "test@example.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
         assert_eq!(invite.email, "test@example.com");
         assert_eq!(invite.role, TeamRole::Member);
         assert!(!invite.invite_code.is_empty());
         assert!(invite.invite_link.is_some());
 
         // 通过邮箱接受邀请
-        let member = manager.accept_invite(&invite.id, "user2", "TestUser", "test@example.com").unwrap();
+        let member = manager
+            .accept_invite(&invite.id, "user2", "TestUser", "test@example.com")
+            .unwrap();
         assert_eq!(member.email, "test@example.com");
         assert_eq!(member.role, TeamRole::Member);
         assert_eq!(member.team_id, team.id);
@@ -1624,14 +1843,26 @@ mod tests {
     #[test]
     fn test_join_by_invite_code() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 邀请成员
-        let invite = manager.invite_member(&team.id, "test@example.com", TeamRole::Member, "owner1", None).unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "test@example.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
         let invite_code = invite.invite_code.clone();
 
         // 通过邀请码加入
-        let member = manager.join_by_invite_code(&invite_code, "user2", "TestUser", "test@example.com").unwrap();
+        let member = manager
+            .join_by_invite_code(&invite_code, "user2", "TestUser", "test@example.com")
+            .unwrap();
         assert_eq!(member.role, TeamRole::Member);
         assert!(manager.is_team_member(&team.id, "user2"));
     }
@@ -1639,11 +1870,23 @@ mod tests {
     #[test]
     fn test_remove_member() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 添加成员
-        let invite = manager.invite_member(&team.id, "member@test.com", TeamRole::Member, "owner1", None).unwrap();
-        manager.accept_invite(&invite.id, "member1", "Member", "member@test.com").unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "member@test.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
+        manager
+            .accept_invite(&invite.id, "member1", "Member", "member@test.com")
+            .unwrap();
 
         // 所有者可以移除成员
         assert!(manager.remove_member(&team.id, "member1", "owner1").is_ok());
@@ -1653,11 +1896,23 @@ mod tests {
     #[test]
     fn test_leave_team() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 添加成员
-        let invite = manager.invite_member(&team.id, "member@test.com", TeamRole::Member, "owner1", None).unwrap();
-        manager.accept_invite(&invite.id, "member1", "Member", "member@test.com").unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "member@test.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
+        manager
+            .accept_invite(&invite.id, "member1", "Member", "member@test.com")
+            .unwrap();
 
         // 成员可以离开
         assert!(manager.leave_team(&team.id, "member1").is_ok());
@@ -1671,7 +1926,9 @@ mod tests {
     #[test]
     fn test_cannot_remove_owner() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 不能移除所有者
         let result = manager.remove_member(&team.id, "owner1", "owner1");
@@ -1681,14 +1938,28 @@ mod tests {
     #[test]
     fn test_change_role() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 添加成员
-        let invite = manager.invite_member(&team.id, "member@test.com", TeamRole::Member, "owner1", None).unwrap();
-        manager.accept_invite(&invite.id, "member1", "Member", "member@test.com").unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "member@test.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
+        manager
+            .accept_invite(&invite.id, "member1", "Member", "member@test.com")
+            .unwrap();
 
         // 提升为管理员
-        assert!(manager.change_member_role(&team.id, "member1", TeamRole::Admin, "owner1").is_ok());
+        assert!(manager
+            .change_member_role(&team.id, "member1", TeamRole::Admin, "owner1")
+            .is_ok());
 
         let team = manager.get_team(&team.id).unwrap();
         let member = team.find_member("member1").unwrap();
@@ -1698,14 +1969,22 @@ mod tests {
     #[test]
     fn test_transfer_ownership() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 添加管理员
-        let invite = manager.invite_member(&team.id, "admin@test.com", TeamRole::Admin, "owner1", None).unwrap();
-        manager.accept_invite(&invite.id, "admin1", "Admin", "admin@test.com").unwrap();
+        let invite = manager
+            .invite_member(&team.id, "admin@test.com", TeamRole::Admin, "owner1", None)
+            .unwrap();
+        manager
+            .accept_invite(&invite.id, "admin1", "Admin", "admin@test.com")
+            .unwrap();
 
         // 转让所有权
-        assert!(manager.transfer_ownership(&team.id, "admin1", "owner1").is_ok());
+        assert!(manager
+            .transfer_ownership(&team.id, "admin1", "owner1")
+            .is_ok());
 
         let team = manager.get_team(&team.id).unwrap();
         assert_eq!(team.owner_id, "admin1");
@@ -1718,7 +1997,8 @@ mod tests {
 
     #[test]
     fn test_invite_expiration() {
-        let mut invite = TeamInvite::new("team1", "test@example.com", TeamRole::Member, "owner1", 1);
+        let mut invite =
+            TeamInvite::new("team1", "test@example.com", TeamRole::Member, "owner1", 1);
 
         // 未过期
         assert!(!invite.is_expired());
@@ -1749,11 +2029,23 @@ mod tests {
         assert!(team.settings.allow_invite_links);
         assert!(team.settings.require_2fa);
 
-        team.members.push(TeamMember::new(&team.id, "u1", "User", "u@test.com", TeamRole::Member));
+        team.members.push(TeamMember::new(
+            &team.id,
+            "u1",
+            "User",
+            "u@test.com",
+            TeamRole::Member,
+        ));
         assert!(!team.is_at_capacity());
 
         for i in 2..=10 {
-            team.members.push(TeamMember::new(&team.id, &format!("u{}", i), "User", &format!("u{}@test.com", i), TeamRole::Member));
+            team.members.push(TeamMember::new(
+                &team.id,
+                &format!("u{}", i),
+                "User",
+                &format!("u{}@test.com", i),
+                TeamRole::Member,
+            ));
         }
         assert!(team.is_at_capacity());
     }
@@ -1761,8 +2053,12 @@ mod tests {
     #[test]
     fn test_list_user_teams() {
         let mut manager = TeamManager::new();
-        let team1 = manager.create_team("Team 1", "user1", Some("User 1")).unwrap();
-        let team2 = manager.create_team("Team 2", "user1", Some("User 1")).unwrap();
+        let team1 = manager
+            .create_team("Team 1", "user1", Some("User 1"))
+            .unwrap();
+        let team2 = manager
+            .create_team("Team 2", "user1", Some("User 1"))
+            .unwrap();
 
         let user_teams = manager.list_user_teams("user1");
         assert_eq!(user_teams.len(), 2);
@@ -1773,14 +2069,30 @@ mod tests {
     #[test]
     fn test_permission_check() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 邀请成员
-        let invite = manager.invite_member(&team.id, "admin@test.com", TeamRole::Admin, "owner1", None).unwrap();
-        manager.accept_invite(&invite.id, "admin1", "Admin", "admin@test.com").unwrap();
+        let invite = manager
+            .invite_member(&team.id, "admin@test.com", TeamRole::Admin, "owner1", None)
+            .unwrap();
+        manager
+            .accept_invite(&invite.id, "admin1", "Admin", "admin@test.com")
+            .unwrap();
 
-        let invite2 = manager.invite_member(&team.id, "viewer@test.com", TeamRole::Viewer, "admin1", None).unwrap();
-        manager.accept_invite(&invite2.id, "viewer1", "Viewer", "viewer@test.com").unwrap();
+        let invite2 = manager
+            .invite_member(
+                &team.id,
+                "viewer@test.com",
+                TeamRole::Viewer,
+                "admin1",
+                None,
+            )
+            .unwrap();
+        manager
+            .accept_invite(&invite2.id, "viewer1", "Viewer", "viewer@test.com")
+            .unwrap();
 
         // 检查权限
         assert!(manager.check_permission(&team.id, "owner1", TeamPermission::ManageTeam));
@@ -1812,7 +2124,13 @@ mod tests {
         assert!(!member.has_permission(TeamPermission::DeleteTeam));
         assert!(member.has_permission(TeamPermission::ShareResources));
 
-        let admin = TeamMember::new("team1", "admin1", "Admin", "admin@test.com", TeamRole::Admin);
+        let admin = TeamMember::new(
+            "team1",
+            "admin1",
+            "Admin",
+            "admin@test.com",
+            TeamRole::Admin,
+        );
         assert!(admin.has_permission(TeamPermission::ManageMembers));
         assert!(admin.has_permission(TeamPermission::ViewAudit));
     }
@@ -1826,7 +2144,8 @@ mod tests {
             "Production Server",
             "user1",
             ShareType::Full,
-        ).with_permissions(vec![
+        )
+        .with_permissions(vec![
             ResourceAccessPermission::View,
             ResourceAccessPermission::Edit,
             ResourceAccessPermission::Execute,
@@ -1848,14 +2167,21 @@ mod tests {
             "Deploy Script",
             "user1",
             ShareType::ReadOnly,
-        ).with_expiry(Utc::now() - chrono::Duration::hours(1)); // 已过期
+        )
+        .with_expiry(Utc::now() - chrono::Duration::hours(1)); // 已过期
 
         assert!(resource.is_expired());
 
         // 模拟团队成员
         let members = vec![
             TeamMember::new("team1", "user1", "Owner", "owner@test.com", TeamRole::Owner),
-            TeamMember::new("team1", "user2", "Member", "member@test.com", TeamRole::Member),
+            TeamMember::new(
+                "team1",
+                "user2",
+                "Member",
+                "member@test.com",
+                TeamRole::Member,
+            ),
         ];
 
         // 过期资源不能被访问
@@ -1865,18 +2191,25 @@ mod tests {
     #[test]
     fn test_share_and_unshare_resource() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 分享资源
-        let resource = manager.share_resource(
-            &team.id,
-            "owner1",
-            ShareableResourceType::Server,
-            "server1",
-            "Production",
-            ShareType::Full,
-            vec![ResourceAccessPermission::View, ResourceAccessPermission::Edit],
-        ).unwrap();
+        let resource = manager
+            .share_resource(
+                &team.id,
+                "owner1",
+                ShareableResourceType::Server,
+                "server1",
+                "Production",
+                ShareType::Full,
+                vec![
+                    ResourceAccessPermission::View,
+                    ResourceAccessPermission::Edit,
+                ],
+            )
+            .unwrap();
 
         let team_id = team.id.clone();
         let resource_id = resource.id.clone();
@@ -1886,7 +2219,9 @@ mod tests {
         assert_eq!(team.shared_resources.len(), 1);
 
         // 取消分享
-        let unshared = manager.unshare_resource(&team_id, &resource_id, "owner1").unwrap();
+        let unshared = manager
+            .unshare_resource(&team_id, &resource_id, "owner1")
+            .unwrap();
         assert_eq!(unshared.resource_name, "Production");
 
         let team = manager.get_team(&team_id).unwrap();
@@ -1896,10 +2231,13 @@ mod tests {
     #[test]
     fn test_cleanup_expired() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 创建过期邀请（手动设置过期时间）
-        let mut expired_invite = TeamInvite::new(&team.id, "expired@test.com", TeamRole::Member, "owner1", -1);
+        let mut expired_invite =
+            TeamInvite::new(&team.id, "expired@test.com", TeamRole::Member, "owner1", -1);
         expired_invite.expires_at = Utc::now() - chrono::Duration::hours(1);
         let invite_id = expired_invite.id.clone();
         manager.invites.insert(invite_id, expired_invite);
@@ -1914,11 +2252,17 @@ mod tests {
     #[test]
     fn test_search_teams() {
         let mut manager = TeamManager::new();
-        manager.create_team("Development Team", "user1", Some("User 1")).unwrap()
+        manager
+            .create_team("Development Team", "user1", Some("User 1"))
+            .unwrap()
             .with_tags(vec!["dev", "engineering"]);
-        manager.create_team("Operations Team", "user1", Some("User 1")).unwrap()
+        manager
+            .create_team("Operations Team", "user1", Some("User 1"))
+            .unwrap()
             .with_description("IT operations and infrastructure");
-        manager.create_team("Sales Team", "user2", Some("User 2")).unwrap();
+        manager
+            .create_team("Sales Team", "user2", Some("User 2"))
+            .unwrap();
 
         let results = manager.search_teams("dev");
         assert_eq!(results.len(), 1);
@@ -1934,17 +2278,54 @@ mod tests {
     #[test]
     fn test_team_stats() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 添加成员
         for i in 1..=3 {
-            let invite = manager.invite_member(&team.id, &format!("user{}@test.com", i), TeamRole::Member, "owner1", None).unwrap();
-            manager.accept_invite(&invite.id, &format!("user{}", i), &format!("User {}", i), &format!("user{}@test.com", i)).unwrap();
+            let invite = manager
+                .invite_member(
+                    &team.id,
+                    &format!("user{}@test.com", i),
+                    TeamRole::Member,
+                    "owner1",
+                    None,
+                )
+                .unwrap();
+            manager
+                .accept_invite(
+                    &invite.id,
+                    &format!("user{}", i),
+                    &format!("User {}", i),
+                    &format!("user{}@test.com", i),
+                )
+                .unwrap();
         }
 
         // 分享资源
-        manager.share_resource(&team.id, "owner1", ShareableResourceType::Server, "srv1", "Server 1", ShareType::Full, vec![]).unwrap();
-        manager.share_resource(&team.id, "owner1", ShareableResourceType::Snippet, "snip1", "Snippet 1", ShareType::Full, vec![]).unwrap();
+        manager
+            .share_resource(
+                &team.id,
+                "owner1",
+                ShareableResourceType::Server,
+                "srv1",
+                "Server 1",
+                ShareType::Full,
+                vec![],
+            )
+            .unwrap();
+        manager
+            .share_resource(
+                &team.id,
+                "owner1",
+                ShareableResourceType::Snippet,
+                "snip1",
+                "Snippet 1",
+                ShareType::Full,
+                vec![],
+            )
+            .unwrap();
 
         let stats = manager.get_team_stats(&team.id).unwrap();
         assert_eq!(stats.total_members, 4); // owner + 3 members
@@ -1955,11 +2336,23 @@ mod tests {
     #[test]
     fn test_team_activities() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 邀请成员会产生活动
-        let invite = manager.invite_member(&team.id, "member@test.com", TeamRole::Member, "owner1", None).unwrap();
-        manager.accept_invite(&invite.id, "member1", "Member", "member@test.com").unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "member@test.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
+        manager
+            .accept_invite(&invite.id, "member1", "Member", "member@test.com")
+            .unwrap();
 
         // 获取活动
         let activities = manager.get_team_activities(&team.id, 10);
@@ -1973,15 +2366,19 @@ mod tests {
     #[test]
     fn test_invite_with_custom_message() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
-        let invite = manager.invite_member(
-            &team.id,
-            "test@example.com",
-            TeamRole::Admin,
-            "owner1",
-            Some("Join our team!"),
-        ).unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "test@example.com",
+                TeamRole::Admin,
+                "owner1",
+                Some("Join our team!"),
+            )
+            .unwrap();
 
         assert_eq!(invite.custom_message, Some("Join our team!".to_string()));
         assert!(!invite.invite_code.is_empty());
@@ -1989,7 +2386,8 @@ mod tests {
 
     #[test]
     fn test_member_status_management() {
-        let mut member = TeamMember::new("team1", "user1", "User", "user@test.com", TeamRole::Member);
+        let mut member =
+            TeamMember::new("team1", "user1", "User", "user@test.com", TeamRole::Member);
 
         assert!(member.is_active());
 
@@ -2005,11 +2403,19 @@ mod tests {
     #[test]
     fn test_get_user_pending_invites() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
-        manager.invite_member(&team.id, "user1@test.com", TeamRole::Member, "owner1", None).unwrap();
-        manager.invite_member(&team.id, "user1@test.com", TeamRole::Viewer, "owner1", None).unwrap(); // 同一邮箱第二次邀请
-        manager.invite_member(&team.id, "user2@test.com", TeamRole::Member, "owner1", None).unwrap();
+        manager
+            .invite_member(&team.id, "user1@test.com", TeamRole::Member, "owner1", None)
+            .unwrap();
+        manager
+            .invite_member(&team.id, "user1@test.com", TeamRole::Viewer, "owner1", None)
+            .unwrap(); // 同一邮箱第二次邀请
+        manager
+            .invite_member(&team.id, "user2@test.com", TeamRole::Member, "owner1", None)
+            .unwrap();
 
         let pending = manager.get_user_pending_invites("user1@test.com");
         // 第一个邀请已被第二个覆盖（Pending状态检查）
@@ -2022,23 +2428,51 @@ mod tests {
     #[test]
     fn test_cannot_invite_existing_member() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
         // 先邀请并添加成员
-        let invite = manager.invite_member(&team.id, "member@test.com", TeamRole::Member, "owner1", None).unwrap();
-        manager.accept_invite(&invite.id, "member1", "Member", "member@test.com").unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "member@test.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
+        manager
+            .accept_invite(&invite.id, "member1", "Member", "member@test.com")
+            .unwrap();
 
         // 不能再次邀请同一邮箱
-        let result = manager.invite_member(&team.id, "member@test.com", TeamRole::Member, "owner1", None);
+        let result = manager.invite_member(
+            &team.id,
+            "member@test.com",
+            TeamRole::Member,
+            "owner1",
+            None,
+        );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_cannot_accept_with_wrong_email() {
         let mut manager = TeamManager::new();
-        let team = manager.create_team("Test Team", "owner1", Some("Owner")).unwrap();
+        let team = manager
+            .create_team("Test Team", "owner1", Some("Owner"))
+            .unwrap();
 
-        let invite = manager.invite_member(&team.id, "correct@example.com", TeamRole::Member, "owner1", None).unwrap();
+        let invite = manager
+            .invite_member(
+                &team.id,
+                "correct@example.com",
+                TeamRole::Member,
+                "owner1",
+                None,
+            )
+            .unwrap();
 
         // 使用错误的邮箱接受
         let result = manager.accept_invite(&invite.id, "user2", "User", "wrong@example.com");

@@ -2,8 +2,8 @@
 //!
 //! Provides a welcoming first-run experience with guided tutorials.
 
+use egui::{Align, Frame, Layout, Margin, RichText, Rounding, Stroke, Ui, Vec2};
 use std::time::Instant;
-use egui::{RichText, Ui, Vec2, Frame, Stroke, Rounding, Margin, Align, Layout};
 
 /// Onboarding state and progress tracking
 #[derive(Default)]
@@ -17,8 +17,9 @@ pub struct OnboardingState {
     pub last_shown: Option<Instant>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum OnboardingStep {
+    #[default]
     Welcome,
     AddServer,
     ConnectGuide,
@@ -27,12 +28,6 @@ pub enum OnboardingStep {
     SnippetsGuide,
     ShortcutsGuide,
     Complete,
-}
-
-impl Default for OnboardingStep {
-    fn default() -> Self {
-        OnboardingStep::Welcome
-    }
 }
 
 impl OnboardingStep {
@@ -140,7 +135,7 @@ impl OnboardingState {
     /// Advance to next step
     pub fn next_step(&mut self) {
         if !self.completed_steps.contains(&self.current_step) {
-            self.completed_steps.push(self.current_step.clone());
+            self.completed_steps.push(self.current_step);
         }
 
         if let Some(next) = self.current_step.next() {
@@ -206,7 +201,11 @@ impl Default for OnboardingWizard {
 }
 
 impl OnboardingWizard {
-    pub fn render(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    pub fn render(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let action;
 
         match self.state.current_step {
@@ -239,17 +238,18 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_welcome(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_welcome(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         ui.vertical_centered(|ui| {
             ui.add_space(48.0);
 
             // Welcome icon
-            ui.label(
-                RichText::new("🚀")
-                    .size(64.0)
-            );
+            ui.label(RichText::new("🚀").size(64.0));
 
             ui.add_space(24.0);
 
@@ -258,7 +258,7 @@ impl OnboardingWizard {
                 RichText::new("欢迎使用 EasySSH")
                     .size(28.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -267,7 +267,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("安全、高效的SSH客户端")
                     .size(16.0)
-                    .color(theme.text_secondary)
+                    .color(theme.text_secondary),
             );
 
             ui.add_space(32.0);
@@ -276,9 +276,21 @@ impl OnboardingWizard {
             ui.horizontal(|ui| {
                 self.render_feature_card(ui, theme, "🔒", "安全存储", "密码加密存储\n保障数据安全");
                 ui.add_space(16.0);
-                self.render_feature_card(ui, theme, "⚡", "快速连接", "一键连接服务器\n支持多种认证");
+                self.render_feature_card(
+                    ui,
+                    theme,
+                    "⚡",
+                    "快速连接",
+                    "一键连接服务器\n支持多种认证",
+                );
                 ui.add_space(16.0);
-                self.render_feature_card(ui, theme, "📁", "文件管理", "可视化SFTP浏览\n轻松传输文件");
+                self.render_feature_card(
+                    ui,
+                    theme,
+                    "📁",
+                    "文件管理",
+                    "可视化SFTP浏览\n轻松传输文件",
+                );
             });
 
             ui.add_space(48.0);
@@ -295,7 +307,7 @@ impl OnboardingWizard {
                             RichText::new("快速设置")
                                 .size(14.0)
                                 .strong()
-                                .color(theme.text_primary)
+                                .color(theme.text_primary),
                         );
 
                         ui.add_space(16.0);
@@ -305,7 +317,11 @@ impl OnboardingWizard {
                             ui.label("主题:");
                             ui.radio_value(&mut self.theme_preference, "light".to_string(), "浅色");
                             ui.radio_value(&mut self.theme_preference, "dark".to_string(), "深色");
-                            ui.radio_value(&mut self.theme_preference, "system".to_string(), "跟随系统");
+                            ui.radio_value(
+                                &mut self.theme_preference,
+                                "system".to_string(),
+                                "跟随系统",
+                            );
                         });
 
                         ui.add_space(8.0);
@@ -318,12 +334,15 @@ impl OnboardingWizard {
             }
 
             // Start button
-            if ui.add(
-                crate::design::AccessibleButton::new(theme, "开始使用 →")
-                    .style(crate::design::AccessibleButtonStyle::Primary)
-                    .build()
-                    .min_size(Vec2::new(200.0, 44.0))
-            ).clicked() {
+            if ui
+                .add(
+                    crate::design::AccessibleButton::new(theme, "开始使用 →")
+                        .style(crate::design::AccessibleButtonStyle::Primary)
+                        .build()
+                        .min_size(Vec2::new(200.0, 44.0)),
+                )
+                .clicked()
+            {
                 action = Some(OnboardingAction::Next);
             }
 
@@ -338,7 +357,11 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_add_server_guide(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_add_server_guide(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         self.render_step_header(ui, theme, OnboardingStep::AddServer);
@@ -350,7 +373,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("➕")
                     .size(48.0)
-                    .color(theme.interactive_primary)
+                    .color(theme.interactive_primary),
             );
 
             ui.add_space(16.0);
@@ -359,7 +382,7 @@ impl OnboardingWizard {
                 RichText::new("添加您的第一台服务器")
                     .size(20.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -382,14 +405,11 @@ impl OnboardingWizard {
 
             // Tip
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new("💡")
-                        .size(20.0)
-                );
+                ui.label(RichText::new("💡").size(20.0));
                 ui.label(
                     RichText::new("提示：您可以导入 ~/.ssh/config 文件快速添加多个服务器")
                         .size(13.0)
-                        .color(theme.text_secondary)
+                        .color(theme.text_secondary),
                 );
             });
 
@@ -402,7 +422,11 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_connect_guide(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_connect_guide(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         self.render_step_header(ui, theme, OnboardingStep::ConnectGuide);
@@ -413,7 +437,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("🔌")
                     .size(48.0)
-                    .color(theme.interactive_primary)
+                    .color(theme.interactive_primary),
             );
 
             ui.add_space(16.0);
@@ -422,7 +446,7 @@ impl OnboardingWizard {
                 RichText::new("连接到服务器")
                     .size(20.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -443,14 +467,11 @@ impl OnboardingWizard {
             ui.add_space(24.0);
 
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new("💡")
-                        .size(20.0)
-                );
+                ui.label(RichText::new("💡").size(20.0));
                 ui.label(
                     RichText::new("提示：勾选\"记住密码\"可自动填充下次登录")
                         .size(13.0)
-                        .color(theme.text_secondary)
+                        .color(theme.text_secondary),
                 );
             });
 
@@ -462,7 +483,11 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_terminal_guide(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_terminal_guide(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         self.render_step_header(ui, theme, OnboardingStep::TerminalGuide);
@@ -473,7 +498,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("▸")
                     .size(48.0)
-                    .color(theme.interactive_primary)
+                    .color(theme.interactive_primary),
             );
 
             ui.add_space(16.0);
@@ -482,7 +507,7 @@ impl OnboardingWizard {
                 RichText::new("使用终端")
                     .size(20.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -508,7 +533,11 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_file_browser_guide(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_file_browser_guide(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         self.render_step_header(ui, theme, OnboardingStep::FileBrowserGuide);
@@ -519,7 +548,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("📁")
                     .size(48.0)
-                    .color(theme.interactive_primary)
+                    .color(theme.interactive_primary),
             );
 
             ui.add_space(16.0);
@@ -528,7 +557,7 @@ impl OnboardingWizard {
                 RichText::new("文件管理")
                     .size(20.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -554,7 +583,11 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_snippets_guide(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_snippets_guide(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         self.render_step_header(ui, theme, OnboardingStep::SnippetsGuide);
@@ -565,7 +598,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("⚡")
                     .size(48.0)
-                    .color(theme.interactive_primary)
+                    .color(theme.interactive_primary),
             );
 
             ui.add_space(16.0);
@@ -574,7 +607,7 @@ impl OnboardingWizard {
                 RichText::new("命令片段")
                     .size(20.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -600,7 +633,11 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_shortcuts_guide(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_shortcuts_guide(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         self.render_step_header(ui, theme, OnboardingStep::ShortcutsGuide);
@@ -611,7 +648,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("⌨")
                     .size(48.0)
-                    .color(theme.interactive_primary)
+                    .color(theme.interactive_primary),
             );
 
             ui.add_space(16.0);
@@ -620,7 +657,7 @@ impl OnboardingWizard {
                 RichText::new("快捷键")
                     .size(20.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -646,7 +683,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("按 Ctrl+Shift+/ 随时查看完整的快捷键列表")
                     .size(13.0)
-                    .color(theme.text_secondary)
+                    .color(theme.text_secondary),
             );
 
             ui.add_space(32.0);
@@ -657,7 +694,11 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_complete(&mut self, ui: &mut Ui, theme: &crate::design::DesignTheme) -> Option<OnboardingAction> {
+    fn render_complete(
+        &mut self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+    ) -> Option<OnboardingAction> {
         let mut action = None;
 
         ui.vertical_centered(|ui| {
@@ -667,7 +708,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("✓")
                     .size(80.0)
-                    .color(crate::design::SemanticColors::SUCCESS)
+                    .color(crate::design::SemanticColors::SUCCESS),
             );
 
             ui.add_space(24.0);
@@ -676,7 +717,7 @@ impl OnboardingWizard {
                 RichText::new("准备就绪！")
                     .size(28.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -684,7 +725,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new("您已完成所有教程，可以开始使用 EasySSH 了")
                     .size(16.0)
-                    .color(theme.text_secondary)
+                    .color(theme.text_secondary),
             );
 
             ui.add_space(48.0);
@@ -694,7 +735,7 @@ impl OnboardingWizard {
                 RichText::new("接下来您可以：")
                     .size(14.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(16.0);
@@ -719,12 +760,15 @@ impl OnboardingWizard {
 
             ui.add_space(48.0);
 
-            if ui.add(
-                crate::design::AccessibleButton::new(theme, "开始使用")
-                    .style(crate::design::AccessibleButtonStyle::Primary)
-                    .build()
-                    .min_size(Vec2::new(200.0, 44.0))
-            ).clicked() {
+            if ui
+                .add(
+                    crate::design::AccessibleButton::new(theme, "开始使用")
+                        .style(crate::design::AccessibleButtonStyle::Primary)
+                        .build()
+                        .min_size(Vec2::new(200.0, 44.0)),
+                )
+                .clicked()
+            {
                 action = Some(OnboardingAction::Finish);
             }
         });
@@ -732,7 +776,12 @@ impl OnboardingWizard {
         action
     }
 
-    fn render_step_header(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, step: OnboardingStep) {
+    fn render_step_header(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        step: OnboardingStep,
+    ) {
         ui.horizontal(|ui| {
             // Progress indicator
             let total = OnboardingStep::total_steps() as f32;
@@ -742,23 +791,20 @@ impl OnboardingWizard {
             ui.add(
                 egui::ProgressBar::new(progress)
                     .desired_width(200.0)
-                    .text(format!("步骤 {} / {}", step.step_number(), total as usize))
+                    .text(format!("步骤 {} / {}", step.step_number(), total as usize)),
             );
         });
 
         ui.add_space(16.0);
 
         ui.horizontal(|ui| {
-            ui.label(
-                RichText::new(step.icon())
-                    .size(24.0)
-            );
+            ui.label(RichText::new(step.icon()).size(24.0));
 
             ui.label(
                 RichText::new(step.display_name())
                     .size(18.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -771,7 +817,14 @@ impl OnboardingWizard {
         ui.separator();
     }
 
-    fn render_feature_card(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, icon: &str, title: &str, description: &str) {
+    fn render_feature_card(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        icon: &str,
+        title: &str,
+        description: &str,
+    ) {
         Frame::group(ui.style())
             .fill(theme.bg_tertiary)
             .rounding(Rounding::same(8.0))
@@ -780,10 +833,7 @@ impl OnboardingWizard {
                 ui.set_width(120.0);
 
                 ui.vertical_centered(|ui| {
-                    ui.label(
-                        RichText::new(icon)
-                            .size(32.0)
-                    );
+                    ui.label(RichText::new(icon).size(32.0));
 
                     ui.add_space(8.0);
 
@@ -791,7 +841,7 @@ impl OnboardingWizard {
                         RichText::new(title)
                             .size(14.0)
                             .strong()
-                            .color(theme.text_primary)
+                            .color(theme.text_primary),
                     );
 
                     ui.add_space(4.0);
@@ -799,18 +849,24 @@ impl OnboardingWizard {
                     ui.label(
                         RichText::new(description)
                             .size(12.0)
-                            .color(theme.text_secondary)
+                            .color(theme.text_secondary),
                     );
                 });
             });
     }
 
-    fn render_guide_step(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, icon: &str, description: &str) {
+    fn render_guide_step(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        icon: &str,
+        description: &str,
+    ) {
         ui.horizontal(|ui| {
             ui.label(
                 RichText::new(icon)
                     .size(20.0)
-                    .color(theme.interactive_primary)
+                    .color(theme.interactive_primary),
             );
 
             ui.add_space(12.0);
@@ -818,14 +874,20 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new(description)
                     .size(14.0)
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
         });
 
         ui.add_space(12.0);
     }
 
-    fn render_shortcut_row(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, shortcut: &str, description: &str) {
+    fn render_shortcut_row(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        shortcut: &str,
+        description: &str,
+    ) {
         ui.horizontal(|ui| {
             // Shortcut key display
             Frame::group(ui.style())
@@ -837,7 +899,7 @@ impl OnboardingWizard {
                         RichText::new(shortcut)
                             .size(13.0)
                             .monospace()
-                            .color(theme.text_primary)
+                            .color(theme.text_primary),
                     );
                 });
 
@@ -846,7 +908,7 @@ impl OnboardingWizard {
             ui.label(
                 RichText::new(description)
                     .size(14.0)
-                    .color(theme.text_secondary)
+                    .color(theme.text_secondary),
             );
         });
 
@@ -863,25 +925,29 @@ impl OnboardingWizard {
         let mut action = None;
 
         ui.horizontal(|ui| {
-            if show_previous {
-                if ui.add(
-                    crate::design::AccessibleButton::new(theme, "← 上一步")
-                        .style(crate::design::AccessibleButtonStyle::Ghost)
-                        .build()
-                ).clicked() {
-                    action = Some(OnboardingAction::Previous);
-                }
+            if show_previous
+                && ui
+                    .add(
+                        crate::design::AccessibleButton::new(theme, "← 上一步")
+                            .style(crate::design::AccessibleButtonStyle::Ghost)
+                            .build(),
+                    )
+                    .clicked()
+            {
+                action = Some(OnboardingAction::Previous);
             }
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if show_next {
-                    if ui.add(
-                        crate::design::AccessibleButton::new(theme, "下一步 →")
-                            .style(crate::design::AccessibleButtonStyle::Primary)
-                            .build()
-                    ).clicked() {
-                        action = Some(OnboardingAction::Next);
-                    }
+                if show_next
+                    && ui
+                        .add(
+                            crate::design::AccessibleButton::new(theme, "下一步 →")
+                                .style(crate::design::AccessibleButtonStyle::Primary)
+                                .build(),
+                        )
+                        .clicked()
+                {
+                    action = Some(OnboardingAction::Next);
                 }
             });
         });
@@ -922,13 +988,16 @@ impl QuickTip {
         Frame::group(ui.style())
             .fill(crate::design::BrandColors::C500.linear_multiply(0.1))
             .rounding(Rounding::same(6.0))
-            .stroke(Stroke::new(1.0, crate::design::BrandColors::C500.linear_multiply(0.3)))
+            .stroke(Stroke::new(
+                1.0,
+                crate::design::BrandColors::C500.linear_multiply(0.3),
+            ))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(&self.icon)
                             .size(18.0)
-                            .color(crate::design::BrandColors::C500)
+                            .color(crate::design::BrandColors::C500),
                     );
 
                     ui.add_space(8.0);
@@ -936,7 +1005,7 @@ impl QuickTip {
                     ui.label(
                         RichText::new(&self.message)
                             .size(13.0)
-                            .color(theme.text_primary)
+                            .color(theme.text_primary),
                     );
                 });
             });

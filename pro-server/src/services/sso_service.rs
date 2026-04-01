@@ -59,7 +59,7 @@ impl SsoService {
 
     pub async fn list_team_sso_configs(&self, team_id: &str) -> Result<Vec<SsoConfig>> {
         let configs = sqlx::query_as::<_, SsoConfig>(
-            "SELECT * FROM sso_configs WHERE team_id = ? ORDER BY created_at DESC"
+            "SELECT * FROM sso_configs WHERE team_id = ? ORDER BY created_at DESC",
         )
         .bind(team_id)
         .fetch_all(&self.db)
@@ -69,12 +69,10 @@ impl SsoService {
     }
 
     pub async fn get_sso_config(&self, id: &str) -> Result<SsoConfig> {
-        let config = sqlx::query_as::<_, SsoConfig>(
-            "SELECT * FROM sso_configs WHERE id = ?"
-        )
-        .bind(id)
-        .fetch_one(&self.db)
-        .await?;
+        let config = sqlx::query_as::<_, SsoConfig>("SELECT * FROM sso_configs WHERE id = ?")
+            .bind(id)
+            .fetch_one(&self.db)
+            .await?;
 
         Ok(config)
     }
@@ -125,7 +123,9 @@ impl SsoService {
         // 4. Construct the redirect URL
 
         let state = Uuid::new_v4().to_string();
-        let sso_url = config.config.get("sso_url")
+        let sso_url = config
+            .config
+            .get("sso_url")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("SSO URL not configured"))?;
 
@@ -160,7 +160,9 @@ impl SsoService {
         let name = "SSO User"; // Would be extracted from SAML assertion
 
         // Find or create user
-        let user = self.find_or_create_sso_user(email, name, "saml", team_id).await?;
+        let user = self
+            .find_or_create_sso_user(email, name, "saml", team_id)
+            .await?;
 
         // Generate tokens
         let scopes = vec!["read".to_string(), "write".to_string()];
@@ -216,19 +218,32 @@ impl SsoService {
         .await?;
 
         let state = Uuid::new_v4().to_string();
-        let authorization_url = config.config.get("authorization_url")
+        let authorization_url = config
+            .config
+            .get("authorization_url")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Authorization URL not configured"))?;
-        let client_id = config.config.get("client_id")
+        let client_id = config
+            .config
+            .get("client_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Client ID not configured"))?;
-        let redirect_url = config.config.get("redirect_url")
+        let redirect_url = config
+            .config
+            .get("redirect_url")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Redirect URL not configured"))?;
 
-        let scopes = config.config.get("scopes")
+        let scopes = config
+            .config
+            .get("scopes")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("+"))
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str())
+                    .collect::<Vec<_>>()
+                    .join("+")
+            })
             .unwrap_or_else(|| "openid+profile+email".to_string());
 
         let url = format!(
@@ -261,13 +276,19 @@ impl SsoService {
         // 2. Get user info from userinfo endpoint
         // 3. Find or create user
 
-        let _token_url = config.config.get("token_url")
+        let _token_url = config
+            .config
+            .get("token_url")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Token URL not configured"))?;
-        let _client_id = config.config.get("client_id")
+        let _client_id = config
+            .config
+            .get("client_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Client ID not configured"))?;
-        let _client_secret = config.config.get("client_secret")
+        let _client_secret = config
+            .config
+            .get("client_secret")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Client secret not configured"))?;
 
@@ -275,7 +296,9 @@ impl SsoService {
         let email = "user@example.com";
         let name = "OIDC User";
 
-        let user = self.find_or_create_sso_user(email, name, "oidc", team_id).await?;
+        let user = self
+            .find_or_create_sso_user(email, name, "oidc", team_id)
+            .await?;
 
         let scopes = vec!["read".to_string(), "write".to_string()];
         let access_token = create_access_token(
@@ -309,12 +332,11 @@ impl SsoService {
         _team_id: &str,
     ) -> Result<User> {
         // Try to find existing user
-        let existing: Option<User> = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE email = ? AND is_active = TRUE"
-        )
-        .bind(email)
-        .fetch_optional(&self.db)
-        .await?;
+        let existing: Option<User> =
+            sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ? AND is_active = TRUE")
+                .bind(email)
+                .fetch_optional(&self.db)
+                .await?;
 
         if let Some(mut user) = existing {
             // Update SSO info if not set

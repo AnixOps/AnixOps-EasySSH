@@ -9,7 +9,6 @@
 /// 5. Render Optimizer - Reduces egui unnecessary redraws
 /// 6. Connection Pool Optimizer - TCP connection reuse
 ///
-
 pub mod connection_pool;
 pub mod memory_pool;
 pub mod monitor;

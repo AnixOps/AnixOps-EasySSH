@@ -1,11 +1,11 @@
-use gtk4::prelude::*;
 use gtk4::glib;
+use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::sync::mpsc as std_mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::mpsc as std_mpsc;
 use std::time::Instant;
 
 use crate::app::AppViewModel;
@@ -133,7 +133,8 @@ impl MetricCard {
     fn update(&self, value: f32, suffix: &str) {
         let value = value.clamp(0.0, 100.0);
         self.bar.set_value(value as f64);
-        self.value_label.set_text(&format!("{:.1}{}", value, suffix));
+        self.value_label
+            .set_text(&format!("{:.1}{}", value, suffix));
 
         // Update color based on value
         if value > 80.0 {
@@ -345,23 +346,46 @@ impl MonitorPanel {
 
     fn setup_signals(&self) {
         // Refresh button click
-        self.refresh_button.connect_clicked(glib::clone!(@weak self as panel => move |_| {
-            panel.refresh();
-        }));
+        self.refresh_button
+            .connect_clicked(glib::clone!(@weak self as panel => move |_| {
+                panel.refresh();
+            }));
     }
 
     fn setup_charts(&self) {
         // CPU chart draw function
         let history_cpu = self.history.clone();
-        self.cpu_chart.set_draw_func(move |area, cr, width, height| {
-            draw_metric_chart(area, cr, width, height, &history_cpu.borrow(), |p| p.cpu, 0.0, 100.0, "CPU %");
-        });
+        self.cpu_chart
+            .set_draw_func(move |area, cr, width, height| {
+                draw_metric_chart(
+                    area,
+                    cr,
+                    width,
+                    height,
+                    &history_cpu.borrow(),
+                    |p| p.cpu,
+                    0.0,
+                    100.0,
+                    "CPU %",
+                );
+            });
 
         // Memory chart draw function
         let history_mem = self.history.clone();
-        self.memory_chart.set_draw_func(move |area, cr, width, height| {
-            draw_metric_chart(area, cr, width, height, &history_mem.borrow(), |p| p.memory, 0.0, 100.0, "Memory %");
-        });
+        self.memory_chart
+            .set_draw_func(move |area, cr, width, height| {
+                draw_metric_chart(
+                    area,
+                    cr,
+                    width,
+                    height,
+                    &history_mem.borrow(),
+                    |p| p.memory,
+                    0.0,
+                    100.0,
+                    "Memory %",
+                );
+            });
     }
 
     fn setup_auto_refresh(&self) {
@@ -373,9 +397,11 @@ impl MonitorPanel {
         let last_refresh_cell = self.last_refresh.clone();
 
         // Auto-refresh toggle
-        self.auto_refresh_switch.connect_active_notify(glib::clone!(@weak self as panel => move |switch| {
-            *panel.auto_refresh.borrow_mut() = switch.is_active();
-        }));
+        self.auto_refresh_switch.connect_active_notify(
+            glib::clone!(@weak self as panel => move |switch| {
+                *panel.auto_refresh.borrow_mut() = switch.is_active();
+            }),
+        );
 
         // Timer for auto-refresh
         glib::timeout_add_local(std::time::Duration::from_secs(1), move || {
@@ -383,7 +409,9 @@ impl MonitorPanel {
                 // Check auto-refresh
                 if *auto_refresh_cell.borrow() {
                     if let Some(last) = *last_refresh_cell.borrow() {
-                        if last.elapsed().as_secs() >= REFRESH_INTERVAL_SECS && !*refreshing_cell.borrow() {
+                        if last.elapsed().as_secs() >= REFRESH_INTERVAL_SECS
+                            && !*refreshing_cell.borrow()
+                        {
                             // Trigger refresh
                             if session_id_cell.borrow().is_some() {
                                 // We'll trigger refresh on next poll
@@ -411,7 +439,8 @@ impl MonitorPanel {
         self.net_prev.replace(None);
 
         if session_id.is_some() {
-            self.status_label.set_text("Connected - click refresh to load metrics");
+            self.status_label
+                .set_text("Connected - click refresh to load metrics");
             self.refresh_button.set_sensitive(true);
         } else {
             self.status_label.set_text("Not connected");
@@ -628,7 +657,10 @@ fn draw_metric_chart<F>(
 
         // Fill area under line
         cr.set_source_rgba(r, g, b, 0.2);
-        cr.line_to(padding + (values.len() - 1) as f64 * step_x, padding + chart_height);
+        cr.line_to(
+            padding + (values.len() - 1) as f64 * step_x,
+            padding + chart_height,
+        );
         cr.line_to(padding, padding + chart_height);
         cr.close_path();
         cr.fill().ok();
@@ -718,7 +750,9 @@ fn collect_monitor_snapshot(
             if let Some(line) = output.lines().next() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 6 {
-                    if let (Ok(total), Ok(used)) = (parts[1].parse::<u64>(), parts[2].parse::<u64>()) {
+                    if let (Ok(total), Ok(used)) =
+                        (parts[1].parse::<u64>(), parts[2].parse::<u64>())
+                    {
                         if total > 0 {
                             disk_val = (used as f32 / total as f32) * 100.0;
                         }

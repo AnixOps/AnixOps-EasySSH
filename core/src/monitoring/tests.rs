@@ -8,10 +8,11 @@ mod tests {
         Alert, AlertCondition, AlertEngine, AlertEngineConfig, AlertRule, AlertSeverity,
         AlertStatus, CapacityForecast, CapacityRecommendation, CapacityStatus, ChartSeries,
         ChartType, CustomDashboard, DashboardBuilder, DashboardFormatter, DashboardTemplates,
-        DashboardViewModel, HealthSummary, LayoutAlgorithm, MetricPoint, MetricType, MonitoringConfig,
-        MonitoringManager, NotificationChannel, NotificationChannelType, Priority, ResourceType,
-        ServerConnectionConfig, ServerHealthCard, ServerHealthStatus, ServerMetrics, ServerOverview,
-        TimeRange, TopologyBuilder, TopologyLayout, TrendDirection, WidgetConfig, WidgetType,
+        DashboardViewModel, HealthSummary, LayoutAlgorithm, MetricPoint, MetricType,
+        MonitoringConfig, MonitoringManager, NotificationChannel, NotificationChannelType,
+        Priority, ResourceType, ServerConnectionConfig, ServerHealthCard, ServerHealthStatus,
+        ServerMetrics, ServerOverview, TimeRange, TopologyBuilder, TopologyLayout, TrendDirection,
+        WidgetConfig, WidgetType,
     };
 
     /// Test creating a monitoring manager
@@ -58,7 +59,10 @@ mod tests {
         assert!(condition.evaluate(10.0, 5.0));
         assert!(!condition.evaluate(5.0, 10.0));
 
-        let condition = AlertCondition::Between { min: 10.0, max: 20.0 };
+        let condition = AlertCondition::Between {
+            min: 10.0,
+            max: 20.0,
+        };
         assert!(condition.evaluate(15.0, 0.0));
         assert!(!condition.evaluate(5.0, 0.0));
         assert!(!condition.evaluate(25.0, 0.0));
@@ -94,7 +98,10 @@ mod tests {
         assert_eq!(MetricType::CpuUsage.category(), MetricCategory::Cpu);
         assert_eq!(MetricType::MemoryUsage.category(), MetricCategory::Memory);
         assert_eq!(MetricType::DiskUsage.category(), MetricCategory::Disk);
-        assert_eq!(MetricType::NetworkRxBytes.category(), MetricCategory::Network);
+        assert_eq!(
+            MetricType::NetworkRxBytes.category(),
+            MetricCategory::Network
+        );
         assert_eq!(MetricType::ProcessCount.category(), MetricCategory::Process);
     }
 
@@ -137,9 +144,21 @@ mod tests {
     fn test_topology_builder() {
         let topology = TopologyBuilder::new()
             .with_load_balancer("lb1", "Load Balancer 1")
-            .with_server("web1", "Web Server 1", crate::monitoring::topology::TopologyStatus::Online)
-            .with_server("web2", "Web Server 2", crate::monitoring::topology::TopologyStatus::Online)
-            .with_database("db1", "Database 1", crate::monitoring::topology::TopologyStatus::Online)
+            .with_server(
+                "web1",
+                "Web Server 1",
+                crate::monitoring::topology::TopologyStatus::Online,
+            )
+            .with_server(
+                "web2",
+                "Web Server 2",
+                crate::monitoring::topology::TopologyStatus::Online,
+            )
+            .with_database(
+                "db1",
+                "Database 1",
+                crate::monitoring::topology::TopologyStatus::Online,
+            )
             .with_connection("lb1", "web1")
             .with_connection("lb1", "web2")
             .with_connection("web1", "db1")
@@ -153,7 +172,9 @@ mod tests {
     /// Test topology auto layout
     #[test]
     fn test_topology_auto_layout() {
-        use crate::monitoring::topology::{ServerTopology, TopologyNode, TopologyNodeType, TopologyStatus};
+        use crate::monitoring::topology::{
+            ServerTopology, TopologyNode, TopologyNodeType, TopologyStatus,
+        };
         use std::collections::HashMap;
 
         let mut topology = ServerTopology::new();
@@ -213,7 +234,10 @@ mod tests {
         // Test bytes formatting
         assert_eq!(DashboardFormatter::format_bytes(1024), "1.00 KB");
         assert_eq!(DashboardFormatter::format_bytes(1024 * 1024), "1.00 MB");
-        assert_eq!(DashboardFormatter::format_bytes(1024 * 1024 * 1024), "1.00 GB");
+        assert_eq!(
+            DashboardFormatter::format_bytes(1024 * 1024 * 1024),
+            "1.00 GB"
+        );
 
         // Test duration formatting
         assert_eq!(DashboardFormatter::format_duration(60), "1m");
@@ -240,7 +264,7 @@ mod tests {
             cpu_load1: 2.0,
             cpu_load5: 1.5,
             cpu_load15: 1.0,
-            memory_used: 4 * 1024 * 1024 * 1024, // 4GB
+            memory_used: 4 * 1024 * 1024 * 1024,   // 4GB
             memory_total: 16 * 1024 * 1024 * 1024, // 16GB
             memory_free: 12 * 1024 * 1024 * 1024,
             memory_buffers: 512 * 1024 * 1024,
@@ -279,18 +303,27 @@ mod tests {
             extra: std::collections::HashMap::new(),
         };
 
-        assert!(matches!(healthy_metrics.health_status(), ServerHealthStatus::Healthy));
+        assert!(matches!(
+            healthy_metrics.health_status(),
+            ServerHealthStatus::Healthy
+        ));
 
         // Test critical threshold
         let mut critical_metrics = healthy_metrics.clone();
         critical_metrics.cpu_usage = 95.0;
-        assert!(matches!(critical_metrics.health_status(), ServerHealthStatus::Critical));
+        assert!(matches!(
+            critical_metrics.health_status(),
+            ServerHealthStatus::Critical
+        ));
 
         // Test warning threshold
         let mut warning_metrics = healthy_metrics.clone();
         warning_metrics.cpu_usage = 75.0;
         warning_metrics.memory_used = 12 * 1024 * 1024 * 1024; // 75% memory
-        assert!(matches!(warning_metrics.health_status(), ServerHealthStatus::Warning));
+        assert!(matches!(
+            warning_metrics.health_status(),
+            ServerHealthStatus::Warning
+        ));
     }
 
     /// Test widget configuration
@@ -382,22 +415,18 @@ mod tests {
             days_until_critical: Some(45),
             growth_rate_per_day: 0.5,
             confidence: 0.85,
-            forecast_points: vec![
-                crate::monitoring::metrics::ForecastPoint {
-                    timestamp: 1893456000,
-                    predicted_usage: 90.0,
-                    lower_bound: 85.0,
-                    upper_bound: 95.0,
-                },
-            ],
-            recommendations: vec![
-                CapacityRecommendation {
-                    priority: Priority::High,
-                    message: "Disk will reach 90% capacity in 45 days".to_string(),
-                    action: "Add storage capacity".to_string(),
-                    estimated_cost: Some("$200/month".to_string()),
-                },
-            ],
+            forecast_points: vec![crate::monitoring::metrics::ForecastPoint {
+                timestamp: 1893456000,
+                predicted_usage: 90.0,
+                lower_bound: 85.0,
+                upper_bound: 95.0,
+            }],
+            recommendations: vec![CapacityRecommendation {
+                priority: Priority::High,
+                message: "Disk will reach 90% capacity in 45 days".to_string(),
+                action: "Add storage capacity".to_string(),
+                estimated_cost: Some("$200/month".to_string()),
+            }],
         };
 
         assert_eq!(forecast.server_id, "server-1");
@@ -442,24 +471,22 @@ mod tests {
             offline: 0,
             unknown: 0,
             total_alerts: 3,
-            servers: vec![
-                ServerOverview {
-                    server_id: "srv-001".to_string(),
-                    server_name: "Web Server 1".to_string(),
-                    host: "10.0.0.1".to_string(),
-                    status: ServerHealthStatus::Healthy,
-                    last_seen: Some(1234567890),
-                    uptime_seconds: Some(86400),
-                    cpu_percent: Some(30.0),
-                    memory_percent: Some(50.0),
-                    disk_percent: Some(60.0),
-                    network_rx_mbps: Some(100.0),
-                    network_tx_mbps: Some(50.0),
-                    active_alerts: 0,
-                    os_info: None,
-                    location: None,
-                },
-            ],
+            servers: vec![ServerOverview {
+                server_id: "srv-001".to_string(),
+                server_name: "Web Server 1".to_string(),
+                host: "10.0.0.1".to_string(),
+                status: ServerHealthStatus::Healthy,
+                last_seen: Some(1234567890),
+                uptime_seconds: Some(86400),
+                cpu_percent: Some(30.0),
+                memory_percent: Some(50.0),
+                disk_percent: Some(60.0),
+                network_rx_mbps: Some(100.0),
+                network_tx_mbps: Some(50.0),
+                active_alerts: 0,
+                os_info: None,
+                location: None,
+            }],
         };
 
         assert_eq!(summary.total_servers, 10);
@@ -534,22 +561,20 @@ mod tests {
             id: "dash-001".to_string(),
             name: "My Custom Dashboard".to_string(),
             description: Some("A custom monitoring dashboard".to_string()),
-            widgets: vec![
-                WidgetConfig {
-                    id: "widget-1".to_string(),
-                    widget_type: WidgetType::ServerHealth,
-                    title: "Health".to_string(),
-                    x: 0,
-                    y: 0,
-                    width: 6,
-                    height: 4,
-                    server_ids: vec![],
-                    metric_types: vec![],
-                    refresh_interval_secs: 30,
-                    time_range: TimeRange::Last15Minutes,
-                    custom_config: std::collections::HashMap::new(),
-                },
-            ],
+            widgets: vec![WidgetConfig {
+                id: "widget-1".to_string(),
+                widget_type: WidgetType::ServerHealth,
+                title: "Health".to_string(),
+                x: 0,
+                y: 0,
+                width: 6,
+                height: 4,
+                server_ids: vec![],
+                metric_types: vec![],
+                refresh_interval_secs: 30,
+                time_range: TimeRange::Last15Minutes,
+                custom_config: std::collections::HashMap::new(),
+            }],
             is_default: false,
             is_large_screen: false,
             created_at: 1234567890,

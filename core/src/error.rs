@@ -174,32 +174,36 @@ impl LiteError {
     /// Get translation arguments for this error
     pub fn translation_args(&self) -> Vec<(&'static str, String)> {
         match self {
-            LiteError::Database(msg) |
-            LiteError::Docker(msg) |
-            LiteError::Git(msg) |
-            LiteError::Sso(msg) |
-            LiteError::Crypto(msg) |
-            LiteError::Keychain(msg) |
-            LiteError::Terminal(msg) |
-            LiteError::TerminalEmulator(msg) |
-            LiteError::Layout(msg) |
-            LiteError::Team(msg) |
-            LiteError::Audit(msg) |
-            LiteError::Rbac(msg) |
-            LiteError::Ssh(msg) |
-            LiteError::Config(msg) |
-            LiteError::Io(msg) |
-            LiteError::Json(msg) |
-            LiteError::SshChannelFailed(msg) |
-            LiteError::ImportFailed(msg) |
-            LiteError::ExportFailed(msg) |
-            LiteError::RecordingError(msg) |
-            LiteError::SessionRecording(msg) |
-            LiteError::InvalidKey(msg) |
-            LiteError::RemoteDesktop(msg) => {
+            LiteError::Database(msg)
+            | LiteError::Docker(msg)
+            | LiteError::Git(msg)
+            | LiteError::Sso(msg)
+            | LiteError::Crypto(msg)
+            | LiteError::Keychain(msg)
+            | LiteError::Terminal(msg)
+            | LiteError::TerminalEmulator(msg)
+            | LiteError::Layout(msg)
+            | LiteError::Team(msg)
+            | LiteError::Audit(msg)
+            | LiteError::Rbac(msg)
+            | LiteError::Ssh(msg)
+            | LiteError::Config(msg)
+            | LiteError::Io(msg)
+            | LiteError::Json(msg)
+            | LiteError::SshChannelFailed(msg)
+            | LiteError::ImportFailed(msg)
+            | LiteError::ExportFailed(msg)
+            | LiteError::RecordingError(msg)
+            | LiteError::SessionRecording(msg)
+            | LiteError::InvalidKey(msg)
+            | LiteError::RemoteDesktop(msg) => {
                 vec![("message", msg.clone())]
             }
-            LiteError::SshConnectionFailed { host, port, message } => {
+            LiteError::SshConnectionFailed {
+                host,
+                port,
+                message,
+            } => {
                 vec![
                     ("host", host.clone()),
                     ("port", port.to_string()),
@@ -207,31 +211,23 @@ impl LiteError {
                 ]
             }
             LiteError::SshAuthFailed { host, username } => {
-                vec![
-                    ("host", host.clone()),
-                    ("username", username.clone()),
-                ]
+                vec![("host", host.clone()), ("username", username.clone())]
             }
-            LiteError::SshSessionNotFound(id) |
-            LiteError::SshSessionDisconnected(id) |
-            LiteError::SessionNotFound(id) |
-            LiteError::ServerNotFound(id) |
-            LiteError::GroupNotFound(id) => {
+            LiteError::SshSessionNotFound(id)
+            | LiteError::SshSessionDisconnected(id)
+            | LiteError::SessionNotFound(id)
+            | LiteError::ServerNotFound(id)
+            | LiteError::GroupNotFound(id) => {
                 vec![("0", id.clone())]
             }
             LiteError::FileNotFound { path } => {
                 vec![("path", path.clone())]
             }
             LiteError::FeatureNotAvailable { feature, edition } => {
-                vec![
-                    ("feature", feature.clone()),
-                    ("edition", edition.clone()),
-                ]
+                vec![("feature", feature.clone()), ("edition", edition.clone())]
             }
             LiteError::GitMergeConflict { files } => {
-                vec![
-                    ("files", files.join(", ")),
-                ]
+                vec![("files", files.join(", "))]
             }
             _ => vec![],
         }
@@ -361,12 +357,16 @@ mod tests {
         let _ = LiteError::ConnectionReset;
         let _ = LiteError::ImportFailed("test".to_string());
         let _ = LiteError::ExportFailed("test".to_string());
-        let _ = LiteError::FileNotFound { path: "/test".to_string() };
+        let _ = LiteError::FileNotFound {
+            path: "/test".to_string(),
+        };
         let _ = LiteError::InvalidKey("test".to_string());
         let _ = LiteError::Telemetry("test".to_string());
         let _ = LiteError::Docker("test".to_string());
         let _ = LiteError::Git("test".to_string());
-        let _ = LiteError::GitMergeConflict { files: vec!["file.txt".to_string()] };
+        let _ = LiteError::GitMergeConflict {
+            files: vec!["file.txt".to_string()],
+        };
         let _ = LiteError::FeatureNotAvailable {
             feature: "pro".to_string(),
             edition: "lite".to_string(),

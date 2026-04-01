@@ -7,14 +7,17 @@
 //! - Ollama
 //! - llamafile
 
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::process::{Command, Stdio};
 use std::time::Duration;
-use anyhow::{Result, Context};
 
-use super::{AiProvider, ChatRequest, ChatResponse, LocalModelType, Message, ProviderConfig, ProviderType, Role, TokenUsage};
+use super::{
+    AiProvider, ChatRequest, ChatResponse, LocalModelType, Message, ProviderConfig, ProviderType,
+    Role, TokenUsage,
+};
 
 pub struct LocalProvider {
     client: Client,
@@ -30,7 +33,9 @@ impl LocalProvider {
             .build()
             .expect("Failed to create HTTP client");
 
-        let model_type = ProviderConfig::default().local_model_type.unwrap_or(LocalModelType::Ollama);
+        let model_type = ProviderConfig::default()
+            .local_model_type
+            .unwrap_or(LocalModelType::Ollama);
 
         let base_url = match model_type {
             LocalModelType::LlamaCpp => "http://localhost:8080".to_string(),
@@ -97,10 +102,12 @@ impl LocalProvider {
         let messages: Vec<Value> = request
             .messages
             .iter()
-            .map(|m| json!({
-                "role": m.role.as_str(),
-                "content": m.content,
-            }))
+            .map(|m| {
+                json!({
+                    "role": m.role.as_str(),
+                    "content": m.content,
+                })
+            })
             .collect();
 
         let body = json!({
@@ -141,9 +148,7 @@ impl LocalProvider {
             .unwrap_or("")
             .to_string();
 
-        let done_reason = response_json["done_reason"]
-            .as_str()
-            .map(|s| s.to_string());
+        let done_reason = response_json["done_reason"].as_str().map(|s| s.to_string());
 
         Ok(ChatResponse {
             content,
@@ -188,14 +193,9 @@ impl LocalProvider {
             .await
             .context("Failed to parse llama.cpp response")?;
 
-        let content = response_json["content"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
+        let content = response_json["content"].as_str().unwrap_or("").to_string();
 
-        let stop_type = response_json["stop_type"]
-            .as_str()
-            .map(|s| s.to_string());
+        let stop_type = response_json["stop_type"].as_str().map(|s| s.to_string());
 
         let tokens_evaluated = response_json["tokens_evaluated"].as_u64().unwrap_or(0) as u32;
         let tokens_predicted = response_json["tokens_predicted"].as_u64().unwrap_or(0) as u32;
@@ -213,7 +213,12 @@ impl LocalProvider {
 
     /// 检查Ollama是否运行
     pub async fn is_ollama_running(&self) -> bool {
-        match self.client.get(&format!("{}/api/tags", self.base_url)).send().await {
+        match self
+            .client
+            .get(format!("{}/api/tags", self.base_url))
+            .send()
+            .await
+        {
             Ok(response) => response.status().is_success(),
             Err(_) => false,
         }
@@ -221,7 +226,12 @@ impl LocalProvider {
 
     /// 检查llama.cpp server是否运行
     pub async fn is_llamacpp_running(&self) -> bool {
-        match self.client.get(&format!("{}/health", self.base_url)).send().await {
+        match self
+            .client
+            .get(format!("{}/health", self.base_url))
+            .send()
+            .await
+        {
             Ok(response) => response.status().is_success(),
             Err(_) => false,
         }
@@ -278,11 +288,16 @@ impl LocalProvider {
                         }
                     }
 
-                    return Err(anyhow::anyhow!("llamafile failed to start within 30 seconds"));
+                    return Err(anyhow::anyhow!(
+                        "llamafile failed to start within 30 seconds"
+                    ));
                 }
                 _ => {
                     // Ollama和llama.cpp需要手动启动
-                    return Err(anyhow::anyhow!("Please start the {} server manually", self.model_type.as_str()));
+                    return Err(anyhow::anyhow!(
+                        "Please start the {} server manually",
+                        self.model_type.as_str()
+                    ));
                 }
             }
         }

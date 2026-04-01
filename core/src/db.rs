@@ -668,7 +668,8 @@ impl Database {
     }
 
     pub fn delete_identity(&self, id: &str) -> Result<(), LiteError> {
-        self.conn.execute("DELETE FROM identities WHERE id = ?", [id])?;
+        self.conn
+            .execute("DELETE FROM identities WHERE id = ?", [id])?;
         Ok(())
     }
 
@@ -737,7 +738,8 @@ impl Database {
     }
 
     pub fn delete_snippet(&self, id: &str) -> Result<(), LiteError> {
-        self.conn.execute("DELETE FROM snippets WHERE id = ?", [id])?;
+        self.conn
+            .execute("DELETE FROM snippets WHERE id = ?", [id])?;
         Ok(())
     }
 
@@ -800,7 +802,8 @@ impl Database {
     }
 
     pub fn delete_session(&self, id: &str) -> Result<(), LiteError> {
-        self.conn.execute("DELETE FROM sessions WHERE id = ?", [id])?;
+        self.conn
+            .execute("DELETE FROM sessions WHERE id = ?", [id])?;
         Ok(())
     }
 
@@ -863,7 +866,8 @@ impl Database {
     }
 
     pub fn delete_layout(&self, id: &str) -> Result<(), LiteError> {
-        self.conn.execute("DELETE FROM layouts WHERE id = ?", [id])?;
+        self.conn
+            .execute("DELETE FROM layouts WHERE id = ?", [id])?;
         Ok(())
     }
 
@@ -921,7 +925,8 @@ impl Database {
     }
 
     pub fn delete_sync_state(&self, id: &str) -> Result<(), LiteError> {
-        self.conn.execute("DELETE FROM sync_state WHERE id = ?", [id])?;
+        self.conn
+            .execute("DELETE FROM sync_state WHERE id = ?", [id])?;
         Ok(())
     }
 
@@ -975,14 +980,16 @@ impl Database {
 
     // ============ Remote Desktop Connection Methods ============
 
-    pub fn get_remote_desktop_connections(&self) -> Result<Vec<RemoteDesktopConnectionRecord>, LiteError> {
+    pub fn get_remote_desktop_connections(
+        &self,
+    ) -> Result<Vec<RemoteDesktopConnectionRecord>, LiteError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, host_id, name, protocol, host, port, username, domain, password_encrypted,
                     use_ssh_tunnel, ssh_host, ssh_port, ssh_username, ssh_auth_type,
                     display_settings_json, performance_settings_json, local_resources_json,
                     experience_settings_json, gateway_settings_json, recording_settings_json,
                     group_id, created_at, updated_at
-             FROM remote_desktop_connections ORDER BY name"
+             FROM remote_desktop_connections ORDER BY name",
         )?;
 
         let connections = stmt
@@ -1018,14 +1025,17 @@ impl Database {
         Ok(connections)
     }
 
-    pub fn get_remote_desktop_connection(&self, id: &str) -> Result<RemoteDesktopConnectionRecord, LiteError> {
+    pub fn get_remote_desktop_connection(
+        &self,
+        id: &str,
+    ) -> Result<RemoteDesktopConnectionRecord, LiteError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, host_id, name, protocol, host, port, username, domain, password_encrypted,
                     use_ssh_tunnel, ssh_host, ssh_port, ssh_username, ssh_auth_type,
                     display_settings_json, performance_settings_json, local_resources_json,
                     experience_settings_json, gateway_settings_json, recording_settings_json,
                     group_id, created_at, updated_at
-             FROM remote_desktop_connections WHERE id = ?"
+             FROM remote_desktop_connections WHERE id = ?",
         )?;
 
         let connection = stmt.query_row([id], |row| {
@@ -1059,7 +1069,10 @@ impl Database {
         Ok(connection)
     }
 
-    pub fn add_remote_desktop_connection(&self, connection: &NewRemoteDesktopConnection) -> Result<(), LiteError> {
+    pub fn add_remote_desktop_connection(
+        &self,
+        connection: &NewRemoteDesktopConnection,
+    ) -> Result<(), LiteError> {
         let now = chrono_now();
         self.conn.execute(
             "INSERT INTO remote_desktop_connections
@@ -1098,7 +1111,10 @@ impl Database {
         Ok(())
     }
 
-    pub fn update_remote_desktop_connection(&self, connection: &UpdateRemoteDesktopConnection) -> Result<(), LiteError> {
+    pub fn update_remote_desktop_connection(
+        &self,
+        connection: &UpdateRemoteDesktopConnection,
+    ) -> Result<(), LiteError> {
         let now = chrono_now();
         self.conn.execute(
             "UPDATE remote_desktop_connections SET
@@ -1137,16 +1153,16 @@ impl Database {
     }
 
     pub fn delete_remote_desktop_connection(&self, id: &str) -> Result<(), LiteError> {
-        self.conn.execute(
-            "DELETE FROM remote_desktop_connections WHERE id = ?",
-            [id]
-        )?;
+        self.conn
+            .execute("DELETE FROM remote_desktop_connections WHERE id = ?", [id])?;
         Ok(())
     }
 
     // ============ Remote Desktop Session Methods ============
 
-    pub fn get_remote_desktop_sessions(&self) -> Result<Vec<RemoteDesktopSessionRecord>, LiteError> {
+    pub fn get_remote_desktop_sessions(
+        &self,
+    ) -> Result<Vec<RemoteDesktopSessionRecord>, LiteError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, connection_id, status, started_at, ended_at, recording_path, recording_active
              FROM remote_desktop_sessions ORDER BY started_at DESC"
@@ -1169,7 +1185,10 @@ impl Database {
         Ok(sessions)
     }
 
-    pub fn get_remote_desktop_session(&self, id: &str) -> Result<RemoteDesktopSessionRecord, LiteError> {
+    pub fn get_remote_desktop_session(
+        &self,
+        id: &str,
+    ) -> Result<RemoteDesktopSessionRecord, LiteError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, connection_id, status, started_at, ended_at, recording_path, recording_active
              FROM remote_desktop_sessions WHERE id = ?"
@@ -1190,7 +1209,10 @@ impl Database {
         Ok(session)
     }
 
-    pub fn add_remote_desktop_session(&self, session: &NewRemoteDesktopSession) -> Result<(), LiteError> {
+    pub fn add_remote_desktop_session(
+        &self,
+        session: &NewRemoteDesktopSession,
+    ) -> Result<(), LiteError> {
         self.conn.execute(
             "INSERT INTO remote_desktop_sessions
              (id, connection_id, status, started_at, ended_at, recording_path, recording_active)
@@ -1208,7 +1230,10 @@ impl Database {
         Ok(())
     }
 
-    pub fn update_remote_desktop_session(&self, session: &UpdateRemoteDesktopSession) -> Result<(), LiteError> {
+    pub fn update_remote_desktop_session(
+        &self,
+        session: &UpdateRemoteDesktopSession,
+    ) -> Result<(), LiteError> {
         self.conn.execute(
             "UPDATE remote_desktop_sessions SET
                 connection_id = ?, status = ?, started_at = ?, ended_at = ?,
@@ -1228,10 +1253,8 @@ impl Database {
     }
 
     pub fn delete_remote_desktop_session(&self, id: &str) -> Result<(), LiteError> {
-        self.conn.execute(
-            "DELETE FROM remote_desktop_sessions WHERE id = ?",
-            [id]
-        )?;
+        self.conn
+            .execute("DELETE FROM remote_desktop_sessions WHERE id = ?", [id])?;
         Ok(())
     }
 }

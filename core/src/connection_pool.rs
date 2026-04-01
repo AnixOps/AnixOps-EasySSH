@@ -11,7 +11,7 @@
 
 use crate::error::LiteError;
 use crate::ssh::{ConnectionHealth, SessionMetadata, SshSessionManager};
-use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
+use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -147,15 +147,20 @@ impl CompressedSessionStore {
     }
 
     /// Compress and store session data
-    pub async fn store(&self, session_id: &str, server_key: &str, content: &str) -> Result<(), LiteError> {
+    pub async fn store(
+        &self,
+        session_id: &str,
+        server_key: &str,
+        content: &str,
+    ) -> Result<(), LiteError> {
         let original = content.as_bytes();
         let original_size = original.len();
 
         let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
-        encoder.write_all(original)
+        encoder
+            .write_all(original)
             .map_err(|e| LiteError::Io(e.to_string()))?;
-        let compressed = encoder.finish()
-            .map_err(|e| LiteError::Io(e.to_string()))?;
+        let compressed = encoder.finish().map_err(|e| LiteError::Io(e.to_string()))?;
 
         let compressed_size = compressed.len();
         let data = CompressedSessionData {
@@ -173,19 +178,24 @@ impl CompressedSessionStore {
 
         // Evict oldest if at capacity
         if sessions.len() >= self.max_sessions {
-            let oldest = sessions.iter()
+            let oldest = sessions
+                .iter()
                 .min_by_key(|(_, v)| v.compressed_at)
                 .map(|(k, _)| k.clone());
             if let Some(key) = oldest {
                 if let Some(old) = sessions.remove(&key) {
-                    self.total_compressed_bytes.fetch_sub(old.compressed_content.len() as u64, Ordering::Relaxed);
-                    self.total_original_bytes.fetch_sub(old.original_size as u64, Ordering::Relaxed);
+                    self.total_compressed_bytes
+                        .fetch_sub(old.compressed_content.len() as u64, Ordering::Relaxed);
+                    self.total_original_bytes
+                        .fetch_sub(old.original_size as u64, Ordering::Relaxed);
                 }
             }
         }
 
-        self.total_compressed_bytes.fetch_add(compressed_size as u64, Ordering::Relaxed);
-        self.total_original_bytes.fetch_add(original_size as u64, Ordering::Relaxed);
+        self.total_compressed_bytes
+            .fetch_add(compressed_size as u64, Ordering::Relaxed);
+        self.total_original_bytes
+            .fetch_add(original_size as u64, Ordering::Relaxed);
         sessions.insert(session_id.to_string(), data);
 
         Ok(())
@@ -198,7 +208,8 @@ impl CompressedSessionStore {
         if let Some(data) = sessions.get(session_id) {
             let mut decoder = ZlibDecoder::new(&data.compressed_content[..]);
             let mut result = String::new();
-            decoder.read_to_string(&mut result)
+            decoder
+                .read_to_string(&mut result)
                 .map_err(|e| LiteError::Io(e.to_string()))?;
             Ok(Some(result))
         } else {
@@ -359,7 +370,7 @@ pub struct EnhancedSshManager {
 impl EnhancedSshManager {
     pub fn new() -> Self {
         Self::with_config(
-            30, // max connections per minute
+            30,  // max connections per minute
             100, // max compressed sessions
             HealthCheckConfig::default(),
             ReconnectConfig::default(),
@@ -410,7 +421,7 @@ impl EnhancedSshManager {
         // Apply rate limiting
         if !self.rate_limiter.try_acquire().await {
             return Err(LiteError::Config(
-                "Connection rate limit exceeded. Please wait a moment.".to_string()
+                "Connection rate limit exceeded. Please wait a moment.".to_string(),
             ));
         }
 
@@ -423,7 +434,9 @@ impl EnhancedSshManager {
         // Perform connection
         let result = {
             let mut manager = self.base_manager.lock().await;
-            manager.connect(session_id, host, port, username, password).await
+            manager
+                .connect(session_id, host, port, username, password)
+                .await
         };
 
         match result {
@@ -446,7 +459,9 @@ impl EnhancedSshManager {
                 let mut states = self.session_states.write().await;
                 states.insert(
                     session_id.to_string(),
-                    EnhancedConnectionState::Failed { reason: "connection_failed" }
+                    EnhancedConnectionState::Failed {
+                        reason: "connection_failed",
+                    },
                 );
                 Err(e)
             }
@@ -470,11 +485,8 @@ impl EnhancedSshManager {
             })
         };
 
-        let (worker, _) = HealthCheckWorker::new(
-            session_id,
-            self.health_check_config.clone(),
-            check_fn,
-        );
+        let (worker, _) =
+            HealthCheckWorker::new(session_id, self.health_check_config.clone(), check_fn);
 
         let handle = worker.start();
 
@@ -507,7 +519,10 @@ impl EnhancedSshManager {
                     || err_str.contains("eof");
 
                 if needs_reconnect {
-                    tracing::warn!("Connection lost for {}, attempting auto-reconnect...", session_id);
+                    tracing::warn!(
+                        "Connection lost for {}, attempting auto-reconnect...",
+                        session_id
+                    );
 
                     // Trigger auto-reconnect
                     self.trigger_reconnect(session_id).await;
@@ -530,7 +545,7 @@ impl EnhancedSshManager {
             let mut states = self.session_states.write().await;
             states.insert(
                 session_id.to_string(),
-                EnhancedConnectionState::Reconnecting { attempt: 1 }
+                EnhancedConnectionState::Reconnecting { attempt: 1 },
             );
         }
 
@@ -562,13 +577,13 @@ impl EnhancedSshManager {
                     let mut states = states.write().await;
                     states.insert(
                         session_id.clone(),
-                        EnhancedConnectionState::Reconnecting { attempt }
+                        EnhancedConnectionState::Reconnecting { attempt },
                     );
                 }
 
                 // Exponential backoff
-                delay_ms = ((delay_ms as f64 * config.backoff_multiplier) as u64)
-                    .min(config.max_delay_ms);
+                delay_ms =
+                    ((delay_ms as f64 * config.backoff_multiplier) as u64).min(config.max_delay_ms);
             }
 
             // Max attempts reached
@@ -576,7 +591,9 @@ impl EnhancedSshManager {
                 let mut states = states.write().await;
                 states.insert(
                     session_id.clone(),
-                    EnhancedConnectionState::Failed { reason: "max_reconnect_attempts" }
+                    EnhancedConnectionState::Failed {
+                        reason: "max_reconnect_attempts",
+                    },
                 );
             }
 
@@ -594,11 +611,16 @@ impl EnhancedSshManager {
         server_key: &str,
         content: &str,
     ) -> Result<(), LiteError> {
-        self.session_store.store(session_id, server_key, content).await
+        self.session_store
+            .store(session_id, server_key, content)
+            .await
     }
 
     /// Retrieve session terminal content
-    pub async fn retrieve_session_content(&self, session_id: &str) -> Result<Option<String>, LiteError> {
+    pub async fn retrieve_session_content(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<String>, LiteError> {
         self.session_store.retrieve(session_id).await
     }
 
@@ -629,7 +651,10 @@ impl EnhancedSshManager {
         // Update state
         {
             let mut states = self.session_states.write().await;
-            states.insert(session_id.to_string(), EnhancedConnectionState::Disconnected);
+            states.insert(
+                session_id.to_string(),
+                EnhancedConnectionState::Disconnected,
+            );
         }
 
         self.global_connection_count.fetch_sub(1, Ordering::Relaxed);
@@ -641,7 +666,10 @@ impl EnhancedSshManager {
     /// Get current connection state
     pub async fn get_connection_state(&self, session_id: &str) -> EnhancedConnectionState {
         let states = self.session_states.read().await;
-        states.get(session_id).copied().unwrap_or(EnhancedConnectionState::Disconnected)
+        states
+            .get(session_id)
+            .copied()
+            .unwrap_or(EnhancedConnectionState::Disconnected)
     }
 
     /// Get comprehensive stats

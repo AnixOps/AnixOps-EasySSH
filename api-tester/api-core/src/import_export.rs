@@ -89,7 +89,9 @@ impl Importer {
     }
 
     fn convert_request(&self, item: &PostmanItem) -> ApiResult<ApiRequest> {
-        let request = item.request.as_ref()
+        let request = item
+            .request
+            .as_ref()
             .ok_or_else(|| ApiError::Import("Request data missing".to_string()))?;
 
         let method = match request.method.as_str() {
@@ -105,26 +107,43 @@ impl Importer {
 
         let url = self.convert_url(&request.url);
 
-        let headers = request.header.as_ref()
-            .map(|h| h.iter().map(|kv| KeyValue {
-                key: kv.key.clone(),
-                value: kv.value.clone(),
-                enabled: !kv.disabled.unwrap_or(false),
-                description: kv.description.clone(),
-            }).collect())
+        let headers = request
+            .header
+            .as_ref()
+            .map(|h| {
+                h.iter()
+                    .map(|kv| KeyValue {
+                        key: kv.key.clone(),
+                        value: kv.value.clone(),
+                        enabled: !kv.disabled.unwrap_or(false),
+                        description: kv.description.clone(),
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
-        let query_params = request.url.query.as_ref()
-            .map(|q| q.iter().map(|kv| KeyValue {
-                key: kv.key.clone(),
-                value: kv.value.clone(),
-                enabled: !kv.disabled.unwrap_or(false),
-                description: kv.description.clone(),
-            }).collect())
+        let query_params = request
+            .url
+            .query
+            .as_ref()
+            .map(|q| {
+                q.iter()
+                    .map(|kv| KeyValue {
+                        key: kv.key.clone(),
+                        value: kv.value.clone(),
+                        enabled: !kv.disabled.unwrap_or(false),
+                        description: kv.description.clone(),
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
         let auth = request.auth.as_ref().map(|a| self.convert_auth(a));
-        let body = request.body.as_ref().map(|b| self.convert_body(b)).unwrap_or_default();
+        let body = request
+            .body
+            .as_ref()
+            .map(|b| self.convert_body(b))
+            .unwrap_or_default();
 
         Ok(ApiRequest {
             id: uuid::Uuid::new_v4().to_string(),
@@ -136,7 +155,9 @@ impl Importer {
             auth: auth.unwrap_or_default(),
             body,
             pre_request_script: None,
-            test_script: item.event.as_ref()
+            test_script: item
+                .event
+                .as_ref()
                 .and_then(|e| e.iter().find(|ev| ev.listen == "test"))
                 .and_then(|ev| ev.script.exec.as_ref())
                 .map(|lines| lines.join("\n")),
@@ -153,12 +174,28 @@ impl Importer {
 
         // Build URL from parts
         let protocol = url.protocol.as_deref().unwrap_or("https");
-        let host = url.host.as_ref()
-            .map(|h| h.iter().map(|p| &p.value).cloned().collect::<Vec<_>>().join("."))
+        let host = url
+            .host
+            .as_ref()
+            .map(|h| {
+                h.iter()
+                    .map(|p| &p.value)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(".")
+            })
             .unwrap_or_default();
         let port = url.port.as_deref().unwrap_or("");
-        let path = url.path.as_ref()
-            .map(|p| p.iter().map(|part| &part.value).cloned().collect::<Vec<_>>().join("/"))
+        let path = url
+            .path
+            .as_ref()
+            .map(|p| {
+                p.iter()
+                    .map(|part| &part.value)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join("/")
+            })
             .unwrap_or_default();
 
         if port.is_empty() {
@@ -171,18 +208,24 @@ impl Importer {
     fn convert_auth(&self, auth: &PostmanAuth) -> Auth {
         match auth.auth_type.as_str() {
             "basic" => {
-                let username = auth.basic.as_ref()
+                let username = auth
+                    .basic
+                    .as_ref()
                     .and_then(|b| b.iter().find(|kv| kv.key == "username"))
                     .map(|kv| kv.value.clone())
                     .unwrap_or_default();
-                let password = auth.basic.as_ref()
+                let password = auth
+                    .basic
+                    .as_ref()
                     .and_then(|b| b.iter().find(|kv| kv.key == "password"))
                     .map(|kv| kv.value.clone())
                     .unwrap_or_default();
                 Auth::Basic { username, password }
             }
             "bearer" => {
-                let token = auth.bearer.as_ref()
+                let token = auth
+                    .bearer
+                    .as_ref()
                     .and_then(|b| b.iter().find(|kv| kv.key == "token"))
                     .map(|kv| kv.value.clone())
                     .unwrap_or_default();
@@ -196,30 +239,45 @@ impl Importer {
         match body.mode.as_str() {
             "raw" => {
                 let content = body.raw.clone().unwrap_or_default();
-                match body.options.as_ref()
+                match body
+                    .options
+                    .as_ref()
                     .and_then(|o| o.raw.as_ref())
                     .and_then(|r| r.language.as_ref())
-                    .map(|l| l.as_str()) {
+                    .map(|l| l.as_str())
+                {
                     Some("json") => Body::Json { content },
                     Some("xml") => Body::Xml { content },
                     _ => Body::Text { content },
                 }
             }
             "formdata" => {
-                let parts: Vec<MultipartPart> = body.formdata.as_ref()
-                    .map(|f| f.iter().map(|kv| MultipartPart {
-                        name: kv.key.clone(),
-                        value: MultipartValue::Text { content: kv.value.clone() },
-                    }).collect())
+                let parts: Vec<MultipartPart> = body
+                    .formdata
+                    .as_ref()
+                    .map(|f| {
+                        f.iter()
+                            .map(|kv| MultipartPart {
+                                name: kv.key.clone(),
+                                value: MultipartValue::Text {
+                                    content: kv.value.clone(),
+                                },
+                            })
+                            .collect()
+                    })
                     .unwrap_or_default();
                 Body::Multipart { parts }
             }
             "urlencoded" => {
-                let data: HashMap<String, String> = body.urlencoded.as_ref()
-                    .map(|u| u.iter()
-                        .filter(|kv| !kv.disabled.unwrap_or(false))
-                        .map(|kv| (kv.key.clone(), kv.value.clone()))
-                        .collect())
+                let data: HashMap<String, String> = body
+                    .urlencoded
+                    .as_ref()
+                    .map(|u| {
+                        u.iter()
+                            .filter(|kv| !kv.disabled.unwrap_or(false))
+                            .map(|kv| (kv.key.clone(), kv.value.clone()))
+                            .collect()
+                    })
                     .unwrap_or_default();
                 Body::Form { data }
             }
@@ -232,7 +290,8 @@ impl Importer {
         let postman_env: PostmanEnvironment = serde_json::from_str(data)
             .map_err(|e| ApiError::Import(format!("Invalid Postman environment: {}", e)))?;
 
-        let variables: Vec<EnvironmentVariable> = postman_env.values
+        let variables: Vec<EnvironmentVariable> = postman_env
+            .values
             .iter()
             .map(|v| EnvironmentVariable {
                 key: v.key.clone(),
@@ -297,7 +356,9 @@ impl Importer {
             let data = &cap[1];
             // Try to detect if JSON
             if data.trim().starts_with('{') || data.trim().starts_with('[') {
-                request.body = Body::Json { content: data.to_string() };
+                request.body = Body::Json {
+                    content: data.to_string(),
+                };
             } else {
                 request.body = Body::Form {
                     data: serde_urlencoded::from_str(data).unwrap_or_default(),
@@ -320,7 +381,9 @@ impl Importer {
     pub fn import_openapi(&self, data: &str) -> ApiResult<Vec<Collection>> {
         // This is a simplified implementation
         // Full OpenAPI import would parse paths, methods, parameters, schemas
-        Err(ApiError::Import("OpenAPI import not fully implemented".to_string()))
+        Err(ApiError::Import(
+            "OpenAPI import not fully implemented".to_string(),
+        ))
     }
 }
 
@@ -335,23 +398,29 @@ impl Exporter {
             info: PostmanInfo {
                 name: collection.name.clone(),
                 description: collection.description.clone(),
-                schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json".to_string(),
+                schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+                    .to_string(),
             },
             item: self.convert_to_items(collection),
             auth: collection.auth.as_ref().map(|a| self.convert_auth(a)),
             variable: if collection.variables.is_empty() {
                 None
             } else {
-                Some(collection.variables.iter().map(|v| PostmanVariable {
-                    key: v.key.clone(),
-                    value: v.value.clone(),
-                    disabled: Some(!v.enabled),
-                }).collect())
+                Some(
+                    collection
+                        .variables
+                        .iter()
+                        .map(|v| PostmanVariable {
+                            key: v.key.clone(),
+                            value: v.value.clone(),
+                            disabled: Some(!v.enabled),
+                        })
+                        .collect(),
+                )
             },
         };
 
-        serde_json::to_string_pretty(&postman)
-            .map_err(|e| ApiError::Export(e.to_string()))
+        serde_json::to_string_pretty(&postman).map_err(|e| ApiError::Export(e.to_string()))
     }
 
     fn convert_to_items(&self, collection: &Collection) -> Vec<PostmanItem> {
@@ -377,12 +446,18 @@ impl Exporter {
             item: Vec::new(),
             request: Some(PostmanRequestDetail {
                 method: request.method.to_string(),
-                header: Some(request.headers.iter().map(|h| PostmanHeader {
-                    key: h.key.clone(),
-                    value: h.value.clone(),
-                    disabled: Some(!h.enabled),
-                    description: h.description.clone(),
-                }).collect()),
+                header: Some(
+                    request
+                        .headers
+                        .iter()
+                        .map(|h| PostmanHeader {
+                            key: h.key.clone(),
+                            value: h.value.clone(),
+                            disabled: Some(!h.enabled),
+                            description: h.description.clone(),
+                        })
+                        .collect(),
+                ),
                 body: self.convert_body_to_postman(&request.body),
                 url: PostmanUrl {
                     raw: Some(request.url.clone()),
@@ -393,12 +468,18 @@ impl Exporter {
                     query: if request.query_params.is_empty() {
                         None
                     } else {
-                        Some(request.query_params.iter().map(|p| PostmanQueryParam {
-                            key: p.key.clone(),
-                            value: p.value.clone(),
-                            disabled: Some(!p.enabled),
-                            description: p.description.clone(),
-                        }).collect())
+                        Some(
+                            request
+                                .query_params
+                                .iter()
+                                .map(|p| PostmanQueryParam {
+                                    key: p.key.clone(),
+                                    value: p.value.clone(),
+                                    disabled: Some(!p.enabled),
+                                    description: p.description.clone(),
+                                })
+                                .collect(),
+                        )
                     },
                 },
                 auth: if matches!(request.auth, Auth::None) {
@@ -407,12 +488,14 @@ impl Exporter {
                     Some(self.convert_auth_to_postman(&request.auth))
                 },
             }),
-            event: request.test_script.as_ref().map(|script| vec![PostmanEvent {
-                listen: "test".to_string(),
-                script: PostmanScript {
-                    exec: Some(script.lines().map(|s| s.to_string()).collect()),
-                },
-            }]),
+            event: request.test_script.as_ref().map(|script| {
+                vec![PostmanEvent {
+                    listen: "test".to_string(),
+                    script: PostmanScript {
+                        exec: Some(script.lines().map(|s| s.to_string()).collect()),
+                    },
+                }]
+            }),
         }
     }
 
@@ -447,7 +530,9 @@ impl Exporter {
                 formdata: None,
                 urlencoded: None,
                 options: Some(PostmanBodyOptions {
-                    raw: Some(PostmanRawOptions { language: Some("text".to_string()) }),
+                    raw: Some(PostmanRawOptions {
+                        language: Some("text".to_string()),
+                    }),
                 }),
             }),
             Body::Json { content } => Some(PostmanBody {
@@ -456,7 +541,9 @@ impl Exporter {
                 formdata: None,
                 urlencoded: None,
                 options: Some(PostmanBodyOptions {
-                    raw: Some(PostmanRawOptions { language: Some("json".to_string()) }),
+                    raw: Some(PostmanRawOptions {
+                        language: Some("json".to_string()),
+                    }),
                 }),
             }),
             Body::Xml { content } => Some(PostmanBody {
@@ -465,33 +552,44 @@ impl Exporter {
                 formdata: None,
                 urlencoded: None,
                 options: Some(PostmanBodyOptions {
-                    raw: Some(PostmanRawOptions { language: Some("xml".to_string()) }),
+                    raw: Some(PostmanRawOptions {
+                        language: Some("xml".to_string()),
+                    }),
                 }),
             }),
             Body::Form { data } => Some(PostmanBody {
                 mode: "urlencoded".to_string(),
                 raw: None,
                 formdata: None,
-                urlencoded: Some(data.iter().map(|(k, v)| PostmanQueryParam {
-                    key: k.clone(),
-                    value: v.clone(),
-                    disabled: Some(false),
-                    description: None,
-                }).collect()),
+                urlencoded: Some(
+                    data.iter()
+                        .map(|(k, v)| PostmanQueryParam {
+                            key: k.clone(),
+                            value: v.clone(),
+                            disabled: Some(false),
+                            description: None,
+                        })
+                        .collect(),
+                ),
                 options: None,
             }),
             Body::Multipart { parts } => Some(PostmanBody {
                 mode: "formdata".to_string(),
                 raw: None,
-                formdata: Some(parts.iter().map(|p| PostmanQueryParam {
-                    key: p.name.clone(),
-                    value: match &p.value {
-                        MultipartValue::Text { content } => content.clone(),
-                        MultipartValue::File { filename, .. } => filename.clone(),
-                    },
-                    disabled: Some(false),
-                    description: None,
-                }).collect()),
+                formdata: Some(
+                    parts
+                        .iter()
+                        .map(|p| PostmanQueryParam {
+                            key: p.name.clone(),
+                            value: match &p.value {
+                                MultipartValue::Text { content } => content.clone(),
+                                MultipartValue::File { filename, .. } => filename.clone(),
+                            },
+                            disabled: Some(false),
+                            description: None,
+                        })
+                        .collect(),
+                ),
                 urlencoded: None,
                 options: None,
             }),
@@ -508,18 +606,26 @@ impl Exporter {
                 Auth::ApiKey { .. } => "apikey",
                 Auth::Oauth2 { .. } => "oauth2",
                 Auth::Digest { .. } => "digest",
-            }.to_string(),
+            }
+            .to_string(),
             basic: match auth {
                 Auth::Basic { username, password } => Some(vec![
-                    PostmanAuthParam { key: "username".to_string(), value: username.clone() },
-                    PostmanAuthParam { key: "password".to_string(), value: password.clone() },
+                    PostmanAuthParam {
+                        key: "username".to_string(),
+                        value: username.clone(),
+                    },
+                    PostmanAuthParam {
+                        key: "password".to_string(),
+                        value: password.clone(),
+                    },
                 ]),
                 _ => None,
             },
             bearer: match auth {
-                Auth::Bearer { token } => Some(vec![
-                    PostmanAuthParam { key: "token".to_string(), value: token.clone() },
-                ]),
+                Auth::Bearer { token } => Some(vec![PostmanAuthParam {
+                    key: "token".to_string(),
+                    value: token.clone(),
+                }]),
                 _ => None,
             },
         }
@@ -533,15 +639,18 @@ impl Exporter {
     pub fn export_postman_environment(&self, env: &Environment) -> ApiResult<String> {
         let postman_env = PostmanEnvironment {
             name: env.name.clone(),
-            values: env.variables.iter().map(|v| PostmanEnvValue {
-                key: v.key.clone(),
-                value: v.value.clone(),
-                disabled: !v.enabled,
-            }).collect(),
+            values: env
+                .variables
+                .iter()
+                .map(|v| PostmanEnvValue {
+                    key: v.key.clone(),
+                    value: v.value.clone(),
+                    disabled: !v.enabled,
+                })
+                .collect(),
         };
 
-        serde_json::to_string_pretty(&postman_env)
-            .map_err(|e| ApiError::Export(e.to_string()))
+        serde_json::to_string_pretty(&postman_env).map_err(|e| ApiError::Export(e.to_string()))
     }
 
     /// Export to curl command
@@ -561,7 +670,10 @@ impl Exporter {
                 cmd.push_str(&format!("-d '{}' ", content.replace("'", "'\"'\"'")));
             }
             Body::Json { content } => {
-                cmd.push_str(&format!("-H \"Content-Type: application/json\" -d '{}' ", content.replace("'", "'\"'\"'")));
+                cmd.push_str(&format!(
+                    "-H \"Content-Type: application/json\" -d '{}' ",
+                    content.replace("'", "'\"'\"'")
+                ));
             }
             Body::Form { data } => {
                 let form_str = serde_urlencoded::to_string(data).unwrap_or_default();

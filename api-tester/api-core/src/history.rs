@@ -143,31 +143,25 @@ impl HistoryManager {
 
     /// Replay a request from history
     pub fn replay_request(&self, entry_id: &str) -> Option<ApiRequest> {
-        self.entries
-            .iter()
-            .find(|e| e.id == entry_id)
-            .map(|e| {
-                let mut request = e.request.clone();
-                request.id = uuid::Uuid::new_v4().to_string();
-                request.name = format!("{} (Replay)", request.name);
-                request.created_at = chrono::Utc::now();
-                request.updated_at = chrono::Utc::now();
-                request
-            })
+        self.entries.iter().find(|e| e.id == entry_id).map(|e| {
+            let mut request = e.request.clone();
+            request.id = uuid::Uuid::new_v4().to_string();
+            request.name = format!("{} (Replay)", request.name);
+            request.created_at = chrono::Utc::now();
+            request.updated_at = chrono::Utc::now();
+            request
+        })
     }
 
     /// Convert history entry to request for collection
     pub fn history_to_request(&self, entry_id: &str) -> Option<ApiRequest> {
-        self.entries
-            .iter()
-            .find(|e| e.id == entry_id)
-            .map(|e| {
-                let mut request = e.request.clone();
-                request.id = uuid::Uuid::new_v4().to_string();
-                request.pre_request_script = None;
-                request.test_script = None;
-                request
-            })
+        self.entries.iter().find(|e| e.id == entry_id).map(|e| {
+            let mut request = e.request.clone();
+            request.id = uuid::Uuid::new_v4().to_string();
+            request.pre_request_script = None;
+            request.test_script = None;
+            request
+        })
     }
 }
 
@@ -197,7 +191,11 @@ mod tests {
             request: ApiRequest::new("Test", "https://api.example.com/test"),
             response: ApiResponse {
                 status,
-                status_text: if status >= 200 && status < 300 { "OK".to_string() } else { "Error".to_string() },
+                status_text: if status >= 200 && status < 300 {
+                    "OK".to_string()
+                } else {
+                    "Error".to_string()
+                },
                 timestamp: chrono::Utc::now(),
                 headers: HashMap::new(),
                 body: Vec::new(),

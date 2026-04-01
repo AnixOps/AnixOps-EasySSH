@@ -2,18 +2,18 @@
 //!
 //! 提供完整的事件管理、告警处理、运行手册、升级策略等API端点
 
-use crate::AppState;
+use crate::escalation_service::EscalationService;
 use crate::incident_models::*;
 use crate::incident_service::IncidentService;
-use crate::runbook_service::RunbookService;
-use crate::escalation_service::EscalationService;
 use crate::post_mortem_service::PostMortemService;
+use crate::runbook_service::RunbookService;
+use crate::AppState;
 
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::{get, post, put, delete, patch},
+    routing::{delete, get, patch, post, put},
     Router,
 };
 use serde_json::{json, Value};
@@ -39,7 +39,10 @@ pub fn incident_routes() -> Router<AppState> {
         .route("/incidents/:id/diagnoses", get(get_diagnoses))
         .route("/incidents/:id/diagnose", post(perform_ai_diagnosis))
         .route("/incidents/:id/escalate", post(escalate_incident))
-        .route("/incidents/:id/escalation-history", get(get_escalation_history))
+        .route(
+            "/incidents/:id/escalation-history",
+            get(get_escalation_history),
+        )
         .route("/incidents/:id/participants", get(get_participants))
         .route("/incidents/:id/impact-analysis", get(get_impact_analysis))
         .route("/incidents/:id/related", get(get_related_incidents))
@@ -70,7 +73,10 @@ pub fn incident_routes() -> Router<AppState> {
         .route("/escalation-policies/:id", get(get_escalation_policy))
         .route("/escalation-policies/:id", put(update_escalation_policy))
         .route("/escalation-policies/:id", delete(delete_escalation_policy))
-        .route("/escalation-policies/:id/test", post(test_escalation_policy))
+        .route(
+            "/escalation-policies/:id/test",
+            post(test_escalation_policy),
+        )
         // 集成管理
         .route("/integrations", post(create_integration))
         .route("/integrations", get(list_integrations))
@@ -84,7 +90,10 @@ pub fn incident_routes() -> Router<AppState> {
         .route("/post-mortems/:id", put(update_post_mortem))
         .route("/post-mortems/:id/publish", post(publish_post_mortem))
         .route("/post-mortems/:id/report", get(generate_post_mortem_report))
-        .route("/post-mortems/:id/suggestions", get(get_improvement_suggestions))
+        .route(
+            "/post-mortems/:id/suggestions",
+            get(get_improvement_suggestions),
+        )
         // 检测规则
         .route("/detection-rules", post(create_detection_rule))
         .route("/detection-rules", get(list_detection_rules))
@@ -93,7 +102,10 @@ pub fn incident_routes() -> Router<AppState> {
         .route("/detection-rules/:id", delete(delete_detection_rule))
         // 指标和仪表板
         .route("/metrics", get(get_incident_metrics))
-        .route("/dashboard/active-incidents", get(get_active_incidents_dashboard))
+        .route(
+            "/dashboard/active-incidents",
+            get(get_active_incidents_dashboard),
+        )
         .route("/dashboard/alert-trends", get(get_alert_trends))
 }
 
@@ -109,10 +121,10 @@ async fn create_incident(
         Ok(incident) => {
             // 发送通知
             let escalation_service = EscalationService::new(state.db.clone(), state.redis.clone());
-            if let Err(e) = escalation_service.send_incident_notifications(
-                &incident,
-                CommunicationType::Notification
-            ).await {
+            if let Err(e) = escalation_service
+                .send_incident_notifications(&incident, CommunicationType::Notification)
+                .await
+            {
                 warn!("Failed to send notifications: {}", e);
             }
 
@@ -179,7 +191,10 @@ async fn acknowledge_incident(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let service = IncidentService::new(state.db.clone(), state.redis.clone());
 
-    match service.acknowledge_incident(&id, &req.user_id, req.note.as_deref()).await {
+    match service
+        .acknowledge_incident(&id, &req.user_id, req.note.as_deref())
+        .await
+    {
         Ok(incident) => Ok(Json(json!({
             "success": true,
             "data": incident
@@ -195,14 +210,22 @@ async fn resolve_incident(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let service = IncidentService::new(state.db.clone(), state.redis.clone());
 
-    match service.resolve_incident(&id, &req.user_id, &req.resolution, req.root_cause.as_deref()).await {
+    match service
+        .resolve_incident(
+            &id,
+            &req.user_id,
+            &req.resolution,
+            req.root_cause.as_deref(),
+        )
+        .await
+    {
         Ok(incident) => {
             // 发送解决通知
             let escalation_service = EscalationService::new(state.db.clone(), state.redis.clone());
-            if let Err(e) = escalation_service.send_incident_notifications(
-                &incident,
-                CommunicationType::Resolution
-            ).await {
+            if let Err(e) = escalation_service
+                .send_incident_notifications(&incident, CommunicationType::Resolution)
+                .await
+            {
                 warn!("Failed to send resolution notifications: {}", e);
             }
 
@@ -283,7 +306,17 @@ async fn add_timeline_entry(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let service = IncidentService::new(state.db.clone(), state.redis.clone());
 
-    match service.add_timeline_entry(&id, req.entry_type, &req.title, &req.description, "current_user", req.metadata).await {
+    match service
+        .add_timeline_entry(
+            &id,
+            req.entry_type,
+            &req.title,
+            &req.description,
+            "current_user",
+            req.metadata,
+        )
+        .await
+    {
         Ok(entry) => Ok(Json(json!({
             "success": true,
             "data": entry
@@ -344,7 +377,16 @@ async fn escalate_incident(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let service = EscalationService::new(state.db.clone(), state.redis.clone());
 
-    match service.escalate_incident(&id, "current_user", &req.reason, req.target_level, req.notify_users).await {
+    match service
+        .escalate_incident(
+            &id,
+            "current_user",
+            &req.reason,
+            req.target_level,
+            req.notify_users,
+        )
+        .await
+    {
         Ok(incident) => Ok(Json(json!({
             "success": true,
             "data": incident
@@ -437,15 +479,18 @@ async fn create_post_mortem(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let service = PostMortemService::new(state.db.clone());
 
-    match service.create_post_mortem(
-        &id,
-        &req.title,
-        &req.summary,
-        &req.root_cause_analysis,
-        &req.lessons_learned,
-        req.action_items.unwrap_or_default(),
-        "current_user"
-    ).await {
+    match service
+        .create_post_mortem(
+            &id,
+            &req.title,
+            &req.summary,
+            &req.root_cause_analysis,
+            &req.lessons_learned,
+            req.action_items.unwrap_or_default(),
+            "current_user",
+        )
+        .await
+    {
         Ok(pm) => Ok(Json(json!({
             "success": true,
             "data": pm
@@ -499,9 +544,7 @@ async fn create_alert(
     }
 }
 
-async fn list_alerts(
-    State(state): State<AppState>,
-) -> Result<Json<Value>, (StatusCode, String)> {
+async fn list_alerts(State(state): State<AppState>) -> Result<Json<Value>, (StatusCode, String)> {
     // 简化为返回空列表，实际实现需要查询参数
     Ok(Json(json!({
         "success": true,
@@ -601,9 +644,7 @@ async fn create_runbook(
     }
 }
 
-async fn list_runbooks(
-    State(state): State<AppState>,
-) -> Result<Json<Value>, (StatusCode, String)> {
+async fn list_runbooks(State(state): State<AppState>) -> Result<Json<Value>, (StatusCode, String)> {
     let service = RunbookService::new(state.db.clone());
 
     // 简化处理，需要team_id参数
@@ -638,7 +679,10 @@ async fn update_runbook(
     let service = RunbookService::new(state.db.clone());
 
     // 简化处理，需要完整请求体
-    match service.update_runbook(&id, None, None, None, None, None).await {
+    match service
+        .update_runbook(&id, None, None, None, None, None)
+        .await
+    {
         Ok(runbook) => Ok(Json(json!({
             "success": true,
             "data": runbook
@@ -669,7 +713,10 @@ async fn execute_runbook(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let service = RunbookService::new(state.db.clone());
 
-    match service.execute_runbook(&id, &req.incident_id, &req.executed_by).await {
+    match service
+        .execute_runbook(&id, &req.incident_id, &req.executed_by)
+        .await
+    {
         Ok(execution) => Ok(Json(json!({
             "success": true,
             "data": execution
@@ -911,7 +958,10 @@ async fn update_post_mortem(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let service = PostMortemService::new(state.db.clone());
 
-    match service.update_post_mortem(&id, None, None, None, None, None, None, None).await {
+    match service
+        .update_post_mortem(&id, None, None, None, None, None, None, None)
+        .await
+    {
         Ok(pm) => Ok(Json(json!({
             "success": true,
             "data": pm

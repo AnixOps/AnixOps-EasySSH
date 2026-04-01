@@ -19,7 +19,7 @@ impl FileIconTheme {
             return "📁";
         }
 
-        let ext = name.split('.').last().unwrap_or("").to_lowercase();
+        let ext = name.split('.').next_back().unwrap_or("").to_lowercase();
 
         match ext.as_str() {
             // Code files
@@ -164,7 +164,7 @@ impl FileIconTheme {
             return (icon, "folder");
         }
 
-        let ext = name.split('.').last().unwrap_or("").to_lowercase();
+        let ext = name.split('.').next_back().unwrap_or("").to_lowercase();
 
         let category = match ext.as_str() {
             "rs" | "js" | "jsx" | "ts" | "tsx" | "py" | "java" | "cpp" | "c" | "h" | "hpp"

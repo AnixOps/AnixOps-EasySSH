@@ -5,16 +5,16 @@ use egui::{RichText, Ui};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use easyssh_core::script_library::{ScriptLibrary, ScriptType};
 use easyssh_core::workflow_engine::*;
 use easyssh_core::workflow_executor::*;
 use easyssh_core::workflow_scheduler::*;
 use easyssh_core::workflow_variables::ServerContext;
-use easyssh_core::script_library::{ScriptLibrary, ScriptType};
 
-use crate::workflow_editor::{WorkflowEditor, ScriptLibraryBrowser};
+use crate::batch_results_ui::BatchExecutionResultsPanel;
 use crate::macro_recorder_ui::MacroRecorderPanel;
 use crate::scheduled_tasks_ui::ScheduledTasksPanel;
-use crate::batch_results_ui::BatchExecutionResultsPanel;
+use crate::workflow_editor::{ScriptLibraryBrowser, WorkflowEditor};
 
 /// Main workflow automation panel integrating all features
 pub struct WorkflowPanel {
@@ -105,7 +105,11 @@ impl WorkflowPanel {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut Ui, view_model: &crate::viewmodels::AppViewModel) -> WorkflowPanelResponse {
+    pub fn ui(
+        &mut self,
+        ui: &mut Ui,
+        view_model: &crate::viewmodels::AppViewModel,
+    ) -> WorkflowPanelResponse {
         let mut response = WorkflowPanelResponse::default();
 
         // Tab bar
@@ -296,7 +300,12 @@ impl WorkflowPanel {
         }
     }
 
-    fn render_recorder_tab(&mut self, ui: &mut Ui, _view_model: &crate::viewmodels::AppViewModel, response: &mut WorkflowPanelResponse) {
+    fn render_recorder_tab(
+        &mut self,
+        ui: &mut Ui,
+        _view_model: &crate::viewmodels::AppViewModel,
+        response: &mut WorkflowPanelResponse,
+    ) {
         let recorder_response = self.macro_recorder.ui(ui);
 
         if let Some(macr) = recorder_response.save_macro {
@@ -386,7 +395,8 @@ impl WorkflowPanel {
                 ui.text_edit_singleline(&mut self.new_workflow_name);
 
                 ui.horizontal(|ui| {
-                    create_clicked = ui.button("Create").clicked() && !self.new_workflow_name.is_empty();
+                    create_clicked =
+                        ui.button("Create").clicked() && !self.new_workflow_name.is_empty();
                     cancel_clicked = ui.button("Cancel").clicked();
                 });
             });
@@ -482,7 +492,9 @@ impl WorkflowPanel {
         let executor = self.executor.lock().unwrap();
 
         let results = if parallel {
-            executor.execute_parallel(workflow, servers, max_parallel).await
+            executor
+                .execute_parallel(workflow, servers, max_parallel)
+                .await
         } else {
             executor.execute_sequential(workflow, servers).await
         };

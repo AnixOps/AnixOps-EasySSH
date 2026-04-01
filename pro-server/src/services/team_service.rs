@@ -1,7 +1,4 @@
-use crate::{
-    models::*,
-    redis_cache::RedisCache,
-};
+use crate::{models::*, redis_cache::RedisCache};
 use anyhow::Result;
 use chrono::Utc;
 use sqlx::AnyPool;
@@ -64,7 +61,12 @@ impl TeamService {
         })
     }
 
-    pub async fn list_user_teams(&self, user_id: &str, page: Option<i64>, limit: Option<i64>) -> Result<(Vec<Team>, i64)> {
+    pub async fn list_user_teams(
+        &self,
+        user_id: &str,
+        page: Option<i64>,
+        limit: Option<i64>,
+    ) -> Result<(Vec<Team>, i64)> {
         let offset = ((page.unwrap_or(1) - 1) * limit.unwrap_or(20)) as i64;
         let limit = limit.unwrap_or(20) as i64;
 
@@ -73,7 +75,7 @@ impl TeamService {
              INNER JOIN team_members tm ON t.id = tm.team_id
              WHERE tm.user_id = ? AND tm.is_active = TRUE AND t.is_active = TRUE
              ORDER BY t.created_at DESC
-             LIMIT ? OFFSET ?"
+             LIMIT ? OFFSET ?",
         )
         .bind(user_id)
         .bind(limit)
@@ -84,7 +86,7 @@ impl TeamService {
         let total = sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(*) FROM teams t
              INNER JOIN team_members tm ON t.id = tm.team_id
-             WHERE tm.user_id = ? AND tm.is_active = TRUE AND t.is_active = TRUE"
+             WHERE tm.user_id = ? AND tm.is_active = TRUE AND t.is_active = TRUE",
         )
         .bind(user_id)
         .fetch_one(&self.db)
@@ -94,12 +96,11 @@ impl TeamService {
     }
 
     pub async fn get_team(&self, team_id: &str) -> Result<Team> {
-        let team = sqlx::query_as::<_, Team>(
-            "SELECT * FROM teams WHERE id = ? AND is_active = TRUE"
-        )
-        .bind(team_id)
-        .fetch_one(&self.db)
-        .await?;
+        let team =
+            sqlx::query_as::<_, Team>("SELECT * FROM teams WHERE id = ? AND is_active = TRUE")
+                .bind(team_id)
+                .fetch_one(&self.db)
+                .await?;
 
         Ok(team)
     }
@@ -138,7 +139,7 @@ impl TeamService {
 
     pub async fn list_team_members(&self, team_id: &str) -> Result<Vec<TeamMember>> {
         let members = sqlx::query_as::<_, TeamMember>(
-            "SELECT * FROM team_members WHERE team_id = ? AND is_active = TRUE"
+            "SELECT * FROM team_members WHERE team_id = ? AND is_active = TRUE",
         )
         .bind(team_id)
         .fetch_all(&self.db)
@@ -212,7 +213,7 @@ impl TeamService {
             .await?;
 
         let member = sqlx::query_as::<_, TeamMember>(
-            "SELECT * FROM team_members WHERE team_id = ? AND user_id = ?"
+            "SELECT * FROM team_members WHERE team_id = ? AND user_id = ?",
         )
         .bind(team_id)
         .bind(member_id)
@@ -224,7 +225,7 @@ impl TeamService {
 
     pub async fn accept_invitation(&self, token: &str, user_id: &str) -> Result<TeamMember> {
         let invitation: Invitation = sqlx::query_as::<_, Invitation>(
-            "SELECT * FROM invitations WHERE token = ? AND status = 'pending' AND expires_at > ?"
+            "SELECT * FROM invitations WHERE token = ? AND status = 'pending' AND expires_at > ?",
         )
         .bind(token)
         .bind(Utc::now())
@@ -255,12 +256,10 @@ impl TeamService {
             .execute(&self.db)
             .await?;
 
-        let member = sqlx::query_as::<_, TeamMember>(
-            "SELECT * FROM team_members WHERE id = ?"
-        )
-        .bind(member_id)
-        .fetch_one(&self.db)
-        .await?;
+        let member = sqlx::query_as::<_, TeamMember>("SELECT * FROM team_members WHERE id = ?")
+            .bind(member_id)
+            .fetch_one(&self.db)
+            .await?;
 
         Ok(member)
     }
@@ -276,7 +275,7 @@ impl TeamService {
 
     pub async fn list_invitations(&self, team_id: &str) -> Result<Vec<Invitation>> {
         let invitations = sqlx::query_as::<_, Invitation>(
-            "SELECT * FROM invitations WHERE team_id = ? ORDER BY created_at DESC"
+            "SELECT * FROM invitations WHERE team_id = ? ORDER BY created_at DESC",
         )
         .bind(team_id)
         .fetch_all(&self.db)
@@ -318,7 +317,12 @@ impl TeamService {
         Ok(exists)
     }
 
-    pub async fn has_team_permission(&self, team_id: &str, user_id: &str, _permission: &str) -> Result<bool> {
+    pub async fn has_team_permission(
+        &self,
+        team_id: &str,
+        user_id: &str,
+        _permission: &str,
+    ) -> Result<bool> {
         // Simplified: owner or admin has all permissions
         let exists: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? AND role IN ('owner', 'admin') AND is_active = TRUE)"
@@ -332,12 +336,11 @@ impl TeamService {
     }
 
     pub async fn get_team_settings(&self, team_id: &str) -> Result<serde_json::Value> {
-        let settings = sqlx::query_scalar::<_, serde_json::Value>(
-            "SELECT settings FROM teams WHERE id = ?"
-        )
-        .bind(team_id)
-        .fetch_one(&self.db)
-        .await?;
+        let settings =
+            sqlx::query_scalar::<_, serde_json::Value>("SELECT settings FROM teams WHERE id = ?")
+                .bind(team_id)
+                .fetch_one(&self.db)
+                .await?;
 
         Ok(settings.unwrap_or(serde_json::Value::Object(serde_json::Map::new())))
     }

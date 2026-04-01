@@ -1,8 +1,8 @@
 use crate::types::*;
-use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
+use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 
 pub struct WebSocketClient {
     url: String,
@@ -148,10 +148,10 @@ impl WebSocketClient {
 }
 
 fn extract_host(url: &str) -> ApiResult<String> {
-    let parsed = url::Url::parse(url)
-        .map_err(|e| ApiError::InvalidUrl(e.to_string()))?;
+    let parsed = url::Url::parse(url).map_err(|e| ApiError::InvalidUrl(e.to_string()))?;
 
-    parsed.host_str()
+    parsed
+        .host_str()
         .map(|h| h.to_string())
         .ok_or_else(|| ApiError::InvalidUrl("No host found".to_string()))
 }

@@ -12,8 +12,8 @@ use std::time::Instant;
 use tracing::{debug, info, trace};
 
 use crate::terminal::{
-    EguiWebGlTerminal, WebGlTerminalBuilder, TerminalMessage,
-    StreamingProcessor, RenderStats, TerminalConfig, ColorSupport
+    ColorSupport, EguiWebGlTerminal, RenderStats, StreamingProcessor, TerminalConfig,
+    TerminalMessage, WebGlTerminalBuilder,
 };
 
 /// Manages multiple WebGL terminal sessions with clipboard support
@@ -45,8 +45,15 @@ impl WebGlTerminalManager {
     }
 
     /// Create new terminal session
-    pub fn create_session(&mut self, session_id: &str, title: &str) -> Arc<Mutex<EguiWebGlTerminal>> {
-        info!("Creating WebGL terminal session: {} (with clipboard)", session_id);
+    pub fn create_session(
+        &mut self,
+        session_id: &str,
+        title: &str,
+    ) -> Arc<Mutex<EguiWebGlTerminal>> {
+        info!(
+            "Creating WebGL terminal session: {} (with clipboard)",
+            session_id
+        );
 
         // Create high-performance terminal with True Color support
         let config = TerminalConfig {
@@ -74,10 +81,14 @@ impl WebGlTerminalManager {
         processor.start();
 
         // Store references
-        self.terminals.insert(session_id.to_string(), terminal.clone());
+        self.terminals
+            .insert(session_id.to_string(), terminal.clone());
         self.streamers.insert(session_id.to_string(), processor);
 
-        info!("WebGL terminal session created: {} ({}) with copy-paste support", session_id, title);
+        info!(
+            "WebGL terminal session created: {} ({}) with copy-paste support",
+            session_id, title
+        );
         terminal
     }
 
@@ -145,7 +156,8 @@ impl WebGlTerminalManager {
 
     /// Get active terminal
     pub fn get_active(&self) -> Option<Arc<Mutex<EguiWebGlTerminal>>> {
-        self.active_terminal.as_ref()
+        self.active_terminal
+            .as_ref()
             .and_then(|id| self.terminals.get(id).cloned())
     }
 
@@ -156,7 +168,8 @@ impl WebGlTerminalManager {
 
     /// Copy selection from active terminal to clipboard
     pub fn copy_selection(&self, session_id: Option<&str>) -> Result<(), String> {
-        let id = session_id.or_else(|| self.get_active_session())
+        let id = session_id
+            .or_else(|| self.get_active_session())
             .ok_or("No active terminal session")?;
 
         if let Some(terminal) = self.terminals.get(id) {
@@ -172,7 +185,8 @@ impl WebGlTerminalManager {
 
     /// Paste from clipboard to active terminal
     pub fn paste_to_terminal(&mut self, session_id: Option<&str>) -> Result<(), String> {
-        let id = session_id.or_else(|| self.get_active_session())
+        let id = session_id
+            .or_else(|| self.get_active_session())
             .ok_or("No active terminal session")?;
 
         if let Some(terminal) = self.terminals.get(id) {
@@ -188,7 +202,8 @@ impl WebGlTerminalManager {
 
     /// Select all text in terminal
     pub fn select_all(&mut self, session_id: Option<&str>) -> Result<(), String> {
-        let id = session_id.or_else(|| self.get_active_session())
+        let id = session_id
+            .or_else(|| self.get_active_session())
             .ok_or("No active terminal session")?;
 
         if let Some(terminal) = self.terminals.get(id) {

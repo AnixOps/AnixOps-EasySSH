@@ -30,7 +30,8 @@ impl ServerTopology {
 
     pub fn remove_node(&mut self, node_id: &str) {
         self.nodes.retain(|n| n.id != node_id);
-        self.edges.retain(|e| e.source != node_id && e.target != node_id);
+        self.edges
+            .retain(|e| e.source != node_id && e.target != node_id);
     }
 
     pub fn add_edge(&mut self, edge: TopologyEdge) {
@@ -146,7 +147,15 @@ impl ServerTopology {
 
         let initial_path = vec![source.to_string()];
         visited.insert(source.to_string(), 1);
-        dfs(source, target, initial_path, &self.edges, &mut visited, max_hops, &mut paths);
+        dfs(
+            source,
+            target,
+            initial_path,
+            &self.edges,
+            &mut visited,
+            max_hops,
+            &mut paths,
+        );
 
         paths
     }

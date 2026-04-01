@@ -17,11 +17,14 @@ impl RemoteFileEditor {
     }
 
     pub fn open_file(&mut self, path: &str, content: String) {
-        self.open_files.insert(path.to_string(), RemoteFile {
-            path: path.to_string(),
-            content,
-            modified: false,
-        });
+        self.open_files.insert(
+            path.to_string(),
+            RemoteFile {
+                path: path.to_string(),
+                content,
+                modified: false,
+            },
+        );
     }
 
     pub fn close_file(&mut self, path: &str) {

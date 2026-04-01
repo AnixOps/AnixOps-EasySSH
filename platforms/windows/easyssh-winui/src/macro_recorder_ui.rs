@@ -91,23 +91,24 @@ impl MacroRecorderPanel {
         ui.horizontal(|ui| {
             ui.heading("Macro Recorder");
 
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                match self.recorder.get_state() {
+            ui.with_layout(
+                egui::Layout::right_to_left(egui::Align::Center),
+                |ui| match self.recorder.get_state() {
                     RecorderState::Idle => {
-                        if ui.button("⏺ Start Recording").clicked() {
-                            if !self.recording_name.is_empty() {
-                                self.recorder.start_recording(
-                                    &self.recording_name,
-                                    self.selected_server.clone().map(|s| MacroServerContext {
-                                        server_id: s.id.clone(),
-                                        server_name: s.name.clone(),
-                                        host: s.host.clone(),
-                                        username: s.username.clone(),
-                                        initial_dir: String::from("/"),
-                                        env_vars: std::collections::HashMap::new(),
-                                    })
-                                );
-                            }
+                        if ui.button("⏺ Start Recording").clicked()
+                            && !self.recording_name.is_empty()
+                        {
+                            self.recorder.start_recording(
+                                &self.recording_name,
+                                self.selected_server.clone().map(|s| MacroServerContext {
+                                    server_id: s.id.clone(),
+                                    server_name: s.name.clone(),
+                                    host: s.host.clone(),
+                                    username: s.username.clone(),
+                                    initial_dir: String::from("/"),
+                                    env_vars: std::collections::HashMap::new(),
+                                }),
+                            );
                         }
                     }
                     RecorderState::Recording => {
@@ -139,8 +140,8 @@ impl MacroRecorderPanel {
                         }
                     }
                     _ => {}
-                }
-            });
+                },
+            );
         });
     }
 
@@ -214,20 +215,30 @@ impl MacroRecorderPanel {
     fn render_action_preview(&self, ui: &mut Ui, action: &MacroAction) {
         let (icon, text) = match &action.data {
             MacroActionData::SshCommand { command, .. } => ("$", command.clone()),
-            MacroActionData::FileUpload { local_path, remote_path, .. } => {
-                ("↑", format!("Upload: {} → {}", local_path, remote_path))
-            }
-            MacroActionData::FileDownload { remote_path, local_path, .. } => {
-                ("↓", format!("Download: {} → {}", remote_path, local_path))
-            }
+            MacroActionData::FileUpload {
+                local_path,
+                remote_path,
+                ..
+            } => ("↑", format!("Upload: {} → {}", local_path, remote_path)),
+            MacroActionData::FileDownload {
+                remote_path,
+                local_path,
+                ..
+            } => ("↓", format!("Download: {} → {}", remote_path, local_path)),
             MacroActionData::Wait { duration_secs, .. } => {
                 ("◷", format!("Wait {}s", duration_secs))
             }
-            MacroActionData::ChangeDirectory { path } => {
-                ("📁", format!("cd {}", path))
-            }
-            MacroActionData::ProvideInput { input, is_sensitive, .. } => {
-                let display = if *is_sensitive { "***".to_string() } else { input.clone() };
+            MacroActionData::ChangeDirectory { path } => ("📁", format!("cd {}", path)),
+            MacroActionData::ProvideInput {
+                input,
+                is_sensitive,
+                ..
+            } => {
+                let display = if *is_sensitive {
+                    "***".to_string()
+                } else {
+                    input.clone()
+                };
                 ("⌨", format!("Input: {}", display))
             }
             MacroActionData::LocalCommand { command, .. } => ("⌘", command.clone()),
@@ -241,7 +252,12 @@ impl MacroRecorderPanel {
         });
     }
 
-    fn render_macro_editor(&mut self, ui: &mut Ui, macro_data: &Macro, response: &mut MacroRecorderResponse) {
+    fn render_macro_editor(
+        &mut self,
+        ui: &mut Ui,
+        macro_data: &Macro,
+        response: &mut MacroRecorderResponse,
+    ) {
         ui.heading("Macro Editor");
 
         // Playback controls
@@ -311,56 +327,62 @@ impl MacroRecorderPanel {
             Color32::from_gray(40)
         };
 
-        Frame::group(ui.style())
-            .fill(bg_color)
-            .show(ui, |ui| {
-                ui.set_min_width(ui.available_width());
+        Frame::group(ui.style()).fill(bg_color).show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
 
-                ui.horizontal(|ui| {
-                    ui.label(format!("{}.", index + 1));
+            ui.horizontal(|ui| {
+                ui.label(format!("{}.", index + 1));
 
-                    // Action type icon
-                    let icon = match action.action_type {
-                        MacroActionType::SshCommand => "$",
-                        MacroActionType::FileUpload => "↑",
-                        MacroActionType::FileDownload => "↓",
-                        MacroActionType::Wait => "◷",
-                        MacroActionType::ChangeDirectory => "📁",
-                        MacroActionType::ProvideInput => "⌨",
-                        MacroActionType::LocalCommand => "⌘",
-                        _ => "•",
-                    };
-                    ui.label(icon);
+                // Action type icon
+                let icon = match action.action_type {
+                    MacroActionType::SshCommand => "$",
+                    MacroActionType::FileUpload => "↑",
+                    MacroActionType::FileDownload => "↓",
+                    MacroActionType::Wait => "◷",
+                    MacroActionType::ChangeDirectory => "📁",
+                    MacroActionType::ProvideInput => "⌨",
+                    MacroActionType::LocalCommand => "⌘",
+                    _ => "•",
+                };
+                ui.label(icon);
 
-                    // Action summary
-                    let summary = match &action.data {
-                        MacroActionData::SshCommand { command, .. } => command.clone(),
-                        MacroActionData::FileUpload { local_path, remote_path, .. } => {
-                            format!("{} → {}", local_path, remote_path)
-                        }
-                        MacroActionData::FileDownload { remote_path, local_path, .. } => {
-                            format!("{} → {}", remote_path, local_path)
-                        }
-                        MacroActionData::Wait { duration_secs, .. } => {
-                            format!("Wait {}s", duration_secs)
-                        }
-                        _ => format!("{:?}", action.action_type),
-                    };
-
-                    ui.label(RichText::new(summary).monospace());
-
-                    // Edit button
-                    if ui.button("✎").clicked() {
-                        self.selected_action = Some(action.id.clone());
+                // Action summary
+                let summary = match &action.data {
+                    MacroActionData::SshCommand { command, .. } => command.clone(),
+                    MacroActionData::FileUpload {
+                        local_path,
+                        remote_path,
+                        ..
+                    } => {
+                        format!("{} → {}", local_path, remote_path)
                     }
-
-                    // Enable/disable
-                    let mut enabled = action.enabled;
-                    if ui.checkbox(&mut enabled, "").changed() {
-                        // Would need to update the macro action
+                    MacroActionData::FileDownload {
+                        remote_path,
+                        local_path,
+                        ..
+                    } => {
+                        format!("{} → {}", remote_path, local_path)
                     }
-                });
+                    MacroActionData::Wait { duration_secs, .. } => {
+                        format!("Wait {}s", duration_secs)
+                    }
+                    _ => format!("{:?}", action.action_type),
+                };
+
+                ui.label(RichText::new(summary).monospace());
+
+                // Edit button
+                if ui.button("✎").clicked() {
+                    self.selected_action = Some(action.id.clone());
+                }
+
+                // Enable/disable
+                let mut enabled = action.enabled;
+                if ui.checkbox(&mut enabled, "").changed() {
+                    // Would need to update the macro action
+                }
             });
+        });
     }
 
     fn render_save_dialog(&mut self, ui: &mut Ui, response: &mut MacroRecorderResponse) {

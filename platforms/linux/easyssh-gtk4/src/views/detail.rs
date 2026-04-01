@@ -200,30 +200,34 @@ impl ServerDetailView {
         };
 
         // Connect signals
-        view.connect_btn.connect_clicked(glib::clone!(@weak view as v => move |_| {
-            if let Some(ref cb) = *v.connect_callback.borrow() {
-                cb();
-            }
-        }));
+        view.connect_btn
+            .connect_clicked(glib::clone!(@weak view as v => move |_| {
+                if let Some(ref cb) = *v.connect_callback.borrow() {
+                    cb();
+                }
+            }));
 
-        view.delete_btn.connect_clicked(glib::clone!(@weak view as v => move |_| {
-            if let Some(ref cb) = *v.delete_callback.borrow() {
-                cb();
-            }
-        }));
+        view.delete_btn
+            .connect_clicked(glib::clone!(@weak view as v => move |_| {
+                if let Some(ref cb) = *v.delete_callback.borrow() {
+                    cb();
+                }
+            }));
 
-        view.favorite_btn.connect_clicked(glib::clone!(@weak view as v => move |_| {
-            if let Some(ref cb) = *v.favorite_callback.borrow() {
-                cb();
-            }
-        }));
+        view.favorite_btn
+            .connect_clicked(glib::clone!(@weak view as v => move |_| {
+                if let Some(ref cb) = *v.favorite_callback.borrow() {
+                    cb();
+                }
+            }));
 
         view
     }
 
     pub fn set_server(&self, server: Server) {
         self.title_label.set_text(&server.name);
-        self.subtitle_label.set_text(&format!("{}@{}", server.username, server.host));
+        self.subtitle_label
+            .set_text(&format!("{}@{}", server.username, server.host));
 
         // Status
         let (status_text, status_class) = match server.status {

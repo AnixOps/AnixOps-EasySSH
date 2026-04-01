@@ -309,7 +309,7 @@ impl std::fmt::Display for PasswordWeakness {
 pub struct SecurityAuditResult {
     pub overall_score: u8, // 0-100
     pub total_items: usize,
-    pub weak_passwords: Vec<String>, // item IDs
+    pub weak_passwords: Vec<String>,           // item IDs
     pub duplicate_passwords: Vec<Vec<String>>, // groups of items with same password
     pub leaked_passwords: Vec<String>,
     pub old_passwords: Vec<String>, // passwords not changed in 90+ days
@@ -333,7 +333,7 @@ pub struct PasswordGeneratorConfig {
     pub min_symbols: usize,
     pub require_all_types: bool,
     pub pronounceable: bool, // Generate memorable passwords
-    pub word_count: usize,    // For passphrase generation
+    pub word_count: usize,   // For passphrase generation
     pub word_separator: String,
 }
 
@@ -483,7 +483,8 @@ impl EnterpriseVault {
 
     /// Unlock vault with options
     pub fn unlock(&self, options: UnlockOptions) -> Result<bool, LiteError> {
-        let crypto = CRYPTO_STATE.write()
+        let crypto = CRYPTO_STATE
+            .write()
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         if !crypto.is_unlocked() {
@@ -679,7 +680,8 @@ impl EnterpriseVault {
             return Ok(());
         }
 
-        let crypto = CRYPTO_STATE.write()
+        let crypto = CRYPTO_STATE
+            .write()
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         if !crypto.is_unlocked() {
@@ -702,7 +704,8 @@ impl EnterpriseVault {
 
     /// Decrypt and load items
     fn decrypt_items(&self) -> Result<HashMap<String, EncryptedVaultItem>, LiteError> {
-        let crypto = CRYPTO_STATE.write()
+        let crypto = CRYPTO_STATE
+            .write()
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         if !crypto.is_unlocked() {
@@ -892,7 +895,8 @@ impl EnterpriseVault {
         metadata: VaultItemMetadata,
         data: T,
     ) -> Result<(), LiteError> {
-        let crypto = CRYPTO_STATE.write()
+        let crypto = CRYPTO_STATE
+            .write()
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         if !crypto.is_unlocked() {
@@ -904,7 +908,7 @@ impl EnterpriseVault {
             .map_err(|e| LiteError::Crypto(format!("Failed to serialize: {}", e)))?;
 
         // Calculate integrity hash
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(&plaintext);
         let check_hash = format!("{:x}", hasher.finalize());
@@ -930,19 +934,28 @@ impl EnterpriseVault {
     }
 
     /// Get password entry
-    pub fn get_password(&self, id: &str) -> Result<Option<(VaultItemMetadata, PasswordEntry)>, LiteError> {
+    pub fn get_password(
+        &self,
+        id: &str,
+    ) -> Result<Option<(VaultItemMetadata, PasswordEntry)>, LiteError> {
         self.ensure_unlocked()?;
         self.decrypt_and_get(id)
     }
 
     /// Get SSH key entry
-    pub fn get_ssh_key(&self, id: &str) -> Result<Option<(VaultItemMetadata, SshKeyEntry)>, LiteError> {
+    pub fn get_ssh_key(
+        &self,
+        id: &str,
+    ) -> Result<Option<(VaultItemMetadata, SshKeyEntry)>, LiteError> {
         self.ensure_unlocked()?;
         self.decrypt_and_get(id)
     }
 
     /// Get API key entry
-    pub fn get_api_key(&self, id: &str) -> Result<Option<(VaultItemMetadata, ApiKeyEntry)>, LiteError> {
+    pub fn get_api_key(
+        &self,
+        id: &str,
+    ) -> Result<Option<(VaultItemMetadata, ApiKeyEntry)>, LiteError> {
         self.ensure_unlocked()?;
         self.decrypt_and_get(id)
     }
@@ -954,7 +967,10 @@ impl EnterpriseVault {
     }
 
     /// Get secure note
-    pub fn get_secure_note(&self, id: &str) -> Result<Option<(VaultItemMetadata, SecureNoteEntry)>, LiteError> {
+    pub fn get_secure_note(
+        &self,
+        id: &str,
+    ) -> Result<Option<(VaultItemMetadata, SecureNoteEntry)>, LiteError> {
         self.ensure_unlocked()?;
         self.decrypt_and_get(id)
     }
@@ -971,7 +987,8 @@ impl EnterpriseVault {
         };
         drop(items);
 
-        let crypto = CRYPTO_STATE.write()
+        let crypto = CRYPTO_STATE
+            .write()
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         if !crypto.is_unlocked() {
@@ -987,7 +1004,7 @@ impl EnterpriseVault {
         let decrypted = crypto.decrypt(&encrypted)?;
 
         // Verify integrity
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(&decrypted);
         let computed_hash = format!("{:x}", hasher.finalize());
@@ -1030,7 +1047,10 @@ impl EnterpriseVault {
     }
 
     /// List items by type
-    pub fn list_items_by_type(&self, item_type: VaultItemType) -> Result<Vec<VaultItemMetadata>, LiteError> {
+    pub fn list_items_by_type(
+        &self,
+        item_type: VaultItemType,
+    ) -> Result<Vec<VaultItemMetadata>, LiteError> {
         self.ensure_unlocked()?;
 
         let items = self.items.lock().unwrap();
@@ -1052,8 +1072,13 @@ impl EnterpriseVault {
             .values()
             .filter(|i| {
                 i.metadata.name.to_lowercase().contains(&query_lower)
-                    || i.metadata.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
-                    || i.metadata.notes.as_ref()
+                    || i.metadata
+                        .tags
+                        .iter()
+                        .any(|t| t.to_lowercase().contains(&query_lower))
+                    || i.metadata
+                        .notes
+                        .as_ref()
                         .map(|n| n.to_lowercase().contains(&query_lower))
                         .unwrap_or(false)
             })
@@ -1073,10 +1098,11 @@ impl EnterpriseVault {
 
     /// Calculate TOTP code
     fn calculate_totp(entry: &TOTPEntry) -> Result<String, LiteError> {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
         use totp_rs::{Algorithm, TOTP};
-        use base64::{Engine as _, engine::general_purpose::STANDARD};
 
-        let secret = STANDARD.decode(&entry.secret)
+        let secret = STANDARD
+            .decode(&entry.secret)
             .map_err(|e| LiteError::Crypto(format!("Invalid TOTP secret: {}", e)))?;
 
         let algorithm = match entry.algorithm.as_str() {
@@ -1093,10 +1119,11 @@ impl EnterpriseVault {
             secret,
             None,
             entry.account.clone().unwrap_or_default(),
-        ).map_err(|e| LiteError::Crypto(format!("Failed to create TOTP: {}", e)))?;
+        )
+        .map_err(|e| LiteError::Crypto(format!("Failed to create TOTP: {}", e)))?;
 
-        Ok(totp.generate_current()
-            .map_err(|e| LiteError::Crypto(format!("Failed to generate TOTP: {}", e)))?)
+        totp.generate_current()
+            .map_err(|e| LiteError::Crypto(format!("Failed to generate TOTP: {}", e)))
     }
 
     /// Generate random password
@@ -1106,7 +1133,9 @@ impl EnterpriseVault {
     }
 
     /// Generate password with custom config
-    pub fn generate_password_with_config(config: &PasswordGeneratorConfig) -> Result<String, LiteError> {
+    pub fn generate_password_with_config(
+        config: &PasswordGeneratorConfig,
+    ) -> Result<String, LiteError> {
         if config.pronounceable {
             return Self::generate_passphrase(config);
         }
@@ -1196,21 +1225,124 @@ impl EnterpriseVault {
     fn generate_passphrase(config: &PasswordGeneratorConfig) -> Result<String, LiteError> {
         // Word list for passphrase generation
         let words = vec![
-            "apple", "banana", "cherry", "date", "elderberry", "fig", "grape", "honeydew",
-            "kiwi", "lemon", "mango", "nectarine", "orange", "papaya", "quince", "raspberry",
-            "strawberry", "tangerine", "watermelon", "blueberry", "coconut", "dragonfruit",
-            "apricot", "avocado", "blackberry", "currant", "gooseberry", "guava", "jackfruit",
-            "kumquat", "lychee", "mandarin", "mulberry", "olive", "peach", "pear", "persimmon",
-            "pineapple", "plum", "pomegranate", "pomelo", "tamarind", "yuzu", "almond",
-            "cashew", "chestnut", "hazelnut", "macadamia", "pecan", "pistachio", "walnut",
-            "acorn", "beech", "birch", "cedar", "cherry", "chestnut", "elm", "fir", "hawthorn",
-            "hazel", "hemlock", "holly", "hornbeam", "larch", "lime", "maple", "oak", "pine",
-            "poplar", "rowan", "spruce", "willow", "yew", "amber", "azure", "crimson", "cyan",
-            "emerald", "golden", "indigo", "ivory", "jade", "jet", "lime", "magenta", "maroon",
-            "mauve", "ochre", "olive", "orange", "orchid", "peach", "periwinkle", "pink",
-            "plum", "puce", "purple", "rose", "ruby", "saffron", "salmon", "sapphire",
-            "scarlet", "sepia", "silver", "tan", "taupe", "teal", "terracotta", "thistle",
-            "tomato", "turquoise", "ultramarine", "vermilion", "violet", "viridian", "wheat",
+            "apple",
+            "banana",
+            "cherry",
+            "date",
+            "elderberry",
+            "fig",
+            "grape",
+            "honeydew",
+            "kiwi",
+            "lemon",
+            "mango",
+            "nectarine",
+            "orange",
+            "papaya",
+            "quince",
+            "raspberry",
+            "strawberry",
+            "tangerine",
+            "watermelon",
+            "blueberry",
+            "coconut",
+            "dragonfruit",
+            "apricot",
+            "avocado",
+            "blackberry",
+            "currant",
+            "gooseberry",
+            "guava",
+            "jackfruit",
+            "kumquat",
+            "lychee",
+            "mandarin",
+            "mulberry",
+            "olive",
+            "peach",
+            "pear",
+            "persimmon",
+            "pineapple",
+            "plum",
+            "pomegranate",
+            "pomelo",
+            "tamarind",
+            "yuzu",
+            "almond",
+            "cashew",
+            "chestnut",
+            "hazelnut",
+            "macadamia",
+            "pecan",
+            "pistachio",
+            "walnut",
+            "acorn",
+            "beech",
+            "birch",
+            "cedar",
+            "cherry",
+            "chestnut",
+            "elm",
+            "fir",
+            "hawthorn",
+            "hazel",
+            "hemlock",
+            "holly",
+            "hornbeam",
+            "larch",
+            "lime",
+            "maple",
+            "oak",
+            "pine",
+            "poplar",
+            "rowan",
+            "spruce",
+            "willow",
+            "yew",
+            "amber",
+            "azure",
+            "crimson",
+            "cyan",
+            "emerald",
+            "golden",
+            "indigo",
+            "ivory",
+            "jade",
+            "jet",
+            "lime",
+            "magenta",
+            "maroon",
+            "mauve",
+            "ochre",
+            "olive",
+            "orange",
+            "orchid",
+            "peach",
+            "periwinkle",
+            "pink",
+            "plum",
+            "puce",
+            "purple",
+            "rose",
+            "ruby",
+            "saffron",
+            "salmon",
+            "sapphire",
+            "scarlet",
+            "sepia",
+            "silver",
+            "tan",
+            "taupe",
+            "teal",
+            "terracotta",
+            "thistle",
+            "tomato",
+            "turquoise",
+            "ultramarine",
+            "vermilion",
+            "violet",
+            "viridian",
+            "wheat",
         ];
 
         let mut rng = OsRng;
@@ -1285,10 +1417,16 @@ impl EnterpriseVault {
 
         // Check for sequential characters
         let password_lower = password.to_lowercase();
-        let sequences = vec!["0123456789", "abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl", "zxcvbnm"];
+        let sequences = vec![
+            "0123456789",
+            "abcdefghijklmnopqrstuvwxyz",
+            "qwertyuiop",
+            "asdfghjkl",
+            "zxcvbnm",
+        ];
         for seq in sequences {
             for i in 0..seq.len().saturating_sub(2) {
-                let pattern = &seq[i..i+3];
+                let pattern = &seq[i..i + 3];
                 if password_lower.contains(pattern) {
                     weaknesses.push(PasswordWeakness::SequentialChars);
                     score = score.saturating_sub(10);
@@ -1298,7 +1436,9 @@ impl EnterpriseVault {
         }
 
         // Check for common patterns (simplified)
-        let common_patterns = vec!["password", "123456", "qwerty", "admin", "letmein", "welcome"];
+        let common_patterns = vec![
+            "password", "123456", "qwerty", "admin", "letmein", "welcome",
+        ];
         for pattern in common_patterns {
             if password_lower.contains(pattern) {
                 weaknesses.push(PasswordWeakness::CommonPattern);
@@ -1402,12 +1542,13 @@ impl EnterpriseVault {
                         }
 
                         // Check for duplicates
-                        use sha2::{Sha256, Digest};
+                        use sha2::{Digest, Sha256};
                         let mut hasher = Sha256::new();
                         hasher.update(entry.password.as_bytes());
                         let hash = format!("{:x}", hasher.finalize());
 
-                        password_hashes.entry(hash)
+                        password_hashes
+                            .entry(hash)
                             .or_default()
                             .push(item.id.clone());
 
@@ -1453,7 +1594,8 @@ impl EnterpriseVault {
         }
 
         // Calculate overall score
-        let total_passwords = items.iter()
+        let total_passwords = items
+            .iter()
             .filter(|i| i.item_type == VaultItemType::Password)
             .count();
 
@@ -1464,8 +1606,10 @@ impl EnterpriseVault {
         };
 
         let mut overall_score = avg_strength;
-        overall_score = overall_score.saturating_sub((weak_passwords.len() as u8).saturating_mul(5));
-        overall_score = overall_score.saturating_sub((duplicate_groups.len() as u8).saturating_mul(10));
+        overall_score =
+            overall_score.saturating_sub((weak_passwords.len() as u8).saturating_mul(5));
+        overall_score =
+            overall_score.saturating_sub((duplicate_groups.len() as u8).saturating_mul(10));
         overall_score = overall_score.saturating_sub((missing_2fa.len() as u8).saturating_mul(3));
 
         // Generate recommendations
@@ -1529,7 +1673,10 @@ impl EnterpriseVault {
         };
 
         let id = contact.id.clone();
-        self.trusted_contacts.lock().unwrap().insert(id.clone(), contact);
+        self.trusted_contacts
+            .lock()
+            .unwrap()
+            .insert(id.clone(), contact);
         self.save()?;
 
         Ok(id)
@@ -1549,7 +1696,13 @@ impl EnterpriseVault {
     /// List trusted contacts
     pub fn list_trusted_contacts(&self) -> Result<Vec<TrustedContact>, LiteError> {
         self.ensure_unlocked()?;
-        Ok(self.trusted_contacts.lock().unwrap().values().cloned().collect())
+        Ok(self
+            .trusted_contacts
+            .lock()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect())
     }
 
     /// Create folder
@@ -1576,13 +1729,16 @@ impl EnterpriseVault {
         self.ensure_unlocked()?;
 
         // Check if folder has items
-        let has_items = self.items.lock().unwrap()
+        let has_items = self
+            .items
+            .lock()
+            .unwrap()
             .values()
             .any(|i| i.metadata.folder_id.as_ref() == Some(&id.to_string()));
 
         if has_items {
             return Err(LiteError::Config(
-                "Cannot delete folder containing items".to_string()
+                "Cannot delete folder containing items".to_string(),
             ));
         }
 
@@ -1645,7 +1801,8 @@ impl EnterpriseVault {
         let mut weak_count = 0usize;
         let mut with_2fa = 0usize;
 
-        let mut password_hashes: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut password_hashes: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
 
         for item in &items {
             *items_by_type.entry(item.item_type).or_insert(0) += 1;
@@ -1659,7 +1816,7 @@ impl EnterpriseVault {
                         weak_count += 1;
                     }
 
-                    use sha2::{Sha256, Digest};
+                    use sha2::{Digest, Sha256};
                     let mut hasher = Sha256::new();
                     hasher.update(entry.password.as_bytes());
                     let hash = format!("{:x}", hasher.finalize());
@@ -1675,7 +1832,10 @@ impl EnterpriseVault {
             }
         }
 
-        let total_passwords = items_by_type.get(&VaultItemType::Password).copied().unwrap_or(0);
+        let total_passwords = items_by_type
+            .get(&VaultItemType::Password)
+            .copied()
+            .unwrap_or(0);
         let avg_strength = if total_passwords > 0 {
             (total_strength / total_passwords as u32) as u8
         } else {
@@ -1751,18 +1911,18 @@ impl EnterpriseVault {
         let candidates: Vec<_> = all_items
             .into_iter()
             .filter(|item| {
-                item.autofill_enabled &&
-                item.urls.iter().any(|item_url| {
-                    if config.match_url_exact {
-                        item_url == url
-                    } else if config.match_url_domain {
-                        Self::domain_match(item_url, url)
-                    } else if config.match_url_subdomain {
-                        Self::subdomain_match(item_url, url)
-                    } else {
-                        item_url.contains(url) || url.contains(item_url)
-                    }
-                })
+                item.autofill_enabled
+                    && item.urls.iter().any(|item_url| {
+                        if config.match_url_exact {
+                            item_url == url
+                        } else if config.match_url_domain {
+                            Self::domain_match(item_url, url)
+                        } else if config.match_url_subdomain {
+                            Self::subdomain_match(item_url, url)
+                        } else {
+                            item_url.contains(url) || url.contains(item_url)
+                        }
+                    })
             })
             .collect();
 
@@ -1779,9 +1939,9 @@ impl EnterpriseVault {
         let vault_domain = Self::extract_domain(vault_url);
         let target_domain = Self::extract_domain(target_url);
 
-        vault_domain == target_domain ||
-        target_domain.ends_with(&format!(".{}", vault_domain)) ||
-        vault_domain.ends_with(&format!(".{}", target_domain))
+        vault_domain == target_domain
+            || target_domain.ends_with(&format!(".{}", vault_domain))
+            || vault_domain.ends_with(&format!(".{}", target_domain))
     }
 
     /// Extract domain from URL
@@ -1800,16 +1960,19 @@ impl EnterpriseVault {
 
     /// Calculate SSH key fingerprint
     fn calculate_ssh_fingerprint(public_key: &str) -> Result<String, LiteError> {
-        use sha2::{Sha256, Digest};
-        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+        use sha2::{Digest, Sha256};
 
         // Parse the public key format: "type base64 comment"
         let parts: Vec<&str> = public_key.split_whitespace().collect();
         if parts.len() < 2 {
-            return Err(LiteError::Config("Invalid SSH public key format".to_string()));
+            return Err(LiteError::Config(
+                "Invalid SSH public key format".to_string(),
+            ));
         }
 
-        let key_data = STANDARD.decode(parts[1])
+        let key_data = STANDARD
+            .decode(parts[1])
             .map_err(|e| LiteError::Config(format!("Invalid base64 in SSH key: {}", e)))?;
 
         let mut hasher = Sha256::new();
@@ -1862,7 +2025,8 @@ impl EnterpriseVault {
         let json_data = serde_json::to_vec(&export_data)
             .map_err(|e| LiteError::Config(format!("Failed to serialize vault: {}", e)))?;
 
-        let crypto = CRYPTO_STATE.write()
+        let crypto = CRYPTO_STATE
+            .write()
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         let encrypted = crypto.encrypt(&json_data)?;
@@ -1880,7 +2044,8 @@ impl EnterpriseVault {
         let encrypted = std::fs::read(path)
             .map_err(|e| LiteError::Config(format!("Failed to read import file: {}", e)))?;
 
-        let crypto = CRYPTO_STATE.write()
+        let crypto = CRYPTO_STATE
+            .write()
             .map_err(|e| LiteError::Crypto(e.to_string()))?;
 
         let decrypted = crypto.decrypt(&encrypted)?;
@@ -1891,8 +2056,9 @@ impl EnterpriseVault {
         let mut imported_count = 0;
 
         if let Some(items) = import_data.get("items") {
-            let imported_items: HashMap<String, EncryptedVaultItem> = serde_json::from_value(items.clone())
-                .map_err(|e| LiteError::Config(format!("Failed to parse items: {}", e)))?;
+            let imported_items: HashMap<String, EncryptedVaultItem> =
+                serde_json::from_value(items.clone())
+                    .map_err(|e| LiteError::Config(format!("Failed to parse items: {}", e)))?;
 
             let mut items_lock = self.items.lock().unwrap();
             for (id, item) in imported_items {
@@ -1904,8 +2070,9 @@ impl EnterpriseVault {
         }
 
         if let Some(folders) = import_data.get("folders") {
-            let imported_folders: HashMap<String, VaultFolder> = serde_json::from_value(folders.clone())
-                .map_err(|e| LiteError::Config(format!("Failed to parse folders: {}", e)))?;
+            let imported_folders: HashMap<String, VaultFolder> =
+                serde_json::from_value(folders.clone())
+                    .map_err(|e| LiteError::Config(format!("Failed to parse folders: {}", e)))?;
 
             let mut folders_lock = self.folders.lock().unwrap();
             for (id, folder) in imported_folders {
@@ -1990,7 +2157,7 @@ mod tests {
         );
         assert_eq!(
             EnterpriseVault::extract_domain("http://www.sub.example.com:8080/path"),
-            "sub.example.com"  // Port is stripped by extract_domain
+            "sub.example.com" // Port is stripped by extract_domain
         );
         assert_eq!(
             EnterpriseVault::extract_domain("example.com"),
@@ -2020,7 +2187,10 @@ mod tests {
     #[test]
     fn test_hardware_auth_method_display() {
         assert_eq!(HardwareAuthMethod::YubiKeyOtp.to_string(), "YubiKey OTP");
-        assert_eq!(HardwareAuthMethod::BiometricFace.to_string(), "Face Recognition");
+        assert_eq!(
+            HardwareAuthMethod::BiometricFace.to_string(),
+            "Face Recognition"
+        );
     }
 
     #[test]
@@ -2039,7 +2209,9 @@ mod tests {
         assert_eq!(EnterpriseVault::format_duration(172800), "2 days");
         assert_eq!(EnterpriseVault::format_duration(5184000), "2 months");
         assert_eq!(EnterpriseVault::format_duration(63072000), "2 years");
-        assert!(EnterpriseVault::format_duration(u64::MAX).contains("centuries")
-            || EnterpriseVault::format_duration(u64::MAX) == "forever");
+        assert!(
+            EnterpriseVault::format_duration(u64::MAX).contains("centuries")
+                || EnterpriseVault::format_duration(u64::MAX) == "forever"
+        );
     }
 }

@@ -2,9 +2,26 @@
 //!
 //! This module provides helper functions for testing egui UI components.
 
-/// Test helper for creating mock view models
-pub fn create_test_server_viewmodel() -> crate::viewmodels::ServerViewModel {
-    crate::viewmodels::ServerViewModel {
+// Define local types for integration tests (can't use crate:: paths in integration tests)
+#[derive(Clone, Debug)]
+pub struct ServerViewModel {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub group_id: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct GroupViewModel {
+    pub id: String,
+    pub name: String,
+}
+
+/// Test helper for creating mock server view models
+pub fn create_test_server_viewmodel() -> ServerViewModel {
+    ServerViewModel {
         id: "test-id".to_string(),
         name: "Test Server".to_string(),
         host: "192.168.1.100".to_string(),
@@ -15,8 +32,8 @@ pub fn create_test_server_viewmodel() -> crate::viewmodels::ServerViewModel {
 }
 
 /// Test helper for creating mock group view models
-pub fn create_test_group_viewmodel() -> crate::viewmodels::GroupViewModel {
-    crate::viewmodels::GroupViewModel {
+pub fn create_test_group_viewmodel() -> GroupViewModel {
+    GroupViewModel {
         id: "group-id".to_string(),
         name: "Test Group".to_string(),
     }

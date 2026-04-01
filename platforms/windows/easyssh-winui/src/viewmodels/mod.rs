@@ -3,11 +3,16 @@ pub mod port_forward;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use crate::viewmodels::port_forward::PortForwardViewModel;
 use easyssh_core::keychain::{delete_password, get_password, store_password};
 use easyssh_core::sftp::SftpEntry;
-use easyssh_core::{AppState, GroupRecord, NewServer, ServerRecord, SshSessionManager, SftpSessionManager};
-use easyssh_core::{ConfigManager, ExportFormat, ConfigConflictResolution as ConflictResolution, ImportResult, ImportFormat};
-use crate::viewmodels::port_forward::PortForwardViewModel;
+use easyssh_core::{
+    AppState, GroupRecord, NewServer, ServerRecord, SftpSessionManager, SshSessionManager,
+};
+use easyssh_core::{
+    ConfigConflictResolution as ConflictResolution, ConfigManager, ExportFormat, ImportFormat,
+    ImportResult,
+};
 use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
@@ -61,11 +66,11 @@ impl AppViewModel {
         let needs_full_init = match easyssh_core::db::Database::new(db_path) {
             Ok(db) => {
                 match db.is_initialized() {
-                    Ok(false) => true,  // Tables don't exist, need full init
-                    _ => false,         // Already initialized or error (assume initialized)
+                    Ok(false) => true, // Tables don't exist, need full init
+                    _ => false,        // Already initialized or error (assume initialized)
                 }
             }
-            Err(_) => true,  // Can't open DB, try full init
+            Err(_) => true, // Can't open DB, try full init
         };
 
         if needs_full_init {
@@ -88,7 +93,7 @@ impl AppViewModel {
         // Defer PortForwardViewModel initialization (it's not needed immediately)
         let port_forward_vm = Arc::new(Mutex::new(
             PortForwardViewModel::new(core_state.clone())
-                .map_err(|e| anyhow::anyhow!("Failed to create PortForwardViewModel: {}", e))?
+                .map_err(|e| anyhow::anyhow!("Failed to create PortForwardViewModel: {}", e))?,
         ));
 
         Ok(Self {
@@ -155,14 +160,20 @@ impl AppViewModel {
         Ok(())
     }
 
-    pub fn update_server_group(&self, server_id: &str, group_id: Option<String>) -> anyhow::Result<()> {
+    pub fn update_server_group(
+        &self,
+        server_id: &str,
+        group_id: Option<String>,
+    ) -> anyhow::Result<()> {
         let state = self.core_state.lock().unwrap();
         let db_lock = state.db.lock().unwrap();
-        let db = db_lock.as_ref()
+        let db = db_lock
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Database not initialized"))?;
 
         // Get current server data
-        let server = db.get_server(server_id)
+        let server = db
+            .get_server(server_id)
             .map_err(|e| anyhow::anyhow!("Failed to get server: {}", e))?;
 
         // Log before moving group_id
@@ -224,7 +235,11 @@ impl AppViewModel {
 
         // Best-effort cleanup of stored password for this server
         if let Err(e) = delete_password(server_id) {
-            tracing::warn!("Delete server password cleanup warning for {}: {}", server_id, e);
+            tracing::warn!(
+                "Delete server password cleanup warning for {}: {}",
+                server_id,
+                e
+            );
         }
 
         info!("Deleted server: {}", server_id);
@@ -291,10 +306,7 @@ impl AppViewModel {
             Ok(None) => Err(anyhow::anyhow!(
                 "Password save verification failed: value not found after save"
             )),
-            Err(e) => Err(anyhow::anyhow!(
-                "Password save verification failed: {}",
-                e
-            )),
+            Err(e) => Err(anyhow::anyhow!("Password save verification failed: {}", e)),
         }
     }
 
@@ -350,15 +362,14 @@ impl AppViewModel {
         let cmd = command.to_string();
 
         rt.block_on(async move {
-            match tokio::time::timeout(
-                tokio::time::Duration::from_secs(timeout_secs),
-                async {
-                    let mgr = manager.lock().unwrap();
-                    mgr.execute(&sid, &cmd)
-                        .await
-                        .map_err(|e| anyhow::anyhow!("SSH command failed: {}", e))
-                }
-            ).await {
+            match tokio::time::timeout(tokio::time::Duration::from_secs(timeout_secs), async {
+                let mgr = manager.lock().unwrap();
+                mgr.execute(&sid, &cmd)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("SSH command failed: {}", e))
+            })
+            .await
+            {
                 Ok(result) => result,
                 Err(_) => Err(anyhow::anyhow!("Command timed out after {}s", timeout_secs)),
             }
@@ -466,7 +477,8 @@ impl AppViewModel {
                         Ok(guard) => break guard,
                         Err(_) => {
                             attempts += 1;
-                            if attempts > 100 {  // 1秒超时
+                            if attempts > 100 {
+                                // 1秒超时
                                 error!("SFTP: failed to acquire lock after 1s");
                                 return;
                             }
@@ -477,7 +489,8 @@ impl AppViewModel {
 
                 // 调用sftp()创建SFTP子系统
                 // ssh2的Session::sftp()是阻塞调用
-                session_guard.sftp()
+                session_guard
+                    .sftp()
                     .map_err(|e| anyhow::anyhow!("SFTP subsystem failed: {}", e))
             };
 
@@ -593,7 +606,12 @@ impl AppViewModel {
 
     /// SFTP下载文件
     #[allow(dead_code)]
-    pub fn sftp_download(&self, session_id: &str, remote_path: &str, local_path: &str) -> anyhow::Result<Vec<u8>> {
+    pub fn sftp_download(
+        &self,
+        session_id: &str,
+        remote_path: &str,
+        local_path: &str,
+    ) -> anyhow::Result<Vec<u8>> {
         let rt = self.runtime.clone();
         let mgr = self.sftp_manager.clone();
 
@@ -685,22 +703,21 @@ impl AppViewModel {
     ) -> anyhow::Result<ImportResult> {
         let state = self.core_state.lock().unwrap();
         let db_lock = state.db.lock().unwrap();
-        let db = db_lock.as_ref()
+        let db = db_lock
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Database not initialized"))?;
 
         match format {
-            ImportFormat::Json => {
-                ConfigManager::import_json(db, content, conflict_resolution)
-                    .map_err(|e| anyhow::anyhow!("Import failed: {}", e))
-            }
+            ImportFormat::Json => ConfigManager::import_json(db, content, conflict_resolution)
+                .map_err(|e| anyhow::anyhow!("Import failed: {}", e)),
             ImportFormat::JsonEncrypted => {
                 // Need password for encrypted - this should be handled by the UI
-                Err(anyhow::anyhow!("Encrypted import requires password. Use import_json_encrypted method."))
+                Err(anyhow::anyhow!(
+                    "Encrypted import requires password. Use import_json_encrypted method."
+                ))
             }
-            ImportFormat::Csv => {
-                ConfigManager::import_csv(db, content, conflict_resolution)
-                    .map_err(|e| anyhow::anyhow!("Import failed: {}", e))
-            }
+            ImportFormat::Csv => ConfigManager::import_csv(db, content, conflict_resolution)
+                .map_err(|e| anyhow::anyhow!("Import failed: {}", e)),
             ImportFormat::SshConfig => {
                 ConfigManager::import_ssh_config(db, content, conflict_resolution)
                     .map_err(|e| anyhow::anyhow!("Import failed: {}", e))
@@ -710,7 +727,12 @@ impl AppViewModel {
                 if content.trim().starts_with('{') {
                     ConfigManager::import_json(db, content, conflict_resolution)
                         .map_err(|e| anyhow::anyhow!("Import failed: {}", e))
-                } else if content.lines().next().map(|l| l.contains(',')).unwrap_or(false) {
+                } else if content
+                    .lines()
+                    .next()
+                    .map(|l| l.contains(','))
+                    .unwrap_or(false)
+                {
                     // Likely CSV
                     ConfigManager::import_csv(db, content, conflict_resolution)
                         .map_err(|e| anyhow::anyhow!("Import failed: {}", e))
@@ -732,7 +754,8 @@ impl AppViewModel {
     ) -> anyhow::Result<ImportResult> {
         let state = self.core_state.lock().unwrap();
         let db_lock = state.db.lock().unwrap();
-        let db = db_lock.as_ref()
+        let db = db_lock
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Database not initialized"))?;
 
         ConfigManager::import_json_encrypted(db, content, password, conflict_resolution)
@@ -748,14 +771,13 @@ impl AppViewModel {
     ) -> anyhow::Result<String> {
         let state = self.core_state.lock().unwrap();
         let db_lock = state.db.lock().unwrap();
-        let db = db_lock.as_ref()
+        let db = db_lock
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Database not initialized"))?;
 
         match format {
-            ExportFormat::Json => {
-                ConfigManager::export_json(db, include_secrets)
-                    .map_err(|e| anyhow::anyhow!("Export failed: {}", e))
-            }
+            ExportFormat::Json => ConfigManager::export_json(db, include_secrets)
+                .map_err(|e| anyhow::anyhow!("Export failed: {}", e)),
             ExportFormat::JsonEncrypted => {
                 if password.is_empty() {
                     return Err(anyhow::anyhow!("Password required for encrypted export"));
@@ -764,13 +786,10 @@ impl AppViewModel {
                     .map_err(|e| anyhow::anyhow!("Encrypted export failed: {}", e))
             }
             ExportFormat::Csv => {
-                ConfigManager::export_csv(db)
-                    .map_err(|e| anyhow::anyhow!("Export failed: {}", e))
+                ConfigManager::export_csv(db).map_err(|e| anyhow::anyhow!("Export failed: {}", e))
             }
-            ExportFormat::SshConfig => {
-                ConfigManager::export_ssh_config(db)
-                    .map_err(|e| anyhow::anyhow!("Export failed: {}", e))
-            }
+            ExportFormat::SshConfig => ConfigManager::export_ssh_config(db)
+                .map_err(|e| anyhow::anyhow!("Export failed: {}", e)),
         }
     }
 
@@ -783,7 +802,8 @@ impl AppViewModel {
     ) -> anyhow::Result<()> {
         let state = self.core_state.lock().unwrap();
         let db_lock = state.db.lock().unwrap();
-        let db = db_lock.as_ref()
+        let db = db_lock
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Database not initialized"))?;
 
         db.set_config("accessibility.high_contrast", &high_contrast.to_string())
@@ -793,8 +813,10 @@ impl AppViewModel {
         db.set_config("accessibility.large_text", &large_text.to_string())
             .map_err(|e| anyhow::anyhow!("Failed to save large_text: {}", e))?;
 
-        info!("Accessibility settings saved: high_contrast={}, reduced_motion={}, large_text={}",
-              high_contrast, reduced_motion, large_text);
+        info!(
+            "Accessibility settings saved: high_contrast={}, reduced_motion={}, large_text={}",
+            high_contrast, reduced_motion, large_text
+        );
         Ok(())
     }
 
@@ -802,21 +824,27 @@ impl AppViewModel {
     pub fn load_accessibility_settings(&self) -> anyhow::Result<(bool, bool, bool)> {
         let state = self.core_state.lock().unwrap();
         let db_lock = state.db.lock().unwrap();
-        let db = db_lock.as_ref()
+        let db = db_lock
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Database not initialized"))?;
 
-        let high_contrast = db.get_config("accessibility.high_contrast")?
+        let high_contrast = db
+            .get_config("accessibility.high_contrast")?
             .map(|v| v.parse::<bool>().unwrap_or(false))
             .unwrap_or(false);
-        let reduced_motion = db.get_config("accessibility.reduced_motion")?
+        let reduced_motion = db
+            .get_config("accessibility.reduced_motion")?
             .map(|v| v.parse::<bool>().unwrap_or(false))
             .unwrap_or(false);
-        let large_text = db.get_config("accessibility.large_text")?
+        let large_text = db
+            .get_config("accessibility.large_text")?
             .map(|v| v.parse::<bool>().unwrap_or(false))
             .unwrap_or(false);
 
-        info!("Accessibility settings loaded: high_contrast={}, reduced_motion={}, large_text={}",
-              high_contrast, reduced_motion, large_text);
+        info!(
+            "Accessibility settings loaded: high_contrast={}, reduced_motion={}, large_text={}",
+            high_contrast, reduced_motion, large_text
+        );
         Ok((high_contrast, reduced_motion, large_text))
     }
 }

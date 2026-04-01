@@ -13,9 +13,9 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CollaborationRole {
-    Observer,   // 观察者 - 只能观看
-    Operator,   // 操作者 - 可以输入命令
-    Admin,      // 管理员 - 完整控制
+    Observer, // 观察者 - 只能观看
+    Operator, // 操作者 - 可以输入命令
+    Admin,    // 管理员 - 完整控制
 }
 
 impl CollaborationRole {
@@ -40,10 +40,10 @@ impl CollaborationRole {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CollaborationState {
-    Active,     // 活跃中
-    Paused,     // 已暂停
-    Ended,      // 已结束
-    Recording,  // 录制中
+    Active,    // 活跃中
+    Paused,    // 已暂停
+    Ended,     // 已结束
+    Recording, // 录制中
 }
 
 /// 协作会话
@@ -126,11 +126,11 @@ pub struct TerminalUpdate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TerminalUpdateType {
-    Output,     // 终端输出
-    Input,      // 用户输入
-    Resize,     // 终端大小改变
-    Scroll,     // 滚动位置
-    Selection,  // 文本选择
+    Output,    // 终端输出
+    Input,     // 用户输入
+    Resize,    // 终端大小改变
+    Scroll,    // 滚动位置
+    Selection, // 文本选择
 }
 
 /// 屏幕标注
@@ -152,12 +152,12 @@ pub struct Annotation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AnnotationType {
-    Draw,       // 手绘涂鸦
-    Highlight,  // 高亮
-    Arrow,      // 箭头
-    Text,       // 文本
-    Circle,     // 圆圈
-    Rectangle,  // 矩形
+    Draw,      // 手绘涂鸦
+    Highlight, // 高亮
+    Arrow,     // 箭头
+    Text,      // 文本
+    Circle,    // 圆圈
+    Rectangle, // 矩形
 }
 
 /// 标注位置
@@ -302,7 +302,10 @@ pub fn create_collaboration_session(
     server_name: &str,
 ) -> CollaborationSession {
     let id = Uuid::new_v4().to_string();
-    let share_link = format!("collab-{}", Uuid::new_v4().to_string().split('-').next().unwrap());
+    let share_link = format!(
+        "collab-{}",
+        Uuid::new_v4().to_string().split('-').next().unwrap()
+    );
 
     CollaborationSession {
         id,
@@ -457,17 +460,13 @@ impl CollaborationManager {
         server_id: &str,
         server_name: &str,
     ) -> CollaborationSession {
-        let session = create_collaboration_session(
-            host_id,
-            host_username,
-            team_id,
-            server_id,
-            server_name,
-        );
+        let session =
+            create_collaboration_session(host_id, host_username, team_id, server_id, server_name);
         let id = session.id.clone();
 
         // 创建参与者列表
-        let host_participant = create_participant(&id, host_id, host_username, CollaborationRole::Admin);
+        let host_participant =
+            create_participant(&id, host_id, host_username, CollaborationRole::Admin);
         self.participants.insert(id.clone(), vec![host_participant]);
 
         // 初始化其他存储
@@ -477,7 +476,14 @@ impl CollaborationManager {
         self.clipboard.insert(id.clone(), Vec::new());
 
         // 添加历史记录
-        let entry = create_history_entry(&id, host_id, host_username, CollaborationActionType::Join, None, None);
+        let entry = create_history_entry(
+            &id,
+            host_id,
+            host_username,
+            CollaborationActionType::Join,
+            None,
+            None,
+        );
         if let Some(hist) = self.history.get_mut(&id) {
             hist.push(entry);
         }
@@ -501,16 +507,22 @@ impl CollaborationManager {
         username: &str,
         role: CollaborationRole,
     ) -> Result<CollaborationParticipant, LiteError> {
-        let session = self.sessions.get(session_id)
+        let session = self
+            .sessions
+            .get(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         // 检查会话状态
-        if session.state != CollaborationState::Active && session.state != CollaborationState::Recording {
+        if session.state != CollaborationState::Active
+            && session.state != CollaborationState::Recording
+        {
             return Err(LiteError::Config("Session is not active".to_string()));
         }
 
         // 检查参与者数量
-        let participants = self.participants.get(session_id)
+        let participants = self
+            .participants
+            .get(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if participants.len() >= session.settings.max_participants as usize {
@@ -529,7 +541,14 @@ impl CollaborationManager {
         }
 
         // 添加历史记录
-        let entry = create_history_entry(session_id, user_id, username, CollaborationActionType::Join, None, None);
+        let entry = create_history_entry(
+            session_id,
+            user_id,
+            username,
+            CollaborationActionType::Join,
+            None,
+            None,
+        );
         if let Some(hist) = self.history.get_mut(session_id) {
             hist.push(entry);
         }
@@ -538,7 +557,9 @@ impl CollaborationManager {
     }
 
     pub fn leave_session(&mut self, session_id: &str, user_id: &str) -> Result<(), LiteError> {
-        let parts = self.participants.get_mut(session_id)
+        let parts = self
+            .participants
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if let Some(participant) = parts.iter().find(|p| p.user_id == user_id) {
@@ -569,7 +590,8 @@ impl CollaborationManager {
     }
 
     pub fn get_participants(&self, session_id: &str) -> Vec<&CollaborationParticipant> {
-        self.participants.get(session_id)
+        self.participants
+            .get(session_id)
             .map(|p| p.iter().collect())
             .unwrap_or_default()
     }
@@ -581,7 +603,9 @@ impl CollaborationManager {
         row: u32,
         col: u32,
     ) -> Result<(), LiteError> {
-        let parts = self.participants.get_mut(session_id)
+        let parts = self
+            .participants
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if let Some(participant) = parts.iter_mut().find(|p| p.user_id == user_id) {
@@ -596,8 +620,15 @@ impl CollaborationManager {
         Ok(())
     }
 
-    pub fn update_voice_state(&mut self, session_id: &str, user_id: &str, is_active: bool) -> Result<(), LiteError> {
-        let parts = self.participants.get_mut(session_id)
+    pub fn update_voice_state(
+        &mut self,
+        session_id: &str,
+        user_id: &str,
+        is_active: bool,
+    ) -> Result<(), LiteError> {
+        let parts = self
+            .participants
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if let Some(participant) = parts.iter_mut().find(|p| p.user_id == user_id) {
@@ -633,13 +664,20 @@ impl CollaborationManager {
     }
 
     pub fn get_annotations(&self, session_id: &str) -> Vec<&Annotation> {
-        self.annotations.get(session_id)
+        self.annotations
+            .get(session_id)
             .map(|a| a.iter().filter(|ann| ann.resolved_at.is_none()).collect())
             .unwrap_or_default()
     }
 
-    pub fn resolve_annotation(&mut self, session_id: &str, annotation_id: &str) -> Result<(), LiteError> {
-        let anns = self.annotations.get_mut(session_id)
+    pub fn resolve_annotation(
+        &mut self,
+        session_id: &str,
+        annotation_id: &str,
+    ) -> Result<(), LiteError> {
+        let anns = self
+            .annotations
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if let Some(ann) = anns.iter_mut().find(|a| a.id == annotation_id) {
@@ -674,13 +712,21 @@ impl CollaborationManager {
     }
 
     pub fn get_comments(&self, session_id: &str) -> Vec<&Comment> {
-        self.comments.get(session_id)
+        self.comments
+            .get(session_id)
             .map(|c| c.iter().filter(|comm| !comm.resolved).collect())
             .unwrap_or_default()
     }
 
-    pub fn add_reply(&mut self, session_id: &str, comment_id: &str, reply: CommentReply) -> Result<(), LiteError> {
-        let comments = self.comments.get_mut(session_id)
+    pub fn add_reply(
+        &mut self,
+        session_id: &str,
+        comment_id: &str,
+        reply: CommentReply,
+    ) -> Result<(), LiteError> {
+        let comments = self
+            .comments
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if let Some(comment) = comments.iter_mut().find(|c| c.id == comment_id) {
@@ -692,7 +738,9 @@ impl CollaborationManager {
     }
 
     pub fn resolve_comment(&mut self, session_id: &str, comment_id: &str) -> Result<(), LiteError> {
-        let comments = self.comments.get_mut(session_id)
+        let comments = self
+            .comments
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if let Some(comment) = comments.iter_mut().find(|c| c.id == comment_id) {
@@ -725,7 +773,11 @@ impl CollaborationManager {
             &author_name,
             CollaborationActionType::ClipboardSync,
             None,
-            Some(&format!("{:?}: {}", content_type, &content_preview[..content_preview.len().min(30)])),
+            Some(&format!(
+                "{:?}: {}",
+                content_type,
+                &content_preview[..content_preview.len().min(30)]
+            )),
         );
         if let Some(hist) = self.history.get_mut(&session_id) {
             hist.push(entry);
@@ -735,16 +787,16 @@ impl CollaborationManager {
     }
 
     pub fn get_clipboard_items(&self, session_id: &str, limit: usize) -> Vec<&SharedClipboardItem> {
-        self.clipboard.get(session_id)
-            .map(|items| {
-                items.iter().rev().take(limit).collect()
-            })
+        self.clipboard
+            .get(session_id)
+            .map(|items| items.iter().rev().take(limit).collect())
             .unwrap_or_default()
     }
 
     // 历史记录
     pub fn get_history(&self, session_id: &str, limit: usize) -> Vec<&CollaborationHistory> {
-        self.history.get(session_id)
+        self.history
+            .get(session_id)
             .map(|h| h.iter().rev().take(limit).collect())
             .unwrap_or_default()
     }
@@ -772,7 +824,9 @@ impl CollaborationManager {
 
     // 录制管理
     pub fn start_recording(&mut self, session_id: &str) -> Result<(), LiteError> {
-        let session = self.sessions.get_mut(session_id)
+        let session = self
+            .sessions
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if session.state == CollaborationState::Recording {
@@ -798,8 +852,13 @@ impl CollaborationManager {
         Ok(())
     }
 
-    pub fn stop_recording(&mut self, session_id: &str) -> Result<CollaborationRecording, LiteError> {
-        let session = self.sessions.get_mut(session_id)
+    pub fn stop_recording(
+        &mut self,
+        session_id: &str,
+    ) -> Result<CollaborationRecording, LiteError> {
+        let session = self
+            .sessions
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
 
         if session.state != CollaborationState::Recording {
@@ -808,7 +867,9 @@ impl CollaborationManager {
 
         session.state = CollaborationState::Active;
 
-        let recording = self.recordings.get_mut(session_id)
+        let recording = self
+            .recordings
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Recording not found".to_string()))?;
 
         recording.ended_at = Some(Utc::now());
@@ -828,7 +889,9 @@ impl CollaborationManager {
     // 结束会话
     pub fn end_session(&mut self, session_id: &str, user_id: &str) -> Result<(), LiteError> {
         let is_recording = {
-            let session = self.sessions.get(session_id)
+            let session = self
+                .sessions
+                .get(session_id)
                 .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
             if session.host_id != user_id {
                 return Err(LiteError::Config("Only host can end session".to_string()));
@@ -841,7 +904,9 @@ impl CollaborationManager {
             self.stop_recording(session_id).ok();
         }
 
-        let session = self.sessions.get_mut(session_id)
+        let session = self
+            .sessions
+            .get_mut(session_id)
             .ok_or_else(|| LiteError::Config("Session not found".to_string()))?;
         session.state = CollaborationState::Ended;
         session.ended_at = Some(Utc::now());
@@ -1022,13 +1087,8 @@ mod tests {
 
     #[test]
     fn test_create_session() {
-        let session = create_collaboration_session(
-            "user1",
-            "TestUser",
-            "team1",
-            "server1",
-            "My Server",
-        );
+        let session =
+            create_collaboration_session("user1", "TestUser", "team1", "server1", "My Server");
         assert_eq!(session.host_id, "user1");
         assert_eq!(session.server_name, "My Server");
         assert!(!session.share_link.is_empty());
@@ -1041,7 +1101,9 @@ mod tests {
         let session = manager.create_session("host1", "Host", "team1", "srv1", "Server 1");
         assert_eq!(session.host_id, "host1");
 
-        let participant = manager.join_session(&session.id, "user1", "User1", CollaborationRole::Observer).unwrap();
+        let participant = manager
+            .join_session(&session.id, "user1", "User1", CollaborationRole::Observer)
+            .unwrap();
         assert_eq!(participant.user_id, "user1");
         assert_eq!(participant.role, CollaborationRole::Observer);
 
@@ -1094,7 +1156,13 @@ mod tests {
         let mut manager = CollaborationManager::new();
         let session = manager.create_session("host1", "Host", "team1", "srv1", "Server");
 
-        let item = create_clipboard_item(&session.id, "user1", "User", "ssh user@host", ClipboardContentType::Command);
+        let item = create_clipboard_item(
+            &session.id,
+            "user1",
+            "User",
+            "ssh user@host",
+            ClipboardContentType::Command,
+        );
         manager.add_clipboard_item(item).unwrap();
 
         let items = manager.get_clipboard_items(&session.id, 10);

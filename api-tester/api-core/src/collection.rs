@@ -53,7 +53,10 @@ impl CollectionManager {
         None
     }
 
-    pub fn find_request_mut(&mut self, request_id: &str) -> Option<(&mut Collection, &mut ApiRequest)> {
+    pub fn find_request_mut(
+        &mut self,
+        request_id: &str,
+    ) -> Option<(&mut Collection, &mut ApiRequest)> {
         for collection in self.collections.values_mut() {
             // Check root requests
             for i in 0..collection.requests.len() {
@@ -74,7 +77,10 @@ impl CollectionManager {
         None
     }
 
-    fn find_request_in_folder<'a>(folder: &'a CollectionFolder, request_id: &str) -> Option<&'a ApiRequest> {
+    fn find_request_in_folder<'a>(
+        folder: &'a CollectionFolder,
+        request_id: &str,
+    ) -> Option<&'a ApiRequest> {
         for request in &folder.requests {
             if request.id == request_id {
                 return Some(request);
@@ -90,7 +96,10 @@ impl CollectionManager {
         None
     }
 
-    fn find_request_in_folder_mut<'a>(folder: &'a mut CollectionFolder, request_id: &str) -> Option<&'a mut ApiRequest> {
+    fn find_request_in_folder_mut<'a>(
+        folder: &'a mut CollectionFolder,
+        request_id: &str,
+    ) -> Option<&'a mut ApiRequest> {
         for i in 0..folder.requests.len() {
             if folder.requests[i].id == request_id {
                 return Some(&mut folder.requests[i]);
@@ -112,7 +121,8 @@ impl CollectionManager {
         request: ApiRequest,
         folder_id: Option<&str>,
     ) -> ApiResult<()> {
-        let collection = self.collections
+        let collection = self
+            .collections
             .get_mut(collection_id)
             .ok_or_else(|| ApiError::Database("Collection not found".to_string()))?;
 
@@ -132,7 +142,11 @@ impl CollectionManager {
         }
     }
 
-    fn add_request_to_folder(folder: &mut CollectionFolder, folder_id: &str, request: ApiRequest) -> bool {
+    fn add_request_to_folder(
+        folder: &mut CollectionFolder,
+        folder_id: &str,
+        request: ApiRequest,
+    ) -> bool {
         if folder.id == folder_id {
             folder.requests.push(request);
             return true;
@@ -162,7 +176,8 @@ impl CollectionManager {
             folders: Vec::new(),
         };
 
-        let collection = self.collections
+        let collection = self
+            .collections
             .get_mut(collection_id)
             .ok_or_else(|| ApiError::Database("Collection not found".to_string()))?;
 
@@ -183,7 +198,11 @@ impl CollectionManager {
         }
     }
 
-    fn add_subfolder(folder: &mut CollectionFolder, parent_id: &str, new_folder: &CollectionFolder) -> bool {
+    fn add_subfolder(
+        folder: &mut CollectionFolder,
+        parent_id: &str,
+        new_folder: &CollectionFolder,
+    ) -> bool {
         if folder.id == parent_id {
             folder.folders.push(new_folder.clone());
             return true;
@@ -268,7 +287,12 @@ impl CollectionManager {
         results
     }
 
-    fn search_folder<'a>(&self, folder: &'a CollectionFolder, query: &str, results: &mut Vec<&'a ApiRequest>) {
+    fn search_folder<'a>(
+        &self,
+        folder: &'a CollectionFolder,
+        query: &str,
+        results: &mut Vec<&'a ApiRequest>,
+    ) {
         for request in &folder.requests {
             if self.request_matches(request, query) {
                 results.push(request);
@@ -303,7 +327,11 @@ impl CollectionManager {
         all
     }
 
-    fn collect_requests_from_folder<'a>(&self, folder: &'a CollectionFolder, results: &mut Vec<&'a ApiRequest>) {
+    fn collect_requests_from_folder<'a>(
+        &self,
+        folder: &'a CollectionFolder,
+        results: &mut Vec<&'a ApiRequest>,
+    ) {
         for request in &folder.requests {
             results.push(request);
         }
@@ -315,7 +343,8 @@ impl CollectionManager {
 
     /// Duplicate a request
     pub fn duplicate_request(&mut self, request_id: &str) -> ApiResult<ApiRequest> {
-        let original = self.find_request(request_id)
+        let original = self
+            .find_request(request_id)
             .map(|(_, r)| r.clone())
             .ok_or_else(|| ApiError::Database("Request not found".to_string()))?;
 
@@ -341,10 +370,16 @@ impl CollectionManager {
             }
         }
 
-        Err(ApiError::Database("Failed to duplicate request".to_string()))
+        Err(ApiError::Database(
+            "Failed to duplicate request".to_string(),
+        ))
     }
 
-    fn insert_duplicate_in_folder(folder: &mut CollectionFolder, request_id: &str, duplicate: &ApiRequest) -> bool {
+    fn insert_duplicate_in_folder(
+        folder: &mut CollectionFolder,
+        request_id: &str,
+        duplicate: &ApiRequest,
+    ) -> bool {
         for (i, request) in folder.requests.iter().enumerate() {
             if request.id == request_id {
                 folder.requests.insert(i + 1, duplicate.clone());

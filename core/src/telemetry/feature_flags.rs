@@ -160,7 +160,11 @@ impl FeatureFlag {
 
         FlagResult {
             enabled,
-            variant: if enabled { self.select_variant(user_id) } else { None },
+            variant: if enabled {
+                self.select_variant(user_id)
+            } else {
+                None
+            },
         }
     }
 
@@ -420,17 +424,14 @@ impl FeatureFlagManager {
             FeatureFlag::new("new_terminal_ui")
                 .with_description("Enable new terminal UI design")
                 .with_rollout(0), // Start at 0%, controlled remotely
-
             FeatureFlag::new("sftp_file_preview")
                 .with_description("Enable file preview in SFTP browser")
                 .enable(),
-
             FeatureFlag::new("quick_connect")
                 .with_description("Quick connect feature")
                 .with_rollout(50)
                 .with_variant(Variant::control())
                 .with_variant(Variant::treatment("new_flow")),
-
             FeatureFlag::new("dark_mode_v2")
                 .with_description("Improved dark mode colors")
                 .with_rollout(10),

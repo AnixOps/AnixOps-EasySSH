@@ -66,7 +66,11 @@ impl TestRunner {
         Some(TestResult {
             name: test_name.to_string(),
             passed,
-            error_message: if passed { None } else { Some("Assertion failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Assertion failed".to_string())
+            },
             duration_ms: start_time.elapsed().as_millis() as u64,
         })
     }
@@ -84,7 +88,11 @@ impl TestRunner {
         Some(TestResult {
             name: "expect assertion".to_string(),
             passed,
-            error_message: if passed { None } else { Some(format!("Expectation failed: {}", line)) },
+            error_message: if passed {
+                None
+            } else {
+                Some(format!("Expectation failed: {}", line))
+            },
             duration_ms: start_time.elapsed().as_millis() as u64,
         })
     }
@@ -105,7 +113,11 @@ impl TestRunner {
             return Some(TestResult {
                 name: format!("assert: {}", assertion),
                 passed,
-                error_message: if passed { None } else { Some(format!("Assertion failed: {}", assertion)) },
+                error_message: if passed {
+                    None
+                } else {
+                    Some(format!("Assertion failed: {}", assertion))
+                },
                 duration_ms: start_time.elapsed().as_millis() as u64,
             });
         }
@@ -165,7 +177,10 @@ impl TestRunner {
                 let body_str = String::from_utf8_lossy(&response.body);
                 let parts: Vec<&str> = line.split(".to.contain(").collect();
                 if parts.len() >= 2 {
-                    let expected = parts[1].trim_end_matches(")").trim_end_matches(");").trim_matches('"');
+                    let expected = parts[1]
+                        .trim_end_matches(")")
+                        .trim_end_matches(");")
+                        .trim_matches('"');
                     return body_str.contains(expected);
                 }
             }
@@ -201,7 +216,11 @@ impl TestRunner {
             if assertion.contains("contains") {
                 let parts: Vec<&str> = assertion.split("contains").collect();
                 if parts.len() == 2 {
-                    let search = parts[1].trim().trim_matches('"').trim_matches('(').trim_matches(')');
+                    let search = parts[1]
+                        .trim()
+                        .trim_matches('"')
+                        .trim_matches('(')
+                        .trim_matches(')');
                     return body_str.contains(search);
                 }
             }
@@ -265,7 +284,9 @@ impl TestRunner {
                 // Handle array access: data[0]
                 if clean_part.contains('[') {
                     let name = clean_part.split('[').next().unwrap();
-                    let idx_part = clean_part.split('[').nth(1)
+                    let idx_part = clean_part
+                        .split('[')
+                        .nth(1)
                         .and_then(|s| s.split(']').next())
                         .and_then(|s| s.parse::<usize>().ok());
 
@@ -289,7 +310,10 @@ impl TestRunner {
 
             // Check comparison
             if assertion.contains("==") {
-                let expected = assertion.split("==").nth(1).map(|s| s.trim().trim_matches('"'));
+                let expected = assertion
+                    .split("==")
+                    .nth(1)
+                    .map(|s| s.trim().trim_matches('"'));
                 if let Some(exp) = expected {
                     match current {
                         Value::String(s) => return s == exp,
@@ -325,7 +349,9 @@ impl TestRunner {
             let header_name = &assertion[start..end].trim_matches('"').to_lowercase();
 
             if assertion.contains("==") {
-                let expected = assertion.split("==").nth(1)
+                let expected = assertion
+                    .split("==")
+                    .nth(1)
                     .map(|s| s.trim().trim_matches('"'));
 
                 if let Some(exp) = expected {

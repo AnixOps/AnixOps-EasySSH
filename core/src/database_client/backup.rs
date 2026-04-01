@@ -1,9 +1,9 @@
 //! Backup and restore functionality
 
+use crate::database_client::{DatabaseConfig, DatabaseError, DatabaseType};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use chrono::{DateTime, Utc};
-use crate::database_client::{DatabaseConfig, DatabaseType, DatabaseError};
 
 /// Backup configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -208,18 +208,16 @@ impl BackupManager {
 
         // Determine backup format based on database type
         match config.db_type {
-            DatabaseType::SQLite => {
-                self.backup_sqlite(config, backup_config, output_path).await
-            }
-            DatabaseType::MySQL => {
-                self.backup_mysql(config, backup_config, output_path).await
-            }
+            DatabaseType::SQLite => self.backup_sqlite(config, backup_config, output_path).await,
+            DatabaseType::MySQL => self.backup_mysql(config, backup_config, output_path).await,
             DatabaseType::PostgreSQL => {
-                self.backup_postgres(config, backup_config, output_path).await
+                self.backup_postgres(config, backup_config, output_path)
+                    .await
             }
-            _ => Err(DatabaseError::BackupError(
-                format!("Backup not supported for {:?}", config.db_type)
-            )),
+            _ => Err(DatabaseError::BackupError(format!(
+                "Backup not supported for {:?}",
+                config.db_type
+            ))),
         }?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
@@ -255,9 +253,10 @@ impl BackupManager {
         let source = std::path::Path::new(&config.database);
 
         if !source.exists() {
-            return Err(DatabaseError::BackupError(
-                format!("Source database not found: {}", config.database)
-            ));
+            return Err(DatabaseError::BackupError(format!(
+                "Source database not found: {}",
+                config.database
+            )));
         }
 
         // For SQLite, we can just copy the file
@@ -275,7 +274,7 @@ impl BackupManager {
     ) -> Result<(), DatabaseError> {
         // Would execute mysqldump command
         Err(DatabaseError::BackupError(
-            "MySQL backup requires external mysqldump tool".to_string()
+            "MySQL backup requires external mysqldump tool".to_string(),
         ))
     }
 
@@ -287,7 +286,7 @@ impl BackupManager {
     ) -> Result<(), DatabaseError> {
         // Would execute pg_dump command
         Err(DatabaseError::BackupError(
-            "PostgreSQL backup requires external pg_dump tool".to_string()
+            "PostgreSQL backup requires external pg_dump tool".to_string(),
         ))
     }
 
@@ -303,7 +302,7 @@ impl BackupManager {
         // Verify backup file
         if !backup_path.exists() {
             return Err(DatabaseError::BackupError(
-                "Backup file not found".to_string()
+                "Backup file not found".to_string(),
             ));
         }
 
@@ -314,17 +313,21 @@ impl BackupManager {
         // Perform restore based on database type
         let result = match config.db_type {
             DatabaseType::SQLite => {
-                self.restore_sqlite(config, restore_config, backup_path).await
+                self.restore_sqlite(config, restore_config, backup_path)
+                    .await
             }
             DatabaseType::MySQL => {
-                self.restore_mysql(config, restore_config, backup_path).await
+                self.restore_mysql(config, restore_config, backup_path)
+                    .await
             }
             DatabaseType::PostgreSQL => {
-                self.restore_postgres(config, restore_config, backup_path).await
+                self.restore_postgres(config, restore_config, backup_path)
+                    .await
             }
-            _ => Err(DatabaseError::BackupError(
-                format!("Restore not supported for {:?}", config.db_type)
-            )),
+            _ => Err(DatabaseError::BackupError(format!(
+                "Restore not supported for {:?}",
+                config.db_type
+            ))),
         };
 
         let duration_ms = start.elapsed().as_millis() as u64;
@@ -372,7 +375,7 @@ impl BackupManager {
         _backup_path: &Path,
     ) -> Result<(), DatabaseError> {
         Err(DatabaseError::BackupError(
-            "MySQL restore requires external mysql tool".to_string()
+            "MySQL restore requires external mysql tool".to_string(),
         ))
     }
 
@@ -383,7 +386,7 @@ impl BackupManager {
         _backup_path: &Path,
     ) -> Result<(), DatabaseError> {
         Err(DatabaseError::BackupError(
-            "PostgreSQL restore requires external psql/pg_restore tools".to_string()
+            "PostgreSQL restore requires external psql/pg_restore tools".to_string(),
         ))
     }
 
@@ -395,7 +398,7 @@ impl BackupManager {
 
         if metadata.len() == 0 {
             return Err(DatabaseError::BackupError(
-                "Backup file is empty".to_string()
+                "Backup file is empty".to_string(),
             ));
         }
 
@@ -405,10 +408,9 @@ impl BackupManager {
 
     /// Calculate file checksum
     async fn calculate_checksum(&self, path: &Path) -> Result<String, DatabaseError> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
 
-        let content = std::fs::read(path)
-            .map_err(|e| DatabaseError::BackupError(e.to_string()))?;
+        let content = std::fs::read(path).map_err(|e| DatabaseError::BackupError(e.to_string()))?;
 
         let mut hasher = Sha256::new();
         hasher.update(&content);
@@ -424,15 +426,20 @@ impl BackupManager {
         if let Ok(entries) = std::fs::read_dir(backup_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |e| e == "backup" || e == "sql" || e == "db") {
+                if path
+                    .extension()
+                    .map_or(false, |e| e == "backup" || e == "sql" || e == "db")
+                {
                     if let Ok(metadata) = entry.metadata() {
                         backups.push(BackupInfo {
                             file_path: path.clone(),
-                            file_name: path.file_name()
+                            file_name: path
+                                .file_name()
                                 .map(|n| n.to_string_lossy().to_string())
                                 .unwrap_or_default(),
                             size_bytes: metadata.len(),
-                            created_at: metadata.created()
+                            created_at: metadata
+                                .created()
                                 .ok()
                                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                                 .map(|d| DateTime::from_timestamp(d.as_secs() as i64, 0))
@@ -548,7 +555,8 @@ impl BackupScheduler {
 
     pub fn get_due_backups(&self) -> Vec<&ScheduledBackup> {
         let now = Utc::now();
-        self.schedules.iter()
+        self.schedules
+            .iter()
             .filter(|s| s.enabled)
             .filter(|s| s.next_run.map_or(true, |next| next <= now))
             .collect()
@@ -559,9 +567,7 @@ impl BackupScheduler {
         let today = now.date_naive();
 
         match schedule.frequency {
-            BackupFrequency::Hourly => {
-                now + chrono::Duration::hours(1)
-            }
+            BackupFrequency::Hourly => now + chrono::Duration::hours(1),
             BackupFrequency::Daily => {
                 let next = today.succ_opt().unwrap_or(today);
                 next.and_hms_opt(schedule.hour as u32, schedule.minute as u32, 0)
@@ -572,9 +578,7 @@ impl BackupScheduler {
                 // Calculate next occurrence of day_of_week
                 now + chrono::Duration::days(7)
             }
-            BackupFrequency::Monthly => {
-                now + chrono::Duration::days(30)
-            }
+            BackupFrequency::Monthly => now + chrono::Duration::days(30),
         }
     }
 }

@@ -17,7 +17,8 @@ impl UpdateServerClient {
     pub fn new(base_url: String, channel: UpdateChannel, timeout: u64) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout))
-            .user_agent(format!("EasySSH/{} ({}; {})",
+            .user_agent(format!(
+                "EasySSH/{} ({}; {})",
                 super::CURRENT_VERSION,
                 std::env::consts::OS,
                 std::env::consts::ARCH,
@@ -60,11 +61,7 @@ impl UpdateServerClient {
 
         let url = format!("{}/api/v1/update/check", self.base_url);
 
-        let response = self.client
-            .get(&url)
-            .query(&params)
-            .send()
-            .await?;
+        let response = self.client.get(&url).query(&params).send().await?;
 
         if response.status().is_success() {
             let update_info: Option<UpdateInfo> = response.json().await?;
@@ -89,14 +86,9 @@ impl UpdateServerClient {
     where
         F: FnMut(u64, u64),
     {
-        let response = self.client
-            .get(url)
-            .send()
-            .await?;
+        let response = self.client.get(url).send().await?;
 
-        let total_size = response
-            .content_length()
-            .unwrap_or(0);
+        let total_size = response.content_length().unwrap_or(0);
 
         let mut downloaded: u64 = 0;
         let mut file = tokio::fs::File::create(destination).await?;
@@ -118,15 +110,8 @@ impl UpdateServerClient {
     }
 
     /// Download signature file
-    pub async fn download_signature(
-        &self,
-        url: &str,
-        destination: &Path,
-    ) -> anyhow::Result<()> {
-        let response = self.client
-            .get(url)
-            .send()
-            .await?;
+    pub async fn download_signature(&self, url: &str, destination: &Path) -> anyhow::Result<()> {
+        let response = self.client.get(url).send().await?;
 
         let bytes = response.bytes().await?;
         tokio::fs::write(destination, &bytes).await?;
@@ -135,14 +120,11 @@ impl UpdateServerClient {
     }
 
     /// Get release notes
-    pub async fn get_release_notes(
-        &self,
-        version: &str,
-        locale: &str,
-    ) -> anyhow::Result<String> {
+    pub async fn get_release_notes(&self, version: &str, locale: &str) -> anyhow::Result<String> {
         let url = format!("{}/api/v1/update/notes/{}", self.base_url, version);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .query(&[("locale", locale)])
             .send()
@@ -171,11 +153,7 @@ impl UpdateServerClient {
             body.insert("error", err);
         }
 
-        self.client
-            .post(&url)
-            .json(&body)
-            .send()
-            .await?;
+        self.client.post(&url).json(&body).send().await?;
 
         Ok(())
     }
@@ -186,13 +164,12 @@ impl UpdateServerClient {
         from_version: &str,
         to_version: &str,
     ) -> anyhow::Result<Option<String>> {
-        let url = format!("{}/api/v1/update/delta/{}/{}",
-            self.base_url, from_version, to_version);
+        let url = format!(
+            "{}/api/v1/update/delta/{}/{}",
+            self.base_url, from_version, to_version
+        );
 
-        let response = self.client
-            .get(&url)
-            .send()
-            .await?;
+        let response = self.client.get(&url).send().await?;
 
         if response.status().is_success() {
             let result: serde_json::Value = response.json().await?;
@@ -221,11 +198,7 @@ impl UpdateServerClient {
             "features_used": features_used,
         });
 
-        self.client
-            .post(&url)
-            .json(&body)
-            .send()
-            .await?;
+        self.client.post(&url).json(&body).send().await?;
 
         Ok(())
     }

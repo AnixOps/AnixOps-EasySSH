@@ -203,7 +203,7 @@ pub struct TableInfo {
 }
 
 /// Re-export QueryResult from query module to avoid duplication
-pub use crate::database_client::query::{QueryResult, QueryRow, QueryCell};
+pub use crate::database_client::query::{QueryCell, QueryResult, QueryRow};
 
 /// Database statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,7 +243,9 @@ pub trait DatabaseDriver: Send + Sync {
     async fn execute(&self, sql: &str) -> Result<u64, DatabaseError>;
 
     /// Get database schema
-    async fn get_schema(&self) -> Result<crate::database_client::schema::DatabaseSchema, DatabaseError> {
+    async fn get_schema(
+        &self,
+    ) -> Result<crate::database_client::schema::DatabaseSchema, DatabaseError> {
         Err(DatabaseError::DriverNotFound("Not implemented".to_string()))
     }
 
@@ -276,7 +278,9 @@ pub trait DatabaseDriver: Send + Sync {
     async fn get_stats(&self) -> Result<DatabaseStats, DatabaseError>;
 
     /// Get performance metrics
-    async fn get_performance_metrics(&self) -> Result<crate::database_client::performance::PerformanceMetrics, DatabaseError> {
+    async fn get_performance_metrics(
+        &self,
+    ) -> Result<crate::database_client::performance::PerformanceMetrics, DatabaseError> {
         Err(DatabaseError::DriverNotFound("Not implemented".to_string()))
     }
 
@@ -443,7 +447,8 @@ impl QueryBuilder {
 
     pub fn order_by(mut self, column: &str, asc: bool) -> Self {
         let direction = if asc { "ASC" } else { "DESC" };
-        self.sql.push_str(&format!(" ORDER BY {} {}", column, direction));
+        self.sql
+            .push_str(&format!(" ORDER BY {} {}", column, direction));
         self
     }
 
@@ -531,12 +536,7 @@ impl SlowQueryAnalyzer {
         let query_lower = query.to_uppercase();
 
         // Try to extract table name from different query types
-        let patterns = [
-            ("FROM", 4),
-            ("INTO", 4),
-            ("UPDATE", 6),
-            ("JOIN", 4),
-        ];
+        let patterns = [("FROM", 4), ("INTO", 4), ("UPDATE", 6), ("JOIN", 4)];
 
         for (keyword, len) in &patterns {
             if let Some(pos) = query_lower.find(keyword) {
@@ -569,7 +569,10 @@ impl QueryPlanAnalyzer {
         }
 
         if plan_lower.contains("nested loop") {
-            suggestions.push("Nested loop join detected - consider query optimization for large datasets".to_string());
+            suggestions.push(
+                "Nested loop join detected - consider query optimization for large datasets"
+                    .to_string(),
+            );
         }
 
         if plan_lower.contains("temporary") || plan_lower.contains("temp") {
@@ -594,7 +597,10 @@ impl SchemaAnalyzer {
         // Check for missing primary key
         let has_pk = table.columns.iter().any(|c| c.is_primary_key);
         if !has_pk {
-            suggestions.push(format!("Table '{}' has no primary key - consider adding one", table.name));
+            suggestions.push(format!(
+                "Table '{}' has no primary key - consider adding one",
+                table.name
+            ));
         }
 
         // Check for tables without indexes
@@ -604,7 +610,10 @@ impl SchemaAnalyzer {
 
         // Check for missing foreign key indexes
         for fk in &table.foreign_keys {
-            let has_fk_index = table.indexes.iter().any(|idx| idx.columns.contains(&fk.column));
+            let has_fk_index = table
+                .indexes
+                .iter()
+                .any(|idx| idx.columns.contains(&fk.column));
             if !has_fk_index {
                 suggestions.push(format!(
                     "Foreign key column '{}' on table '{}' has no index - consider adding one",
@@ -615,9 +624,13 @@ impl SchemaAnalyzer {
 
         // Check for large TEXT/VARCHAR columns without indexes
         for col in &table.columns {
-            if col.data_type.to_uppercase().contains("TEXT") &&
-               col.data_type.to_uppercase().contains("VARCHAR") {
-                let has_index = table.indexes.iter().any(|idx| idx.columns.contains(&col.name));
+            if col.data_type.to_uppercase().contains("TEXT")
+                && col.data_type.to_uppercase().contains("VARCHAR")
+            {
+                let has_index = table
+                    .indexes
+                    .iter()
+                    .any(|idx| idx.columns.contains(&col.name));
                 if has_index {
                     suggestions.push(format!(
                         "Large text column '{}' on table '{}' has an index - consider using prefix indexes",

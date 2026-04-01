@@ -16,6 +16,7 @@
 use crate::error::LiteError;
 #[cfg(feature = "team")]
 use crate::team::{Team, TeamManager};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -106,10 +107,18 @@ impl Default for NameIdFormat {
 impl std::fmt::Display for NameIdFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NameIdFormat::EmailAddress => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"),
-            NameIdFormat::Transient => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"),
-            NameIdFormat::Persistent => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"),
-            NameIdFormat::Unspecified => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"),
+            NameIdFormat::EmailAddress => {
+                write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress")
+            }
+            NameIdFormat::Transient => {
+                write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient")
+            }
+            NameIdFormat::Persistent => {
+                write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent")
+            }
+            NameIdFormat::Unspecified => {
+                write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified")
+            }
         }
     }
 }
@@ -135,12 +144,24 @@ impl Default for SignatureAlgorithm {
 impl std::fmt::Display for SignatureAlgorithm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SignatureAlgorithm::RsaSha256 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"),
-            SignatureAlgorithm::RsaSha384 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384"),
-            SignatureAlgorithm::RsaSha512 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"),
-            SignatureAlgorithm::EcdsaSha256 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"),
-            SignatureAlgorithm::EcdsaSha384 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha384"),
-            SignatureAlgorithm::EcdsaSha512 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512"),
+            SignatureAlgorithm::RsaSha256 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256")
+            }
+            SignatureAlgorithm::RsaSha384 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384")
+            }
+            SignatureAlgorithm::RsaSha512 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512")
+            }
+            SignatureAlgorithm::EcdsaSha256 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256")
+            }
+            SignatureAlgorithm::EcdsaSha384 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha384")
+            }
+            SignatureAlgorithm::EcdsaSha512 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512")
+            }
         }
     }
 }
@@ -228,7 +249,11 @@ impl OidcConfig {
             client_id: client_id.to_string(),
             client_secret: client_secret.to_string(),
             redirect_uri: redirect_uri.to_string(),
-            scopes: vec!["openid".to_string(), "profile".to_string(), "email".to_string()],
+            scopes: vec![
+                "openid".to_string(),
+                "profile".to_string(),
+                "email".to_string(),
+            ],
             response_type: "code".to_string(),
             attribute_mapping: OidcAttributeMapping::default_mapping(),
             use_pkce: true,
@@ -486,7 +511,8 @@ impl SsoSession {
 
         let mut session = Self::new(user_id, provider_id, duration_hours);
 
-        let crypto = CRYPTO_STATE.read()
+        let crypto = CRYPTO_STATE
+            .read()
             .map_err(|e| LiteError::Crypto(format!("Failed to access crypto state: {}", e)))?;
 
         if !crypto.is_unlocked() {
@@ -494,7 +520,8 @@ impl SsoSession {
         }
 
         // 加密SSO令牌
-        let encrypted = crypto.encrypt(sso_token.as_bytes())
+        let encrypted = crypto
+            .encrypt(sso_token.as_bytes())
             .map_err(|e| LiteError::Crypto(format!("Failed to encrypt SSO token: {}", e)))?;
         session.encrypted_sso_token = Some(EncryptedSsoToken {
             ciphertext: BASE64.encode(&encrypted[12..]),
@@ -504,7 +531,8 @@ impl SsoSession {
 
         // 加密ID令牌
         if let Some(token) = id_token {
-            let encrypted = crypto.encrypt(token.as_bytes())
+            let encrypted = crypto
+                .encrypt(token.as_bytes())
                 .map_err(|e| LiteError::Crypto(format!("Failed to encrypt ID token: {}", e)))?;
             session.encrypted_id_token = Some(EncryptedSsoToken {
                 ciphertext: BASE64.encode(&encrypted[12..]),
@@ -515,7 +543,8 @@ impl SsoSession {
 
         // 加密访问令牌
         if let Some(token) = access_token {
-            let encrypted = crypto.encrypt(token.as_bytes())
+            let encrypted = crypto
+                .encrypt(token.as_bytes())
                 .map_err(|e| LiteError::Crypto(format!("Failed to encrypt access token: {}", e)))?;
             session.encrypted_access_token = Some(EncryptedSsoToken {
                 ciphertext: BASE64.encode(&encrypted[12..]),
@@ -526,8 +555,9 @@ impl SsoSession {
 
         // 加密刷新令牌
         if let Some(token) = refresh_token {
-            let encrypted = crypto.encrypt(token.as_bytes())
-                .map_err(|e| LiteError::Crypto(format!("Failed to encrypt refresh token: {}", e)))?;
+            let encrypted = crypto.encrypt(token.as_bytes()).map_err(|e| {
+                LiteError::Crypto(format!("Failed to encrypt refresh token: {}", e))
+            })?;
             session.encrypted_refresh_token = Some(EncryptedSsoToken {
                 ciphertext: BASE64.encode(&encrypted[12..]),
                 nonce: BASE64.encode(&encrypted[..12]),
@@ -558,7 +588,10 @@ impl SsoSession {
         self.decrypt_token(&self.encrypted_refresh_token)
     }
 
-    fn decrypt_token(&self, encrypted: &Option<EncryptedSsoToken>) -> Result<Option<String>, LiteError> {
+    fn decrypt_token(
+        &self,
+        encrypted: &Option<EncryptedSsoToken>,
+    ) -> Result<Option<String>, LiteError> {
         use crate::crypto::CRYPTO_STATE;
         use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 
@@ -567,7 +600,8 @@ impl SsoSession {
             None => return Ok(None),
         };
 
-        let crypto = CRYPTO_STATE.read()
+        let crypto = CRYPTO_STATE
+            .read()
             .map_err(|e| LiteError::Crypto(format!("Failed to access crypto state: {}", e)))?;
 
         if !crypto.is_unlocked() {
@@ -577,15 +611,18 @@ impl SsoSession {
         // Reconstruct encrypted blob
         let mut encrypted_blob = Vec::new();
         encrypted_blob.extend_from_slice(
-            &BASE64.decode(&token.nonce)
-                .map_err(|_| LiteError::Crypto("Invalid token nonce".to_string()))?
+            &BASE64
+                .decode(&token.nonce)
+                .map_err(|_| LiteError::Crypto("Invalid token nonce".to_string()))?,
         );
         encrypted_blob.extend_from_slice(
-            &BASE64.decode(&token.ciphertext)
-                .map_err(|_| LiteError::Crypto("Invalid token ciphertext".to_string()))?
+            &BASE64
+                .decode(&token.ciphertext)
+                .map_err(|_| LiteError::Crypto("Invalid token ciphertext".to_string()))?,
         );
 
-        let decrypted = crypto.decrypt(&encrypted_blob)
+        let decrypted = crypto
+            .decrypt(&encrypted_blob)
             .map_err(|_| LiteError::InvalidMasterPassword)?;
 
         String::from_utf8(decrypted)
@@ -617,7 +654,8 @@ fn generate_secure_random(length: usize) -> String {
     let mut bytes = vec![0u8; length];
     rng.fill_bytes(&mut bytes);
 
-    bytes.iter()
+    bytes
+        .iter()
         .map(|b| CHARSET[(b % CHARSET.len() as u8) as usize] as char)
         .collect()
 }
@@ -719,7 +757,8 @@ impl SsoManager {
     /// 移除提供者
     pub fn remove_provider(&mut self, provider_id: &str) -> Result<(), LiteError> {
         // 清理相关会话
-        self.sessions.retain(|_, session| session.provider_id != provider_id);
+        self.sessions
+            .retain(|_, session| session.provider_id != provider_id);
         self.providers.remove(provider_id);
         Ok(())
     }
@@ -736,7 +775,9 @@ impl SsoManager {
 
     /// 初始化SAML认证流程
     pub fn init_saml_auth(&mut self, provider_id: &str) -> Result<SamlAuthRequest, LiteError> {
-        let provider = self.providers.get(provider_id)
+        let provider = self
+            .providers
+            .get(provider_id)
             .ok_or_else(|| LiteError::Sso(format!("Provider {} not found", provider_id)))?;
 
         if !provider.enabled {
@@ -754,16 +795,19 @@ impl SsoManager {
         let saml_request = self.build_saml_authn_request(&request_id, config)?;
 
         // 存储待处理请求
-        self.pending_requests.insert(request_id.clone(), PendingAuthRequest {
-            request_id: request_id.clone(),
-            provider_id: provider_id.to_string(),
-            created_at: Utc::now(),
-            nonce: nonce.clone(),
-            pkce_verifier: None,
-            state: nonce.clone(),
-        });
+        self.pending_requests.insert(
+            request_id.clone(),
+            PendingAuthRequest {
+                request_id: request_id.clone(),
+                provider_id: provider_id.to_string(),
+                created_at: Utc::now(),
+                nonce: nonce.clone(),
+                pkce_verifier: None,
+                state: nonce.clone(),
+            },
+        );
 
-        let encoded_request = base64::encode(saml_request.as_bytes());
+        let encoded_request = STANDARD.encode(saml_request.as_bytes());
 
         Ok(SamlAuthRequest {
             id: request_id,
@@ -775,10 +819,15 @@ impl SsoManager {
     }
 
     /// 构建SAML AuthnRequest XML
-    fn build_saml_authn_request(&self, request_id: &str, config: &SamlConfig) -> Result<String, LiteError> {
+    fn build_saml_authn_request(
+        &self,
+        request_id: &str,
+        config: &SamlConfig,
+    ) -> Result<String, LiteError> {
         let issue_instant = Utc::now().to_rfc3339();
 
-        let request = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+        let request = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
 <samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
                   xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
                   ID="_{}"
@@ -833,7 +882,9 @@ impl SsoManager {
         // 6. 提取属性
 
         // 这里返回简化版本，实际需集成samael crate
-        let provider = self.providers.get(&response.provider_id)
+        let provider = self
+            .providers
+            .get(&response.provider_id)
             .ok_or_else(|| LiteError::Sso("Provider not found".to_string()))?;
 
         let SsoProviderConfig::Saml(config) = &provider.config else {
@@ -841,7 +892,10 @@ impl SsoManager {
         };
 
         // 模拟解析 - 实际需完整SAML库
-        let user_id = format!("saml_user_{}", &response.saml_response[..8.min(response.saml_response.len())]);
+        let user_id = format!(
+            "saml_user_{}",
+            &response.saml_response[..8.min(response.saml_response.len())]
+        );
         let email = format!("{}@example.com", user_id);
 
         Ok(SsoUserInfo {
@@ -858,7 +912,9 @@ impl SsoManager {
 
     /// 初始化OIDC认证流程 (增强安全版本)
     pub fn init_oidc_auth(&mut self, provider_id: &str) -> Result<OidcAuthRequest, LiteError> {
-        let provider = self.providers.get(provider_id)
+        let provider = self
+            .providers
+            .get(provider_id)
             .ok_or_else(|| LiteError::Sso(format!("Provider {} not found", provider_id)))?;
 
         if !provider.enabled {
@@ -899,18 +955,24 @@ impl SsoManager {
         );
 
         if let Some(challenge) = pkce_challenge {
-            auth_url.push_str(&format!("&code_challenge={}&code_challenge_method=S256", challenge));
+            auth_url.push_str(&format!(
+                "&code_challenge={}&code_challenge_method=S256",
+                challenge
+            ));
         }
 
         // 存储待处理请求 (安全存储PKCE verifier)
-        self.pending_requests.insert(request_id.clone(), PendingAuthRequest {
-            request_id: request_id.clone(),
-            provider_id: provider_id.to_string(),
-            created_at: Utc::now(),
-            nonce: nonce.clone(),
-            pkce_verifier,
-            state: state.clone(),
-        });
+        self.pending_requests.insert(
+            request_id.clone(),
+            PendingAuthRequest {
+                request_id: request_id.clone(),
+                provider_id: provider_id.to_string(),
+                created_at: Utc::now(),
+                nonce: nonce.clone(),
+                pkce_verifier,
+                state: state.clone(),
+            },
+        );
 
         Ok(OidcAuthRequest {
             id: request_id,
@@ -929,7 +991,9 @@ impl SsoManager {
         code: &str,
         state: &str,
     ) -> Result<(SsoUserInfo, SsoSession), LiteError> {
-        let provider = self.providers.get(provider_id)
+        let provider = self
+            .providers
+            .get(provider_id)
             .ok_or_else(|| LiteError::Sso(format!("Provider {} not found", provider_id)))?;
 
         let SsoProviderConfig::Oidc(config) = &provider.config else {
@@ -937,7 +1001,9 @@ impl SsoManager {
         };
 
         // 查找并验证待处理请求
-        let pending_request = self.pending_requests.values()
+        let pending_request = self
+            .pending_requests
+            .values()
             .find(|r| r.state == state)
             .cloned()
             .ok_or_else(|| LiteError::Sso("Invalid or expired state parameter".to_string()))?;
@@ -949,14 +1015,16 @@ impl SsoManager {
         }
 
         // 交换code获取token (使用安全存储的PKCE verifier)
-        let token_response = self.exchange_oidc_code_secure(
-            config,
-            code,
-            pending_request.pkce_verifier.as_deref()
-        ).await?;
+        let token_response = self
+            .exchange_oidc_code_secure(config, code, pending_request.pkce_verifier.as_deref())
+            .await?;
 
         // 验证ID Token
-        let user_info = self.validate_and_parse_id_token(&token_response.id_token, config, &pending_request.nonce)?;
+        let user_info = self.validate_and_parse_id_token(
+            &token_response.id_token,
+            config,
+            &pending_request.nonce,
+        )?;
 
         // 创建加密会话
         let session = SsoSession::new_with_tokens(
@@ -1047,7 +1115,11 @@ impl SsoManager {
         Ok(SsoUserInfo {
             user_id,
             email,
-            username: config.attribute_mapping.username_claim.clone().unwrap_or_else(|| "oidc_user".to_string()),
+            username: config
+                .attribute_mapping
+                .username_claim
+                .clone()
+                .unwrap_or_else(|| "oidc_user".to_string()),
             first_name: None,
             last_name: None,
             groups: vec![],
@@ -1072,15 +1144,26 @@ impl SsoManager {
         })
     }
 
-    #[deprecated(since = "0.3.0", note = "Use validate_and_parse_id_token with nonce verification")]
-    fn parse_oidc_id_token(&self, id_token: &str, config: &OidcConfig) -> Result<SsoUserInfo, LiteError> {
+    #[deprecated(
+        since = "0.3.0",
+        note = "Use validate_and_parse_id_token with nonce verification"
+    )]
+    fn parse_oidc_id_token(
+        &self,
+        id_token: &str,
+        config: &OidcConfig,
+    ) -> Result<SsoUserInfo, LiteError> {
         let user_id = format!("oidc_user_{}", &id_token[..8.min(id_token.len())]);
         let email = format!("{}@example.com", user_id);
 
         Ok(SsoUserInfo {
             user_id,
             email,
-            username: config.attribute_mapping.username_claim.clone().unwrap_or_else(|| "oidc_user".to_string()),
+            username: config
+                .attribute_mapping
+                .username_claim
+                .clone()
+                .unwrap_or_else(|| "oidc_user".to_string()),
             first_name: None,
             last_name: None,
             groups: vec![],
@@ -1107,7 +1190,8 @@ impl SsoManager {
 
     /// 清理过期会话
     pub fn cleanup_expired_sessions(&mut self) -> usize {
-        let expired: Vec<String> = self.sessions
+        let expired: Vec<String> = self
+            .sessions
             .iter()
             .filter(|(_, s)| s.is_expired())
             .map(|(id, _)| id.clone())
@@ -1132,7 +1216,10 @@ impl SsoManager {
     ) -> Result<(), LiteError> {
         // 验证提供者存在
         if !self.providers.contains_key(provider_id) {
-            return Err(LiteError::Sso(format!("Provider {} not found", provider_id)));
+            return Err(LiteError::Sso(format!(
+                "Provider {} not found",
+                provider_id
+            )));
         }
 
         let mapping = TeamSsoMapping {
@@ -1219,7 +1306,8 @@ impl SsoManager {
 
     /// 终止用户的所有会话
     pub fn terminate_user_sessions(&mut self, user_id: &str) -> usize {
-        let sessions_to_remove: Vec<String> = self.sessions
+        let sessions_to_remove: Vec<String> = self
+            .sessions
             .iter()
             .filter(|(_, s)| s.user_id == user_id)
             .map(|(id, _)| id.clone())
@@ -1238,7 +1326,7 @@ impl Default for SsoManager {
     fn default() -> Self {
         Self::new()
     }
-	}
+}
 
 /// Base64 URL安全编码
 fn base64_encode(data: &[u8]) -> String {
@@ -1248,7 +1336,7 @@ fn base64_encode(data: &[u8]) -> String {
 
 /// SHA256哈希
 fn sha256_hash(input: &str) -> Vec<u8> {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
     hasher.finalize().to_vec()
@@ -1336,7 +1424,8 @@ mod tests {
             Some("access_token_789"),
             Some("refresh_token_000"),
             8,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(!session.is_expired());
         assert_eq!(session.user_id, "user789");
@@ -1403,13 +1492,9 @@ mod tests {
             },
         ];
 
-        manager.configure_team_sso(
-            "team123",
-            &provider_id,
-            group_mappings,
-            true,
-            "Viewer",
-        ).unwrap();
+        manager
+            .configure_team_sso("team123", &provider_id, group_mappings, true, "Viewer")
+            .unwrap();
 
         // 测试组映射
         let role = manager.map_sso_groups_to_team_role("team123", &vec!["admins".to_string()]);

@@ -1,13 +1,13 @@
+use crate::kubernetes_client::{
+    ExecOptions, HelmChart, HelmRelease, HelmRepo, K8sCluster, K8sConfigMap, K8sDeployment,
+    K8sEvent, K8sManager, K8sNamespace, K8sNode, K8sPod, K8sPortForward, K8sResource, K8sSecret,
+    K8sService, LogOptions,
+};
+use crate::AppState;
+use serde_json;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
 use std::sync::Arc;
-use serde_json;
-use crate::kubernetes_client::{
-    K8sCluster, K8sManager, K8sPod, K8sNamespace, K8sNode, K8sDeployment, K8sService,
-    K8sConfigMap, K8sSecret, K8sEvent, K8sPortForward, LogOptions, ExecOptions,
-    HelmRelease, HelmRepo, HelmChart, K8sResource,
-};
-use crate::AppState;
 
 /// Opaque handle for K8sManager
 pub struct K8sManagerHandle {
@@ -51,22 +51,17 @@ pub extern "C" fn k8s_import_kubeconfig_path(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.import_kubeconfig_from_path(&path_str).await
-    });
+    let result =
+        runtime.block_on(async { handle.manager.import_kubeconfig_from_path(&path_str).await });
 
     match result {
-        Ok(clusters) => {
-            match serde_json::to_string(&clusters) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(clusters) => match serde_json::to_string(&clusters) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -89,22 +84,17 @@ pub extern "C" fn k8s_import_kubeconfig_content(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.import_kubeconfig(&content_str, None).await
-    });
+    let result =
+        runtime.block_on(async { handle.manager.import_kubeconfig(&content_str, None).await });
 
     match result {
-        Ok(clusters) => {
-            match serde_json::to_string(&clusters) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(clusters) => match serde_json::to_string(&clusters) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -123,17 +113,13 @@ pub extern "C" fn k8s_get_clusters(handle: *mut K8sManagerHandle) -> *mut c_char
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let clusters = runtime.block_on(async {
-        handle.manager.get_clusters().await
-    });
+    let clusters = runtime.block_on(async { handle.manager.get_clusters().await });
 
     match serde_json::to_string(&clusters) {
-        Ok(json) => {
-            match CString::new(json) {
-                Ok(cstr) => cstr.into_raw(),
-                Err(_) => std::ptr::null_mut(),
-            }
-        }
+        Ok(json) => match CString::new(json) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -156,9 +142,7 @@ pub extern "C" fn k8s_connect_cluster(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.connect_cluster(&id).await
-    }) {
+    match runtime.block_on(async { handle.manager.connect_cluster(&id).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -182,9 +166,7 @@ pub extern "C" fn k8s_disconnect_cluster(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.disconnect_cluster(&id).await
-    }) {
+    match runtime.block_on(async { handle.manager.disconnect_cluster(&id).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -208,9 +190,7 @@ pub extern "C" fn k8s_delete_cluster(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.delete_cluster(&id).await
-    }) {
+    match runtime.block_on(async { handle.manager.delete_cluster(&id).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -234,22 +214,16 @@ pub extern "C" fn k8s_get_namespaces(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_namespaces(&id).await
-    });
+    let result = runtime.block_on(async { handle.manager.get_namespaces(&id).await });
 
     match result {
-        Ok(namespaces) => {
-            match serde_json::to_string(&namespaces) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(namespaces) => match serde_json::to_string(&namespaces) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -274,9 +248,7 @@ pub extern "C" fn k8s_set_namespace(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.set_namespace(&id, &ns).await
-    }) {
+    match runtime.block_on(async { handle.manager.set_namespace(&id, &ns).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -308,22 +280,17 @@ pub extern "C" fn k8s_get_pods(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_pods(&id, &ns, selector.as_deref()).await
-    });
+    let result =
+        runtime.block_on(async { handle.manager.get_pods(&id, &ns, selector.as_deref()).await });
 
     match result {
-        Ok(pods) => {
-            match serde_json::to_string(&pods) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(pods) => match serde_json::to_string(&pods) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -350,22 +317,16 @@ pub extern "C" fn k8s_get_pod(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_pod(&id, &ns, &name).await
-    });
+    let result = runtime.block_on(async { handle.manager.get_pod(&id, &ns, &name).await });
 
     match result {
-        Ok(pod) => {
-            match serde_json::to_string(&pod) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(pod) => match serde_json::to_string(&pod) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -392,9 +353,7 @@ pub extern "C" fn k8s_delete_pod(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.delete_pod(&id, &ns, &name).await
-    }) {
+    match runtime.block_on(async { handle.manager.delete_pod(&id, &ns, &name).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -422,9 +381,7 @@ pub extern "C" fn k8s_restart_pod(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.restart_pod(&id, &ns, &name).await
-    }) {
+    match runtime.block_on(async { handle.manager.restart_pod(&id, &ns, &name).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -457,7 +414,11 @@ pub extern "C" fn k8s_get_pod_logs(
 
     let options = LogOptions {
         follow: follow != 0,
-        tail_lines: if tail_lines > 0 { Some(tail_lines as i64) } else { None },
+        tail_lines: if tail_lines > 0 {
+            Some(tail_lines as i64)
+        } else {
+            None
+        },
         since_seconds: None,
         timestamps: false,
         previous: false,
@@ -469,17 +430,14 @@ pub extern "C" fn k8s_get_pod_logs(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_pod_logs(&id, &ns, &name, &options).await
-    });
+    let result =
+        runtime.block_on(async { handle.manager.get_pod_logs(&id, &ns, &name, &options).await });
 
     match result {
-        Ok(logs) => {
-            match CString::new(logs) {
-                Ok(cstr) => cstr.into_raw(),
-                Err(_) => std::ptr::null_mut(),
-            }
-        }
+        Ok(logs) => match CString::new(logs) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -494,7 +452,12 @@ pub extern "C" fn k8s_exec_in_pod(
     command: *const c_char,
     container: *const c_char,
 ) -> *mut c_char {
-    if handle.is_null() || cluster_id.is_null() || namespace.is_null() || pod_name.is_null() || command.is_null() {
+    if handle.is_null()
+        || cluster_id.is_null()
+        || namespace.is_null()
+        || pod_name.is_null()
+        || command.is_null()
+    {
         return std::ptr::null_mut();
     }
 
@@ -521,17 +484,14 @@ pub extern "C" fn k8s_exec_in_pod(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.exec_in_pod(&id, &ns, &name, &options).await
-    });
+    let result =
+        runtime.block_on(async { handle.manager.exec_in_pod(&id, &ns, &name, &options).await });
 
     match result {
-        Ok(output) => {
-            match CString::new(output) {
-                Ok(cstr) => cstr.into_raw(),
-                Err(_) => std::ptr::null_mut(),
-            }
-        }
+        Ok(output) => match CString::new(output) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -554,22 +514,16 @@ pub extern "C" fn k8s_get_nodes(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_nodes(&id).await
-    });
+    let result = runtime.block_on(async { handle.manager.get_nodes(&id).await });
 
     match result {
-        Ok(nodes) => {
-            match serde_json::to_string(&nodes) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(nodes) => match serde_json::to_string(&nodes) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -594,22 +548,16 @@ pub extern "C" fn k8s_get_deployments(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_deployments(&id, &ns).await
-    });
+    let result = runtime.block_on(async { handle.manager.get_deployments(&id, &ns).await });
 
     match result {
-        Ok(deployments) => {
-            match serde_json::to_string(&deployments) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(deployments) => match serde_json::to_string(&deployments) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -623,7 +571,8 @@ pub extern "C" fn k8s_scale_deployment(
     deployment_name: *const c_char,
     replicas: c_int,
 ) -> c_int {
-    if handle.is_null() || cluster_id.is_null() || namespace.is_null() || deployment_name.is_null() {
+    if handle.is_null() || cluster_id.is_null() || namespace.is_null() || deployment_name.is_null()
+    {
         return -1;
     }
 
@@ -638,7 +587,10 @@ pub extern "C" fn k8s_scale_deployment(
     };
 
     match runtime.block_on(async {
-        handle.manager.scale_deployment(&id, &ns, &name, replicas as i32).await
+        handle
+            .manager
+            .scale_deployment(&id, &ns, &name, replicas as i32)
+            .await
     }) {
         Ok(_) => 0,
         Err(_) => -1,
@@ -665,22 +617,16 @@ pub extern "C" fn k8s_get_services(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_services(&id, &ns).await
-    });
+    let result = runtime.block_on(async { handle.manager.get_services(&id, &ns).await });
 
     match result {
-        Ok(services) => {
-            match serde_json::to_string(&services) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(services) => match serde_json::to_string(&services) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -705,22 +651,16 @@ pub extern "C" fn k8s_get_configmaps(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_configmaps(&id, &ns).await
-    });
+    let result = runtime.block_on(async { handle.manager.get_configmaps(&id, &ns).await });
 
     match result {
-        Ok(configmaps) => {
-            match serde_json::to_string(&configmaps) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(configmaps) => match serde_json::to_string(&configmaps) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -745,22 +685,16 @@ pub extern "C" fn k8s_get_secrets(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_secrets(&id, &ns).await
-    });
+    let result = runtime.block_on(async { handle.manager.get_secrets(&id, &ns).await });
 
     match result {
-        Ok(secrets) => {
-            match serde_json::to_string(&secrets) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(secrets) => match serde_json::to_string(&secrets) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -790,21 +724,20 @@ pub extern "C" fn k8s_get_events(
     };
 
     let result = runtime.block_on(async {
-        handle.manager.get_events(&id, ns.as_deref(), None, None).await
+        handle
+            .manager
+            .get_events(&id, ns.as_deref(), None, None)
+            .await
     });
 
     match result {
-        Ok(events) => {
-            match serde_json::to_string(&events) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(events) => match serde_json::to_string(&events) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -834,30 +767,27 @@ pub extern "C" fn k8s_create_port_forward(
     };
 
     let result = runtime.block_on(async {
-        handle.manager.create_port_forward(&id, &ns, &name, local_port as u16, remote_port as u16).await
+        handle
+            .manager
+            .create_port_forward(&id, &ns, &name, local_port as u16, remote_port as u16)
+            .await
     });
 
     match result {
-        Ok(pf) => {
-            match serde_json::to_string(&pf) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(pf) => match serde_json::to_string(&pf) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
 
 /// Get port forwards
 #[no_mangle]
-pub extern "C" fn k8s_get_port_forwards(
-    handle: *mut K8sManagerHandle,
-) -> *mut c_char {
+pub extern "C" fn k8s_get_port_forwards(handle: *mut K8sManagerHandle) -> *mut c_char {
     if handle.is_null() {
         return std::ptr::null_mut();
     }
@@ -869,17 +799,13 @@ pub extern "C" fn k8s_get_port_forwards(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let forwards = runtime.block_on(async {
-        handle.manager.get_port_forwards().await
-    });
+    let forwards = runtime.block_on(async { handle.manager.get_port_forwards().await });
 
     match serde_json::to_string(&forwards) {
-        Ok(json) => {
-            match CString::new(json) {
-                Ok(cstr) => cstr.into_raw(),
-                Err(_) => std::ptr::null_mut(),
-            }
-        }
+        Ok(json) => match CString::new(json) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -902,9 +828,7 @@ pub extern "C" fn k8s_stop_port_forward(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.stop_port_forward(&id).await
-    }) {
+    match runtime.block_on(async { handle.manager.stop_port_forward(&id).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -928,9 +852,7 @@ pub extern "C" fn k8s_delete_port_forward(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.delete_port_forward(&id).await
-    }) {
+    match runtime.block_on(async { handle.manager.delete_port_forward(&id).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -963,21 +885,20 @@ pub extern "C" fn k8s_apply_yaml(
     };
 
     let result = runtime.block_on(async {
-        handle.manager.apply_yaml(&id, &yaml_str, ns.as_deref()).await
+        handle
+            .manager
+            .apply_yaml(&id, &yaml_str, ns.as_deref())
+            .await
     });
 
     match result {
-        Ok(resource) => {
-            match serde_json::to_string(&resource) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(resource) => match serde_json::to_string(&resource) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -991,7 +912,12 @@ pub extern "C" fn k8s_get_resource_yaml(
     name: *const c_char,
     namespace: *const c_char,
 ) -> *mut c_char {
-    if handle.is_null() || cluster_id.is_null() || kind.is_null() || name.is_null() || namespace.is_null() {
+    if handle.is_null()
+        || cluster_id.is_null()
+        || kind.is_null()
+        || name.is_null()
+        || namespace.is_null()
+    {
         return std::ptr::null_mut();
     }
 
@@ -1007,16 +933,17 @@ pub extern "C" fn k8s_get_resource_yaml(
     };
 
     let result = runtime.block_on(async {
-        handle.manager.get_resource_yaml(&id, &kind_str, &name_str, &ns).await
+        handle
+            .manager
+            .get_resource_yaml(&id, &kind_str, &name_str, &ns)
+            .await
     });
 
     match result {
-        Ok(yaml) => {
-            match CString::new(yaml) {
-                Ok(cstr) => cstr.into_raw(),
-                Err(_) => std::ptr::null_mut(),
-            }
-        }
+        Ok(yaml) => match CString::new(yaml) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -1045,22 +972,17 @@ pub extern "C" fn k8s_get_helm_releases(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let result = runtime.block_on(async {
-        handle.manager.get_helm_releases(&id, ns.as_deref()).await
-    });
+    let result =
+        runtime.block_on(async { handle.manager.get_helm_releases(&id, ns.as_deref()).await });
 
     match result {
-        Ok(releases) => {
-            match serde_json::to_string(&releases) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(releases) => match serde_json::to_string(&releases) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -1075,7 +997,12 @@ pub extern "C" fn k8s_helm_install(
     namespace: *const c_char,
     version: *const c_char,
 ) -> *mut c_char {
-    if handle.is_null() || cluster_id.is_null() || release_name.is_null() || chart.is_null() || namespace.is_null() {
+    if handle.is_null()
+        || cluster_id.is_null()
+        || release_name.is_null()
+        || chart.is_null()
+        || namespace.is_null()
+    {
         return std::ptr::null_mut();
     }
 
@@ -1096,21 +1023,20 @@ pub extern "C" fn k8s_helm_install(
     };
 
     let result = runtime.block_on(async {
-        handle.manager.helm_install(&id, &rel_name, &chart_str, &ns, None, ver.as_deref(), None).await
+        handle
+            .manager
+            .helm_install(&id, &rel_name, &chart_str, &ns, None, ver.as_deref(), None)
+            .await
     });
 
     match result {
-        Ok(release) => {
-            match serde_json::to_string(&release) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(release) => match serde_json::to_string(&release) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -1125,7 +1051,12 @@ pub extern "C" fn k8s_helm_upgrade(
     namespace: *const c_char,
     version: *const c_char,
 ) -> *mut c_char {
-    if handle.is_null() || cluster_id.is_null() || release_name.is_null() || chart.is_null() || namespace.is_null() {
+    if handle.is_null()
+        || cluster_id.is_null()
+        || release_name.is_null()
+        || chart.is_null()
+        || namespace.is_null()
+    {
         return std::ptr::null_mut();
     }
 
@@ -1146,21 +1077,20 @@ pub extern "C" fn k8s_helm_upgrade(
     };
 
     let result = runtime.block_on(async {
-        handle.manager.helm_upgrade(&id, &rel_name, &chart_str, &ns, None, ver.as_deref()).await
+        handle
+            .manager
+            .helm_upgrade(&id, &rel_name, &chart_str, &ns, None, ver.as_deref())
+            .await
     });
 
     match result {
-        Ok(release) => {
-            match serde_json::to_string(&release) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(release) => match serde_json::to_string(&release) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -1189,21 +1119,20 @@ pub extern "C" fn k8s_helm_rollback(
     };
 
     let result = runtime.block_on(async {
-        handle.manager.helm_rollback(&id, &rel_name, &ns, revision).await
+        handle
+            .manager
+            .helm_rollback(&id, &rel_name, &ns, revision)
+            .await
     });
 
     match result {
-        Ok(release) => {
-            match serde_json::to_string(&release) {
-                Ok(json) => {
-                    match CString::new(json) {
-                        Ok(cstr) => cstr.into_raw(),
-                        Err(_) => std::ptr::null_mut(),
-                    }
-                }
+        Ok(release) => match serde_json::to_string(&release) {
+            Ok(json) => match CString::new(json) {
+                Ok(cstr) => cstr.into_raw(),
                 Err(_) => std::ptr::null_mut(),
-            }
-        }
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
         Err(_) => std::ptr::null_mut(),
     }
 }
@@ -1230,9 +1159,7 @@ pub extern "C" fn k8s_helm_uninstall(
         Err(_) => return -1,
     };
 
-    match runtime.block_on(async {
-        handle.manager.helm_uninstall(&id, &rel_name, &ns).await
-    }) {
+    match runtime.block_on(async { handle.manager.helm_uninstall(&id, &rel_name, &ns).await }) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -1249,7 +1176,9 @@ pub extern "C" fn k8s_free_string(s: *mut c_char) {
 }
 
 /// Get K8sManager from AppState
-pub fn get_k8s_manager(state: &AppState) -> Option<Arc<tokio::sync::RwLock<crate::kubernetes::K8sManager>>> {
+pub fn get_k8s_manager(
+    state: &AppState,
+) -> Option<Arc<tokio::sync::RwLock<crate::kubernetes::K8sManager>>> {
     #[cfg(feature = "kubernetes")]
     {
         Some(state.k8s_manager.clone())

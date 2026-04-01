@@ -1,7 +1,7 @@
 //! Database connection management
 
+use crate::database_client::{ConnectionInfo, DatabaseConfig, DatabaseError, DatabaseType};
 use serde::{Deserialize, Serialize};
-use crate::database_client::{DatabaseConfig, ConnectionInfo, DatabaseType, DatabaseError};
 
 /// Connection test result
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,7 +25,9 @@ impl ConnectionValidator {
     pub fn validate(&self, config: &DatabaseConfig) -> Result<(), DatabaseError> {
         // Validate host
         if config.host.is_empty() && !matches!(config.db_type, DatabaseType::SQLite) {
-            return Err(DatabaseError::ConfigError("Host cannot be empty".to_string()));
+            return Err(DatabaseError::ConfigError(
+                "Host cannot be empty".to_string(),
+            ));
         }
 
         // Validate port
@@ -35,13 +37,17 @@ impl ConnectionValidator {
 
         // Validate database
         if config.database.is_empty() {
-            return Err(DatabaseError::ConfigError("Database cannot be empty".to_string()));
+            return Err(DatabaseError::ConfigError(
+                "Database cannot be empty".to_string(),
+            ));
         }
 
         // Validate credentials for non-SQLite
         if !matches!(config.db_type, DatabaseType::SQLite) {
             if config.username.is_empty() {
-                return Err(DatabaseError::ConfigError("Username cannot be empty".to_string()));
+                return Err(DatabaseError::ConfigError(
+                    "Username cannot be empty".to_string(),
+                ));
             }
         }
 
@@ -49,7 +55,10 @@ impl ConnectionValidator {
     }
 
     /// Test connection (async - would actually connect)
-    pub async fn test(&self, _config: &DatabaseConfig) -> Result<ConnectionTestResult, DatabaseError> {
+    pub async fn test(
+        &self,
+        _config: &DatabaseConfig,
+    ) -> Result<ConnectionTestResult, DatabaseError> {
         // This would actually attempt to connect
         // For now, return a stub success
         Ok(ConnectionTestResult {
@@ -89,7 +98,12 @@ impl ConnectionUrlBuilder {
             "mongodb" | "mongo" => DatabaseType::MongoDB,
             "redis" => DatabaseType::Redis,
             "sqlite" => DatabaseType::SQLite,
-            _ => return Err(DatabaseError::ConfigError(format!("Unknown scheme: {}", url.scheme()))),
+            _ => {
+                return Err(DatabaseError::ConfigError(format!(
+                    "Unknown scheme: {}",
+                    url.scheme()
+                )))
+            }
         };
 
         let host = url.host_str().unwrap_or("localhost").to_string();
@@ -98,10 +112,7 @@ impl ConnectionUrlBuilder {
         let username = url.username().to_string();
         let password = url.password().map(|p| p.to_string());
 
-        let mut config = DatabaseConfig::new(
-            format!("{}_{}", db_type.as_str(), database),
-            db_type,
-        );
+        let mut config = DatabaseConfig::new(format!("{}_{}", db_type.as_str(), database), db_type);
         config.host = host;
         config.port = port;
         config.database = database;

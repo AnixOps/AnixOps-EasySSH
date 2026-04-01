@@ -232,7 +232,10 @@ pub struct MonitoringManager {
 impl MonitoringManager {
     pub async fn new(config: MonitoringConfig) -> Result<Self, MonitoringError> {
         let storage = Arc::new(MetricsStorage::new(&config).await?);
-        let collector = Arc::new(MetricsCollector::new(Arc::clone(&storage), config.collection_interval_secs));
+        let collector = Arc::new(MetricsCollector::new(
+            Arc::clone(&storage),
+            config.collection_interval_secs,
+        ));
         let alert_engine = Arc::new(AlertEngine::new(Arc::clone(&storage), &config).await?);
         let notification_manager = Arc::new(RwLock::new(NotificationManager::new()));
         let sla_monitor = Arc::new(SlaMonitor::new(
@@ -253,8 +256,14 @@ impl MonitoringManager {
     }
 
     /// Initialize monitoring for a server
-    pub async fn add_server(&self, server_id: String, connection_config: ServerConnectionConfig) -> Result<(), MonitoringError> {
-        self.collector.register_server(server_id.clone(), connection_config).await?;
+    pub async fn add_server(
+        &self,
+        server_id: String,
+        connection_config: ServerConnectionConfig,
+    ) -> Result<(), MonitoringError> {
+        self.collector
+            .register_server(server_id.clone(), connection_config)
+            .await?;
 
         // Update topology
         let mut topology = self.topology.write().await;
@@ -291,7 +300,10 @@ impl MonitoringManager {
     }
 
     /// Get real-time metrics for a server
-    pub async fn get_realtime_metrics(&self, server_id: &str) -> Result<ServerMetrics, MonitoringError> {
+    pub async fn get_realtime_metrics(
+        &self,
+        server_id: &str,
+    ) -> Result<ServerMetrics, MonitoringError> {
         self.storage.get_latest_metrics(server_id).await
     }
 
@@ -302,7 +314,9 @@ impl MonitoringManager {
         metric_type: MetricType,
         time_range: TimeRange,
     ) -> Result<Vec<MetricPoint>, MonitoringError> {
-        self.storage.get_metrics_history(server_id, metric_type, time_range).await
+        self.storage
+            .get_metrics_history(server_id, metric_type, time_range)
+            .await
     }
 
     /// Get current alerts
@@ -311,7 +325,11 @@ impl MonitoringManager {
     }
 
     /// Acknowledge an alert
-    pub async fn acknowledge_alert(&self, alert_id: &str, user_id: &str) -> Result<(), MonitoringError> {
+    pub async fn acknowledge_alert(
+        &self,
+        alert_id: &str,
+        user_id: &str,
+    ) -> Result<(), MonitoringError> {
         self.alert_engine.acknowledge_alert(alert_id, user_id).await
     }
 
@@ -321,7 +339,10 @@ impl MonitoringManager {
     }
 
     /// Update topology layout
-    pub async fn update_topology_layout(&self, layout: TopologyLayout) -> Result<(), MonitoringError> {
+    pub async fn update_topology_layout(
+        &self,
+        layout: TopologyLayout,
+    ) -> Result<(), MonitoringError> {
         let mut topology = self.topology.write().await;
         topology.apply_layout(layout);
         Ok(())
@@ -334,7 +355,9 @@ impl MonitoringManager {
         metric_type: MetricType,
         time_range: TimeRange,
     ) -> Result<PerformanceComparison, MonitoringError> {
-        self.storage.compare_performance(server_ids, metric_type, time_range).await
+        self.storage
+            .compare_performance(server_ids, metric_type, time_range)
+            .await
     }
 
     /// Get capacity planning forecast
@@ -344,7 +367,9 @@ impl MonitoringManager {
         resource_type: ResourceType,
         days_ahead: u32,
     ) -> Result<CapacityForecast, MonitoringError> {
-        self.storage.predict_capacity(server_id, resource_type, days_ahead).await
+        self.storage
+            .predict_capacity(server_id, resource_type, days_ahead)
+            .await
     }
 
     /// Get SLA statistics
@@ -379,7 +404,9 @@ impl MonitoringManager {
         start_date: &str,
         end_date: &str,
     ) -> Result<sla::SlaReport, MonitoringError> {
-        self.sla_monitor.generate_report(server_id, start_date, end_date).await
+        self.sla_monitor
+            .generate_report(server_id, start_date, end_date)
+            .await
     }
 
     /// Add notification channel
@@ -388,7 +415,8 @@ impl MonitoringManager {
         channel: notifications::NotificationChannel,
     ) -> Result<(), MonitoringError> {
         let mut manager = self.notification_manager.write().await;
-        manager.add_channel(&channel)
+        manager
+            .add_channel(&channel)
             .map_err(|e| MonitoringError::Config(e.to_string()))
     }
 
@@ -399,10 +427,7 @@ impl MonitoringManager {
     }
 
     /// Send test notification
-    pub async fn send_test_notification(
-        &self,
-        channel_id: &str,
-    ) -> Result<(), MonitoringError> {
+    pub async fn send_test_notification(&self, channel_id: &str) -> Result<(), MonitoringError> {
         let manager = self.notification_manager.read().await;
         let payload = notifications::NotificationPayload {
             title: "Test Notification".to_string(),
@@ -423,13 +448,17 @@ impl MonitoringManager {
             tags: vec!["test".to_string()],
         };
 
-        manager.send_to_channel(channel_id, &payload, 60)
+        manager
+            .send_to_channel(channel_id, &payload, 60)
             .await
             .map_err(|e| MonitoringError::Alert(e.to_string()))
     }
 
     /// Create custom dashboard
-    pub async fn create_dashboard(&self, dashboard: CustomDashboard) -> Result<(), MonitoringError> {
+    pub async fn create_dashboard(
+        &self,
+        dashboard: CustomDashboard,
+    ) -> Result<(), MonitoringError> {
         let mut dashboards = self.dashboards.write().await;
         let dashboard_id = dashboard.id.clone();
         dashboards.insert(dashboard_id.clone(), dashboard.clone());
@@ -438,7 +467,10 @@ impl MonitoringManager {
     }
 
     /// Get dashboard
-    pub async fn get_dashboard(&self, dashboard_id: &str) -> Result<Option<CustomDashboard>, MonitoringError> {
+    pub async fn get_dashboard(
+        &self,
+        dashboard_id: &str,
+    ) -> Result<Option<CustomDashboard>, MonitoringError> {
         let dashboards = self.dashboards.read().await;
         Ok(dashboards.get(dashboard_id).cloned())
     }

@@ -1,10 +1,9 @@
+use chrono::{DateTime, Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
-use uuid::Uuid;
-use chrono::{DateTime, Utc, Datelike, Timelike};
 use tracing::info;
-
+use uuid::Uuid;
 
 /// Scheduled task definition (cron-style)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -195,7 +194,8 @@ impl CronSchedule {
         if parts.len() != 5 && parts.len() != 6 {
             return Err(format!(
                 "Invalid cron expression '{}'. Expected 5 or 6 fields, got {}.",
-                expression, parts.len()
+                expression,
+                parts.len()
             ));
         }
 
@@ -238,7 +238,9 @@ impl CronSchedule {
         let parts: Vec<&str> = field.split('/').collect();
         let range_part = parts[0];
         let step = if parts.len() > 1 {
-            parts[1].parse::<u8>().map_err(|_| format!("Invalid step in {}", name))?
+            parts[1]
+                .parse::<u8>()
+                .map_err(|_| format!("Invalid step in {}", name))?
         } else {
             1
         };
@@ -252,8 +254,12 @@ impl CronSchedule {
             } else if item.contains('-') {
                 let range: Vec<&str> = item.split('-').collect();
                 if range.len() == 2 {
-                    let start = range[0].parse::<u8>().map_err(|_| format!("Invalid range in {}", name))?;
-                    let end = range[1].parse::<u8>().map_err(|_| format!("Invalid range in {}", name))?;
+                    let start = range[0]
+                        .parse::<u8>()
+                        .map_err(|_| format!("Invalid range in {}", name))?;
+                    let end = range[1]
+                        .parse::<u8>()
+                        .map_err(|_| format!("Invalid range in {}", name))?;
                     for i in (start..=end).step_by(step as usize) {
                         if i >= min && i <= max {
                             result.push(i);
@@ -261,7 +267,9 @@ impl CronSchedule {
                     }
                 }
             } else {
-                let val = item.parse::<u8>().map_err(|_| format!("Invalid value in {}", name))?;
+                let val = item
+                    .parse::<u8>()
+                    .map_err(|_| format!("Invalid value in {}", name))?;
                 if val >= min && val <= max {
                     result.push(val);
                 }
@@ -276,7 +284,11 @@ impl CronSchedule {
     /// Get next occurrence after given time
     pub fn next_occurrence(&self, after: DateTime<Utc>) -> Option<DateTime<Utc>> {
         let mut candidate = after + chrono::Duration::minutes(1);
-        candidate = candidate.with_second(0).unwrap().with_nanosecond(0).unwrap();
+        candidate = candidate
+            .with_second(0)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap();
 
         // Search up to 4 years ahead
         for _ in 0..(365 * 4 * 24 * 60) {
@@ -365,7 +377,9 @@ impl CronSchedule {
 
         // Weekdays
         if !self.days_of_week.is_empty() {
-            let weekdays: Vec<&str> = self.days_of_week.iter()
+            let weekdays: Vec<&str> = self
+                .days_of_week
+                .iter()
                 .map(|&d| match d {
                     0 => "Sunday",
                     1 => "Monday",
@@ -485,7 +499,9 @@ impl TaskScheduler {
             }
 
             // Skip if already running and max_parallel reached
-            let running_count = self.running_tasks.values()
+            let running_count = self
+                .running_tasks
+                .values()
                 .filter(|h| h.task_id == *id)
                 .count();
             if running_count >= task.max_parallel {
@@ -505,11 +521,14 @@ impl TaskScheduler {
 
     /// Start a task execution
     pub fn start_execution(&mut self, task_id: &str, execution_id: String) {
-        self.running_tasks.insert(execution_id.clone(), TaskExecutionHandle {
-            task_id: task_id.to_string(),
-            execution_id: execution_id.clone(),
-            started_at: Utc::now(),
-        });
+        self.running_tasks.insert(
+            execution_id.clone(),
+            TaskExecutionHandle {
+                task_id: task_id.to_string(),
+                execution_id: execution_id.clone(),
+                started_at: Utc::now(),
+            },
+        );
 
         if let Some(task) = self.tasks.get_mut(task_id) {
             task.last_run = Some(Utc::now());
@@ -615,8 +634,11 @@ mod tests {
         assert_eq!(schedule.hours, vec![0]);
         // describe() for "0 0 * * *" should contain info about daily execution
         let desc = schedule.describe();
-        assert!(desc.contains("at minute 0") || desc.contains("daily") || desc.contains("hour"),
-            "Description should indicate daily execution: {}", desc);
+        assert!(
+            desc.contains("at minute 0") || desc.contains("daily") || desc.contains("hour"),
+            "Description should indicate daily execution: {}",
+            desc
+        );
 
         let schedule = CronSchedule::parse("*/5 * * * *").unwrap();
         assert!(schedule.minutes.contains(&0));
@@ -851,7 +873,10 @@ mod tests {
 
         // Creating a task with invalid cron should fail
         let task_result = ScheduledTask::new("Test", "wf-1", "invalid cron");
-        assert!(task_result.is_err(), "Creating task with invalid cron should fail");
+        assert!(
+            task_result.is_err(),
+            "Creating task with invalid cron should fail"
+        );
 
         // Also verify that the scheduler rejects tasks with invalid cron
         // We can only test this if we could somehow create an invalid task
@@ -961,9 +986,12 @@ mod tests {
 
         // Create a datetime at noon
         let noon = Utc::now()
-            .with_hour(12).unwrap()
-            .with_minute(0).unwrap()
-            .with_second(0).unwrap();
+            .with_hour(12)
+            .unwrap()
+            .with_minute(0)
+            .unwrap()
+            .with_second(0)
+            .unwrap();
 
         assert!(schedule.matches(&noon));
 

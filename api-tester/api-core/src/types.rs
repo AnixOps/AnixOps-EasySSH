@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 /// HTTP methods supported
@@ -123,7 +123,9 @@ pub struct MultipartPart {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MultipartValue {
-    Text { content: String },
+    Text {
+        content: String,
+    },
     File {
         #[serde(with = "base64_string")]
         data: Vec<u8>,
@@ -154,8 +156,8 @@ mod serde_urlencoded_map {
 }
 
 mod base64_string {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     use serde::{Deserialize, Deserializer, Serializer};
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
 
     pub fn serialize<S>(data: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
     where

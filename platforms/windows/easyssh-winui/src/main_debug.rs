@@ -154,9 +154,11 @@ impl EasySSHApp {
         if self.terminal_output.len() > Self::MAX_TERMINAL_CHARS {
             let truncate_pos = self.terminal_output.len() - Self::MAX_TERMINAL_CHARS;
             if let Some(pos) = self.terminal_output[..truncate_pos].find('\n') {
-                self.terminal_output = format!("[...truncated {} bytes...]\n{}",
+                self.terminal_output = format!(
+                    "[...truncated {} bytes...]\n{}",
                     truncate_pos - pos - 1,
-                    &self.terminal_output[pos + 1..]);
+                    &self.terminal_output[pos + 1..]
+                );
             } else {
                 self.terminal_output = self.terminal_output[truncate_pos..].to_string();
             }
@@ -349,7 +351,11 @@ impl EasySSHApp {
             while let Ok(chunk) = receiver.try_recv() {
                 self.terminal_output.push_str(&chunk);
                 if let Some(active) = self.active_tab.clone() {
-                    if let Some(tab) = self.session_tabs.iter_mut().find(|t| t.session_id == active) {
+                    if let Some(tab) = self
+                        .session_tabs
+                        .iter_mut()
+                        .find(|t| t.session_id == active)
+                    {
                         tab.output.push_str(&chunk);
                     }
                 }
@@ -676,10 +682,7 @@ impl eframe::App for EasySSHApp {
                                 ui.spinner();
                             }
                             ConnectStatus::Connected => {
-                                ui.colored_label(
-                                    egui::Color32::GREEN,
-                                    "Connected successfully!",
-                                );
+                                ui.colored_label(egui::Color32::GREEN, "Connected successfully!");
                             }
                             ConnectStatus::Error => {
                                 ui.colored_label(egui::Color32::RED, "Connection failed");
@@ -781,15 +784,25 @@ impl eframe::App for EasySSHApp {
                     ui.horizontal_wrapped(|ui| {
                         for (idx, tab) in self.session_tabs.iter().enumerate() {
                             let is_active = self.active_tab.as_ref() == Some(&tab.session_id);
-                            let shortcut = if idx < 9 { format!("{}{}", idx + 1, if is_active { " ●" } else { "" }) } else { String::new() };
+                            let shortcut = if idx < 9 {
+                                format!("{}{}", idx + 1, if is_active { " ●" } else { "" })
+                            } else {
+                                String::new()
+                            };
                             let label = format!("{}{}", tab.title, shortcut);
 
-                            let btn = egui::Button::new(
-                                egui::RichText::new(label)
-                                    .color(if is_active { egui::Color32::WHITE } else { egui::Color32::GRAY })
-                            )
-                            .fill(if is_active { egui::Color32::from_rgb(0, 80, 60) } else { egui::Color32::TRANSPARENT })
-                            .rounding(4.0);
+                            let btn =
+                                egui::Button::new(egui::RichText::new(label).color(if is_active {
+                                    egui::Color32::WHITE
+                                } else {
+                                    egui::Color32::GRAY
+                                }))
+                                .fill(if is_active {
+                                    egui::Color32::from_rgb(0, 80, 60)
+                                } else {
+                                    egui::Color32::TRANSPARENT
+                                })
+                                .rounding(4.0);
 
                             if ui.add(btn).clicked() {
                                 self.active_tab = Some(tab.session_id.clone());
@@ -828,7 +841,11 @@ impl eframe::App for EasySSHApp {
                         .auto_shrink([false; 2])
                         .stick_to_bottom(true)
                         .show(ui, |ui| {
-                            ui.label(egui::RichText::new(&self.terminal_output).monospace().size(14.0));
+                            ui.label(
+                                egui::RichText::new(&self.terminal_output)
+                                    .monospace()
+                                    .size(14.0),
+                            );
                         });
                 });
 
@@ -881,7 +898,14 @@ impl eframe::App for EasySSHApp {
 
                     ui.horizontal(|ui| {
                         let is_favorite = self.favorites.contains(&server.id);
-                        if ui.button(if is_favorite { "★ Unfavorite" } else { "☆ Favorite" }).clicked() {
+                        if ui
+                            .button(if is_favorite {
+                                "★ Unfavorite"
+                            } else {
+                                "☆ Favorite"
+                            })
+                            .clicked()
+                        {
                             if is_favorite {
                                 self.favorites.remove(&server.id);
                             } else {
@@ -967,7 +991,8 @@ impl eframe::App for EasySSHApp {
                                     self.terminal_output.push_str("\n[Server deleted]\n");
                                 }
                                 Err(e) => {
-                                    self.terminal_output.push_str(&format!("\n[Delete failed: {}]\n", e));
+                                    self.terminal_output
+                                        .push_str(&format!("\n[Delete failed: {}]\n", e));
                                 }
                             }
                         }

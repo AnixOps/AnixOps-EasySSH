@@ -2,10 +2,9 @@
 
 /// Virtual Scrolling System for Large Lists
 /// Handles 1000+ items with smooth 60fps scrolling
-
 use egui::*;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 /// Virtual list state
 pub struct VirtualListState {
@@ -97,9 +96,11 @@ impl<'a, T> VirtualList<'a, T> {
         // Create scroll area with virtual content
         let scroll_offset = self.state.scroll_offset;
 
-        let _output = ScrollArea::vertical()
-            .auto_shrink([false; 2])
-            .show_rows(ui, self.state.item_height, self.items.len(), |ui, row_range| {
+        let _output = ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+            ui,
+            self.state.item_height,
+            self.items.len(),
+            |ui, row_range| {
                 // Only render visible rows
                 for idx in row_range {
                     if idx >= self.items.len() {
@@ -137,7 +138,8 @@ impl<'a, T> VirtualList<'a, T> {
                         }
                     });
                 }
-            });
+            },
+        );
 
         self.state.set_scroll_offset(scroll_offset);
         // Return a dummy response since ScrollAreaOutput doesn't expose response directly in egui 0.28
@@ -183,8 +185,14 @@ impl ServerVirtualList {
     }
 
     /// Get filtered item at index
-    pub fn get_filtered_item<'a>(&self, servers: &'a [ServerItem], idx: usize) -> Option<&'a ServerItem> {
-        self.filtered_indices.get(idx).and_then(|&orig_idx| servers.get(orig_idx))
+    pub fn get_filtered_item<'a>(
+        &self,
+        servers: &'a [ServerItem],
+        idx: usize,
+    ) -> Option<&'a ServerItem> {
+        self.filtered_indices
+            .get(idx)
+            .and_then(|&orig_idx| servers.get(orig_idx))
     }
 
     /// Render the virtual list
@@ -218,13 +226,17 @@ impl ServerVirtualList {
                     let item_y = virtual_idx as f32 * self.state.item_height;
 
                     // Skip if not visible
-                    if item_y + self.state.item_height < first_visible_y || item_y > last_visible_y {
+                    if item_y + self.state.item_height < first_visible_y || item_y > last_visible_y
+                    {
                         continue;
                     }
 
                     if let Some(server) = servers.get(orig_idx) {
                         let item_rect = Rect::from_min_size(
-                            pos2(visible_rect.min.x, visible_rect.min.y + item_y - first_visible_y),
+                            pos2(
+                                visible_rect.min.x,
+                                visible_rect.min.y + item_y - first_visible_y,
+                            ),
                             vec2(visible_rect.width(), self.state.item_height),
                         );
 
@@ -280,20 +292,18 @@ impl FileVirtualList {
     }
 
     /// Render file list with virtual scrolling
-    pub fn render<'a, T, F>(
-        &mut self,
-        ui: &mut Ui,
-        items: &'a [T],
-        mut render_item: F,
-    ) where
+    pub fn render<'a, T, F>(&mut self, ui: &mut Ui, items: &'a [T], mut render_item: F)
+    where
         F: FnMut(&'a T, &mut Ui),
     {
         let available_height = ui.available_height();
         let (_start, _end) = self.state.visible_range(available_height);
 
-        ScrollArea::vertical()
-            .auto_shrink([false; 2])
-            .show_rows(ui, self.state.item_height, items.len(), |ui, row_range| {
+        ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+            ui,
+            self.state.item_height,
+            items.len(),
+            |ui, row_range| {
                 for idx in row_range {
                     if idx >= items.len() {
                         break;
@@ -302,7 +312,8 @@ impl FileVirtualList {
                         render_item(&items[idx], ui);
                     });
                 }
-            });
+            },
+        );
     }
 }
 
@@ -337,7 +348,10 @@ impl WidgetRecyclePool {
         let mut pool = self.pool.lock();
 
         // Try to reuse
-        if let Some(state) = pool.iter_mut().find(|s| s.id.short_debug_format().contains(&format!("{}", index))) {
+        if let Some(state) = pool
+            .iter_mut()
+            .find(|s| s.id.short_debug_format().contains(&format!("{}", index)))
+        {
             state.last_used = Some(std::time::Instant::now());
             state.id
         } else {
@@ -354,7 +368,11 @@ impl WidgetRecyclePool {
     pub fn cleanup_stale(&self, max_age: std::time::Duration) {
         let mut pool = self.pool.lock();
         let now = std::time::Instant::now();
-        pool.retain(|s| s.last_used.map(|lu| now.duration_since(lu) < max_age).unwrap_or(true));
+        pool.retain(|s| {
+            s.last_used
+                .map(|lu| now.duration_since(lu) < max_age)
+                .unwrap_or(true)
+        });
     }
 }
 
@@ -367,11 +385,7 @@ pub struct RecycledListView<'a, T> {
 }
 
 impl<'a, T> RecycledListView<'a, T> {
-    pub fn new(
-        items: &'a [T],
-        item_height: f32,
-        recycle_pool: &'a WidgetRecyclePool,
-    ) -> Self {
+    pub fn new(items: &'a [T], item_height: f32, recycle_pool: &'a WidgetRecyclePool) -> Self {
         Self {
             items,
             item_height,
@@ -394,8 +408,8 @@ impl<'a, T> RecycledListView<'a, T> {
         let visible_end_y = visible_start_y + visible_rect.height();
 
         let start_idx = (visible_start_y / self.item_height).max(0.0) as usize;
-        let end_idx = ((visible_end_y / self.item_height).ceil() as usize + 1)
-            .min(self.items.len());
+        let end_idx =
+            ((visible_end_y / self.item_height).ceil() as usize + 1).min(self.items.len());
 
         for idx in start_idx..end_idx {
             let item_y = idx as f32 * self.item_height - self.scroll_offset;
@@ -414,7 +428,8 @@ impl<'a, T> RecycledListView<'a, T> {
 
         // Request cleanup periodically
         if start_idx % 100 == 0 {
-            self.recycle_pool.cleanup_stale(std::time::Duration::from_secs(30));
+            self.recycle_pool
+                .cleanup_stale(std::time::Duration::from_secs(30));
         }
     }
 }

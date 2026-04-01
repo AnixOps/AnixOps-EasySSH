@@ -1,10 +1,10 @@
 //! Query history management
 
+use crate::database_client::{DatabaseError, DatabaseType};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use crate::database_client::{DatabaseType, DatabaseError};
 
 /// Query history entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,7 +124,10 @@ impl SavedQuery {
 
     pub fn from_history(entry: &QueryHistoryEntry) -> Self {
         let mut saved = Self::new(
-            entry.title.clone().unwrap_or_else(|| "Untitled".to_string()),
+            entry
+                .title
+                .clone()
+                .unwrap_or_else(|| "Untitled".to_string()),
             entry.query_text.clone(),
             entry.db_type,
         );
@@ -226,7 +229,9 @@ impl QueryHistoryManager {
         connection_id: Option<&str>,
         limit: usize,
     ) -> Vec<QueryHistoryEntry> {
-        let mut entries: Vec<_> = self.entries.iter()
+        let mut entries: Vec<_> = self
+            .entries
+            .iter()
             .filter(|e| connection_id.map_or(true, |id| e.connection_id == id))
             .cloned()
             .collect();
@@ -239,7 +244,8 @@ impl QueryHistoryManager {
 
     /// Get filtered history
     pub fn filter_entries(&self, filter: &HistoryFilter) -> Vec<QueryHistoryEntry> {
-        self.entries.iter()
+        self.entries
+            .iter()
             .filter(|e| {
                 if let Some(ref conn_id) = filter.connection_id {
                     if e.connection_id != *conn_id {
@@ -284,7 +290,11 @@ impl QueryHistoryManager {
                 if let Some(ref search) = filter.search_text {
                     let search_lower = search.to_lowercase();
                     if !e.query_text.to_lowercase().contains(&search_lower)
-                        && !e.title.as_ref().map_or(false, |t| t.to_lowercase().contains(&search_lower)) {
+                        && !e
+                            .title
+                            .as_ref()
+                            .map_or(false, |t| t.to_lowercase().contains(&search_lower))
+                    {
                         return false;
                     }
                 }
@@ -297,25 +307,21 @@ impl QueryHistoryManager {
 
     /// Toggle favorite status
     pub fn toggle_favorite(&mut self, entry_id: &str) -> Option<bool> {
-        self.entries.iter_mut()
-            .find(|e| e.id == entry_id)
-            .map(|e| {
-                e.is_favorite = !e.is_favorite;
-                e.is_favorite
-            })
+        self.entries.iter_mut().find(|e| e.id == entry_id).map(|e| {
+            e.is_favorite = !e.is_favorite;
+            e.is_favorite
+        })
     }
 
     /// Add tags to entry
     pub fn add_tags(&mut self, entry_id: &str, tags: Vec<String>) -> Option<()> {
-        self.entries.iter_mut()
-            .find(|e| e.id == entry_id)
-            .map(|e| {
-                for tag in tags {
-                    if !e.tags.contains(&tag) {
-                        e.tags.push(tag);
-                    }
+        self.entries.iter_mut().find(|e| e.id == entry_id).map(|e| {
+            for tag in tags {
+                if !e.tags.contains(&tag) {
+                    e.tags.push(tag);
                 }
-            })
+            }
+        })
     }
 
     /// Delete entry
@@ -340,7 +346,11 @@ impl QueryHistoryManager {
         let failed_queries = total_queries - successful_queries;
 
         let avg_execution_time = if total_queries > 0 {
-            self.entries.iter().map(|e| e.execution_time_ms as u64).sum::<u64>() / total_queries as u64
+            self.entries
+                .iter()
+                .map(|e| e.execution_time_ms as u64)
+                .sum::<u64>()
+                / total_queries as u64
         } else {
             0
         };
@@ -350,7 +360,9 @@ impl QueryHistoryManager {
             *db_type_counts.entry(entry.db_type).or_insert(0) += 1;
         }
 
-        let tag_counts: HashMap<String, u32> = self.entries.iter()
+        let tag_counts: HashMap<String, u32> = self
+            .entries
+            .iter()
             .flat_map(|e| e.tags.iter())
             .fold(HashMap::new(), |mut acc, tag| {
                 *acc.entry(tag.clone()).or_insert(0) += 1;
@@ -364,10 +376,14 @@ impl QueryHistoryManager {
             favorite_queries: self.entries.iter().filter(|e| e.is_favorite).count(),
             avg_execution_time_ms: avg_execution_time,
             total_rows_returned: self.entries.iter().map(|e| e.rows_returned as u64).sum(),
-            queries_today: self.entries.iter()
+            queries_today: self
+                .entries
+                .iter()
                 .filter(|e| e.executed_at.date_naive() == Utc::now().date_naive())
                 .count(),
-            queries_this_week: self.entries.iter()
+            queries_this_week: self
+                .entries
+                .iter()
                 .filter(|e| e.executed_at > Utc::now() - chrono::Duration::weeks(1))
                 .count(),
             db_type_distribution: db_type_counts,
@@ -404,7 +420,8 @@ impl QueryHistoryManager {
 
     /// List saved queries
     pub fn list_saved_queries(&self, folder_id: Option<&str>) -> Vec<&SavedQuery> {
-        self.saved_queries.iter()
+        self.saved_queries
+            .iter()
             .filter(|q| folder_id.map_or(true, |fid| q.folder_id.as_deref() == Some(fid)))
             .collect()
     }
@@ -412,12 +429,17 @@ impl QueryHistoryManager {
     /// Search saved queries
     pub fn search_saved_queries(&self, search: &str) -> Vec<&SavedQuery> {
         let search_lower = search.to_lowercase();
-        self.saved_queries.iter()
+        self.saved_queries
+            .iter()
             .filter(|q| {
                 q.title.to_lowercase().contains(&search_lower)
                     || q.query_text.to_lowercase().contains(&search_lower)
-                    || q.tags.iter().any(|t| t.to_lowercase().contains(&search_lower))
-                    || q.description.as_ref().map_or(false, |d| d.to_lowercase().contains(&search_lower))
+                    || q.tags
+                        .iter()
+                        .any(|t| t.to_lowercase().contains(&search_lower))
+                    || q.description
+                        .as_ref()
+                        .map_or(false, |d| d.to_lowercase().contains(&search_lower))
             })
             .collect()
     }
@@ -462,8 +484,13 @@ impl QueryHistoryManager {
     }
 
     /// Move query to folder
-    pub fn move_query_to_folder(&mut self, query_id: &str, folder_id: Option<String>) -> Option<()> {
-        self.saved_queries.iter_mut()
+    pub fn move_query_to_folder(
+        &mut self,
+        query_id: &str,
+        folder_id: Option<String>,
+    ) -> Option<()> {
+        self.saved_queries
+            .iter_mut()
             .find(|q| q.id == query_id)
             .map(|q| {
                 q.folder_id = folder_id;

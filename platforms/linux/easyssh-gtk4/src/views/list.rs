@@ -1,5 +1,5 @@
-use gtk4::prelude::*;
 use gtk4::glib;
+use gtk4::prelude::*;
 use std::cell::RefCell;
 
 use crate::models::{Server, ServerGroup};
@@ -59,15 +59,16 @@ impl ServerListView {
         };
 
         // Connect row selection
-        view.list_box.connect_row_selected(glib::clone!(@weak view as v => move |_, row| {
-            if let Some(row) = row {
-                if let Some(server) = v.get_server_for_row(row) {
-                    if let Some(ref cb) = *v.selection_callback.borrow() {
-                        cb(server);
+        view.list_box
+            .connect_row_selected(glib::clone!(@weak view as v => move |_, row| {
+                if let Some(row) = row {
+                    if let Some(server) = v.get_server_for_row(row) {
+                        if let Some(ref cb) = *v.selection_callback.borrow() {
+                            cb(server);
+                        }
                     }
                 }
-            }
-        }));
+            }));
 
         view
     }
@@ -108,15 +109,17 @@ impl ServerListView {
 
         // Build group mapping
         let mut ungrouped: Vec<&Server> = Vec::new();
-        let mut grouped: std::collections::HashMap<String, Vec<&Server>> = std::collections::HashMap::new();
+        let mut grouped: std::collections::HashMap<String, Vec<&Server>> =
+            std::collections::HashMap::new();
 
         for server in servers.iter() {
             // Search filter
             if !filter.is_empty() {
                 let f = filter.to_lowercase();
-                if !server.name.to_lowercase().contains(&f) &&
-                   !server.host.to_lowercase().contains(&f) &&
-                   !server.username.to_lowercase().contains(&f) {
+                if !server.name.to_lowercase().contains(&f)
+                    && !server.host.to_lowercase().contains(&f)
+                    && !server.username.to_lowercase().contains(&f)
+                {
                     continue;
                 }
             }
@@ -168,13 +171,15 @@ impl ServerListView {
         }
 
         // Add favorites section if there are any
-        let favorite_servers: Vec<&Server> = servers.iter()
+        let favorite_servers: Vec<&Server> = servers
+            .iter()
             .filter(|s| favorites.contains(&s.id) && s.group_id.is_none())
             .filter(|s| {
-                if filter.is_empty() { return true; }
+                if filter.is_empty() {
+                    return true;
+                }
                 let f = filter.to_lowercase();
-                s.name.to_lowercase().contains(&f) ||
-                s.host.to_lowercase().contains(&f)
+                s.name.to_lowercase().contains(&f) || s.host.to_lowercase().contains(&f)
             })
             .collect();
 

@@ -196,10 +196,7 @@ pub extern "C" fn git_client_stage(
 
 /// Get repository status as JSON
 #[no_mangle]
-pub extern "C" fn git_client_status(
-    handle: GitClientHandle,
-    out_json: *mut *mut c_char,
-) -> c_int {
+pub extern "C" fn git_client_status(handle: GitClientHandle, out_json: *mut *mut c_char) -> c_int {
     if handle.is_null() || out_json.is_null() {
         return -1;
     }
@@ -208,21 +205,19 @@ pub extern "C" fn git_client_status(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.status() {
-        Ok(status) => {
-            match serde_json::to_string(&status) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(status) => match serde_json::to_string(&status) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -241,21 +236,19 @@ pub extern "C" fn git_client_file_statuses(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.file_statuses() {
-        Ok(statuses) => {
-            match serde_json::to_string(&statuses) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(statuses) => match serde_json::to_string(&statuses) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -274,21 +267,19 @@ pub extern "C" fn git_client_branches(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.branches() {
-        Ok(branches) => {
-            match serde_json::to_string(&branches) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(branches) => match serde_json::to_string(&branches) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -342,7 +333,10 @@ pub extern "C" fn git_client_create_branch(
         if start_point.is_null() {
             None
         } else {
-            CStr::from_ptr(start_point).to_str().ok().map(|s| s.to_string())
+            CStr::from_ptr(start_point)
+                .to_str()
+                .ok()
+                .map(|s| s.to_string())
         }
     };
 
@@ -379,21 +373,19 @@ pub extern "C" fn git_client_log(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.log(branch.as_deref(), limit as usize) {
-        Ok(commits) => {
-            match serde_json::to_string(&commits) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(commits) => match serde_json::to_string(&commits) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -412,21 +404,19 @@ pub extern "C" fn git_client_diff_workdir(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.diff_workdir() {
-        Ok(diff) => {
-            match serde_json::to_string(&diff) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(diff) => match serde_json::to_string(&diff) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -445,21 +435,19 @@ pub extern "C" fn git_client_stash_list(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.stash_list() {
-        Ok(stashes) => {
-            match serde_json::to_string(&stashes) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(stashes) => match serde_json::to_string(&stashes) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -510,10 +498,7 @@ pub extern "C" fn git_client_stash_pop(handle: GitClientHandle, index: c_int) ->
 
 /// Get remotes as JSON
 #[no_mangle]
-pub extern "C" fn git_client_remotes(
-    handle: GitClientHandle,
-    out_json: *mut *mut c_char,
-) -> c_int {
+pub extern "C" fn git_client_remotes(handle: GitClientHandle, out_json: *mut *mut c_char) -> c_int {
     if handle.is_null() || out_json.is_null() {
         return -1;
     }
@@ -522,21 +507,19 @@ pub extern "C" fn git_client_remotes(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.remotes() {
-        Ok(remotes) => {
-            match serde_json::to_string(&remotes) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(remotes) => match serde_json::to_string(&remotes) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -577,10 +560,7 @@ pub extern "C" fn git_client_add_remote(
 
 /// Get tags as JSON
 #[no_mangle]
-pub extern "C" fn git_client_tags(
-    handle: GitClientHandle,
-    out_json: *mut *mut c_char,
-) -> c_int {
+pub extern "C" fn git_client_tags(handle: GitClientHandle, out_json: *mut *mut c_char) -> c_int {
     if handle.is_null() || out_json.is_null() {
         return -1;
     }
@@ -589,21 +569,19 @@ pub extern "C" fn git_client_tags(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.tags() {
-        Ok(tags) => {
-            match serde_json::to_string(&tags) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(tags) => match serde_json::to_string(&tags) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -676,21 +654,19 @@ pub extern "C" fn git_client_submodules(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.submodules() {
-        Ok(submodules) => {
-            match serde_json::to_string(&submodules) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(submodules) => match serde_json::to_string(&submodules) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }
@@ -717,21 +693,19 @@ pub extern "C" fn git_client_blame(
     let client_guard = client.client.lock().unwrap();
 
     match client_guard.blame(&path, None) {
-        Ok(blame) => {
-            match serde_json::to_string(&blame) {
-                Ok(json) => {
-                    let c_string = match CString::new(json) {
-                        Ok(s) => s,
-                        Err(_) => return -1,
-                    };
-                    unsafe {
-                        *out_json = c_string.into_raw();
-                    }
-                    0
+        Ok(blame) => match serde_json::to_string(&blame) {
+            Ok(json) => {
+                let c_string = match CString::new(json) {
+                    Ok(s) => s,
+                    Err(_) => return -1,
+                };
+                unsafe {
+                    *out_json = c_string.into_raw();
                 }
-                Err(_) => -1,
+                0
             }
-        }
+            Err(_) => -1,
+        },
         Err(_) => -1,
     }
 }

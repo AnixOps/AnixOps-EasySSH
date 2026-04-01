@@ -14,22 +14,15 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 // Declare submodules
-pub mod loading;
 pub mod errors;
+pub mod loading;
 pub mod onboarding;
 pub mod responsiveness;
 
 // Re-export main types for convenience
-pub use loading::{
-    LoadingOperation, LoadingStateManager,
-};
+pub use loading::{LoadingOperation, LoadingStateManager};
 
-
-pub use onboarding::{
-    OnboardingWizard, OnboardingAction,
-    QuickTip,
-};
-
+pub use onboarding::{OnboardingAction, OnboardingWizard, QuickTip};
 
 // ============================================================================
 // GLOBAL UX STATE MANAGER
@@ -193,7 +186,11 @@ impl ToastNotification {
         }
     }
 
-    pub fn with_action(mut self, label: impl Into<String>, callback: impl Fn() + Send + Sync + 'static) -> Self {
+    pub fn with_action(
+        mut self,
+        label: impl Into<String>,
+        callback: impl Fn() + Send + Sync + 'static,
+    ) -> Self {
         self.action = Some(ToastAction {
             label: label.into(),
             callback: std::sync::Arc::new(callback),
@@ -222,11 +219,7 @@ impl ToastNotification {
                 "⚠",
                 crate::design::SemanticColors::WARNING,
             ),
-            ToastType::Info => (
-                theme.bg_elevated,
-                "ℹ",
-                crate::design::BrandColors::C500,
-            ),
+            ToastType::Info => (theme.bg_elevated, "ℹ", crate::design::BrandColors::C500),
         };
 
         egui::Frame::group(ui.style())
@@ -240,7 +233,7 @@ impl ToastNotification {
                         egui::RichText::new(icon)
                             .size(20.0)
                             .color(icon_color)
-                            .strong()
+                            .strong(),
                     );
 
                     ui.vertical(|ui| {
@@ -248,13 +241,13 @@ impl ToastNotification {
                             egui::RichText::new(&self.title)
                                 .size(14.0)
                                 .strong()
-                                .color(theme.text_primary)
+                                .color(theme.text_primary),
                         );
 
                         ui.label(
                             egui::RichText::new(&self.message)
                                 .size(12.0)
-                                .color(theme.text_secondary)
+                                .color(theme.text_secondary),
                         );
                     });
 
@@ -296,10 +289,8 @@ impl LoadingSpinner {
     }
 
     pub fn render(&self, ui: &mut egui::Ui, frame: u64) {
-        let (response, painter) = ui.allocate_painter(
-            egui::Vec2::splat(self.size),
-            egui::Sense::hover(),
-        );
+        let (response, painter) =
+            ui.allocate_painter(egui::Vec2::splat(self.size), egui::Sense::hover());
 
         let center = response.rect.center();
         let radius = self.size / 2.0 - 2.0;

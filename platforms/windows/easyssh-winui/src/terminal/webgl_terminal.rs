@@ -12,26 +12,21 @@
 //! - Optimized selection highlight
 //! - Big data streaming (>10MB)
 
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 use anyhow::Result;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tracing::debug;
 use wry::{WebView, WebViewBuilder};
 
 /// Terminal color support level
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ColorSupport {
-    Basic,      // 16 colors
-    Extended,   // 256 colors
-    TrueColor,  // 24-bit RGB
-}
-
-impl Default for ColorSupport {
-    fn default() -> Self {
-        ColorSupport::TrueColor
-    }
+    Basic,    // 16 colors
+    Extended, // 256 colors
+    #[default]
+    TrueColor, // 24-bit RGB
 }
 
 /// Font configuration for terminal
@@ -59,17 +54,12 @@ impl Default for FontConfig {
 }
 
 /// Cursor style
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CursorStyle {
+    #[default]
     Block,
     Line,
     Bar,
-}
-
-impl Default for CursorStyle {
-    fn default() -> Self {
-        CursorStyle::Block
-    }
 }
 
 /// Cursor configuration
@@ -159,8 +149,8 @@ impl Default for TerminalConfig {
 #[derive(Clone, Debug)]
 pub struct TerminalCell {
     pub char: char,
-    pub fg_color: [u8; 4],  // RGBA
-    pub bg_color: [u8; 4],  // RGBA
+    pub fg_color: [u8; 4], // RGBA
+    pub bg_color: [u8; 4], // RGBA
     pub bold: bool,
     pub italic: bool,
     pub underline: bool,
@@ -268,7 +258,8 @@ impl TerminalBuffer {
         let cells_to_remove = scroll * self.width;
 
         self.cells.drain(0..cells_to_remove);
-        self.cells.resize(self.width * self.height, TerminalCell::default());
+        self.cells
+            .resize(self.width * self.height, TerminalCell::default());
         self.dirty = true;
     }
 
@@ -297,10 +288,7 @@ pub struct WebGlTerminal {
 
 impl WebGlTerminal {
     pub fn new(config: TerminalConfig) -> Self {
-        let buffer = Arc::new(Mutex::new(TerminalBuffer::new(
-            config.cols,
-            config.rows,
-        )));
+        let buffer = Arc::new(Mutex::new(TerminalBuffer::new(config.cols, config.rows)));
 
         let stats = Arc::new(Mutex::new(RenderStats {
             last_update: Instant::now(),
@@ -334,7 +322,8 @@ impl WebGlTerminal {
         };
         let scrollback = config.scrollback_lines;
 
-        format!(r#"
+        format!(
+            r#"
 <!DOCTYPE html>
 <html>
 <head>
@@ -688,9 +677,16 @@ impl WebGlTerminal {
 </body>
 </html>
         "#,
-        if cursor_blink { 530 } else { 0 },
-        font_family, font_size, line_height,
-        font_family, font_size, line_height, cursor_blink, cursor_style, scrollback,
+            if cursor_blink { 530 } else { 0 },
+            font_family,
+            font_size,
+            line_height,
+            font_family,
+            font_size,
+            line_height,
+            cursor_blink,
+            cursor_style,
+            scrollback,
         )
     }
 
@@ -763,13 +759,12 @@ impl WebGlTerminal {
     }
 
     /// Build WebView with this terminal
-    pub fn build_webview<'a>(
-        &self,
-        _builder: WebViewBuilder<'a>,
-    ) -> Result<WebView> {
+    pub fn build_webview<'a>(&self, _builder: WebViewBuilder<'a>) -> Result<WebView> {
         // WebView creation disabled for now - wry 0.46 API is significantly different
         // TODO: Update to new wry API
-        Err(anyhow::anyhow!("WebView building not implemented for wry 0.46"))
+        Err(anyhow::anyhow!(
+            "WebView building not implemented for wry 0.46"
+        ))
     }
 }
 
@@ -794,10 +789,14 @@ mod tests {
     #[test]
     fn test_terminal_buffer_resize() {
         let mut buffer = TerminalBuffer::new(80, 24);
-        buffer.set_cell(0, 0, TerminalCell {
-            char: 'X',
-            ..Default::default()
-        });
+        buffer.set_cell(
+            0,
+            0,
+            TerminalCell {
+                char: 'X',
+                ..Default::default()
+            },
+        );
 
         buffer.resize(100, 30);
         assert_eq!(buffer.get_cell(0, 0).unwrap().char, 'X');
@@ -806,10 +805,14 @@ mod tests {
     #[test]
     fn test_terminal_buffer_scroll() {
         let mut buffer = TerminalBuffer::new(80, 24);
-        buffer.set_cell(0, 0, TerminalCell {
-            char: 'A',
-            ..Default::default()
-        });
+        buffer.set_cell(
+            0,
+            0,
+            TerminalCell {
+                char: 'A',
+                ..Default::default()
+            },
+        );
 
         buffer.scroll_up(1);
         // After scroll, row 0 should be empty

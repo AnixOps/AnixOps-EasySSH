@@ -4,8 +4,8 @@
 //!
 //! 解释Shell命令的工作原理
 
-use std::sync::Arc;
 use anyhow::Result;
+use std::sync::Arc;
 
 use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::providers::{ChatRequest, Message, Role};
@@ -21,10 +21,10 @@ pub struct ExplanationRequest {
 /// 详细程度
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DetailLevel {
-    Brief,      // 一句话解释
-    Standard,   // 基本解释
-    Detailed,   // 详细解释
-    Technical,  // 技术细节
+    Brief,     // 一句话解释
+    Standard,  // 基本解释
+    Detailed,  // 详细解释
+    Technical, // 技术细节
 }
 
 impl DetailLevel {
@@ -50,11 +50,11 @@ impl DetailLevel {
 /// 关注领域
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusArea {
-    General,        // 一般解释
-    Security,       // 安全影响
-    Performance,    // 性能影响
-    Compatibility,  // 兼容性
-    BestPractices,  // 最佳实践
+    General,       // 一般解释
+    Security,      // 安全影响
+    Performance,   // 性能影响
+    Compatibility, // 兼容性
+    BestPractices, // 最佳实践
 }
 
 impl FocusArea {
@@ -155,283 +155,356 @@ impl CommandExplainer {
         // 简单命令快速解释
         let explanations: Vec<(&str, &str, Vec<CommandComponent>, Vec<&str>)> = vec![
             // ls 命令
-            ("ls", "List directory contents", vec![
-                CommandComponent {
+            (
+                "ls",
+                "List directory contents",
+                vec![CommandComponent {
                     part: "ls".to_string(),
                     meaning: "List directory contents".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["ls -la", "ls -lh", "ls -R"]),
-
+                }],
+                vec!["ls -la", "ls -lh", "ls -R"],
+            ),
             // pwd 命令
-            ("pwd", "Print working directory", vec![
-                CommandComponent {
+            (
+                "pwd",
+                "Print working directory",
+                vec![CommandComponent {
                     part: "pwd".to_string(),
                     meaning: "Print name of current/working directory".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["pwd -P"]),
-
+                }],
+                vec!["pwd -P"],
+            ),
             // cd 命令
-            ("cd", "Change directory", vec![
-                CommandComponent {
+            (
+                "cd",
+                "Change directory",
+                vec![CommandComponent {
                     part: "cd".to_string(),
                     meaning: "Change the shell working directory".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["cd ~", "cd -", "cd .."]),
-
+                }],
+                vec!["cd ~", "cd -", "cd .."],
+            ),
             // cat 命令
-            ("cat", "Concatenate files and print", vec![
-                CommandComponent {
+            (
+                "cat",
+                "Concatenate files and print",
+                vec![CommandComponent {
                     part: "cat".to_string(),
                     meaning: "Concatenate FILE(s) to standard output".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["cat file.txt", "cat -n file.txt"]),
-
+                }],
+                vec!["cat file.txt", "cat -n file.txt"],
+            ),
             // grep 命令
-            ("grep", "Search text using patterns", vec![
-                CommandComponent {
+            (
+                "grep",
+                "Search text using patterns",
+                vec![CommandComponent {
                     part: "grep".to_string(),
                     meaning: "Print lines matching a pattern".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["grep 'pattern' file", "grep -r 'pattern' dir/"]),
-
+                }],
+                vec!["grep 'pattern' file", "grep -r 'pattern' dir/"],
+            ),
             // find 命令
-            ("find", "Search for files", vec![
-                CommandComponent {
+            (
+                "find",
+                "Search for files",
+                vec![CommandComponent {
                     part: "find".to_string(),
                     meaning: "Search for files in a directory hierarchy".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["find . -name '*.txt'", "find . -type f -size +1M"]),
-
+                }],
+                vec!["find . -name '*.txt'", "find . -type f -size +1M"],
+            ),
             // ps 命令
-            ("ps", "Report process status", vec![
-                CommandComponent {
+            (
+                "ps",
+                "Report process status",
+                vec![CommandComponent {
                     part: "ps".to_string(),
                     meaning: "Report a snapshot of current processes".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["ps aux", "ps -ef"]),
-
+                }],
+                vec!["ps aux", "ps -ef"],
+            ),
             // df 命令
-            ("df", "Report file system disk space", vec![
-                CommandComponent {
+            (
+                "df",
+                "Report file system disk space",
+                vec![CommandComponent {
                     part: "df".to_string(),
                     meaning: "Report file system disk space usage".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["df -h", "df -T"]),
-
+                }],
+                vec!["df -h", "df -T"],
+            ),
             // du 命令
-            ("du", "Estimate file space usage", vec![
-                CommandComponent {
+            (
+                "du",
+                "Estimate file space usage",
+                vec![CommandComponent {
                     part: "du".to_string(),
                     meaning: "Estimate file space usage".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["du -sh *", "du -h --max-depth=1"]),
-
+                }],
+                vec!["du -sh *", "du -h --max-depth=1"],
+            ),
             // free 命令
-            ("free", "Display memory usage", vec![
-                CommandComponent {
+            (
+                "free",
+                "Display memory usage",
+                vec![CommandComponent {
                     part: "free".to_string(),
                     meaning: "Display amount of free and used memory".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["free -h", "free -m"]),
-
+                }],
+                vec!["free -h", "free -m"],
+            ),
             // top 命令
-            ("top", "Display processes", vec![
-                CommandComponent {
+            (
+                "top",
+                "Display processes",
+                vec![CommandComponent {
                     part: "top".to_string(),
                     meaning: "Display Linux processes".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec![]),
-
+                }],
+                vec![],
+            ),
             // tar 命令
-            ("tar", "Archive utility", vec![
-                CommandComponent {
+            (
+                "tar",
+                "Archive utility",
+                vec![CommandComponent {
                     part: "tar".to_string(),
                     meaning: "An archiving utility".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["tar -czf archive.tar.gz dir/", "tar -xzf archive.tar.gz"]),
-
+                }],
+                vec!["tar -czf archive.tar.gz dir/", "tar -xzf archive.tar.gz"],
+            ),
             // chmod 命令
-            ("chmod", "Change file mode bits", vec![
-                CommandComponent {
+            (
+                "chmod",
+                "Change file mode bits",
+                vec![CommandComponent {
                     part: "chmod".to_string(),
                     meaning: "Change file mode bits (permissions)".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["chmod 755 file", "chmod +x script.sh"]),
-
+                }],
+                vec!["chmod 755 file", "chmod +x script.sh"],
+            ),
             // chown 命令
-            ("chown", "Change file owner", vec![
-                CommandComponent {
+            (
+                "chown",
+                "Change file owner",
+                vec![CommandComponent {
                     part: "chown".to_string(),
                     meaning: "Change file owner and group".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["chown user:group file", "chown -R user: dir/"]),
-
+                }],
+                vec!["chown user:group file", "chown -R user: dir/"],
+            ),
             // ssh 命令
-            ("ssh", "OpenSSH client", vec![
-                CommandComponent {
+            (
+                "ssh",
+                "OpenSSH client",
+                vec![CommandComponent {
                     part: "ssh".to_string(),
                     meaning: "OpenSSH remote login client".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["ssh user@host", "ssh -p 2222 user@host"]),
-
+                }],
+                vec!["ssh user@host", "ssh -p 2222 user@host"],
+            ),
             // scp 命令
-            ("scp", "Secure copy", vec![
-                CommandComponent {
+            (
+                "scp",
+                "Secure copy",
+                vec![CommandComponent {
                     part: "scp".to_string(),
                     meaning: "Secure copy (remote file copy program)".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["scp file user@host:/path", "scp -r dir/ user@host:/path"]),
-
+                }],
+                vec!["scp file user@host:/path", "scp -r dir/ user@host:/path"],
+            ),
             // git 命令
-            ("git", "Version control system", vec![
-                CommandComponent {
+            (
+                "git",
+                "Version control system",
+                vec![CommandComponent {
                     part: "git".to_string(),
                     meaning: "The stupid content tracker".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["git status", "git log", "git add ."]),
-
+                }],
+                vec!["git status", "git log", "git add ."],
+            ),
             // docker 命令
-            ("docker", "Container platform", vec![
-                CommandComponent {
+            (
+                "docker",
+                "Container platform",
+                vec![CommandComponent {
                     part: "docker".to_string(),
                     meaning: "Docker container management".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["docker ps", "docker run -it ubuntu", "docker build -t myapp ."]),
-
+                }],
+                vec![
+                    "docker ps",
+                    "docker run -it ubuntu",
+                    "docker build -t myapp .",
+                ],
+            ),
             // curl 命令
-            ("curl", "Transfer data from/to server", vec![
-                CommandComponent {
+            (
+                "curl",
+                "Transfer data from/to server",
+                vec![CommandComponent {
                     part: "curl".to_string(),
                     meaning: "Transfer a URL".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["curl https://api.example.com", "curl -O http://example.com/file"]),
-
+                }],
+                vec![
+                    "curl https://api.example.com",
+                    "curl -O http://example.com/file",
+                ],
+            ),
             // wget 命令
-            ("wget", "Network downloader", vec![
-                CommandComponent {
+            (
+                "wget",
+                "Network downloader",
+                vec![CommandComponent {
                     part: "wget".to_string(),
                     meaning: "The non-interactive network downloader".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["wget http://example.com/file", "wget -r -np -nH http://site.com/dir/"]),
-
+                }],
+                vec![
+                    "wget http://example.com/file",
+                    "wget -r -np -nH http://site.com/dir/",
+                ],
+            ),
             // rm 命令（带警告）
-            ("rm", "Remove files or directories", vec![
-                CommandComponent {
+            (
+                "rm",
+                "Remove files or directories",
+                vec![CommandComponent {
                     part: "rm".to_string(),
                     meaning: "Remove files or directories".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["rm file.txt", "rm -r directory/"]),
-
+                }],
+                vec!["rm file.txt", "rm -r directory/"],
+            ),
             // cp 命令
-            ("cp", "Copy files and directories", vec![
-                CommandComponent {
+            (
+                "cp",
+                "Copy files and directories",
+                vec![CommandComponent {
                     part: "cp".to_string(),
                     meaning: "Copy files and directories".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["cp file.txt backup.txt", "cp -r dir/ backup/"]),
-
+                }],
+                vec!["cp file.txt backup.txt", "cp -r dir/ backup/"],
+            ),
             // mv 命令
-            ("mv", "Move/rename files", vec![
-                CommandComponent {
+            (
+                "mv",
+                "Move/rename files",
+                vec![CommandComponent {
                     part: "mv".to_string(),
                     meaning: "Move (rename) files".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["mv old.txt new.txt", "mv file.txt dir/"]),
-
+                }],
+                vec!["mv old.txt new.txt", "mv file.txt dir/"],
+            ),
             // mkdir 命令
-            ("mkdir", "Make directories", vec![
-                CommandComponent {
+            (
+                "mkdir",
+                "Make directories",
+                vec![CommandComponent {
                     part: "mkdir".to_string(),
                     meaning: "Make directories".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["mkdir newdir", "mkdir -p a/b/c"]),
-
+                }],
+                vec!["mkdir newdir", "mkdir -p a/b/c"],
+            ),
             // rmdir 命令
-            ("rmdir", "Remove empty directories", vec![
-                CommandComponent {
+            (
+                "rmdir",
+                "Remove empty directories",
+                vec![CommandComponent {
                     part: "rmdir".to_string(),
                     meaning: "Remove empty directories".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["rmdir emptydir/"]),
-
+                }],
+                vec!["rmdir emptydir/"],
+            ),
             // touch 命令
-            ("touch", "Change file timestamps", vec![
-                CommandComponent {
+            (
+                "touch",
+                "Change file timestamps",
+                vec![CommandComponent {
                     part: "touch".to_string(),
                     meaning: "Change file timestamps or create empty files".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["touch newfile.txt", "touch -t 202301011200 file.txt"]),
-
+                }],
+                vec!["touch newfile.txt", "touch -t 202301011200 file.txt"],
+            ),
             // echo 命令
-            ("echo", "Display a line of text", vec![
-                CommandComponent {
+            (
+                "echo",
+                "Display a line of text",
+                vec![CommandComponent {
                     part: "echo".to_string(),
                     meaning: "Display a line of text".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["echo 'Hello World'", "echo $PATH"]),
-
+                }],
+                vec!["echo 'Hello World'", "echo $PATH"],
+            ),
             // head 命令
-            ("head", "Output first part of files", vec![
-                CommandComponent {
+            (
+                "head",
+                "Output first part of files",
+                vec![CommandComponent {
                     part: "head".to_string(),
                     meaning: "Output the first part of files".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["head file.txt", "head -n 20 file.txt"]),
-
+                }],
+                vec!["head file.txt", "head -n 20 file.txt"],
+            ),
             // tail 命令
-            ("tail", "Output last part of files", vec![
-                CommandComponent {
+            (
+                "tail",
+                "Output last part of files",
+                vec![CommandComponent {
                     part: "tail".to_string(),
                     meaning: "Output the last part of files".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["tail file.txt", "tail -f /var/log/syslog"]),
-
+                }],
+                vec!["tail file.txt", "tail -f /var/log/syslog"],
+            ),
             // less 命令
-            ("less", "Pager program", vec![
-                CommandComponent {
+            (
+                "less",
+                "Pager program",
+                vec![CommandComponent {
                     part: "less".to_string(),
                     meaning: "Opposite of more (pager program)".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["less file.txt"]),
-
+                }],
+                vec!["less file.txt"],
+            ),
             // more 命令
-            ("more", "Pager program", vec![
-                CommandComponent {
+            (
+                "more",
+                "Pager program",
+                vec![CommandComponent {
                     part: "more".to_string(),
                     meaning: "File perusal filter for crt viewing".to_string(),
                     category: ComponentCategory::Command,
-                },
-            ], vec!["more file.txt"]),
+                }],
+                vec!["more file.txt"],
+            ),
         ];
 
         // 提取基本命令
@@ -439,15 +512,19 @@ impl CommandExplainer {
 
         for (pattern, summary, components, examples) in explanations {
             if base_cmd == pattern {
-                let examples: Vec<Example> = examples.into_iter().map(|e| Example {
-                    description: "Example usage".to_string(),
-                    command: e.to_string(),
-                    explanation: format!("Common usage of {}", pattern),
-                }).collect();
+                let examples: Vec<Example> = examples
+                    .into_iter()
+                    .map(|e| Example {
+                        description: "Example usage".to_string(),
+                        command: e.to_string(),
+                        explanation: format!("Common usage of {}", pattern),
+                    })
+                    .collect();
 
                 let warnings = if pattern == "rm" {
                     vec![
-                        "rm permanently deletes files - they cannot be recovered from trash".to_string(),
+                        "rm permanently deletes files - they cannot be recovered from trash"
+                            .to_string(),
                         "Be careful with wildcards and recursive flags (-r, -rf)".to_string(),
                     ]
                 } else if pattern == "chmod" || pattern == "chown" {
@@ -461,7 +538,11 @@ impl CommandExplainer {
 
                 return Some(ExplanationResult {
                     summary: summary.to_string(),
-                    detailed_explanation: format!("The {} command {}.", pattern, summary.to_lowercase()),
+                    detailed_explanation: format!(
+                        "The {} command {}.",
+                        pattern,
+                        summary.to_lowercase()
+                    ),
                     components,
                     examples,
                     warnings,
@@ -524,10 +605,7 @@ DOCS:
             focus_area.as_str()
         );
 
-        let user_prompt = format!(
-            "Explain this command: {}\n\nOutput:",
-            request.command
-        );
+        let user_prompt = format!("Explain this command: {}\n\nOutput:", request.command);
 
         let chat_request = ChatRequest {
             messages: vec![
@@ -575,7 +653,10 @@ DOCS:
             } else if line.starts_with("DETAILED:") {
                 detailed_explanation = line[9..].trim().to_string();
                 i += 1;
-                while i < lines.len() && !lines[i].trim().starts_with("COMPONENT") && !lines[i].trim().starts_with("EXAMPLE") {
+                while i < lines.len()
+                    && !lines[i].trim().starts_with("COMPONENT")
+                    && !lines[i].trim().starts_with("EXAMPLE")
+                {
                     detailed_explanation.push(' ');
                     detailed_explanation.push_str(lines[i].trim());
                     i += 1;
@@ -646,7 +727,10 @@ DOCS:
                 }
 
                 i += 1;
-                while i < lines.len() && !lines[i].trim().starts_with("RELATED") && !lines[i].trim().starts_with("DOCS") {
+                while i < lines.len()
+                    && !lines[i].trim().starts_with("RELATED")
+                    && !lines[i].trim().starts_with("DOCS")
+                {
                     let warning = lines[i].trim();
                     if warning.starts_with("-") {
                         warnings.push(warning[1..].trim().to_string());

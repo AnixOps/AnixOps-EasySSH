@@ -1,13 +1,12 @@
 #![allow(dead_code)]
 
+use parking_lot::Mutex;
 /// Performance Monitoring and Profiling System
 /// Real-time FPS, memory, and operation latency tracking
-
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use parking_lot::Mutex;
 
 /// Performance metrics snapshot
 #[derive(Clone, Debug)]
@@ -70,11 +69,17 @@ impl PerformanceHistory {
     }
 
     pub fn min_fps(&self) -> f64 {
-        self.buffer.iter().map(|s| s.fps).fold(f64::INFINITY, f64::min)
+        self.buffer
+            .iter()
+            .map(|s| s.fps)
+            .fold(f64::INFINITY, f64::min)
     }
 
     pub fn max_frame_time(&self) -> f64 {
-        self.buffer.iter().map(|s| s.frame_time_ms).fold(0.0, f64::max)
+        self.buffer
+            .iter()
+            .map(|s| s.frame_time_ms)
+            .fold(0.0, f64::max)
     }
 }
 
@@ -139,7 +144,8 @@ impl PerformanceMonitor {
 
         if now.duration_since(*last_update) >= Duration::from_secs(1) {
             let fps = count as f64 / now.duration_since(*last_update).as_secs_f64();
-            self.current_fps.store((fps * 1000.0) as u64, Ordering::Relaxed);
+            self.current_fps
+                .store((fps * 1000.0) as u64, Ordering::Relaxed);
             self.frame_count.store(0, Ordering::Relaxed);
             *last_update = now;
         }
@@ -160,7 +166,7 @@ impl PerformanceMonitor {
             frame_time_ms,
             memory_usage_mb: memory_mb,
             memory_peak_mb: memory_mb, // Simplified
-            cpu_usage_percent: 0.0, // Would need platform-specific code
+            cpu_usage_percent: 0.0,    // Would need platform-specific code
             draw_calls: self.draw_calls.load(Ordering::Relaxed),
             vertices: self.vertices.load(Ordering::Relaxed),
         };
@@ -181,9 +187,9 @@ impl PerformanceMonitor {
         }
 
         let mut latencies = self.operation_latencies.lock();
-        let queue = latencies.entry(operation.to_string()).or_insert_with(|| {
-            VecDeque::with_capacity(100)
-        });
+        let queue = latencies
+            .entry(operation.to_string())
+            .or_insert_with(|| VecDeque::with_capacity(100));
 
         if queue.len() >= 100 {
             queue.pop_front();
@@ -234,13 +240,27 @@ impl PerformanceMonitor {
             max_frame_time_ms: history.max_frame_time(),
             memory_usage_mb: self.get_memory_usage_mb(),
             memory_peak_mb,
-            operation_latencies: latencies.iter()
+            operation_latencies: latencies
+                .iter()
                 .map(|(k, v)| {
-                    let avg = if v.is_empty() { 0.0 } else { v.iter().sum::<f64>() / v.len() as f64 };
-                    let max = if v.is_empty() { 0.0 } else {
+                    let avg = if v.is_empty() {
+                        0.0
+                    } else {
+                        v.iter().sum::<f64>() / v.len() as f64
+                    };
+                    let max = if v.is_empty() {
+                        0.0
+                    } else {
                         v.iter().fold(0.0f64, |a, b| a.max(*b))
                     };
-                    (k.clone(), LatencyStats { avg_ms: avg, max_ms: max, samples: v.len() })
+                    (
+                        k.clone(),
+                        LatencyStats {
+                            avg_ms: avg,
+                            max_ms: max,
+                            samples: v.len(),
+                        },
+                    )
                 })
                 .collect(),
         }
@@ -359,5 +379,7 @@ use std::sync::OnceLock;
 static GLOBAL_MONITOR: OnceLock<Arc<PerformanceMonitor>> = OnceLock::new();
 
 pub fn global_monitor() -> Arc<PerformanceMonitor> {
-    GLOBAL_MONITOR.get_or_init(|| Arc::new(PerformanceMonitor::new())).clone()
+    GLOBAL_MONITOR
+        .get_or_init(|| Arc::new(PerformanceMonitor::new()))
+        .clone()
 }

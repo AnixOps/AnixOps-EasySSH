@@ -37,15 +37,11 @@ fn bench_encryption(c: &mut Criterion) {
         let data = vec![0u8; size];
 
         group.throughput(Throughput::Bytes(size as u64));
-        group.bench_with_input(
-            BenchmarkId::new("encrypt", size),
-            &data,
-            |b, data| {
-                b.iter(|| {
-                    let _ = state.encrypt(black_box(data)).unwrap();
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("encrypt", size), &data, |b, data| {
+            b.iter(|| {
+                let _ = state.encrypt(black_box(data)).unwrap();
+            });
+        });
     }
 
     group.finish();
@@ -111,7 +107,9 @@ fn bench_unlock(c: &mut Criterion) {
         b.iter(|| {
             let mut state = CryptoState::new();
             state.set_salt(salt_array);
-            state.unlock(black_box("benchmark_password_unlock")).unwrap();
+            state
+                .unlock(black_box("benchmark_password_unlock"))
+                .unwrap();
         });
     });
 

@@ -9,7 +9,7 @@ use axum::{
     },
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, post, delete},
+    routing::{delete, get, post},
     Json, Router,
 };
 use chrono::Utc;
@@ -22,11 +22,7 @@ use tokio::sync::{broadcast, mpsc, RwLock};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::{
-    auth::decode_token,
-    models::*,
-    AppState,
-};
+use crate::{auth::decode_token, models::*, AppState};
 
 // ============ 协作会话管理 ============
 
@@ -47,23 +43,73 @@ impl SessionChannels {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "event_type", rename_all = "snake_case")]
 pub enum CollaborationEvent {
-    TerminalOutput { data: String, from_user_id: String, from_username: String },
-    TerminalInput { data: String, from_user_id: String },
-    CursorUpdate { user_id: String, username: String, row: u32, col: u32, color: String },
-    VoiceState { user_id: String, is_active: bool },
-    AnnotationCreated { annotation: serde_json::Value },
-    AnnotationDeleted { annotation_id: String },
-    AnnotationResolved { annotation_id: String },
-    CommentCreated { comment: serde_json::Value },
-    CommentReply { comment_id: String, reply: serde_json::Value },
-    CommentResolved { comment_id: String },
-    ClipboardSync { item: serde_json::Value },
-    ParticipantJoined { participant: serde_json::Value },
-    ParticipantLeft { user_id: String },
-    RoleChanged { user_id: String, new_role: String },
-    WebRTCOffer { from_user_id: String, to_user_id: String, sdp: String },
-    WebRTCAnswer { from_user_id: String, to_user_id: String, sdp: String },
-    WebRTCIceCandidate { from_user_id: String, to_user_id: String, candidate: serde_json::Value },
+    TerminalOutput {
+        data: String,
+        from_user_id: String,
+        from_username: String,
+    },
+    TerminalInput {
+        data: String,
+        from_user_id: String,
+    },
+    CursorUpdate {
+        user_id: String,
+        username: String,
+        row: u32,
+        col: u32,
+        color: String,
+    },
+    VoiceState {
+        user_id: String,
+        is_active: bool,
+    },
+    AnnotationCreated {
+        annotation: serde_json::Value,
+    },
+    AnnotationDeleted {
+        annotation_id: String,
+    },
+    AnnotationResolved {
+        annotation_id: String,
+    },
+    CommentCreated {
+        comment: serde_json::Value,
+    },
+    CommentReply {
+        comment_id: String,
+        reply: serde_json::Value,
+    },
+    CommentResolved {
+        comment_id: String,
+    },
+    ClipboardSync {
+        item: serde_json::Value,
+    },
+    ParticipantJoined {
+        participant: serde_json::Value,
+    },
+    ParticipantLeft {
+        user_id: String,
+    },
+    RoleChanged {
+        user_id: String,
+        new_role: String,
+    },
+    WebRTCOffer {
+        from_user_id: String,
+        to_user_id: String,
+        sdp: String,
+    },
+    WebRTCAnswer {
+        from_user_id: String,
+        to_user_id: String,
+        sdp: String,
+    },
+    WebRTCIceCandidate {
+        from_user_id: String,
+        to_user_id: String,
+        candidate: serde_json::Value,
+    },
     SessionEnded,
 }
 
@@ -83,14 +129,16 @@ impl CollaborationService {
 
     async fn get_or_create_session(&self, session_id: &str) -> SessionChannels {
         let mut sessions = self.sessions.write().await;
-        sessions.entry(session_id.to_string())
+        sessions
+            .entry(session_id.to_string())
             .or_insert_with(SessionChannels::new)
             .clone()
     }
 
     async fn register_user(&self, session_id: &str, user_id: &str) {
         let mut connections = self.user_connections.write().await;
-        connections.entry(session_id.to_string())
+        connections
+            .entry(session_id.to_string())
             .or_insert_with(Vec::new)
             .push(user_id.to_string());
     }
@@ -127,20 +175,50 @@ impl Default for CollaborationService {
 pub fn collaboration_routes() -> Router<AppState> {
     Router::new()
         .route("/sessions", post(create_session))
-        .route("/sessions/:session_id", get(get_session).delete(end_session))
+        .route(
+            "/sessions/:session_id",
+            get(get_session).delete(end_session),
+        )
         .route("/sessions/:session_id/join", post(join_session))
         .route("/sessions/:session_id/leave", post(leave_session))
         .route("/sessions/:session_id/participants", get(list_participants))
-        .route("/sessions/:session_id/participants/:user_id/role", post(change_role))
-        .route("/sessions/:session_id/annotations", get(list_annotations).post(create_annotation))
-        .route("/sessions/:session_id/annotations/:annotation_id", delete(delete_annotation))
-        .route("/sessions/:session_id/annotations/:annotation_id/resolve", post(resolve_annotation))
-        .route("/sessions/:session_id/comments", get(list_comments).post(create_comment))
-        .route("/sessions/:session_id/comments/:comment_id/replies", post(add_reply))
-        .route("/sessions/:session_id/comments/:comment_id/resolve", post(resolve_comment))
-        .route("/sessions/:session_id/clipboard", get(list_clipboard).post(add_clipboard))
+        .route(
+            "/sessions/:session_id/participants/:user_id/role",
+            post(change_role),
+        )
+        .route(
+            "/sessions/:session_id/annotations",
+            get(list_annotations).post(create_annotation),
+        )
+        .route(
+            "/sessions/:session_id/annotations/:annotation_id",
+            delete(delete_annotation),
+        )
+        .route(
+            "/sessions/:session_id/annotations/:annotation_id/resolve",
+            post(resolve_annotation),
+        )
+        .route(
+            "/sessions/:session_id/comments",
+            get(list_comments).post(create_comment),
+        )
+        .route(
+            "/sessions/:session_id/comments/:comment_id/replies",
+            post(add_reply),
+        )
+        .route(
+            "/sessions/:session_id/comments/:comment_id/resolve",
+            post(resolve_comment),
+        )
+        .route(
+            "/sessions/:session_id/clipboard",
+            get(list_clipboard).post(add_clipboard),
+        )
         .route("/sessions/:session_id/history", get(get_history))
-        .route("/sessions/:session_id/recording/start", post(start_recording))
+        .route(
+            "/sessions/:session_id/recording/start",
+            post(start_recording),
+        )
         .route("/sessions/:session_id/recording/stop", post(stop_recording))
         .route("/join/:share_link", get(join_by_link))
         .route("/ws/:session_id", get(websocket_handler))
@@ -221,7 +299,10 @@ async fn create_session(
     // 存储到数据库
     if let Err(e) = store_session(&state.db, &session).await {
         error!("Failed to store session: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to create session" })));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Failed to create session" })),
+        );
     }
 
     // 创建参与者
@@ -238,10 +319,13 @@ async fn create_session(
 
     info!("Created collaboration session: {}", session.id);
 
-    (StatusCode::CREATED, Json(json!({
-        "session": session,
-        "share_link": format!("{}/collaboration/join/{}", state.config.base_url, session.share_link),
-    })))
+    (
+        StatusCode::CREATED,
+        Json(json!({
+            "session": session,
+            "share_link": format!("{}/collaboration/join/{}", state.config.base_url, session.share_link),
+        })),
+    )
 }
 
 async fn get_session(
@@ -250,16 +334,27 @@ async fn get_session(
 ) -> impl IntoResponse {
     match get_session_from_db(&state.db, &session_id).await {
         Ok(Some(session)) => {
-            let participants = get_participants_from_db(&state.db, &session_id).await.unwrap_or_default();
-            (StatusCode::OK, Json(json!({
-                "session": session,
-                "participants": participants,
-            })))
+            let participants = get_participants_from_db(&state.db, &session_id)
+                .await
+                .unwrap_or_default();
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "session": session,
+                    "participants": participants,
+                })),
+            )
         }
-        Ok(None) => (StatusCode::NOT_FOUND, Json(json!({"error": "Session not found"}))),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Session not found"})),
+        ),
         Err(e) => {
             error!("Failed to get session: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -282,8 +377,12 @@ async fn join_session(
     match get_session_from_db(&state.db, &session_id).await {
         Ok(Some(session)) => {
             if session.state != easyssh_core::collaboration::CollaborationState::Active
-                && session.state != easyssh_core::collaboration::CollaborationState::Recording {
-                return (StatusCode::CONFLICT, Json(json!({"error": "Session is not active"})));
+                && session.state != easyssh_core::collaboration::CollaborationState::Recording
+            {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(json!({"error": "Session is not active"})),
+                );
             }
 
             let participant = easyssh_core::collaboration::create_participant(
@@ -295,7 +394,10 @@ async fn join_session(
 
             if let Err(e) = store_participant(&state.db, &participant).await {
                 error!("Failed to store participant: {}", e);
-                return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Database error"})),
+                );
             }
 
             // 添加到历史记录
@@ -311,15 +413,24 @@ async fn join_session(
 
             info!("User {} joined session {}", user_id, session_id);
 
-            (StatusCode::OK, Json(json!({
-                "participant": participant,
-                "websocket_url": format!("/api/v1/collaboration/ws/{}", session_id),
-            })))
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "participant": participant,
+                    "websocket_url": format!("/api/v1/collaboration/ws/{}", session_id),
+                })),
+            )
         }
-        Ok(None) => (StatusCode::NOT_FOUND, Json(json!({"error": "Session not found"}))),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Session not found"})),
+        ),
         Err(e) => {
             error!("Failed to join session: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -330,18 +441,25 @@ async fn join_by_link(
 ) -> impl IntoResponse {
     // 通过分享链接查找会话
     match get_session_by_link_from_db(&state.db, &share_link).await {
-        Ok(Some(session)) => {
-            (StatusCode::OK, Json(json!({
+        Ok(Some(session)) => (
+            StatusCode::OK,
+            Json(json!({
                 "session_id": session.id,
                 "server_name": session.server_name,
                 "host_username": session.host_username,
                 "state": session.state,
-            })))
-        }
-        Ok(None) => (StatusCode::NOT_FOUND, Json(json!({"error": "Invalid share link"}))),
+            })),
+        ),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Invalid share link"})),
+        ),
         Err(e) => {
             error!("Failed to get session by link: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -383,21 +501,33 @@ async fn end_session(
     match get_session_from_db(&state.db, &session_id).await {
         Ok(Some(session)) => {
             if session.host_id != user_id {
-                return (StatusCode::FORBIDDEN, Json(json!({"error": "Only host can end session"})));
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(json!({"error": "Only host can end session"})),
+                );
             }
 
             if let Err(e) = update_session_state(&state.db, &session_id, "ended").await {
                 error!("Failed to end session: {}", e);
-                return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Database error"})),
+                );
             }
 
             info!("Session {} ended by host", session_id);
             (StatusCode::OK, Json(json!({"success": true})))
         }
-        Ok(None) => (StatusCode::NOT_FOUND, Json(json!({"error": "Session not found"}))),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Session not found"})),
+        ),
         Err(e) => {
             error!("Failed to end session: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -410,7 +540,10 @@ async fn list_participants(
         Ok(participants) => (StatusCode::OK, Json(json!({"participants": participants}))),
         Err(e) => {
             error!("Failed to list participants: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -425,9 +558,14 @@ async fn change_role(
     // 验证当前用户是admin
     match get_participant_role(&state.db, &session_id, &current_user).await {
         Ok(Some(role)) if role == "admin" || role == "owner" => {
-            if let Err(e) = update_participant_role(&state.db, &session_id, &user_id, &req.new_role).await {
+            if let Err(e) =
+                update_participant_role(&state.db, &session_id, &user_id, &req.new_role).await
+            {
                 error!("Failed to change role: {}", e);
-                return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Database error"})),
+                );
             }
 
             // 添加历史记录
@@ -441,14 +579,23 @@ async fn change_role(
             );
             let _ = store_history(&state.db, &history).await;
 
-            info!("User {} role changed to {} in session {}", user_id, req.new_role, session_id);
+            info!(
+                "User {} role changed to {} in session {}",
+                user_id, req.new_role, session_id
+            );
 
             (StatusCode::OK, Json(json!({"success": true})))
         }
-        Ok(_) => (StatusCode::FORBIDDEN, Json(json!({"error": "No permission"}))),
+        Ok(_) => (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "No permission"})),
+        ),
         Err(e) => {
             error!("Failed to check role: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -462,7 +609,10 @@ async fn list_annotations(
         Ok(annotations) => (StatusCode::OK, Json(json!({"annotations": annotations}))),
         Err(e) => {
             error!("Failed to list annotations: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -497,7 +647,10 @@ async fn create_annotation(
 
     if let Err(e) = store_annotation(&state.db, &annotation).await {
         error!("Failed to store annotation: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     (StatusCode::CREATED, Json(json!({"annotation": annotation})))
@@ -509,7 +662,10 @@ async fn delete_annotation(
 ) -> impl IntoResponse {
     if let Err(e) = delete_annotation_from_db(&state.db, &annotation_id).await {
         error!("Failed to delete annotation: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     (StatusCode::OK, Json(json!({"success": true})))
@@ -521,7 +677,10 @@ async fn resolve_annotation(
 ) -> impl IntoResponse {
     if let Err(e) = resolve_annotation_in_db(&state.db, &annotation_id).await {
         error!("Failed to resolve annotation: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     (StatusCode::OK, Json(json!({"success": true})))
@@ -536,7 +695,10 @@ async fn list_comments(
         Ok(comments) => (StatusCode::OK, Json(json!({"comments": comments}))),
         Err(e) => {
             error!("Failed to list comments: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -559,7 +721,10 @@ async fn create_comment(
 
     if let Err(e) = store_comment(&state.db, &comment).await {
         error!("Failed to store comment: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     (StatusCode::CREATED, Json(json!({"comment": comment})))
@@ -583,7 +748,10 @@ async fn add_reply(
 
     if let Err(e) = add_reply_to_db(&state.db, &comment_id, &reply).await {
         error!("Failed to add reply: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     (StatusCode::OK, Json(json!({"reply": reply})))
@@ -595,7 +763,10 @@ async fn resolve_comment(
 ) -> impl IntoResponse {
     if let Err(e) = resolve_comment_in_db(&state.db, &comment_id).await {
         error!("Failed to resolve comment: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     (StatusCode::OK, Json(json!({"success": true})))
@@ -610,7 +781,10 @@ async fn list_clipboard(
         Ok(items) => (StatusCode::OK, Json(json!({"items": items}))),
         Err(e) => {
             error!("Failed to list clipboard: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -640,7 +814,10 @@ async fn add_clipboard(
 
     if let Err(e) = store_clipboard_item(&state.db, &item).await {
         error!("Failed to store clipboard item: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     (StatusCode::CREATED, Json(json!({"item": item})))
@@ -652,7 +829,8 @@ async fn get_history(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    let limit = params.get("limit")
+    let limit = params
+        .get("limit")
         .and_then(|l| l.parse::<i64>().ok())
         .unwrap_or(100);
 
@@ -660,7 +838,10 @@ async fn get_history(
         Ok(history) => (StatusCode::OK, Json(json!({"history": history}))),
         Err(e) => {
             error!("Failed to get history: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -676,12 +857,18 @@ async fn start_recording(
     match get_session_from_db(&state.db, &session_id).await {
         Ok(Some(session)) => {
             if session.host_id != user_id {
-                return (StatusCode::FORBIDDEN, Json(json!({"error": "Only host can start recording"})));
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(json!({"error": "Only host can start recording"})),
+                );
             }
 
             if let Err(e) = update_session_state(&state.db, &session_id, "recording").await {
                 error!("Failed to start recording: {}", e);
-                return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Database error"})),
+                );
             }
 
             // 创建录制记录
@@ -698,15 +885,24 @@ async fn start_recording(
 
             info!("Started recording for session {}", session_id);
 
-            (StatusCode::OK, Json(json!({
-                "recording_id": recording_id,
-                "started_at": Utc::now(),
-            })))
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "recording_id": recording_id,
+                    "started_at": Utc::now(),
+                })),
+            )
         }
-        Ok(None) => (StatusCode::NOT_FOUND, Json(json!({"error": "Session not found"}))),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Session not found"})),
+        ),
         Err(e) => {
             error!("Failed to start recording: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
         }
     }
 }
@@ -719,7 +915,10 @@ async fn stop_recording(
 
     if let Err(e) = update_session_state(&state.db, &session_id, "active").await {
         error!("Failed to stop recording: {}", e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"})));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Database error"})),
+        );
     }
 
     // 更新录制记录
@@ -749,7 +948,9 @@ async fn websocket_handler(
     State(state): State<AppState>,
     Query(params): Query<WSQueryParams>,
 ) -> Response {
-    ws.on_upgrade(move |socket| handle_collaboration_socket(socket, state, session_id, params.token))
+    ws.on_upgrade(move |socket| {
+        handle_collaboration_socket(socket, state, session_id, params.token)
+    })
 }
 
 async fn handle_collaboration_socket(
@@ -767,7 +968,10 @@ async fn handle_collaboration_socket(
         Ok(claims) => {
             user_id = claims.sub.clone();
             username = claims.sub.clone(); // 或使用claims中的username字段
-            info!("Collaboration WebSocket connection {} authenticated for user {}", connection_id, user_id);
+            info!(
+                "Collaboration WebSocket connection {} authenticated for user {}",
+                connection_id, user_id
+            );
         }
         Err(e) => {
             warn!("WebSocket authentication failed: {}", e);
@@ -779,7 +983,10 @@ async fn handle_collaboration_socket(
     match get_participant_from_db(&state.db, &session_id, &user_id).await {
         Ok(Some(_)) => {}
         _ => {
-            warn!("User {} is not a participant of session {}", user_id, session_id);
+            warn!(
+                "User {} is not a participant of session {}",
+                user_id, session_id
+            );
             return;
         }
     }
@@ -817,28 +1024,28 @@ async fn handle_collaboration_socket(
     // 处理传入消息
     while let Some(msg) = receiver.next().await {
         match msg {
-            Ok(Message::Text(text)) => {
-                match serde_json::from_str::<ClientMessage>(&text) {
-                    Ok(client_msg) => {
-                        handle_client_message(
-                            client_msg,
-                            &tx,
-                            &session_id,
-                            &user_id,
-                            &username,
-                            &state,
-                            &service,
-                        ).await;
-                    }
-                    Err(e) => {
-                        let error_msg = json!({
-                            "type": "error",
-                            "message": format!("Invalid message: {}", e)
-                        }).to_string();
-                        let _ = tx.send(error_msg).await;
-                    }
+            Ok(Message::Text(text)) => match serde_json::from_str::<ClientMessage>(&text) {
+                Ok(client_msg) => {
+                    handle_client_message(
+                        client_msg,
+                        &tx,
+                        &session_id,
+                        &user_id,
+                        &username,
+                        &state,
+                        &service,
+                    )
+                    .await;
                 }
-            }
+                Err(e) => {
+                    let error_msg = json!({
+                        "type": "error",
+                        "message": format!("Invalid message: {}", e)
+                    })
+                    .to_string();
+                    let _ = tx.send(error_msg).await;
+                }
+            },
             Ok(Message::Binary(bin)) => {
                 // 处理二进制数据（如WebRTC数据）
                 handle_binary_message(bin, &tx, &session_id, &user_id, &service).await;
@@ -860,18 +1067,47 @@ async fn handle_collaboration_socket(
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 enum ClientMessage {
-    TerminalOutput { data: String },
-    TerminalInput { data: String },
-    CursorUpdate { row: u32, col: u32 },
+    TerminalOutput {
+        data: String,
+    },
+    TerminalInput {
+        data: String,
+    },
+    CursorUpdate {
+        row: u32,
+        col: u32,
+    },
     VoiceStart,
     VoiceStop,
-    WebRTCOffer { to_user_id: String, sdp: String },
-    WebRTCAnswer { to_user_id: String, sdp: String },
-    WebRTCIceCandidate { to_user_id: String, candidate: serde_json::Value },
-    AnnotationCreate { annotation_type: String, position: serde_json::Value, content: String, color: String },
-    AnnotationDelete { annotation_id: String },
-    CommentCreate { line_number: u32, content: String },
-    ClipboardShare { content: String, content_type: String },
+    WebRTCOffer {
+        to_user_id: String,
+        sdp: String,
+    },
+    WebRTCAnswer {
+        to_user_id: String,
+        sdp: String,
+    },
+    WebRTCIceCandidate {
+        to_user_id: String,
+        candidate: serde_json::Value,
+    },
+    AnnotationCreate {
+        annotation_type: String,
+        position: serde_json::Value,
+        content: String,
+        color: String,
+    },
+    AnnotationDelete {
+        annotation_id: String,
+    },
+    CommentCreate {
+        line_number: u32,
+        content: String,
+    },
+    ClipboardShare {
+        content: String,
+        content_type: String,
+    },
     Ping,
 }
 
@@ -914,8 +1150,14 @@ async fn handle_client_message(
             let _ = service.broadcast(session_id, event).await;
         }
         ClientMessage::CursorUpdate { row, col } => {
-            let colors = vec!["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F"];
-            let color_idx = user_id.bytes().fold(0u32, |acc, b| acc.wrapping_add(b as u32)) as usize % colors.len();
+            let colors = vec![
+                "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F",
+            ];
+            let color_idx = user_id
+                .bytes()
+                .fold(0u32, |acc, b| acc.wrapping_add(b as u32))
+                as usize
+                % colors.len();
             let color = colors[color_idx].to_string();
 
             let event = CollaborationEvent::CursorUpdate {
@@ -962,7 +1204,10 @@ async fn handle_client_message(
             };
             let _ = service.broadcast(session_id, event).await;
         }
-        ClientMessage::WebRTCIceCandidate { to_user_id, candidate } => {
+        ClientMessage::WebRTCIceCandidate {
+            to_user_id,
+            candidate,
+        } => {
             let event = CollaborationEvent::WebRTCIceCandidate {
                 from_user_id: user_id.to_string(),
                 to_user_id,
@@ -970,7 +1215,12 @@ async fn handle_client_message(
             };
             let _ = service.broadcast(session_id, event).await;
         }
-        ClientMessage::AnnotationCreate { annotation_type, position, content, color } => {
+        ClientMessage::AnnotationCreate {
+            annotation_type,
+            position,
+            content,
+            color,
+        } => {
             // 存储标注
             let annotation = easyssh_core::collaboration::create_annotation(
                 session_id,
@@ -994,7 +1244,10 @@ async fn handle_client_message(
             };
             let _ = service.broadcast(session_id, event).await;
         }
-        ClientMessage::CommentCreate { line_number, content } => {
+        ClientMessage::CommentCreate {
+            line_number,
+            content,
+        } => {
             let comment = easyssh_core::collaboration::create_comment(
                 session_id,
                 user_id,
@@ -1009,7 +1262,10 @@ async fn handle_client_message(
             };
             let _ = service.broadcast(session_id, event).await;
         }
-        ClientMessage::ClipboardShare { content, content_type } => {
+        ClientMessage::ClipboardShare {
+            content,
+            content_type,
+        } => {
             let item = easyssh_core::collaboration::create_clipboard_item(
                 session_id,
                 user_id,
@@ -1044,7 +1300,10 @@ async fn handle_binary_message(
 
 // ============ 数据库操作 ============
 
-async fn store_session(db: &crate::db::Database, session: &easyssh_core::collaboration::CollaborationSession) -> Result<()> {
+async fn store_session(
+    db: &crate::db::Database,
+    session: &easyssh_core::collaboration::CollaborationSession,
+) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_sessions
            (id, host_id, host_username, team_id, server_id, server_name, state, share_link, created_at, settings)
@@ -1066,9 +1325,12 @@ async fn store_session(db: &crate::db::Database, session: &easyssh_core::collabo
     Ok(())
 }
 
-async fn get_session_from_db(db: &crate::db::Database, session_id: &str) -> Result<Option<easyssh_core::collaboration::CollaborationSession>> {
+async fn get_session_from_db(
+    db: &crate::db::Database,
+    session_id: &str,
+) -> Result<Option<easyssh_core::collaboration::CollaborationSession>> {
     let row = sqlx::query_as::<_, CollaborationSessionRow>(
-        "SELECT * FROM collaboration_sessions WHERE id = ?"
+        "SELECT * FROM collaboration_sessions WHERE id = ?",
     )
     .bind(session_id)
     .fetch_optional(db.pool())
@@ -1077,9 +1339,12 @@ async fn get_session_from_db(db: &crate::db::Database, session_id: &str) -> Resu
     Ok(row.map(|r| r.into()))
 }
 
-async fn get_session_by_link_from_db(db: &crate::db::Database, share_link: &str) -> Result<Option<easyssh_core::collaboration::CollaborationSession>> {
+async fn get_session_by_link_from_db(
+    db: &crate::db::Database,
+    share_link: &str,
+) -> Result<Option<easyssh_core::collaboration::CollaborationSession>> {
     let row = sqlx::query_as::<_, CollaborationSessionRow>(
-        "SELECT * FROM collaboration_sessions WHERE share_link = ?"
+        "SELECT * FROM collaboration_sessions WHERE share_link = ?",
     )
     .bind(share_link)
     .fetch_optional(db.pool())
@@ -1088,7 +1353,11 @@ async fn get_session_by_link_from_db(db: &crate::db::Database, share_link: &str)
     Ok(row.map(|r| r.into()))
 }
 
-async fn update_session_state(db: &crate::db::Database, session_id: &str, state: &str) -> Result<()> {
+async fn update_session_state(
+    db: &crate::db::Database,
+    session_id: &str,
+    state: &str,
+) -> Result<()> {
     sqlx::query("UPDATE collaboration_sessions SET state = ? WHERE id = ?")
         .bind(state)
         .bind(session_id)
@@ -1098,11 +1367,14 @@ async fn update_session_state(db: &crate::db::Database, session_id: &str, state:
     Ok(())
 }
 
-async fn store_participant(db: &crate::db::Database, participant: &easyssh_core::collaboration::CollaborationParticipant) -> Result<()> {
+async fn store_participant(
+    db: &crate::db::Database,
+    participant: &easyssh_core::collaboration::CollaborationParticipant,
+) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_participants
            (id, session_id, user_id, username, role, joined_at, is_online)
-           VALUES (?, ?, ?, ?, ?, ?, ?)"#
+           VALUES (?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&participant.id)
     .bind(&participant.session_id)
@@ -1117,9 +1389,12 @@ async fn store_participant(db: &crate::db::Database, participant: &easyssh_core:
     Ok(())
 }
 
-async fn get_participants_from_db(db: &crate::db::Database, session_id: &str) -> Result<Vec<easyssh_core::collaboration::CollaborationParticipant>> {
+async fn get_participants_from_db(
+    db: &crate::db::Database,
+    session_id: &str,
+) -> Result<Vec<easyssh_core::collaboration::CollaborationParticipant>> {
     let rows = sqlx::query_as::<_, CollaborationParticipantRow>(
-        "SELECT * FROM collaboration_participants WHERE session_id = ? AND is_online = TRUE"
+        "SELECT * FROM collaboration_participants WHERE session_id = ? AND is_online = TRUE",
     )
     .bind(session_id)
     .fetch_all(db.pool())
@@ -1128,9 +1403,13 @@ async fn get_participants_from_db(db: &crate::db::Database, session_id: &str) ->
     Ok(rows.into_iter().map(|r| r.into()).collect())
 }
 
-async fn get_participant_from_db(db: &crate::db::Database, session_id: &str, user_id: &str) -> Result<Option<easyssh_core::collaboration::CollaborationParticipant>> {
+async fn get_participant_from_db(
+    db: &crate::db::Database,
+    session_id: &str,
+    user_id: &str,
+) -> Result<Option<easyssh_core::collaboration::CollaborationParticipant>> {
     let row = sqlx::query_as::<_, CollaborationParticipantRow>(
-        "SELECT * FROM collaboration_participants WHERE session_id = ? AND user_id = ?"
+        "SELECT * FROM collaboration_participants WHERE session_id = ? AND user_id = ?",
     )
     .bind(session_id)
     .bind(user_id)
@@ -1140,7 +1419,11 @@ async fn get_participant_from_db(db: &crate::db::Database, session_id: &str, use
     Ok(row.map(|r| r.into()))
 }
 
-async fn remove_participant(db: &crate::db::Database, session_id: &str, user_id: &str) -> Result<()> {
+async fn remove_participant(
+    db: &crate::db::Database,
+    session_id: &str,
+    user_id: &str,
+) -> Result<()> {
     sqlx::query("UPDATE collaboration_participants SET is_online = FALSE WHERE session_id = ? AND user_id = ?")
         .bind(session_id)
         .bind(user_id)
@@ -1150,9 +1433,13 @@ async fn remove_participant(db: &crate::db::Database, session_id: &str, user_id:
     Ok(())
 }
 
-async fn get_participant_role(db: &crate::db::Database, session_id: &str, user_id: &str) -> Result<Option<String>> {
+async fn get_participant_role(
+    db: &crate::db::Database,
+    session_id: &str,
+    user_id: &str,
+) -> Result<Option<String>> {
     let role: Option<(String,)> = sqlx::query_as(
-        "SELECT role FROM collaboration_participants WHERE session_id = ? AND user_id = ?"
+        "SELECT role FROM collaboration_participants WHERE session_id = ? AND user_id = ?",
     )
     .bind(session_id)
     .bind(user_id)
@@ -1162,18 +1449,30 @@ async fn get_participant_role(db: &crate::db::Database, session_id: &str, user_i
     Ok(role.map(|r| r.0))
 }
 
-async fn update_participant_role(db: &crate::db::Database, session_id: &str, user_id: &str, role: &str) -> Result<()> {
-    sqlx::query("UPDATE collaboration_participants SET role = ? WHERE session_id = ? AND user_id = ?")
-        .bind(role)
-        .bind(session_id)
-        .bind(user_id)
-        .execute(db.pool())
+async fn update_participant_role(
+    db: &crate::db::Database,
+    session_id: &str,
+    user_id: &str,
+    role: &str,
+) -> Result<()> {
+    sqlx::query(
+        "UPDATE collaboration_participants SET role = ? WHERE session_id = ? AND user_id = ?",
+    )
+    .bind(role)
+    .bind(session_id)
+    .bind(user_id)
+    .execute(db.pool())
     .await?;
 
     Ok(())
 }
 
-async fn update_participant_voice_state(db: &crate::db::Database, session_id: &str, user_id: &str, is_active: bool) -> Result<()> {
+async fn update_participant_voice_state(
+    db: &crate::db::Database,
+    session_id: &str,
+    user_id: &str,
+    is_active: bool,
+) -> Result<()> {
     sqlx::query("UPDATE collaboration_participants SET is_voice_active = ? WHERE session_id = ? AND user_id = ?")
         .bind(is_active)
         .bind(session_id)
@@ -1184,7 +1483,10 @@ async fn update_participant_voice_state(db: &crate::db::Database, session_id: &s
     Ok(())
 }
 
-async fn store_annotation(db: &crate::db::Database, annotation: &easyssh_core::collaboration::Annotation) -> Result<()> {
+async fn store_annotation(
+    db: &crate::db::Database,
+    annotation: &easyssh_core::collaboration::Annotation,
+) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_annotations
            (id, session_id, author_id, author_name, annotation_type, position, content, color, created_at)
@@ -1205,9 +1507,12 @@ async fn store_annotation(db: &crate::db::Database, annotation: &easyssh_core::c
     Ok(())
 }
 
-async fn get_annotations_from_db(db: &crate::db::Database, session_id: &str) -> Result<Vec<easyssh_core::collaboration::Annotation>> {
+async fn get_annotations_from_db(
+    db: &crate::db::Database,
+    session_id: &str,
+) -> Result<Vec<easyssh_core::collaboration::Annotation>> {
     let rows = sqlx::query_as::<_, AnnotationRow>(
-        "SELECT * FROM collaboration_annotations WHERE session_id = ? AND resolved_at IS NULL"
+        "SELECT * FROM collaboration_annotations WHERE session_id = ? AND resolved_at IS NULL",
     )
     .bind(session_id)
     .fetch_all(db.pool())
@@ -1220,7 +1525,7 @@ async fn delete_annotation_from_db(db: &crate::db::Database, annotation_id: &str
     sqlx::query("DELETE FROM collaboration_annotations WHERE id = ?")
         .bind(annotation_id)
         .execute(db.pool())
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -1230,16 +1535,19 @@ async fn resolve_annotation_in_db(db: &crate::db::Database, annotation_id: &str)
         .bind(Utc::now())
         .bind(annotation_id)
         .execute(db.pool())
-    .await?;
+        .await?;
 
     Ok(())
 }
 
-async fn store_comment(db: &crate::db::Database, comment: &easyssh_core::collaboration::Comment) -> Result<()> {
+async fn store_comment(
+    db: &crate::db::Database,
+    comment: &easyssh_core::collaboration::Comment,
+) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_comments
            (id, session_id, author_id, author_name, line_number, content, created_at, resolved)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&comment.id)
     .bind(&comment.session_id)
@@ -1255,7 +1563,10 @@ async fn store_comment(db: &crate::db::Database, comment: &easyssh_core::collabo
     Ok(())
 }
 
-async fn get_comments_from_db(db: &crate::db::Database, session_id: &str) -> Result<Vec<easyssh_core::collaboration::Comment>> {
+async fn get_comments_from_db(
+    db: &crate::db::Database,
+    session_id: &str,
+) -> Result<Vec<easyssh_core::collaboration::Comment>> {
     let rows = sqlx::query_as::<_, CommentRow>(
         "SELECT * FROM collaboration_comments WHERE session_id = ? AND resolved = FALSE ORDER BY line_number"
     )
@@ -1267,11 +1578,15 @@ async fn get_comments_from_db(db: &crate::db::Database, session_id: &str) -> Res
     Ok(rows.into_iter().map(|r| r.into()).collect())
 }
 
-async fn add_reply_to_db(db: &crate::db::Database, comment_id: &str, reply: &easyssh_core::collaboration::CommentReply) -> Result<()> {
+async fn add_reply_to_db(
+    db: &crate::db::Database,
+    comment_id: &str,
+    reply: &easyssh_core::collaboration::CommentReply,
+) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_comment_replies
            (id, comment_id, author_id, author_name, content, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)"#
+           VALUES (?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&reply.id)
     .bind(comment_id)
@@ -1286,7 +1601,7 @@ async fn add_reply_to_db(db: &crate::db::Database, comment_id: &str, reply: &eas
         .bind(Utc::now())
         .bind(comment_id)
         .execute(db.pool())
-    .await?;
+        .await?;
 
     Ok(())
 }
@@ -1295,16 +1610,19 @@ async fn resolve_comment_in_db(db: &crate::db::Database, comment_id: &str) -> Re
     sqlx::query("UPDATE collaboration_comments SET resolved = TRUE WHERE id = ?")
         .bind(comment_id)
         .execute(db.pool())
-    .await?;
+        .await?;
 
     Ok(())
 }
 
-async fn store_clipboard_item(db: &crate::db::Database, item: &easyssh_core::collaboration::SharedClipboardItem) -> Result<()> {
+async fn store_clipboard_item(
+    db: &crate::db::Database,
+    item: &easyssh_core::collaboration::SharedClipboardItem,
+) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_clipboard
            (id, session_id, author_id, author_name, content, content_type, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)"#
+           VALUES (?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&item.id)
     .bind(&item.session_id)
@@ -1319,7 +1637,11 @@ async fn store_clipboard_item(db: &crate::db::Database, item: &easyssh_core::col
     Ok(())
 }
 
-async fn get_clipboard_from_db(db: &crate::db::Database, session_id: &str, limit: i64) -> Result<Vec<easyssh_core::collaboration::SharedClipboardItem>> {
+async fn get_clipboard_from_db(
+    db: &crate::db::Database,
+    session_id: &str,
+    limit: i64,
+) -> Result<Vec<easyssh_core::collaboration::SharedClipboardItem>> {
     let rows = sqlx::query_as::<_, ClipboardItemRow>(
         "SELECT * FROM collaboration_clipboard WHERE session_id = ? ORDER BY created_at DESC LIMIT ?"
     )
@@ -1331,7 +1653,10 @@ async fn get_clipboard_from_db(db: &crate::db::Database, session_id: &str, limit
     Ok(rows.into_iter().map(|r| r.into()).collect())
 }
 
-async fn store_history(db: &crate::db::Database, entry: &easyssh_core::collaboration::CollaborationHistory) -> Result<()> {
+async fn store_history(
+    db: &crate::db::Database,
+    entry: &easyssh_core::collaboration::CollaborationHistory,
+) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_history
            (id, session_id, participant_id, participant_name, action_type, command, output_preview, timestamp)
@@ -1351,9 +1676,13 @@ async fn store_history(db: &crate::db::Database, entry: &easyssh_core::collabora
     Ok(())
 }
 
-async fn get_history_from_db(db: &crate::db::Database, session_id: &str, limit: i64) -> Result<Vec<easyssh_core::collaboration::CollaborationHistory>> {
+async fn get_history_from_db(
+    db: &crate::db::Database,
+    session_id: &str,
+    limit: i64,
+) -> Result<Vec<easyssh_core::collaboration::CollaborationHistory>> {
     let rows = sqlx::query_as::<_, HistoryRow>(
-        "SELECT * FROM collaboration_history WHERE session_id = ? ORDER BY timestamp DESC LIMIT ?"
+        "SELECT * FROM collaboration_history WHERE session_id = ? ORDER BY timestamp DESC LIMIT ?",
     )
     .bind(session_id)
     .bind(limit)
@@ -1460,13 +1789,15 @@ impl From<AnnotationRow> for easyssh_core::collaboration::Annotation {
             author_id: row.author_id,
             author_name: row.author_name,
             annotation_type: easyssh_core::collaboration::AnnotationType::Highlight, // 简化
-            position: serde_json::from_str(&row.position).unwrap_or(easyssh_core::collaboration::AnnotationPosition {
-                x: 0.0,
-                y: 0.0,
-                width: None,
-                height: None,
-                points: None,
-            }),
+            position: serde_json::from_str(&row.position).unwrap_or(
+                easyssh_core::collaboration::AnnotationPosition {
+                    x: 0.0,
+                    y: 0.0,
+                    width: None,
+                    height: None,
+                    points: None,
+                },
+            ),
             content: row.content,
             color: row.color,
             created_at: row.created_at,

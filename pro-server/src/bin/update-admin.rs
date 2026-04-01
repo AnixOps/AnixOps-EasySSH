@@ -80,9 +80,7 @@ enum ReleaseCommands {
     },
 
     /// Get release details
-    Get {
-        version: String,
-    },
+    Get { version: String },
 
     /// Update release
     Update {
@@ -107,30 +105,19 @@ enum ReleaseCommands {
 #[derive(Subcommand)]
 enum RolloutCommands {
     /// Set rollout percentage
-    Set {
-        version: String,
-        percentage: u8,
-    },
+    Set { version: String, percentage: u8 },
 
     /// Get rollout status
-    Status {
-        version: String,
-    },
+    Status { version: String },
 
     /// Pause rollout
-    Pause {
-        version: String,
-    },
+    Pause { version: String },
 
     /// Resume rollout
-    Resume {
-        version: String,
-    },
+    Resume { version: String },
 
     /// Complete rollout (100%)
-    Complete {
-        version: String,
-    },
+    Complete { version: String },
 }
 
 #[derive(Subcommand)]
@@ -145,23 +132,16 @@ enum FeatureCommands {
     },
 
     /// Enable feature flag
-    Enable {
-        name: String,
-    },
+    Enable { name: String },
 
     /// Disable feature flag
-    Disable {
-        name: String,
-    },
+    Disable { name: String },
 
     /// List feature flags
     List,
 
     /// Update rollout percentage
-    Rollout {
-        name: String,
-        percentage: u8,
-    },
+    Rollout { name: String, percentage: u8 },
 }
 
 #[derive(Subcommand)]
@@ -174,15 +154,10 @@ enum AbTestCommands {
     },
 
     /// Assign user to group
-    Assign {
-        install_id: String,
-        group: String,
-    },
+    Assign { install_id: String, group: String },
 
     /// Get group stats
-    Stats {
-        group: String,
-    },
+    Stats { group: String },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -253,7 +228,8 @@ impl UpdateAdmin {
     }
 
     async fn create_release(&self, req: ReleaseRequest) -> anyhow::Result<ReleaseResponse> {
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/admin/releases", self.base_url))
             .header("Authorization", self.auth_header())
             .json(&req)
@@ -263,7 +239,10 @@ impl UpdateAdmin {
         if response.status().is_success() {
             Ok(response.json().await?)
         } else {
-            Err(anyhow::anyhow!("Failed to create release: {}", response.status()))
+            Err(anyhow::anyhow!(
+                "Failed to create release: {}",
+                response.status()
+            ))
         }
     }
 
@@ -274,7 +253,8 @@ impl UpdateAdmin {
             url.push_str(&format!("?channel={}", ch));
         }
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", self.auth_header())
             .send()
@@ -288,7 +268,8 @@ impl UpdateAdmin {
     }
 
     async fn get_release(&self, version: &str) -> anyhow::Result<ReleaseResponse> {
-        let response = self.client
+        let response = self
+            .client
             .get(format!("{}/admin/releases/{}", self.base_url, version))
             .header("Authorization", self.auth_header())
             .send()
@@ -317,7 +298,8 @@ impl UpdateAdmin {
             body.insert("force_update", force.to_string());
         }
 
-        let response = self.client
+        let response = self
+            .client
             .patch(format!("{}/admin/releases/{}", self.base_url, version))
             .header("Authorization", self.auth_header())
             .json(&body)
@@ -332,9 +314,13 @@ impl UpdateAdmin {
     }
 
     async fn delete_release(&self, version: &str, force: bool) -> anyhow::Result<()> {
-        let url = format!("{}/admin/releases/{}?force={}", self.base_url, version, force);
+        let url = format!(
+            "{}/admin/releases/{}?force={}",
+            self.base_url, version, force
+        );
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .header("Authorization", self.auth_header())
             .send()
@@ -350,8 +336,12 @@ impl UpdateAdmin {
     async fn set_rollout(&self, version: &str, percentage: u8) -> anyhow::Result<()> {
         let req = RolloutRequest { percentage };
 
-        let response = self.client
-            .post(format!("{}/admin/releases/{}/rollout", self.base_url, version))
+        let response = self
+            .client
+            .post(format!(
+                "{}/admin/releases/{}/rollout",
+                self.base_url, version
+            ))
             .header("Authorization", self.auth_header())
             .json(&req)
             .send()
@@ -372,7 +362,8 @@ impl UpdateAdmin {
             format!("{}/admin/stats", self.base_url)
         };
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", self.auth_header())
             .send()
@@ -386,7 +377,8 @@ impl UpdateAdmin {
     }
 
     async fn create_feature_flag(&self, req: FeatureFlagRequest) -> anyhow::Result<()> {
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/admin/features", self.base_url))
             .header("Authorization", self.auth_header())
             .json(&req)
@@ -444,12 +436,15 @@ async fn main() -> anyhow::Result<()> {
             ReleaseCommands::List { channel } => {
                 let releases = admin.list_releases(channel).await?;
 
-                println!("{:<12} {:<10} {:<10} {:<12} {:<20}",
-                    "Version", "Build", "Channel", "Rollout", "Downloads");
+                println!(
+                    "{:<12} {:<10} {:<10} {:<12} {:<20}",
+                    "Version", "Build", "Channel", "Rollout", "Downloads"
+                );
                 println!("{}", "-".repeat(70));
 
                 for release in releases {
-                    println!("{:<12} {:<10} {:<10} {:<12} {:<20}",
+                    println!(
+                        "{:<12} {:<10} {:<10} {:<12} {:<20}",
                         release.version,
                         release.build_number,
                         release.channel,
@@ -479,13 +474,18 @@ async fn main() -> anyhow::Result<()> {
                 rollout,
                 force_update,
             } => {
-                admin.update_release(&version, rollout, force_update).await?;
+                admin
+                    .update_release(&version, rollout, force_update)
+                    .await?;
                 println!("✅ Release {} updated", version);
             }
 
             ReleaseCommands::Delete { version, force } => {
                 if !force {
-                    println!("⚠️  This will delete release {}. Use --force to confirm.", version);
+                    println!(
+                        "⚠️  This will delete release {}. Use --force to confirm.",
+                        version
+                    );
                     return Ok(());
                 }
 
@@ -495,7 +495,10 @@ async fn main() -> anyhow::Result<()> {
         },
 
         Commands::Rollout(cmd) => match cmd {
-            RolloutCommands::Set { version, percentage } => {
+            RolloutCommands::Set {
+                version,
+                percentage,
+            } => {
                 admin.set_rollout(&version, percentage).await?;
             }
 

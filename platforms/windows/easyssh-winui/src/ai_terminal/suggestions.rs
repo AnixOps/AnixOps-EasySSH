@@ -153,7 +153,9 @@ impl SuggestionEngine {
         if command.starts_with("chmod ") && command.contains(" 777 ") {
             suggestions.push(AiSuggestion {
                 suggestion_type: SuggestionType::SecurityWarning,
-                message: "777 permissions are too broad. Consider 755 for directories or 644 for files.".to_string(),
+                message:
+                    "777 permissions are too broad. Consider 755 for directories or 644 for files."
+                        .to_string(),
                 action: Some(command.replace(" 777 ", " 755 ")),
                 priority: SuggestionPriority::High,
                 icon: Some("shield".to_string()),
@@ -181,7 +183,8 @@ impl SuggestionEngine {
         if directory.contains(".git") {
             suggestions.push(AiSuggestion {
                 suggestion_type: SuggestionType::BestPractice,
-                message: "You're in a git repository. Use 'git status' to check changes.".to_string(),
+                message: "You're in a git repository. Use 'git status' to check changes."
+                    .to_string(),
                 action: Some("git status".to_string()),
                 priority: SuggestionPriority::Low,
                 icon: Some("check".to_string()),
@@ -211,7 +214,8 @@ impl SuggestionEngine {
             if recent[0] == recent[1] && recent[1] == recent[2] {
                 suggestions.push(AiSuggestion {
                     suggestion_type: SuggestionType::TimeSaver,
-                    message: "You've run this command 3 times. Consider creating an alias.".to_string(),
+                    message: "You've run this command 3 times. Consider creating an alias."
+                        .to_string(),
                     action: Some(format!("alias {}='{}'", "mycommand", recent[0])),
                     priority: SuggestionPriority::Low,
                     icon: Some("clock".to_string()),
@@ -257,7 +261,9 @@ mod tests {
         };
 
         let suggestions = engine.get_suggestions(&context);
-        assert!(suggestions.iter().any(|s| s.suggestion_type == SuggestionType::SecurityWarning));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.suggestion_type == SuggestionType::SecurityWarning));
     }
 
     #[test]

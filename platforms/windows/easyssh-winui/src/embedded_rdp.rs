@@ -55,7 +55,11 @@ impl std::fmt::Display for RemoteDesktopError {
 impl std::error::Error for RemoteDesktopError {}
 
 impl RemoteDesktopViewer {
-    pub fn new(_parent: egui::Rect, _settings: ConnectionSettings, _type: RemoteDesktopType) -> Result<Self, RemoteDesktopError> {
+    pub fn new(
+        _parent: egui::Rect,
+        _settings: ConnectionSettings,
+        _type: RemoteDesktopType,
+    ) -> Result<Self, RemoteDesktopError> {
         Err(RemoteDesktopError::NotSupported)
     }
 

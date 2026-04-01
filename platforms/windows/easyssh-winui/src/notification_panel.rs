@@ -9,11 +9,13 @@
 //! - Clear history / Mark all as read
 //! - Filter by type
 
+use chrono::{DateTime, Duration, Local};
+use egui::{Color32, Frame, RichText, Rounding, ScrollArea, Stroke, Ui, Vec2};
 use std::sync::Arc;
-use egui::{Color32, RichText, ScrollArea, Ui, Vec2, Frame, Stroke, Rounding};
-use chrono::{Local, DateTime, Duration};
 
-use crate::notifications::{NotificationManager, NotificationRecord, NotificationType, NotificationPriority};
+use crate::notifications::{
+    NotificationManager, NotificationPriority, NotificationRecord, NotificationType,
+};
 
 /// Notification panel state
 pub struct NotificationPanel {
@@ -49,7 +51,10 @@ impl NotificationPanel {
         // Panel container
         Frame::none()
             .fill(ui.visuals().panel_fill)
-            .stroke(Stroke::new(1.0, ui.visuals().widgets.inactive.bg_stroke.color))
+            .stroke(Stroke::new(
+                1.0,
+                ui.visuals().widgets.inactive.bg_stroke.color,
+            ))
             .rounding(Rounding::same(8.0))
             .show(ui, |ui| {
                 ui.set_min_width(380.0);
@@ -79,7 +84,11 @@ impl NotificationPanel {
                     }
 
                     // Clear all
-                    if ui.button("清空").on_hover_text("清空所有通知历史").clicked() {
+                    if ui
+                        .button("清空")
+                        .on_hover_text("清空所有通知历史")
+                        .clicked()
+                    {
                         self.notification_manager.clear_history();
                         tracing::info!("Notification history cleared");
                     }
@@ -101,7 +110,8 @@ impl NotificationPanel {
 
                         for notif_type in all_types {
                             let selected = self.selected_types.contains(&notif_type);
-                            let text = format!("{:?}", notif_type).replace("NotificationType::", "");
+                            let text =
+                                format!("{:?}", notif_type).replace("NotificationType::", "");
                             let mut btn = ui.button(&text);
                             if selected {
                                 btn = btn.highlight();
@@ -127,25 +137,27 @@ impl NotificationPanel {
                         ui.label(RichText::new("暂无通知").color(ui.visuals().weak_text_color()));
                     });
                 } else {
-                    ScrollArea::vertical()
-                        .max_height(500.0)
-                        .show(ui, |ui| {
-                            for notification in notifications {
-                                self.render_notification_item(ui, &notification);
-                                ui.separator();
-                            }
-                        });
+                    ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
+                        for notification in notifications {
+                            self.render_notification_item(ui, &notification);
+                            ui.separator();
+                        }
+                    });
                 }
             });
     }
 
     fn get_filtered_notifications(&self) -> Vec<NotificationRecord> {
-        let all = self.notification_manager.get_history(self.show_unread_only, Some(100));
+        let all = self
+            .notification_manager
+            .get_history(self.show_unread_only, Some(100));
 
         all.into_iter()
             .filter(|n| {
                 // Filter by type if any selected
-                if !self.selected_types.is_empty() && !self.selected_types.contains(&n.notification_type) {
+                if !self.selected_types.is_empty()
+                    && !self.selected_types.contains(&n.notification_type)
+                {
                     return false;
                 }
 
@@ -153,7 +165,8 @@ impl NotificationPanel {
                 if !self.filter_text.is_empty() {
                     let search_lower = self.filter_text.to_lowercase();
                     if !n.title.to_lowercase().contains(&search_lower)
-                        && !n.message.to_lowercase().contains(&search_lower) {
+                        && !n.message.to_lowercase().contains(&search_lower)
+                    {
                         return false;
                     }
                 }
@@ -187,12 +200,10 @@ impl NotificationPanel {
                 // Unread indicator
                 if unread {
                     ui.add_space(2.0);
-                    let (rect, _) = ui.allocate_exact_size(Vec2::new(6.0, 6.0), egui::Sense::hover());
-                    ui.painter().circle_filled(
-                        rect.center(),
-                        3.0,
-                        Color32::from_rgb(0, 150, 255),
-                    );
+                    let (rect, _) =
+                        ui.allocate_exact_size(Vec2::new(6.0, 6.0), egui::Sense::hover());
+                    ui.painter()
+                        .circle_filled(rect.center(), 3.0, Color32::from_rgb(0, 150, 255));
                     ui.add_space(6.0);
                 } else {
                     ui.add_space(14.0);
@@ -208,7 +219,11 @@ impl NotificationPanel {
                         // Timestamp
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let time_text = Self::format_timestamp(notification.timestamp);
-                            ui.label(RichText::new(time_text).small().color(ui.visuals().weak_text_color()));
+                            ui.label(
+                                RichText::new(time_text)
+                                    .small()
+                                    .color(ui.visuals().weak_text_color()),
+                            );
                         });
                     });
 
@@ -229,17 +244,21 @@ impl NotificationPanel {
 
                         // Action button if there's action data
                         if notification.action_data.is_some() {
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("打开").clicked() {
-                                    // Handle action - this will be connected to the main app
-                                    tracing::info!("Notification action clicked: {}", notification.id);
-                                }
-                                if unread {
-                                    if ui.button("标记已读").clicked() {
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.button("打开").clicked() {
+                                        // Handle action - this will be connected to the main app
+                                        tracing::info!(
+                                            "Notification action clicked: {}",
+                                            notification.id
+                                        );
+                                    }
+                                    if unread && ui.button("标记已读").clicked() {
                                         self.notification_manager.mark_as_read(&notification.id);
                                     }
-                                }
-                            });
+                                },
+                            );
                         }
                     });
                 });
@@ -292,7 +311,10 @@ impl NotificationSettingsPanel {
 
         Frame::none()
             .fill(ui.visuals().panel_fill)
-            .stroke(Stroke::new(1.0, ui.visuals().widgets.inactive.bg_stroke.color))
+            .stroke(Stroke::new(
+                1.0,
+                ui.visuals().widgets.inactive.bg_stroke.color,
+            ))
             .rounding(Rounding::same(8.0))
             .inner_margin(egui::Margin::same(16.0))
             .show(ui, |ui| {
@@ -320,7 +342,9 @@ impl NotificationSettingsPanel {
 
                 let dnd_active = self.notification_manager.is_dnd_active();
                 if dnd_active {
-                    ui.label(RichText::new("✓ 免打扰模式已启用").color(Color32::from_rgb(100, 255, 100)));
+                    ui.label(
+                        RichText::new("✓ 免打扰模式已启用").color(Color32::from_rgb(100, 255, 100)),
+                    );
                 }
 
                 ui.horizontal(|ui| {
@@ -333,7 +357,10 @@ impl NotificationSettingsPanel {
                     if ui.button("直到明天").clicked() {
                         // Calculate minutes until midnight
                         let now = Local::now();
-                        let tomorrow = (now + Duration::days(1)).date_naive().and_hms_opt(0, 0, 0).unwrap();
+                        let tomorrow = (now + Duration::days(1))
+                            .date_naive()
+                            .and_hms_opt(0, 0, 0)
+                            .unwrap();
                         let tomorrow_dt = tomorrow.and_local_timezone(Local).unwrap();
                         let minutes = (tomorrow_dt - now).num_minutes() as u32;
                         self.notification_manager.enable_dnd(Some(minutes));
@@ -347,29 +374,49 @@ impl NotificationSettingsPanel {
                 ui.separator();
                 ui.heading("按类型设置");
 
-                ScrollArea::vertical()
-                    .max_height(400.0)
-                    .show(ui, |ui| {
-                        for (notif_type, type_settings) in &mut settings.type_settings {
-                            ui.collapsing(format!("{:?}", notif_type).replace("NotificationType::", ""), |ui| {
+                ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                    for (notif_type, type_settings) in &mut settings.type_settings {
+                        ui.collapsing(
+                            format!("{:?}", notif_type).replace("NotificationType::", ""),
+                            |ui| {
                                 ui.checkbox(&mut type_settings.enabled, "启用");
                                 ui.checkbox(&mut type_settings.sound_enabled, "播放声音");
                                 ui.checkbox(&mut type_settings.show_in_history, "保存到历史");
 
                                 ui.horizontal(|ui| {
                                     ui.label("优先级:");
-                                    egui::ComboBox::from_id_source(format!("priority_{:?}", notif_type))
-                                        .selected_text(format!("{:?}", type_settings.priority))
-                                        .show_ui(ui, |ui| {
-                                            ui.selectable_value(&mut type_settings.priority, NotificationPriority::Low, "低");
-                                            ui.selectable_value(&mut type_settings.priority, NotificationPriority::Default, "默认");
-                                            ui.selectable_value(&mut type_settings.priority, NotificationPriority::High, "高");
-                                            ui.selectable_value(&mut type_settings.priority, NotificationPriority::Urgent, "紧急");
-                                        });
+                                    egui::ComboBox::from_id_source(format!(
+                                        "priority_{:?}",
+                                        notif_type
+                                    ))
+                                    .selected_text(format!("{:?}", type_settings.priority))
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(
+                                            &mut type_settings.priority,
+                                            NotificationPriority::Low,
+                                            "低",
+                                        );
+                                        ui.selectable_value(
+                                            &mut type_settings.priority,
+                                            NotificationPriority::Default,
+                                            "默认",
+                                        );
+                                        ui.selectable_value(
+                                            &mut type_settings.priority,
+                                            NotificationPriority::High,
+                                            "高",
+                                        );
+                                        ui.selectable_value(
+                                            &mut type_settings.priority,
+                                            NotificationPriority::Urgent,
+                                            "紧急",
+                                        );
+                                    });
                                 });
-                            });
-                        }
-                    });
+                            },
+                        );
+                    }
+                });
 
                 // Save button
                 ui.separator();

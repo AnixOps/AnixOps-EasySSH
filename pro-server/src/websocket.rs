@@ -1,5 +1,8 @@
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Query, State},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Query, State,
+    },
     response::Response,
     routing::get,
     Router,
@@ -11,11 +14,7 @@ use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::{
-    auth::decode_token,
-    models::*,
-    AppState,
-};
+use crate::{auth::decode_token, models::*, AppState};
 
 pub fn ws_routes() -> Router<AppState> {
     Router::new().route("/", get(websocket_handler))
@@ -32,11 +31,7 @@ async fn websocket_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, state, token))
 }
 
-async fn handle_socket(
-    socket: WebSocket,
-    state: AppState,
-    token: Option<String>,
-) {
+async fn handle_socket(socket: WebSocket, state: AppState, token: Option<String>) {
     let connection_id = Uuid::new_v4().to_string();
     let mut user_id: Option<String> = None;
     let mut team_id: Option<String> = None;
@@ -47,14 +42,21 @@ async fn handle_socket(
             Ok(claims) => {
                 user_id = Some(claims.sub.clone());
                 // Store connection in Redis
-                if let Err(e) = state.redis.store_ws_connection(
-                    &claims.sub,
-                    &connection_id,
-                    std::time::Duration::from_secs(3600)
-                ).await {
+                if let Err(e) = state
+                    .redis
+                    .store_ws_connection(
+                        &claims.sub,
+                        &connection_id,
+                        std::time::Duration::from_secs(3600),
+                    )
+                    .await
+                {
                     error!("Failed to store WebSocket connection: {}", e);
                 }
-                info!("WebSocket connection {} authenticated for user {}", connection_id, claims.sub);
+                info!(
+                    "WebSocket connection {} authenticated for user {}",
+                    connection_id, claims.sub
+                );
             }
             Err(e) => {
                 warn!("WebSocket authentication failed: {}", e);
@@ -84,20 +86,19 @@ async fn handle_socket(
     // Handle incoming messages
     while let Some(msg) = receiver.next().await {
         match msg {
-            Ok(Message::Text(text)) => {
-                match serde_json::from_str::<WebSocketMessage>(&text) {
-                    Ok(ws_msg) => {
-                        handle_message(ws_msg, &tx, &user_id, &team_id, &state).await;
-                    }
-                    Err(e) => {
-                        let error_msg = serde_json::json!({
-                            "type": "error",
-                            "message": format!("Invalid message format: {}", e)
-                        }).to_string();
-                        let _ = tx.send(error_msg).await;
-                    }
+            Ok(Message::Text(text)) => match serde_json::from_str::<WebSocketMessage>(&text) {
+                Ok(ws_msg) => {
+                    handle_message(ws_msg, &tx, &user_id, &team_id, &state).await;
                 }
-            }
+                Err(e) => {
+                    let error_msg = serde_json::json!({
+                        "type": "error",
+                        "message": format!("Invalid message format: {}", e)
+                    })
+                    .to_string();
+                    let _ = tx.send(error_msg).await;
+                }
+            },
             Ok(Message::Binary(_)) => {
                 // Handle binary messages if needed
             }
@@ -152,17 +153,37 @@ async fn handle_message(
             let _ = tx.send(response.to_string()).await;
         }
         WebSocketMessage::Unsubscribe { channels } => {
-            info!("User {:?} unsubscribed from channels: {:?}", user_id, channels);
+            info!(
+                "User {:?} unsubscribed from channels: {:?}",
+                user_id, channels
+            );
             let response = serde_json::json!({
                 "type": "unsubscribed",
                 "channels": channels
             });
             let _ = tx.send(response.to_string()).await;
         }
-        WebSocketMessage::CollaborationUpdate { resource_type, resource_id, action, data, user_id, timestamp } => {
+        WebSocketMessage::CollaborationUpdate {
+            resource_type,
+            resource_id,
+            action,
+            data,
+            user_id,
+            timestamp,
+        } => {
             // Broadcast collaboration update to team members
             if let Some(tid) = team_id {
-                broadcast_collaboration_update(state, tid, &resource_type, &resource_id, &action, &data, &user_id, timestamp).await;
+                broadcast_collaboration_update(
+                    state,
+                    tid,
+                    &resource_type,
+                    &resource_id,
+                    &action,
+                    &data,
+                    &user_id,
+                    timestamp,
+                )
+                .await;
             }
         }
         _ => {
@@ -226,14 +247,16 @@ pub async fn broadcast_to_team(
 ) -> anyhow::Result<()> {
     // Get all team members
     let members = sqlx::query_scalar::<_, String>(
-        "SELECT user_id FROM team_members WHERE team_id = ? AND is_active = TRUE"
+        "SELECT user_id FROM team_members WHERE team_id = ? AND is_active = TRUE",
     )
     .bind(team_id)
     .fetch_all(state.db.pool())
     .await?;
 
     for user_id in members {
-        send_notification(state, &user_id, message.clone()).await.ok();
+        send_notification(state, &user_id, message.clone())
+            .await
+            .ok();
     }
 
     Ok(())

@@ -201,12 +201,21 @@ impl HealthMonitor {
 
     /// Get service health
     pub fn get_service_health(&self, service_name: &str) -> Option<ServiceHealth> {
-        self.service_health.lock().unwrap().get(service_name).cloned()
+        self.service_health
+            .lock()
+            .unwrap()
+            .get(service_name)
+            .cloned()
     }
 
     /// Get all service health
     pub fn get_all_service_health(&self) -> Vec<ServiceHealth> {
-        self.service_health.lock().unwrap().values().cloned().collect()
+        self.service_health
+            .lock()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect()
     }
 
     /// Get overall system status
@@ -271,10 +280,7 @@ impl HealthMonitor {
                 return 100.0;
             }
 
-            let healthy_count = entries
-                .iter()
-                .filter(|e| e.status.is_healthy())
-                .count();
+            let healthy_count = entries.iter().filter(|e| e.status.is_healthy()).count();
 
             (healthy_count as f64 / entries.len() as f64) * 100.0
         } else {
@@ -409,7 +415,9 @@ impl HealthCheck for SystemResourcesHealthCheck {
         if let Some(memory_mb) = Self::get_memory_usage() {
             metadata.insert(
                 "memory_mb".to_string(),
-                serde_json::Value::Number(serde_json::Number::from_f64(memory_mb).unwrap_or_else(|| 0.into())),
+                serde_json::Value::Number(
+                    serde_json::Number::from_f64(memory_mb).unwrap_or_else(|| 0.into()),
+                ),
             );
 
             if memory_mb > 1024.0 {
@@ -423,7 +431,9 @@ impl HealthCheck for SystemResourcesHealthCheck {
         if let Some(disk_usage) = Self::get_disk_usage() {
             metadata.insert(
                 "disk_usage_percent".to_string(),
-                serde_json::Value::Number(serde_json::Number::from_f64(disk_usage).unwrap_or_else(|| 0.into())),
+                serde_json::Value::Number(
+                    serde_json::Number::from_f64(disk_usage).unwrap_or_else(|| 0.into()),
+                ),
             );
 
             if disk_usage > 90.0 {
@@ -521,7 +531,10 @@ impl HealthCheck for ExternalServiceHealthCheck {
             error_message: None,
             metadata: {
                 let mut m = HashMap::new();
-                m.insert("url".to_string(), serde_json::Value::String(self.service_url.clone()));
+                m.insert(
+                    "url".to_string(),
+                    serde_json::Value::String(self.service_url.clone()),
+                );
                 m
             },
         }

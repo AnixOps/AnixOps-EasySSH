@@ -50,16 +50,14 @@ pub struct SystemdNotifier {
 impl SystemdNotifier {
     /// Create new notifier, detecting systemd environment
     pub fn new() -> Self {
-        let socket_path = env::var("NOTIFY_SOCKET")
-            .ok()
-            .map(|s| {
-                // Handle '@' prefix for abstract namespace sockets
-                if s.starts_with('@') {
-                    PathBuf::from(format!("\0{}", &s[1..]))
-                } else {
-                    PathBuf::from(s)
-                }
-            });
+        let socket_path = env::var("NOTIFY_SOCKET").ok().map(|s| {
+            // Handle '@' prefix for abstract namespace sockets
+            if s.starts_with('@') {
+                PathBuf::from(format!("\0{}", &s[1..]))
+            } else {
+                PathBuf::from(s)
+            }
+        });
 
         let watchdog_usec = env::var("WATCHDOG_USEC")
             .ok()
@@ -72,8 +70,7 @@ impl SystemdNotifier {
             socket_path,
             watchdog_enabled,
             watchdog_usec,
-            last_watchdog: Arc::new(Mutex::new(std::time::Instant::now()),
-            ),
+            last_watchdog: Arc::new(Mutex::new(std::time::Instant::now())),
             watchdog_handle: None,
         }
     }
@@ -94,7 +91,10 @@ impl SystemdNotifier {
             // Handle abstract namespace socket (starts with null byte)
             let addr_bytes = socket_path.as_os_str().as_encoded_bytes();
             if addr_bytes.starts_with(&[0]) {
-                sock.send_to(msg.as_bytes(), std::os::unix::net::SocketAddr::from_abstract_name(&addr_bytes[1..])?)?;
+                sock.send_to(
+                    msg.as_bytes(),
+                    std::os::unix::net::SocketAddr::from_abstract_name(&addr_bytes[1..])?,
+                )?;
             } else {
                 sock.send_to(msg.as_bytes(), socket_path)?;
             }
@@ -279,7 +279,8 @@ impl LinuxServiceManager {
         self.initialize()?;
 
         // Notify systemd we're starting
-        self.notifier.set_status("Initializing EasySSH service...")?;
+        self.notifier
+            .set_status("Initializing EasySSH service...")?;
 
         // Start watchdog if enabled
         if self.notifier.watchdog_enabled {
@@ -310,13 +311,13 @@ impl LinuxServiceManager {
         let shutdown_tx = self.shutdown_tx.clone();
 
         tokio::spawn(async move {
-            let mut sigterm = tokio::signal::unix::signal(
-                tokio::signal::unix::SignalKind::terminate()
-            ).expect("Failed to create SIGTERM handler");
+            let mut sigterm =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                    .expect("Failed to create SIGTERM handler");
 
-            let mut sigint = tokio::signal::unix::signal(
-                tokio::signal::unix::SignalKind::interrupt()
-            ).expect("Failed to create SIGINT handler");
+            let mut sigint =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())
+                    .expect("Failed to create SIGINT handler");
 
             tokio::select! {
                 _ = sigterm.recv() => {
@@ -383,7 +384,8 @@ Environment="EASYSSH_CONFIG_DIR=/var/lib/easyssh"
 
 [Install]
 WantedBy=multi-user.target
-"#.to_string()
+"#
+    .to_string()
 }
 
 /// Install systemd service file
@@ -413,7 +415,8 @@ pub fn generate_dbus_config() -> String {
     <allow receive_sender="com.easyssh.Service"/>
   </policy>
 </busconfig>
-"#.to_string()
+"#
+    .to_string()
 }
 
 /// Service runtime information

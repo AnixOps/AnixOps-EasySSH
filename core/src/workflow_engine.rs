@@ -34,10 +34,10 @@
 //! workflow.connect(&id1, &id2).unwrap();
 //! ```
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// Types of workflow steps/actions.
 ///
@@ -385,7 +385,9 @@ impl StepConfig {
             },
             StepType::Break => StepConfig::Break,
             StepType::Continue => StepConfig::Continue,
-            StepType::Return => StepConfig::Return { value_expression: None },
+            StepType::Return => StepConfig::Return {
+                value_expression: None,
+            },
         }
     }
 }
@@ -576,15 +578,22 @@ impl Workflow {
         if self.get_step(to_id).is_none() {
             return Err(format!("Target step {} not found", to_id));
         }
-        let from = self.get_step_mut(from_id)
+        let from = self
+            .get_step_mut(from_id)
             .ok_or_else(|| format!("Step {} not found", from_id))?;
         from.next_step = Some(to_id.to_string());
         self.updated_at = Utc::now();
         Ok(())
     }
 
-    pub fn connect_condition(&mut self, from_id: &str, true_branch: &str, false_branch: &str) -> Result<(), String> {
-        let from = self.get_step_mut(from_id)
+    pub fn connect_condition(
+        &mut self,
+        from_id: &str,
+        true_branch: &str,
+        false_branch: &str,
+    ) -> Result<(), String> {
+        let from = self
+            .get_step_mut(from_id)
             .ok_or_else(|| format!("Step {} not found", from_id))?;
         from.next_step = Some(true_branch.to_string());
         from.false_branch = Some(false_branch.to_string());
@@ -613,12 +622,18 @@ impl Workflow {
         for step in &self.steps {
             if let Some(ref next) = step.next_step {
                 if !self.steps.iter().any(|s| &s.id == next) {
-                    errors.push(format!("Step '{}' references non-existent step '{}'", step.name, next));
+                    errors.push(format!(
+                        "Step '{}' references non-existent step '{}'",
+                        step.name, next
+                    ));
                 }
             }
             if let Some(ref false_br) = step.false_branch {
                 if !self.steps.iter().any(|s| &s.id == false_br) {
-                    errors.push(format!("Step '{}' references non-existent false branch '{}'", step.name, false_br));
+                    errors.push(format!(
+                        "Step '{}' references non-existent false branch '{}'",
+                        step.name, false_br
+                    ));
                 }
             }
         }
@@ -673,12 +688,9 @@ impl Workflow {
             rec_stack.insert(step_id.to_string());
 
             if let Some(step) = workflow.get_step(step_id) {
-                let neighbors = [
-                    step.next_step.as_ref(),
-                    step.false_branch.as_ref(),
-                ]
-                .into_iter()
-                .flatten();
+                let neighbors = [step.next_step.as_ref(), step.false_branch.as_ref()]
+                    .into_iter()
+                    .flatten();
 
                 for neighbor in neighbors {
                     if !visited.contains(neighbor) {
@@ -815,7 +827,8 @@ impl WorkflowTemplates {
         // Step 3: Extract and install
         let install_step = WorkflowStep::new(StepType::SshCommand, "Install Application")
             .with_config(StepConfig::SshCommand {
-                command: "cd /opt/app && tar -xzf /tmp/deploy-package.tar.gz && ./install.sh".to_string(),
+                command: "cd /opt/app && tar -xzf /tmp/deploy-package.tar.gz && ./install.sh"
+                    .to_string(),
                 working_dir: Some("/opt/app".to_string()),
                 env_vars: HashMap::new(),
                 capture_output: true,
@@ -824,24 +837,26 @@ impl WorkflowTemplates {
         let install_id = workflow.add_step(install_step);
 
         // Step 4: Health check
-        let health_step = WorkflowStep::new(StepType::SshCommand, "Health Check")
-            .with_config(StepConfig::SshCommand {
+        let health_step = WorkflowStep::new(StepType::SshCommand, "Health Check").with_config(
+            StepConfig::SshCommand {
                 command: "curl -f http://localhost:8080/health || exit 1".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
                 fail_on_error: true,
-            });
+            },
+        );
         let health_id = workflow.add_step(health_step);
 
         // Step 5: Notify success
-        let notify_step = WorkflowStep::new(StepType::Notification, "Notify Success")
-            .with_config(StepConfig::Notification {
+        let notify_step = WorkflowStep::new(StepType::Notification, "Notify Success").with_config(
+            StepConfig::Notification {
                 notification_type: NotificationType::Toast,
                 title: "Deployment Complete".to_string(),
                 message: "Application deployed successfully to {{server.name}}".to_string(),
                 recipients: None,
-            });
+            },
+        );
         let notify_id = workflow.add_step(notify_step);
 
         // Connect steps
@@ -860,21 +875,23 @@ impl WorkflowTemplates {
             .with_category("maintenance");
 
         // Create backup
-        let backup_step = WorkflowStep::new(StepType::SshCommand, "Create Backup")
-            .with_config(StepConfig::SshCommand {
+        let backup_step = WorkflowStep::new(StepType::SshCommand, "Create Backup").with_config(
+            StepConfig::SshCommand {
                 command: "pg_dump -Fc mydb > /tmp/backup-$(date +%Y%m%d).dump".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
                 fail_on_error: true,
-            });
+            },
+        );
         let backup_id = workflow.add_step(backup_step);
 
         // Download backup
         let download_step = WorkflowStep::new(StepType::SftpDownload, "Download Backup")
             .with_config(StepConfig::SftpDownload {
                 remote_path: "/tmp/backup-$(date +%Y%m%d).dump".to_string(),
-                local_path: "{{backup.local_path}}/backup-{{server.name}}-$(date +%Y%m%d).dump".to_string(),
+                local_path: "{{backup.local_path}}/backup-{{server.name}}-$(date +%Y%m%d).dump"
+                    .to_string(),
                 create_dirs: true,
             });
         let download_id = workflow.add_step(download_step);
@@ -903,14 +920,15 @@ impl WorkflowTemplates {
             .with_category("maintenance");
 
         // Update packages
-        let update_step = WorkflowStep::new(StepType::SshCommand, "Update Packages")
-            .with_config(StepConfig::SshCommand {
+        let update_step = WorkflowStep::new(StepType::SshCommand, "Update Packages").with_config(
+            StepConfig::SshCommand {
                 command: "sudo apt update && sudo apt upgrade -y".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
                 fail_on_error: true,
-            });
+            },
+        );
         let update_id = workflow.add_step(update_step);
 
         // Check if reboot required
@@ -924,14 +942,15 @@ impl WorkflowTemplates {
         let check_id = workflow.add_step(check_reboot_step);
 
         // Reboot step
-        let reboot_step = WorkflowStep::new(StepType::SshCommand, "Reboot System")
-            .with_config(StepConfig::SshCommand {
+        let reboot_step = WorkflowStep::new(StepType::SshCommand, "Reboot System").with_config(
+            StepConfig::SshCommand {
                 command: "sudo reboot".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: false,
                 fail_on_error: false,
-            });
+            },
+        );
         let reboot_id = workflow.add_step(reboot_step);
 
         // Wait for reboot
@@ -963,7 +982,9 @@ impl WorkflowTemplates {
 
         // Connect steps
         workflow.connect(&update_id, &check_id).unwrap();
-        workflow.connect_condition(&check_id, &reboot_id, &no_reboot_id).unwrap();
+        workflow
+            .connect_condition(&check_id, &reboot_id, &no_reboot_id)
+            .unwrap();
         workflow.connect(&reboot_id, &wait_id).unwrap();
         workflow.connect(&wait_id, &verify_id).unwrap();
 
@@ -977,8 +998,7 @@ mod tests {
 
     #[test]
     fn test_workflow_creation() {
-        let workflow = Workflow::new("Test Workflow")
-            .with_description("A test workflow");
+        let workflow = Workflow::new("Test Workflow").with_description("A test workflow");
 
         assert_eq!(workflow.name, "Test Workflow");
         assert_eq!(workflow.description, Some("A test workflow".to_string()));
@@ -1010,7 +1030,10 @@ mod tests {
         let result = workflow.validate();
         // Single step with no connections is actually valid as the step is the start step
         // The validation checks for unreachable steps and cycles, which don't exist here
-        assert!(result.is_ok(), "Single step workflow should pass validation");
+        assert!(
+            result.is_ok(),
+            "Single step workflow should pass validation"
+        );
     }
 
     #[test]
@@ -1064,7 +1087,9 @@ mod tests {
         let false_id = workflow.add_step(false_step);
 
         // Connect condition branches
-        assert!(workflow.connect_condition(&check_id, &true_id, &false_id).is_ok());
+        assert!(workflow
+            .connect_condition(&check_id, &true_id, &false_id)
+            .is_ok());
 
         // Verify connections
         let check_ref = workflow.get_step(&check_id).unwrap();
@@ -1187,7 +1212,12 @@ mod tests {
         // Test SSH command default
         let ssh_config = StepConfig::default_for(&StepType::SshCommand);
         match ssh_config {
-            StepConfig::SshCommand { command, capture_output, fail_on_error, .. } => {
+            StepConfig::SshCommand {
+                command,
+                capture_output,
+                fail_on_error,
+                ..
+            } => {
                 assert!(command.is_empty());
                 assert!(capture_output);
                 assert!(fail_on_error);
@@ -1344,8 +1374,7 @@ mod tests {
             tags: vec![],
         };
 
-        let execution = WorkflowExecution::new("wf-1")
-            .with_servers(vec![server]);
+        let execution = WorkflowExecution::new("wf-1").with_servers(vec![server]);
 
         assert_eq!(execution.server_contexts.len(), 1);
         assert_eq!(execution.server_contexts[0].name, "Test Server");

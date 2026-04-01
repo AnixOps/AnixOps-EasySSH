@@ -1,8 +1,8 @@
 //! Delta update support using bsdiff/bspatch algorithm
 
-use sha2::{Sha256, Digest};
-use std::path::Path;
+use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
+use std::path::Path;
 
 pub struct DeltaPatcher {
     // Configuration for delta patching
@@ -59,7 +59,11 @@ impl DeltaPatcher {
     }
 
     /// Verify patch integrity
-    pub fn verify_patch(old_data: &[u8], patch_data: &[u8], expected_hash: &str) -> anyhow::Result<bool> {
+    pub fn verify_patch(
+        old_data: &[u8],
+        patch_data: &[u8],
+        expected_hash: &str,
+    ) -> anyhow::Result<bool> {
         let result = bspatch(old_data, patch_data)?;
 
         let mut hasher = sha2::Sha256::new();
@@ -86,18 +90,18 @@ fn bspatch(old: &[u8], patch: &[u8]) -> anyhow::Result<Vec<u8>> {
 
     // Read lengths from header
     let ctrl_len = u64::from_le_bytes([
-        header[8], header[9], header[10], header[11],
-        header[12], header[13], header[14], header[15],
+        header[8], header[9], header[10], header[11], header[12], header[13], header[14],
+        header[15],
     ]) as usize;
 
     let diff_len = u64::from_le_bytes([
-        header[16], header[17], header[18], header[19],
-        header[20], header[21], header[22], header[23],
+        header[16], header[17], header[18], header[19], header[20], header[21], header[22],
+        header[23],
     ]) as usize;
 
     let new_len = u64::from_le_bytes([
-        header[24], header[25], header[26], header[27],
-        header[28], header[29], header[30], header[31],
+        header[24], header[25], header[26], header[27], header[28], header[29], header[30],
+        header[31],
     ]) as usize;
 
     // Read compressed control blocks
@@ -199,8 +203,14 @@ fn read_int(data: &[u8], pos: &mut usize) -> anyhow::Result<i64> {
     }
 
     let val = i64::from_le_bytes([
-        data[*pos], data[*pos + 1], data[*pos + 2], data[*pos + 3],
-        data[*pos + 4], data[*pos + 5], data[*pos + 6], data[*pos + 7],
+        data[*pos],
+        data[*pos + 1],
+        data[*pos + 2],
+        data[*pos + 3],
+        data[*pos + 4],
+        data[*pos + 5],
+        data[*pos + 6],
+        data[*pos + 7],
     ]);
 
     *pos += 8;
@@ -209,10 +219,7 @@ fn read_int(data: &[u8], pos: &mut usize) -> anyhow::Result<i64> {
 
 fn compress_bz2(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     // Use bzip2 compression
-    let mut encoder = bzip2::write::BzEncoder::new(
-        Vec::new(),
-        bzip2::Compression::best(),
-    );
+    let mut encoder = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::best());
 
     encoder.write_all(data)?;
     Ok(encoder.finish()?)

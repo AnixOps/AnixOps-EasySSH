@@ -4,12 +4,12 @@
 //!
 //! 基于上下文预测下一个命令，提供智能补全建议
 
+use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
-use anyhow::Result;
 
-use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::context::TerminalContext;
+use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::providers::{ChatRequest, Message, Role};
 
 /// 补全请求
@@ -82,10 +82,7 @@ impl CommandCompleter {
     }
 
     /// 生成命令补全
-    pub async fn complete(
-        &mut self,
-        request: &CompletionRequest,
-    ) -> Result<CompletionResult> {
+    pub async fn complete(&mut self, request: &CompletionRequest) -> Result<CompletionResult> {
         // 首先尝试基于规则的补全
         let rule_based = self.rule_based_completion(request);
 
@@ -115,20 +112,32 @@ impl CommandCompleter {
         let common_commands = vec![
             ("ls", "List directory contents", SuggestionCategory::Command),
             ("cd", "Change directory", SuggestionCategory::Command),
-            ("pwd", "Print working directory", SuggestionCategory::Command),
+            (
+                "pwd",
+                "Print working directory",
+                SuggestionCategory::Command,
+            ),
             ("cat", "Concatenate files", SuggestionCategory::Command),
             ("grep", "Search text patterns", SuggestionCategory::Command),
             ("find", "Find files", SuggestionCategory::Command),
             ("ps", "Process status", SuggestionCategory::Command),
             ("top", "Process viewer", SuggestionCategory::Command),
-            ("htop", "Interactive process viewer", SuggestionCategory::Command),
+            (
+                "htop",
+                "Interactive process viewer",
+                SuggestionCategory::Command,
+            ),
             ("df", "Disk free", SuggestionCategory::Command),
             ("du", "Disk usage", SuggestionCategory::Command),
             ("free", "Memory usage", SuggestionCategory::Command),
             ("ssh", "Secure shell", SuggestionCategory::Command),
             ("scp", "Secure copy", SuggestionCategory::Command),
             ("git", "Version control", SuggestionCategory::Command),
-            ("docker", "Container management", SuggestionCategory::Command),
+            (
+                "docker",
+                "Container management",
+                SuggestionCategory::Command,
+            ),
             ("kubectl", "Kubernetes CLI", SuggestionCategory::Command),
             ("curl", "Transfer data", SuggestionCategory::Command),
             ("wget", "Download files", SuggestionCategory::Command),
@@ -308,9 +317,7 @@ find . -name "*.txt"|Find all text files"#;
 
         let user_prompt = format!(
             "Current working directory: {}\n{}\n\nCurrent input: {}\n\nSuggest commands:",
-            request.context.working_directory,
-            context_str,
-            request.current_input
+            request.context.working_directory, context_str, request.current_input
         );
 
         let chat_request = ChatRequest {
@@ -382,7 +389,10 @@ find . -name "*.txt"|Find all text files"#;
     }
 
     /// 去重并排序建议
-    fn deduplicate_and_sort(&self, suggestions: Vec<CompletionSuggestion>) -> Vec<CompletionSuggestion> {
+    fn deduplicate_and_sort(
+        &self,
+        suggestions: Vec<CompletionSuggestion>,
+    ) -> Vec<CompletionSuggestion> {
         let mut seen = std::collections::HashSet::new();
         let mut unique: Vec<_> = suggestions
             .into_iter()

@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// Recorded macro action types
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -195,7 +195,11 @@ impl Macro {
         Some(action)
     }
 
-    pub fn update_action(&mut self, action_id: &str, new_action: MacroAction) -> Result<(), String> {
+    pub fn update_action(
+        &mut self,
+        action_id: &str,
+        new_action: MacroAction,
+    ) -> Result<(), String> {
         if let Some(idx) = self.actions.iter().position(|a| a.id == action_id) {
             self.actions[idx] = new_action;
             self.update_duration();
@@ -300,41 +304,48 @@ impl MacroAction {
         };
 
         let config = match &self.data {
-            MacroActionData::SshCommand { command, working_dir, .. } => {
-                StepConfig::SshCommand {
-                    command: command.clone(),
-                    working_dir: working_dir.clone(),
-                    env_vars: std::collections::HashMap::new(),
-                    capture_output: true,
-                    fail_on_error: true,
-                }
-            }
-            MacroActionData::FileUpload { local_path, remote_path, create_dirs } => {
-                StepConfig::SftpUpload {
-                    local_path: local_path.clone(),
-                    remote_path: remote_path.clone(),
-                    permissions: None,
-                    create_dirs: *create_dirs,
-                }
-            }
-            MacroActionData::FileDownload { remote_path, local_path, create_dirs } => {
-                StepConfig::SftpDownload {
-                    remote_path: remote_path.clone(),
-                    local_path: local_path.clone(),
-                    create_dirs: *create_dirs,
-                }
-            }
-            MacroActionData::Wait { duration_secs, .. } => {
-                StepConfig::Wait { duration_secs: *duration_secs }
-            }
-            MacroActionData::LocalCommand { command, working_dir } => {
-                StepConfig::LocalCommand {
-                    command: command.clone(),
-                    working_dir: working_dir.clone(),
-                    env_vars: std::collections::HashMap::new(),
-                    capture_output: true,
-                }
-            }
+            MacroActionData::SshCommand {
+                command,
+                working_dir,
+                ..
+            } => StepConfig::SshCommand {
+                command: command.clone(),
+                working_dir: working_dir.clone(),
+                env_vars: std::collections::HashMap::new(),
+                capture_output: true,
+                fail_on_error: true,
+            },
+            MacroActionData::FileUpload {
+                local_path,
+                remote_path,
+                create_dirs,
+            } => StepConfig::SftpUpload {
+                local_path: local_path.clone(),
+                remote_path: remote_path.clone(),
+                permissions: None,
+                create_dirs: *create_dirs,
+            },
+            MacroActionData::FileDownload {
+                remote_path,
+                local_path,
+                create_dirs,
+            } => StepConfig::SftpDownload {
+                remote_path: remote_path.clone(),
+                local_path: local_path.clone(),
+                create_dirs: *create_dirs,
+            },
+            MacroActionData::Wait { duration_secs, .. } => StepConfig::Wait {
+                duration_secs: *duration_secs,
+            },
+            MacroActionData::LocalCommand {
+                command,
+                working_dir,
+            } => StepConfig::LocalCommand {
+                command: command.clone(),
+                working_dir: working_dir.clone(),
+                env_vars: std::collections::HashMap::new(),
+                capture_output: true,
+            },
             _ => StepConfig::default_for(&step_type),
         };
 
@@ -423,7 +434,8 @@ impl MacroRecorder {
         }
 
         let now = Instant::now();
-        let delay_ms = self.last_action_time
+        let delay_ms = self
+            .last_action_time
             .map(|t| t.elapsed().as_millis() as u64)
             .unwrap_or(0);
 

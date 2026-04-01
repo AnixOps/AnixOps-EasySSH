@@ -392,6 +392,8 @@ pub enum WebSocketMessage {
     Pong { timestamp: DateTime<Utc> },
     Subscribe { channels: Vec<String> },
     Unsubscribe { channels: Vec<String> },
+}
+
 // ============= Collaboration Models =============
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
@@ -447,7 +449,7 @@ pub struct Annotation {
     pub author_id: String,
     pub author_name: String,
     pub annotation_type: String, // draw, highlight, arrow, text, circle, rectangle
-    pub position: String, // JSON
+    pub position: String,        // JSON
     pub content: String,
     pub color: String,
     pub created_at: DateTime<Utc>,
@@ -595,26 +597,6 @@ pub struct AddReplyRequest {
 pub struct AddClipboardRequest {
     pub content: String,
     pub content_type: String,
-}
-    },
-    CollaborationUpdate {
-        resource_type: String,
-        resource_id: String,
-        action: String,
-        data: serde_json::Value,
-        user_id: String,
-        timestamp: DateTime<Utc>,
-    },
-    UserJoined {
-        user_id: String,
-        team_id: String,
-        timestamp: DateTime<Utc>,
-    },
-    UserLeft {
-        user_id: String,
-        team_id: String,
-        timestamp: DateTime<Utc>,
-    },
 }
 
 // ============= Common Models =============

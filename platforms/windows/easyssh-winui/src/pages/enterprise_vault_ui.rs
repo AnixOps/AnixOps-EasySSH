@@ -13,9 +13,7 @@ pub struct EnterpriseVaultWindow {
 
 impl EnterpriseVaultWindow {
     pub fn new(_theme: crate::design::DesignTheme) -> Self {
-        Self {
-            open: false,
-        }
+        Self { open: false }
     }
 
     pub fn open(&mut self) {

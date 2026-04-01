@@ -58,67 +58,51 @@ impl GitWorkflowExecutor {
             GitWorkflowAction::Clone { url, path, branch } => {
                 self.execute_clone(url, path, branch).await
             }
-            GitWorkflowAction::Stage { paths } => {
-                self.execute_stage(paths).await
-            }
-            GitWorkflowAction::Unstage { paths } => {
-                self.execute_unstage(paths).await
-            }
-            GitWorkflowAction::Commit { message } => {
-                self.execute_commit(message).await
-            }
-            GitWorkflowAction::Push { remote, refspec } => {
-                self.execute_push(remote, refspec).await
-            }
-            GitWorkflowAction::Pull { remote } => {
-                self.execute_pull(remote).await
-            }
-            GitWorkflowAction::Fetch { remote } => {
-                self.execute_fetch(remote).await
-            }
+            GitWorkflowAction::Stage { paths } => self.execute_stage(paths).await,
+            GitWorkflowAction::Unstage { paths } => self.execute_unstage(paths).await,
+            GitWorkflowAction::Commit { message } => self.execute_commit(message).await,
+            GitWorkflowAction::Push { remote, refspec } => self.execute_push(remote, refspec).await,
+            GitWorkflowAction::Pull { remote } => self.execute_pull(remote).await,
+            GitWorkflowAction::Fetch { remote } => self.execute_fetch(remote).await,
             GitWorkflowAction::Checkout { branch, create } => {
                 self.execute_checkout(branch, create).await
             }
-            GitWorkflowAction::Merge { branch } => {
-                self.execute_merge(branch).await
-            }
+            GitWorkflowAction::Merge { branch } => self.execute_merge(branch).await,
             GitWorkflowAction::CreateTag { name, message } => {
                 self.execute_create_tag(name, message).await
             }
             GitWorkflowAction::PushTag { name, remote } => {
                 self.execute_push_tag(name, remote).await
             }
-            GitWorkflowAction::StashSave { message } => {
-                self.execute_stash_save(message).await
-            }
-            GitWorkflowAction::StashPop { index } => {
-                self.execute_stash_pop(index).await
-            }
-            GitWorkflowAction::SubmoduleUpdate => {
-                self.execute_submodule_update().await
-            }
-            GitWorkflowAction::Discard { paths } => {
-                self.execute_discard(paths).await
-            }
-            GitWorkflowAction::AddRemote { name, url } => {
-                self.execute_add_remote(name, url).await
-            }
-            GitWorkflowAction::RemoveRemote { name } => {
-                self.execute_remove_remote(name).await
-            }
-            GitWorkflowAction::GetStatus => {
-                self.execute_get_status().await
-            }
+            GitWorkflowAction::StashSave { message } => self.execute_stash_save(message).await,
+            GitWorkflowAction::StashPop { index } => self.execute_stash_pop(index).await,
+            GitWorkflowAction::SubmoduleUpdate => self.execute_submodule_update().await,
+            GitWorkflowAction::Discard { paths } => self.execute_discard(paths).await,
+            GitWorkflowAction::AddRemote { name, url } => self.execute_add_remote(name, url).await,
+            GitWorkflowAction::RemoveRemote { name } => self.execute_remove_remote(name).await,
+            GitWorkflowAction::GetStatus => self.execute_get_status().await,
             GitWorkflowAction::GetLog { branch, limit } => {
                 self.execute_get_log(branch, limit).await
             }
 
             // Git Flow Actions
-            GitWorkflowAction::GitFlowInit { main_branch, develop_branch, feature_prefix, release_prefix, hotfix_prefix, tag_prefix } => {
+            GitWorkflowAction::GitFlowInit {
+                main_branch,
+                develop_branch,
+                feature_prefix,
+                release_prefix,
+                hotfix_prefix,
+                tag_prefix,
+            } => {
                 self.execute_gitflow_init(
-                    main_branch, develop_branch, feature_prefix,
-                    release_prefix, hotfix_prefix, tag_prefix,
-                ).await
+                    main_branch,
+                    develop_branch,
+                    feature_prefix,
+                    release_prefix,
+                    hotfix_prefix,
+                    tag_prefix,
+                )
+                .await
             }
             GitWorkflowAction::GitFlowFeatureStart { name, base_branch } => {
                 self.execute_gitflow_feature_start(name, base_branch).await
@@ -129,46 +113,93 @@ impl GitWorkflowExecutor {
             GitWorkflowAction::GitFlowFeaturePublish { name } => {
                 self.execute_gitflow_feature_publish(name).await
             }
-            GitWorkflowAction::GitFlowReleaseStart { version, base_branch } => {
-                self.execute_gitflow_release_start(version, base_branch).await
+            GitWorkflowAction::GitFlowReleaseStart {
+                version,
+                base_branch,
+            } => {
+                self.execute_gitflow_release_start(version, base_branch)
+                    .await
             }
-            GitWorkflowAction::GitFlowReleaseFinish { version, tag_message, push_to_remote } => {
-                self.execute_gitflow_release_finish(version, tag_message, push_to_remote).await
+            GitWorkflowAction::GitFlowReleaseFinish {
+                version,
+                tag_message,
+                push_to_remote,
+            } => {
+                self.execute_gitflow_release_finish(version, tag_message, push_to_remote)
+                    .await
             }
-            GitWorkflowAction::GitFlowHotfixStart { version, base_branch } => {
-                self.execute_gitflow_hotfix_start(version, base_branch).await
+            GitWorkflowAction::GitFlowHotfixStart {
+                version,
+                base_branch,
+            } => {
+                self.execute_gitflow_hotfix_start(version, base_branch)
+                    .await
             }
-            GitWorkflowAction::GitFlowHotfixFinish { version, tag_message, push_to_remote } => {
-                self.execute_gitflow_hotfix_finish(version, tag_message, push_to_remote).await
+            GitWorkflowAction::GitFlowHotfixFinish {
+                version,
+                tag_message,
+                push_to_remote,
+            } => {
+                self.execute_gitflow_hotfix_finish(version, tag_message, push_to_remote)
+                    .await
             }
 
             // PR Management Actions
-            GitWorkflowAction::CreatePullRequest { title, description, source_branch, target_branch, draft, reviewers } => {
-                self.execute_create_pr(title, description, source_branch, target_branch, draft, reviewers).await
+            GitWorkflowAction::CreatePullRequest {
+                title,
+                description,
+                source_branch,
+                target_branch,
+                draft,
+                reviewers,
+            } => {
+                self.execute_create_pr(
+                    title,
+                    description,
+                    source_branch,
+                    target_branch,
+                    draft,
+                    reviewers,
+                )
+                .await
             }
-            GitWorkflowAction::UpdatePullRequest { number, title, description, state } => {
-                self.execute_update_pr(number, title, description, state).await
+            GitWorkflowAction::UpdatePullRequest {
+                number,
+                title,
+                description,
+                state,
+            } => {
+                self.execute_update_pr(number, title, description, state)
+                    .await
             }
             GitWorkflowAction::ListPullRequests { state, limit } => {
                 self.execute_list_prs(state, limit).await
             }
-            GitWorkflowAction::GetPullRequest { number } => {
-                self.execute_get_pr(number).await
-            }
-            GitWorkflowAction::ReviewPullRequest { number, action, comment } => {
-                self.execute_review_pr(number, action, comment).await
-            }
-            GitWorkflowAction::MergePullRequest { number, method, commit_message, delete_source_branch } => {
-                self.execute_merge_pr(number, method, commit_message, delete_source_branch).await
+            GitWorkflowAction::GetPullRequest { number } => self.execute_get_pr(number).await,
+            GitWorkflowAction::ReviewPullRequest {
+                number,
+                action,
+                comment,
+            } => self.execute_review_pr(number, action, comment).await,
+            GitWorkflowAction::MergePullRequest {
+                number,
+                method,
+                commit_message,
+                delete_source_branch,
+            } => {
+                self.execute_merge_pr(number, method, commit_message, delete_source_branch)
+                    .await
             }
 
             // CI/CD Actions
             GitWorkflowAction::GetCiStatus { branch, commit } => {
                 self.execute_get_ci_status(branch, commit).await
             }
-            GitWorkflowAction::ListCiPipelines { branch, status, limit } => {
-                self.execute_list_ci_pipelines(branch, status, limit).await
-            }
+            GitWorkflowAction::ListCiPipelines {
+                branch,
+                status,
+                limit,
+            } => self.execute_list_ci_pipelines(branch, status, limit).await,
             GitWorkflowAction::RetryCiPipeline { pipeline_id } => {
                 self.execute_retry_ci_pipeline(pipeline_id).await
             }
@@ -177,22 +208,37 @@ impl GitWorkflowExecutor {
             }
 
             // Code Review Actions
-            GitWorkflowAction::RunCodeReviewChecklist { branch, base_branch, checklist_items } => {
-                self.execute_run_checklist(branch, base_branch, checklist_items).await
+            GitWorkflowAction::RunCodeReviewChecklist {
+                branch,
+                base_branch,
+                checklist_items,
+            } => {
+                self.execute_run_checklist(branch, base_branch, checklist_items)
+                    .await
             }
             GitWorkflowAction::GetCodeReviewReport { commit_id } => {
                 self.execute_get_review_report(commit_id).await
             }
-            GitWorkflowAction::AddPrComment { file_path, line_number, comment } => {
-                self.execute_add_pr_comment(file_path, line_number, comment).await
+            GitWorkflowAction::AddPrComment {
+                file_path,
+                line_number,
+                comment,
+            } => {
+                self.execute_add_pr_comment(file_path, line_number, comment)
+                    .await
             }
 
-            _ => Err(GitError::OperationFailed("Action not implemented".to_string())),
+            _ => Err(GitError::OperationFailed(
+                "Action not implemented".to_string(),
+            )),
         }
     }
 
     /// Execute a workflow
-    pub async fn execute_workflow(&self, actions: Vec<GitWorkflowAction>) -> Vec<Result<WorkflowResult, GitError>> {
+    pub async fn execute_workflow(
+        &self,
+        actions: Vec<GitWorkflowAction>,
+    ) -> Vec<Result<WorkflowResult, GitError>> {
         let mut results = Vec::new();
         for action in actions {
             results.push(self.execute(action).await);
@@ -204,12 +250,20 @@ impl GitWorkflowExecutor {
     // Basic Git Operations
     // ============================================================================
 
-    async fn execute_clone(&self, url: String, path: String, branch: Option<String>) -> Result<WorkflowResult, GitError> {
+    async fn execute_clone(
+        &self,
+        url: String,
+        path: String,
+        branch: Option<String>,
+    ) -> Result<WorkflowResult, GitError> {
         let options = CloneOptions {
             branch: branch.clone(),
             ..Default::default()
         };
-        let repo_id = self.manager.clone_repo(&url, Path::new(&path), &options, None).await?;
+        let repo_id = self
+            .manager
+            .clone_repo(&url, Path::new(&path), &options, None)
+            .await?;
 
         Ok(WorkflowResult {
             success: true,
@@ -249,8 +303,14 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_push(&self, remote: String, refspec: String) -> Result<WorkflowResult, GitError> {
-        self.manager.push(refspec.clone(), remote.clone(), false, false, None).await?;
+    async fn execute_push(
+        &self,
+        remote: String,
+        refspec: String,
+    ) -> Result<WorkflowResult, GitError> {
+        self.manager
+            .push(refspec.clone(), remote.clone(), false, false, None)
+            .await?;
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -271,7 +331,9 @@ impl GitWorkflowExecutor {
     }
 
     async fn execute_fetch(&self, remote: String) -> Result<WorkflowResult, GitError> {
-        self.manager.fetch(remote.clone(), false, false, None).await?;
+        self.manager
+            .fetch(remote.clone(), false, false, None)
+            .await?;
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -280,8 +342,14 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_checkout(&self, branch: String, create: bool) -> Result<WorkflowResult, GitError> {
-        self.manager.checkout_branch(branch.clone(), create, None).await?;
+    async fn execute_checkout(
+        &self,
+        branch: String,
+        create: bool,
+    ) -> Result<WorkflowResult, GitError> {
+        self.manager
+            .checkout_branch(branch.clone(), create, None)
+            .await?;
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -290,7 +358,10 @@ impl GitWorkflowExecutor {
             } else {
                 format!("Checked out branch {}", branch)
             },
-            data: WorkflowData::CheckoutResult { branch, created: create },
+            data: WorkflowData::CheckoutResult {
+                branch,
+                created: create,
+            },
         })
     }
 
@@ -305,8 +376,14 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_create_tag(&self, name: String, message: Option<String>) -> Result<WorkflowResult, GitError> {
-        self.manager.create_tag(name.clone(), None, message.clone(), None).await?;
+    async fn execute_create_tag(
+        &self,
+        name: String,
+        message: Option<String>,
+    ) -> Result<WorkflowResult, GitError> {
+        self.manager
+            .create_tag(name.clone(), None, message.clone(), None)
+            .await?;
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -315,8 +392,14 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_push_tag(&self, name: String, remote: String) -> Result<WorkflowResult, GitError> {
-        self.manager.push_tag(name.clone(), remote.clone(), None).await?;
+    async fn execute_push_tag(
+        &self,
+        name: String,
+        remote: String,
+    ) -> Result<WorkflowResult, GitError> {
+        self.manager
+            .push_tag(name.clone(), remote.clone(), None)
+            .await?;
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -328,14 +411,20 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_stash_save(&self, message: Option<String>) -> Result<WorkflowResult, GitError> {
+    async fn execute_stash_save(
+        &self,
+        message: Option<String>,
+    ) -> Result<WorkflowResult, GitError> {
         self.manager.stash_save(message.clone(), true, None).await?;
         let msg_str = message.clone().unwrap_or_default();
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
             message: format!("Stashed changes: {}", msg_str),
-            data: WorkflowData::StashResult { index: None, message },
+            data: WorkflowData::StashResult {
+                index: None,
+                message,
+            },
         })
     }
 
@@ -345,7 +434,10 @@ impl GitWorkflowExecutor {
             success: true,
             repo_id: None,
             message: format!("Popped stash at index {}", index),
-            data: WorkflowData::StashResult { index: Some(index), message: None },
+            data: WorkflowData::StashResult {
+                index: Some(index),
+                message: None,
+            },
         })
     }
 
@@ -369,8 +461,14 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_add_remote(&self, name: String, url: String) -> Result<WorkflowResult, GitError> {
-        self.manager.add_remote(name.clone(), url.clone(), None).await?;
+    async fn execute_add_remote(
+        &self,
+        name: String,
+        url: String,
+    ) -> Result<WorkflowResult, GitError> {
+        self.manager
+            .add_remote(name.clone(), url.clone(), None)
+            .await?;
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -403,7 +501,11 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_get_log(&self, branch: Option<String>, limit: usize) -> Result<WorkflowResult, GitError> {
+    async fn execute_get_log(
+        &self,
+        branch: Option<String>,
+        limit: usize,
+    ) -> Result<WorkflowResult, GitError> {
         let commits = self.manager.log(branch.clone(), limit, None).await?;
         let message = format!("Retrieved {} commits", commits.len());
         Ok(WorkflowResult {
@@ -429,10 +531,14 @@ impl GitWorkflowExecutor {
     ) -> Result<WorkflowResult, GitError> {
         let config = GitFlowConfig {
             main_branch: main_branch.unwrap_or_else(|| self.gitflow_config.main_branch.clone()),
-            develop_branch: develop_branch.unwrap_or_else(|| self.gitflow_config.develop_branch.clone()),
-            feature_prefix: feature_prefix.unwrap_or_else(|| self.gitflow_config.feature_prefix.clone()),
-            release_prefix: release_prefix.unwrap_or_else(|| self.gitflow_config.release_prefix.clone()),
-            hotfix_prefix: hotfix_prefix.unwrap_or_else(|| self.gitflow_config.hotfix_prefix.clone()),
+            develop_branch: develop_branch
+                .unwrap_or_else(|| self.gitflow_config.develop_branch.clone()),
+            feature_prefix: feature_prefix
+                .unwrap_or_else(|| self.gitflow_config.feature_prefix.clone()),
+            release_prefix: release_prefix
+                .unwrap_or_else(|| self.gitflow_config.release_prefix.clone()),
+            hotfix_prefix: hotfix_prefix
+                .unwrap_or_else(|| self.gitflow_config.hotfix_prefix.clone()),
             tag_prefix: tag_prefix.unwrap_or_else(|| self.gitflow_config.tag_prefix.clone()),
         };
 
@@ -442,20 +548,33 @@ impl GitWorkflowExecutor {
         let develop_exists = branches.iter().any(|b| b.name == config.develop_branch);
 
         if !main_exists {
-            self.manager.create_branch(config.main_branch.clone(), None, None).await?;
+            self.manager
+                .create_branch(config.main_branch.clone(), None, None)
+                .await?;
         }
 
         if !develop_exists {
-            self.manager.create_branch(config.develop_branch.clone(), Some(config.main_branch.clone()), None).await?;
+            self.manager
+                .create_branch(
+                    config.develop_branch.clone(),
+                    Some(config.main_branch.clone()),
+                    None,
+                )
+                .await?;
         }
 
         // Checkout develop branch
-        self.manager.checkout_branch(config.develop_branch.clone(), false, None).await?;
+        self.manager
+            .checkout_branch(config.develop_branch.clone(), false, None)
+            .await?;
 
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
-            message: format!("Git Flow initialized with {} and {}", config.main_branch, config.develop_branch),
+            message: format!(
+                "Git Flow initialized with {} and {}",
+                config.main_branch, config.develop_branch
+            ),
             data: WorkflowData::GitFlowInitResult { config },
         })
     }
@@ -469,11 +588,18 @@ impl GitWorkflowExecutor {
         let base = base_branch.unwrap_or_else(|| self.gitflow_config.develop_branch.clone());
 
         // Fetch latest develop
-        self.manager.fetch("origin".to_string(), true, false, None).await.ok();
+        self.manager
+            .fetch("origin".to_string(), true, false, None)
+            .await
+            .ok();
 
         // Create feature branch from develop
-        self.manager.create_branch(feature_branch.clone(), Some(base.clone()), None).await?;
-        self.manager.checkout_branch(feature_branch.clone(), false, None).await?;
+        self.manager
+            .create_branch(feature_branch.clone(), Some(base.clone()), None)
+            .await?;
+        self.manager
+            .checkout_branch(feature_branch.clone(), false, None)
+            .await?;
 
         Ok(WorkflowResult {
             success: true,
@@ -495,7 +621,9 @@ impl GitWorkflowExecutor {
         let feature_branch = format!("{}{}", self.gitflow_config.feature_prefix, name);
 
         // Checkout develop
-        self.manager.checkout_branch(self.gitflow_config.develop_branch.clone(), false, None).await?;
+        self.manager
+            .checkout_branch(self.gitflow_config.develop_branch.clone(), false, None)
+            .await?;
 
         // Merge feature into develop
         let merge_result = self.manager.merge(feature_branch.clone(), None).await?;
@@ -511,22 +639,31 @@ impl GitWorkflowExecutor {
 
         // Delete feature branch unless keep_branch is true
         if !keep_branch {
-            self.manager.delete_branch(feature_branch.clone(), None).await.ok();
+            self.manager
+                .delete_branch(feature_branch.clone(), None)
+                .await
+                .ok();
         }
 
         // Push develop
-        self.manager.push(
-            self.gitflow_config.develop_branch.clone(),
-            "origin".to_string(),
-            false,
-            false,
-            None,
-        ).await.ok();
+        self.manager
+            .push(
+                self.gitflow_config.develop_branch.clone(),
+                "origin".to_string(),
+                false,
+                false,
+                None,
+            )
+            .await
+            .ok();
 
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
-            message: format!("Finished feature {} (branch {} kept: {})", name, feature_branch, keep_branch),
+            message: format!(
+                "Finished feature {} (branch {} kept: {})",
+                name, feature_branch, keep_branch
+            ),
             data: WorkflowData::GitFlowResult {
                 branch_name: feature_branch,
                 branch_type: GitFlowBranchType::Feature,
@@ -542,7 +679,15 @@ impl GitWorkflowExecutor {
         let feature_branch = format!("{}{}", self.gitflow_config.feature_prefix, name);
 
         // Push feature branch to origin
-        self.manager.push(feature_branch.clone(), "origin".to_string(), false, true, None).await?;
+        self.manager
+            .push(
+                feature_branch.clone(),
+                "origin".to_string(),
+                false,
+                true,
+                None,
+            )
+            .await?;
 
         Ok(WorkflowResult {
             success: true,
@@ -565,11 +710,18 @@ impl GitWorkflowExecutor {
         let base = base_branch.unwrap_or_else(|| self.gitflow_config.develop_branch.clone());
 
         // Fetch latest
-        self.manager.fetch("origin".to_string(), true, false, None).await.ok();
+        self.manager
+            .fetch("origin".to_string(), true, false, None)
+            .await
+            .ok();
 
         // Create release branch
-        self.manager.create_branch(release_branch.clone(), Some(base.clone()), None).await?;
-        self.manager.checkout_branch(release_branch.clone(), false, None).await?;
+        self.manager
+            .create_branch(release_branch.clone(), Some(base.clone()), None)
+            .await?;
+        self.manager
+            .checkout_branch(release_branch.clone(), false, None)
+            .await?;
 
         Ok(WorkflowResult {
             success: true,
@@ -593,7 +745,9 @@ impl GitWorkflowExecutor {
         let tag_name = format!("{}{}", self.gitflow_config.tag_prefix, version);
 
         // Merge release into main
-        self.manager.checkout_branch(self.gitflow_config.main_branch.clone(), false, None).await?;
+        self.manager
+            .checkout_branch(self.gitflow_config.main_branch.clone(), false, None)
+            .await?;
         let main_merge = self.manager.merge(release_branch.clone(), None).await?;
 
         if !main_merge.success {
@@ -607,20 +761,48 @@ impl GitWorkflowExecutor {
 
         // Create tag on main
         let tag_msg = tag_message.unwrap_or_else(|| format!("Release {}", version));
-        self.manager.create_tag(tag_name.clone(), None, Some(tag_msg), None).await?;
+        self.manager
+            .create_tag(tag_name.clone(), None, Some(tag_msg), None)
+            .await?;
 
         // Merge release back into develop
-        self.manager.checkout_branch(self.gitflow_config.develop_branch.clone(), false, None).await?;
+        self.manager
+            .checkout_branch(self.gitflow_config.develop_branch.clone(), false, None)
+            .await?;
         let _ = self.manager.merge(release_branch.clone(), None).await;
 
         // Delete release branch
-        self.manager.delete_branch(release_branch.clone(), None).await.ok();
+        self.manager
+            .delete_branch(release_branch.clone(), None)
+            .await
+            .ok();
 
         // Push to remote if requested
         if push_to_remote {
-            self.manager.push(self.gitflow_config.main_branch.clone(), "origin".to_string(), false, false, None).await.ok();
-            self.manager.push(self.gitflow_config.develop_branch.clone(), "origin".to_string(), false, false, None).await.ok();
-            self.manager.push_tag(tag_name.clone(), "origin".to_string(), None).await.ok();
+            self.manager
+                .push(
+                    self.gitflow_config.main_branch.clone(),
+                    "origin".to_string(),
+                    false,
+                    false,
+                    None,
+                )
+                .await
+                .ok();
+            self.manager
+                .push(
+                    self.gitflow_config.develop_branch.clone(),
+                    "origin".to_string(),
+                    false,
+                    false,
+                    None,
+                )
+                .await
+                .ok();
+            self.manager
+                .push_tag(tag_name.clone(), "origin".to_string(), None)
+                .await
+                .ok();
         }
 
         Ok(WorkflowResult {
@@ -644,11 +826,18 @@ impl GitWorkflowExecutor {
         let base = base_branch.unwrap_or_else(|| self.gitflow_config.main_branch.clone());
 
         // Fetch latest
-        self.manager.fetch("origin".to_string(), true, false, None).await.ok();
+        self.manager
+            .fetch("origin".to_string(), true, false, None)
+            .await
+            .ok();
 
         // Create hotfix branch from main
-        self.manager.create_branch(hotfix_branch.clone(), Some(base.clone()), None).await?;
-        self.manager.checkout_branch(hotfix_branch.clone(), false, None).await?;
+        self.manager
+            .create_branch(hotfix_branch.clone(), Some(base.clone()), None)
+            .await?;
+        self.manager
+            .checkout_branch(hotfix_branch.clone(), false, None)
+            .await?;
 
         Ok(WorkflowResult {
             success: true,
@@ -672,7 +861,9 @@ impl GitWorkflowExecutor {
         let tag_name = format!("{}{}", self.gitflow_config.tag_prefix, version);
 
         // Merge hotfix into main
-        self.manager.checkout_branch(self.gitflow_config.main_branch.clone(), false, None).await?;
+        self.manager
+            .checkout_branch(self.gitflow_config.main_branch.clone(), false, None)
+            .await?;
         let main_merge = self.manager.merge(hotfix_branch.clone(), None).await?;
 
         if !main_merge.success {
@@ -686,20 +877,48 @@ impl GitWorkflowExecutor {
 
         // Create tag
         let tag_msg = tag_message.unwrap_or_else(|| format!("Hotfix {}", version));
-        self.manager.create_tag(tag_name.clone(), None, Some(tag_msg), None).await?;
+        self.manager
+            .create_tag(tag_name.clone(), None, Some(tag_msg), None)
+            .await?;
 
         // Merge hotfix back into develop
-        self.manager.checkout_branch(self.gitflow_config.develop_branch.clone(), false, None).await?;
+        self.manager
+            .checkout_branch(self.gitflow_config.develop_branch.clone(), false, None)
+            .await?;
         let _ = self.manager.merge(hotfix_branch.clone(), None).await;
 
         // Delete hotfix branch
-        self.manager.delete_branch(hotfix_branch.clone(), None).await.ok();
+        self.manager
+            .delete_branch(hotfix_branch.clone(), None)
+            .await
+            .ok();
 
         // Push to remote if requested
         if push_to_remote {
-            self.manager.push(self.gitflow_config.main_branch.clone(), "origin".to_string(), false, false, None).await.ok();
-            self.manager.push(self.gitflow_config.develop_branch.clone(), "origin".to_string(), false, false, None).await.ok();
-            self.manager.push_tag(tag_name.clone(), "origin".to_string(), None).await.ok();
+            self.manager
+                .push(
+                    self.gitflow_config.main_branch.clone(),
+                    "origin".to_string(),
+                    false,
+                    false,
+                    None,
+                )
+                .await
+                .ok();
+            self.manager
+                .push(
+                    self.gitflow_config.develop_branch.clone(),
+                    "origin".to_string(),
+                    false,
+                    false,
+                    None,
+                )
+                .await
+                .ok();
+            self.manager
+                .push_tag(tag_name.clone(), "origin".to_string(), None)
+                .await
+                .ok();
         }
 
         Ok(WorkflowResult {
@@ -740,7 +959,11 @@ impl GitWorkflowExecutor {
                     number: pr_number,
                     title,
                     description,
-                    state: if draft { PullRequestState::Draft } else { PullRequestState::Open },
+                    state: if draft {
+                        PullRequestState::Draft
+                    } else {
+                        PullRequestState::Open
+                    },
                     draft,
                     source_branch,
                     target_branch,
@@ -800,7 +1023,9 @@ impl GitWorkflowExecutor {
 
     async fn execute_get_pr(&self, number: u64) -> Result<WorkflowResult, GitError> {
         // Mock implementation
-        Err(GitError::OperationFailed("PR API integration not implemented".to_string()))
+        Err(GitError::OperationFailed(
+            "PR API integration not implemented".to_string(),
+        ))
     }
 
     async fn execute_review_pr(
@@ -888,7 +1113,10 @@ impl GitWorkflowExecutor {
             success: true,
             repo_id: None,
             message: format!("CI status for {}: all checks passed", current_branch),
-            data: WorkflowData::CiStatusResult { branch: current_branch, checks: checks_summary },
+            data: WorkflowData::CiStatusResult {
+                branch: current_branch,
+                checks: checks_summary,
+            },
         })
     }
 
@@ -909,7 +1137,10 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_retry_ci_pipeline(&self, pipeline_id: String) -> Result<WorkflowResult, GitError> {
+    async fn execute_retry_ci_pipeline(
+        &self,
+        pipeline_id: String,
+    ) -> Result<WorkflowResult, GitError> {
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -918,7 +1149,10 @@ impl GitWorkflowExecutor {
         })
     }
 
-    async fn execute_cancel_ci_pipeline(&self, pipeline_id: String) -> Result<WorkflowResult, GitError> {
+    async fn execute_cancel_ci_pipeline(
+        &self,
+        pipeline_id: String,
+    ) -> Result<WorkflowResult, GitError> {
         Ok(WorkflowResult {
             success: true,
             repo_id: None,
@@ -953,7 +1187,11 @@ impl GitWorkflowExecutor {
                         issues.push(ReviewIssue {
                             id: format!("auto-{}", item.id),
                             category: item.category,
-                            severity: if item.is_required { IssueSeverity::Error } else { IssueSeverity::Warning },
+                            severity: if item.is_required {
+                                IssueSeverity::Error
+                            } else {
+                                IssueSeverity::Warning
+                            },
                             title: format!("Check failed: {}", item.title),
                             description: item.description.clone(),
                             file_path: None,
@@ -967,7 +1205,10 @@ impl GitWorkflowExecutor {
         }
 
         let total = checked_items.len();
-        let passed = checked_items.iter().filter(|i| i.is_checked || !i.is_required).count();
+        let passed = checked_items
+            .iter()
+            .filter(|i| i.is_checked || !i.is_required)
+            .count();
 
         let overall_status = if passed == total {
             ReviewStatus::Pass
@@ -1001,7 +1242,10 @@ impl GitWorkflowExecutor {
             success: overall_status != ReviewStatus::HasIssues,
             repo_id: None,
             message: format!("Code review checklist: {}/{} checks passed", passed, total),
-            data: WorkflowData::CodeReviewResult { report, checklist: checked_items },
+            data: WorkflowData::CodeReviewResult {
+                report,
+                checklist: checked_items,
+            },
         })
     }
 
@@ -1028,9 +1272,14 @@ impl GitWorkflowExecutor {
         }
     }
 
-    async fn execute_get_review_report(&self, commit_id: String) -> Result<WorkflowResult, GitError> {
+    async fn execute_get_review_report(
+        &self,
+        commit_id: String,
+    ) -> Result<WorkflowResult, GitError> {
         // Mock implementation
-        Err(GitError::OperationFailed("Review report API not implemented".to_string()))
+        Err(GitError::OperationFailed(
+            "Review report API not implemented".to_string(),
+        ))
     }
 
     async fn execute_add_pr_comment(
@@ -1086,23 +1335,66 @@ pub struct WorkflowResult {
 #[derive(Debug, Clone)]
 pub enum WorkflowData {
     Empty,
-    CloneResult { url: String, path: String, branch: Option<String> },
-    CommitResult { commit_id: String, message: String },
-    PushResult { remote: String, refspec: String },
-    CheckoutResult { branch: String, created: bool },
+    CloneResult {
+        url: String,
+        path: String,
+        branch: Option<String>,
+    },
+    CommitResult {
+        commit_id: String,
+        message: String,
+    },
+    PushResult {
+        remote: String,
+        refspec: String,
+    },
+    CheckoutResult {
+        branch: String,
+        created: bool,
+    },
     MergeResult(MergeResult),
-    TagResult { name: String, message: Option<String> },
-    RemoteResult { name: String, url: String },
-    StashResult { index: Option<usize>, message: Option<String> },
+    TagResult {
+        name: String,
+        message: Option<String>,
+    },
+    RemoteResult {
+        name: String,
+        url: String,
+    },
+    StashResult {
+        index: Option<usize>,
+        message: Option<String>,
+    },
     StatusResult(RepoStatus),
-    LogResult { commits: Vec<CommitInfo>, branch: Option<String> },
-    GitFlowInitResult { config: GitFlowConfig },
-    GitFlowResult { branch_name: String, branch_type: GitFlowBranchType, commit_id: Option<String> },
-    PullRequestResult { pr: PullRequest },
-    PullRequestListResult { prs: Vec<PullRequest> },
-    CiStatusResult { branch: String, checks: CiChecksSummary },
-    CiPipelineListResult { pipelines: Vec<CiPipeline> },
-    CodeReviewResult { report: CodeReviewReport, checklist: Vec<ChecklistItem> },
+    LogResult {
+        commits: Vec<CommitInfo>,
+        branch: Option<String>,
+    },
+    GitFlowInitResult {
+        config: GitFlowConfig,
+    },
+    GitFlowResult {
+        branch_name: String,
+        branch_type: GitFlowBranchType,
+        commit_id: Option<String>,
+    },
+    PullRequestResult {
+        pr: PullRequest,
+    },
+    PullRequestListResult {
+        prs: Vec<PullRequest>,
+    },
+    CiStatusResult {
+        branch: String,
+        checks: CiChecksSummary,
+    },
+    CiPipelineListResult {
+        pipelines: Vec<CiPipeline>,
+    },
+    CodeReviewResult {
+        report: CodeReviewReport,
+        checklist: Vec<ChecklistItem>,
+    },
 }
 
 /// Workflow execution summary

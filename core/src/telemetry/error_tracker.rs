@@ -98,7 +98,10 @@ impl ErrorContext {
             (r"password[=:]\S+", "password=[REDACTED]"),
             (r"passwd[=:]\S+", "passwd=[REDACTED]"),
             // SSH private key patterns
-            (r"-----BEGIN [A-Z ]+ PRIVATE KEY-----", "[PRIVATE-KEY-REDACTED]"),
+            (
+                r"-----BEGIN [A-Z ]+ PRIVATE KEY-----",
+                "[PRIVATE-KEY-REDACTED]",
+            ),
         ];
 
         for (pattern, replacement) in &patterns {
@@ -167,10 +170,7 @@ pub struct ErrorTracker {
 }
 
 impl ErrorTracker {
-    pub fn new(
-        collector: Arc<EventCollector>,
-        consent_manager: Arc<ConsentManager>,
-    ) -> Self {
+    pub fn new(collector: Arc<EventCollector>, consent_manager: Arc<ConsentManager>) -> Self {
         Self {
             collector,
             consent_manager,
@@ -182,7 +182,10 @@ impl ErrorTracker {
     /// Track an error
     pub async fn track_error(&self, context: ErrorContext) {
         // Check consent
-        if !self.consent_manager.is_allowed(ConsentCategory::CrashReporting) {
+        if !self
+            .consent_manager
+            .is_allowed(ConsentCategory::CrashReporting)
+        {
             return;
         }
 
@@ -218,12 +221,9 @@ impl ErrorTracker {
         component: &str,
         severity: Severity,
     ) {
-        let context = ErrorContext::new(
-            std::any::type_name::<E>(),
-            component,
-        )
-        .with_message(error.to_string())
-        .with_severity(severity);
+        let context = ErrorContext::new(std::any::type_name::<E>(), component)
+            .with_message(error.to_string())
+            .with_severity(severity);
 
         self.track_error(context).await;
     }
@@ -387,7 +387,10 @@ pub struct AnonymousUser {
 pub async fn setup_sentry_integration(dsn: Option<String>, release: String) {
     if let Some(_dsn) = dsn {
         // Initialize Sentry or similar service
-        println!("[Telemetry] External error reporting enabled, release: {}", release);
+        println!(
+            "[Telemetry] External error reporting enabled, release: {}",
+            release
+        );
     }
 }
 
@@ -396,7 +399,9 @@ pub async fn setup_sentry_integration(dsn: Option<String>, release: String) {
 macro_rules! track_error {
     ($tracker:expr, $error:expr, $component:expr, $severity:expr) => {
         tokio::spawn(async move {
-            $tracker.track_std_error(&$error, $component, $severity).await;
+            $tracker
+                .track_std_error(&$error, $component, $severity)
+                .await;
         });
     };
 }
@@ -407,7 +412,9 @@ macro_rules! track_result {
     ($tracker:expr, $result:expr, $component:expr) => {
         if let Err(ref e) = $result {
             tokio::spawn(async move {
-                $tracker.track_std_error(e, $component, $crate::telemetry::Severity::Medium).await;
+                $tracker
+                    .track_std_error(e, $component, $crate::telemetry::Severity::Medium)
+                    .await;
             });
         }
         $result

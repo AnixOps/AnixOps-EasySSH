@@ -143,11 +143,7 @@ impl ExperimentTracker {
     }
 
     /// Register experiment participation
-    pub async fn track_exposure(
-        &self,
-        experiment_id: &str,
-        group: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn track_exposure(&self, experiment_id: &str, group: &str) -> anyhow::Result<()> {
         let mut assignments = self.assignments.write().await;
         assignments.insert(experiment_id.to_string(), group.to_string());
         Ok(())
@@ -188,12 +184,7 @@ pub struct CanaryDeployment {
 
 impl CanaryDeployment {
     /// Check if this deployment applies to current user
-    pub fn applies_to(
-        &self,
-        region: &str,
-        user_group: Option<&str>,
-        install_id: &str,
-    ) -> bool {
+    pub fn applies_to(&self, region: &str, user_group: Option<&str>, install_id: &str) -> bool {
         // Check region
         if !self.regions.is_empty() && !self.regions.contains(&region.to_string()) {
             return false;

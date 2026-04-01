@@ -14,9 +14,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tokio::time::{interval, Interval};
 
-use super::{
-    AnonymousId, EventStorage, TelemetryConfig, TelemetryError, TelemetryEventRecord,
-};
+use super::{AnonymousId, EventStorage, TelemetryConfig, TelemetryError, TelemetryEventRecord};
 
 /// Reporter configuration
 #[derive(Debug, Clone)]
@@ -154,7 +152,10 @@ impl AnalyticsReporter {
     fn create_reporter_config(config: &TelemetryConfig) -> ReporterConfig {
         ReporterConfig {
             posthog_key: config.api_key.clone(),
-            posthog_host: config.endpoint.clone().unwrap_or_else(|| "https://app.posthog.com".to_string()),
+            posthog_host: config
+                .endpoint
+                .clone()
+                .unwrap_or_else(|| "https://app.posthog.com".to_string()),
             segment_key: None, // Could be loaded from env
             custom_endpoint: None,
             clickhouse_endpoint: None,
@@ -167,7 +168,11 @@ impl AnalyticsReporter {
     }
 
     /// Start background reporting
-    pub async fn start(&self, mut shutdown: mpsc::Receiver<()>, flush_interval: Duration) -> Result<(), TelemetryError> {
+    pub async fn start(
+        &self,
+        mut shutdown: mpsc::Receiver<()>,
+        flush_interval: Duration,
+    ) -> Result<(), TelemetryError> {
         {
             let mut running = self.is_running.lock().unwrap();
             if *running {
@@ -226,7 +231,8 @@ impl AnalyticsReporter {
                 batch_size * 2, // Send more on shutdown
                 &events_sent,
                 &events_failed,
-            ).await;
+            )
+            .await;
         });
 
         Ok(())
@@ -291,9 +297,10 @@ impl AnalyticsReporter {
         config: &ReporterConfig,
         events: &[TelemetryEventRecord],
     ) -> Result<(), TelemetryError> {
-        let api_key = config.posthog_key.as_ref().ok_or_else(|| {
-            TelemetryError::Config("PostHog API key not configured".to_string())
-        })?;
+        let api_key = config
+            .posthog_key
+            .as_ref()
+            .ok_or_else(|| TelemetryError::Config("PostHog API key not configured".to_string()))?;
 
         let url = format!("{}/capture", config.posthog_host);
 
@@ -307,7 +314,10 @@ impl AnalyticsReporter {
 
         if cfg!(debug_assertions) {
             println!("[PostHog] Would send {} events", events.len());
-            println!("[PostHog] Payload: {}", json.chars().take(500).collect::<String>());
+            println!(
+                "[PostHog] Payload: {}",
+                json.chars().take(500).collect::<String>()
+            );
             return Ok(());
         }
 
@@ -332,8 +342,7 @@ impl AnalyticsReporter {
         };
 
         let timestamp = std::time::UNIX_EPOCH + std::time::Duration::from_secs(event.timestamp);
-        let timestamp_str = chrono::DateTime::<chrono::Utc>::from(timestamp)
-            .to_rfc3339();
+        let timestamp_str = chrono::DateTime::<chrono::Utc>::from(timestamp).to_rfc3339();
 
         PostHogEvent {
             event: event_name.to_string(),
@@ -376,7 +385,8 @@ impl AnalyticsReporter {
             1000, // Large batch for final flush
             &self.events_sent,
             &self.events_failed,
-        ).await
+        )
+        .await
     }
 
     /// Get reporter stats
@@ -414,10 +424,7 @@ pub struct ClickHouseClient {
 }
 
 impl ClickHouseClient {
-    pub fn new(
-        endpoint: impl Into<String>,
-        database: impl Into<String>,
-    ) -> Self {
+    pub fn new(endpoint: impl Into<String>, database: impl Into<String>) -> Self {
         Self {
             endpoint: endpoint.into(),
             database: database.into(),
@@ -475,10 +482,7 @@ impl GrafanaClient {
     }
 
     /// Create or update dashboard
-    pub async fn upsert_dashboard(
-        &self,
-        _dashboard_json: &str,
-    ) -> Result<(), TelemetryError> {
+    pub async fn upsert_dashboard(&self, _dashboard_json: &str) -> Result<(), TelemetryError> {
         // Dashboard creation implementation
         // Placeholder for now
         println!("[Grafana] Would create/update dashboard");

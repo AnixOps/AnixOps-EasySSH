@@ -5,13 +5,10 @@
 //! Visual port forwarding management with topology visualization,
 //! traffic monitoring, and rule templates.
 
+use crate::apple_design::{AppleButton, AppleCard, ButtonSize, ButtonStyle};
 use crate::viewmodels::port_forward::{
-    CreateForwardRuleRequest, ForwardRuleDto, ForwardRuleTemplateDto,
-    ForwardTopologyDto, PortForwardViewModel, TrafficStatsDto,
-};
-use crate::apple_design::{
-    AppleButton, AppleCard,
-    ButtonSize, ButtonStyle,
+    CreateForwardRuleRequest, ForwardRuleDto, ForwardRuleTemplateDto, ForwardTopologyDto,
+    PortForwardViewModel, TrafficStatsDto,
 };
 use eframe::egui;
 use std::collections::HashMap;
@@ -125,11 +122,7 @@ impl PortForwardDialog {
 
     /// Show status message
     pub fn show_status(&mut self, message: &str, color: egui::Color32) {
-        self.status_message = Some((
-            message.to_string(),
-            color,
-            std::time::Instant::now(),
-        ));
+        self.status_message = Some((message.to_string(), color, std::time::Instant::now()));
     }
 
     /// Render the dialog
@@ -245,7 +238,11 @@ impl PortForwardDialog {
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let active_count = self.rules.iter().filter(|r| r.status == "Active").count();
-                ui.label(format!("{} active / {} total", active_count, self.rules.len()));
+                ui.label(format!(
+                    "{} active / {} total",
+                    active_count,
+                    self.rules.len()
+                ));
             });
         });
 
@@ -261,9 +258,11 @@ impl PortForwardDialog {
         if self.rules.is_empty() {
             ui.vertical_centered(|ui| {
                 ui.add_space(50.0);
-                ui.label(egui::RichText::new("No forwarding rules configured")
-                    .size(16.0)
-                    .color(ui.visuals().weak_text_color()));
+                ui.label(
+                    egui::RichText::new("No forwarding rules configured")
+                        .size(16.0)
+                        .color(ui.visuals().weak_text_color()),
+                );
                 ui.label("Click 'New Rule' to create one or select a template");
             });
         } else {
@@ -295,7 +294,11 @@ impl PortForwardDialog {
                 ui.label("Type:");
                 ui.radio_value(&mut self.new_rule_type, ForwardType::Local, "Local (-L)");
                 ui.radio_value(&mut self.new_rule_type, ForwardType::Remote, "Remote (-R)");
-                ui.radio_value(&mut self.new_rule_type, ForwardType::Dynamic, "Dynamic/SOCKS (-D)");
+                ui.radio_value(
+                    &mut self.new_rule_type,
+                    ForwardType::Dynamic,
+                    "Dynamic/SOCKS (-D)",
+                );
             });
 
             ui.add_space(8.0);
@@ -321,7 +324,10 @@ impl PortForwardDialog {
             }
 
             // Auto-reconnect
-            ui.checkbox(&mut self.new_rule_auto_reconnect, "Auto-reconnect on failure");
+            ui.checkbox(
+                &mut self.new_rule_auto_reconnect,
+                "Auto-reconnect on failure",
+            );
 
             ui.add_space(8.0);
 
@@ -366,7 +372,12 @@ impl PortForwardDialog {
     }
 
     /// Render a rule card
-    fn render_rule_card(&mut self, ui: &mut egui::Ui, vm: &PortForwardViewModel, rule: &ForwardRuleDto) {
+    fn render_rule_card(
+        &mut self,
+        ui: &mut egui::Ui,
+        vm: &PortForwardViewModel,
+        rule: &ForwardRuleDto,
+    ) {
         let _is_selected = self.selected_rule.as_ref() == Some(&rule.id);
         let theme = crate::design::DesignTheme::light();
 
@@ -388,7 +399,10 @@ impl PortForwardDialog {
                 // Rule info
                 ui.vertical(|ui| {
                     ui.label(egui::RichText::new(&rule.name).strong());
-                    ui.label(format!("{} → {}", rule.forward_type_display, rule.local_addr));
+                    ui.label(format!(
+                        "{} → {}",
+                        rule.forward_type_display, rule.local_addr
+                    ));
                     if let Some(ref remote) = rule.remote_addr {
                         ui.label(format!("→ {}", remote));
                     }
@@ -404,23 +418,24 @@ impl PortForwardDialog {
                             .clicked()
                         {
                             if let Err(e) = vm.stop_forward(&rule.id) {
-                                self.show_status(&format!("Stop failed: {}", e), egui::Color32::RED);
+                                self.show_status(
+                                    &format!("Stop failed: {}", e),
+                                    egui::Color32::RED,
+                                );
                             } else {
                                 self.show_status("Rule stopped", egui::Color32::GREEN);
                                 self.refresh_rules();
                             }
                         }
-                    } else {
-                        if AppleButton::new(&theme, "Start")
-                            .style(ButtonStyle::Primary)
-                            .size(ButtonSize::Small)
-                            .show(ui)
-                            .clicked()
-                        {
-                            // Start the forward rule
-                            // This would need the current session_id
-                            self.show_status("Starting rule...", egui::Color32::YELLOW);
-                        }
+                    } else if AppleButton::new(&theme, "Start")
+                        .style(ButtonStyle::Primary)
+                        .size(ButtonSize::Small)
+                        .show(ui)
+                        .clicked()
+                    {
+                        // Start the forward rule
+                        // This would need the current session_id
+                        self.show_status("Starting rule...", egui::Color32::YELLOW);
                     }
 
                     if AppleButton::new(&theme, "Delete")
@@ -456,7 +471,8 @@ impl PortForwardDialog {
                     }
                 });
             }
-        }).show(ui);
+        })
+        .show(ui);
 
         ui.add_space(8.0);
     }
@@ -539,7 +555,8 @@ impl PortForwardDialog {
                     }
                 });
             });
-        }).show(ui);
+        })
+        .show(ui);
 
         ui.add_space(8.0);
     }
@@ -576,7 +593,11 @@ impl PortForwardDialog {
     }
 
     /// Render topology node
-    fn render_topology_node(&self, ui: &mut egui::Ui, node: &crate::viewmodels::port_forward::TopologyNodeDto) {
+    fn render_topology_node(
+        &self,
+        ui: &mut egui::Ui,
+        node: &crate::viewmodels::port_forward::TopologyNodeDto,
+    ) {
         let color = match node.node_type.as_str() {
             "Local" => egui::Color32::from_rgb(0, 122, 255),
             "Server" => egui::Color32::from_rgb(52, 199, 89),
@@ -593,7 +614,11 @@ impl PortForwardDialog {
     }
 
     /// Render topology edge
-    fn render_topology_edge(&self, ui: &mut egui::Ui, edge: &crate::viewmodels::port_forward::TopologyEdgeDto) {
+    fn render_topology_edge(
+        &self,
+        ui: &mut egui::Ui,
+        edge: &crate::viewmodels::port_forward::TopologyEdgeDto,
+    ) {
         let theme = crate::design::DesignTheme::light();
         AppleCard::new(&theme, |ui| {
             ui.horizontal(|ui| {
@@ -615,7 +640,8 @@ impl PortForwardDialog {
                     edge.connections_active
                 ));
             }
-        }).show(ui);
+        })
+        .show(ui);
 
         ui.add_space(4.0);
     }
@@ -626,11 +652,7 @@ impl PortForwardDialog {
         ui.label("Real-time traffic monitoring for active forwarding rules:");
         ui.add_space(16.0);
 
-        let active_rules: Vec<_> = self
-            .rules
-            .iter()
-            .filter(|r| r.status == "Active")
-            .collect();
+        let active_rules: Vec<_> = self.rules.iter().filter(|r| r.status == "Active").collect();
 
         if active_rules.is_empty() {
             ui.vertical_centered(|ui| {
@@ -649,11 +671,21 @@ impl PortForwardDialog {
                         ui.separator();
 
                         // Traffic bars
-                        ui.label(format!("Sent: {} ({} bytes)", stats.bytes_sent_formatted, stats.bytes_sent));
-                        ui.label(format!("Received: {} ({} bytes)", stats.bytes_received_formatted, stats.bytes_received));
-                        ui.label(format!("Connections: {} active / {} total", stats.connections_active, stats.connections_total));
+                        ui.label(format!(
+                            "Sent: {} ({} bytes)",
+                            stats.bytes_sent_formatted, stats.bytes_sent
+                        ));
+                        ui.label(format!(
+                            "Received: {} ({} bytes)",
+                            stats.bytes_received_formatted, stats.bytes_received
+                        ));
+                        ui.label(format!(
+                            "Connections: {} active / {} total",
+                            stats.connections_active, stats.connections_total
+                        ));
                         ui.label(format!("Errors: {}", stats.errors_total));
-                    }).show(ui);
+                    })
+                    .show(ui);
 
                     ui.add_space(8.0);
                 }

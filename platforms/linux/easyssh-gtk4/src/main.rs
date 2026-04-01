@@ -28,9 +28,7 @@ fn main() -> glib::ExitCode {
     load_css();
 
     // Create and run app
-    let app = adw::Application::builder()
-        .application_id(APP_ID)
-        .build();
+    let app = adw::Application::builder().application_id(APP_ID).build();
 
     // Store EasySSHApp instance for shutdown handling
     let easy_app_ref: RefCell<Option<Arc<EasySSHApp>>> = RefCell::new(None);

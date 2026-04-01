@@ -1,8 +1,9 @@
 //! Query execution and results
 
+use crate::database_client::DatabaseError;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::database_client::DatabaseError;
 
 /// Query result cell types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,7 +91,9 @@ impl QueryRow {
 
     /// Get value by column name (requires column map)
     pub fn get_by_name(&self, name: &str, columns: &[String]) -> Option<&QueryCell> {
-        columns.iter().position(|c| c == name)
+        columns
+            .iter()
+            .position(|c| c == name)
             .and_then(|idx| self.cells.get(idx))
     }
 }
@@ -131,18 +134,16 @@ impl QueryResult {
 
         // Write rows
         for row in &self.rows {
-            let record: Vec<String> = row.cells.iter()
-                .map(|cell| cell.to_string())
-                .collect();
+            let record: Vec<String> = row.cells.iter().map(|cell| cell.to_string()).collect();
             wtr.write_record(&record)
                 .map_err(|e| DatabaseError::ImportExportError(e.to_string()))?;
         }
 
-        let data = wtr.into_inner()
+        let data = wtr
+            .into_inner()
             .map_err(|e| DatabaseError::ImportExportError(e.to_string()))?;
 
-        String::from_utf8(data)
-            .map_err(|e| DatabaseError::ImportExportError(e.to_string()))
+        String::from_utf8(data).map_err(|e| DatabaseError::ImportExportError(e.to_string()))
     }
 
     /// Convert to JSON format
@@ -158,18 +159,16 @@ impl QueryResult {
                         QueryCell::Boolean(b) => serde_json::Value::Bool(*b),
                         QueryCell::Integer(i) => serde_json::Value::Number((*i).into()),
                         QueryCell::Float(f) => serde_json::Value::Number(
-                            serde_json::Number::from_f64(*f)
-                                .unwrap_or(0.into())
+                            serde_json::Number::from_f64(*f).unwrap_or(0.into()),
                         ),
                         QueryCell::String(s) => serde_json::Value::String(s.clone()),
-                        QueryCell::Blob(b) => serde_json::Value::String(
-                            base64::encode(b)
-                        ),
+                        QueryCell::Blob(b) => serde_json::Value::String(STANDARD.encode(b)),
                         QueryCell::Date(d) => serde_json::Value::String(d.clone()),
                         QueryCell::DateTime(d) => serde_json::Value::String(d.clone()),
                         QueryCell::Json(v) => v.clone(),
                         QueryCell::Array(a) => {
-                            let arr: Vec<serde_json::Value> = a.iter()
+                            let arr: Vec<serde_json::Value> = a
+                                .iter()
                                 .map(|c| match c {
                                     QueryCell::Null => serde_json::Value::Null,
                                     QueryCell::String(s) => serde_json::Value::String(s.clone()),
@@ -198,16 +197,22 @@ impl QueryResult {
 
         for row in &self.rows {
             let columns = self.columns.join(", ");
-            let values: Vec<String> = row.cells.iter()
-                .map(|cell| {
-                    match cell {
-                        QueryCell::Null => "NULL".to_string(),
-                        QueryCell::String(s) => format!("'{}'", s.replace('\'', "''")),
-                        QueryCell::Integer(i) => i.to_string(),
-                        QueryCell::Float(f) => f.to_string(),
-                        QueryCell::Boolean(b) => if *b { "TRUE".to_string() } else { "FALSE".to_string() },
-                        _ => format!("'{}'", cell.to_string()),
+            let values: Vec<String> = row
+                .cells
+                .iter()
+                .map(|cell| match cell {
+                    QueryCell::Null => "NULL".to_string(),
+                    QueryCell::String(s) => format!("'{}'", s.replace('\'', "''")),
+                    QueryCell::Integer(i) => i.to_string(),
+                    QueryCell::Float(f) => f.to_string(),
+                    QueryCell::Boolean(b) => {
+                        if *b {
+                            "TRUE".to_string()
+                        } else {
+                            "FALSE".to_string()
+                        }
                     }
+                    _ => format!("'{}'", cell.to_string()),
                 })
                 .collect();
 
@@ -262,12 +267,14 @@ impl QueryBuilder {
     pub fn where_eq(mut self, column: &str, value: QueryCell) -> Self {
         let param_name = format!("p{}", self.parameters.len());
         self.parameters.insert(param_name.clone(), value);
-        self.where_clauses.push(format!("{} = :{}", column, param_name));
+        self.where_clauses
+            .push(format!("{} = :{}", column, param_name));
         self
     }
 
     pub fn where_like(mut self, column: &str, pattern: &str) -> Self {
-        self.where_clauses.push(format!("{} LIKE '{}'", column, pattern));
+        self.where_clauses
+            .push(format!("{} LIKE '{}'", column, pattern));
         self
     }
 
@@ -288,7 +295,8 @@ impl QueryBuilder {
     }
 
     pub fn join(mut self, table: &str, on: &str, join_type: &str) -> Self {
-        self.joins.push(format!("{} JOIN {} ON {}", join_type, table, on));
+        self.joins
+            .push(format!("{} JOIN {} ON {}", join_type, table, on));
         self
     }
 
@@ -334,11 +342,10 @@ impl QueryFormatter {
     pub fn format(sql: &str) -> String {
         // Simple SQL formatting
         let keywords = vec![
-            "SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER",
-            "ON", "GROUP", "BY", "HAVING", "ORDER", "LIMIT", "OFFSET",
-            "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE",
-            "CREATE", "TABLE", "ALTER", "DROP", "INDEX", "UNIQUE",
-            "AND", "OR", "NOT", "IN", "EXISTS", "BETWEEN", "LIKE",
+            "SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "ON", "GROUP",
+            "BY", "HAVING", "ORDER", "LIMIT", "OFFSET", "INSERT", "INTO", "VALUES", "UPDATE",
+            "SET", "DELETE", "CREATE", "TABLE", "ALTER", "DROP", "INDEX", "UNIQUE", "AND", "OR",
+            "NOT", "IN", "EXISTS", "BETWEEN", "LIKE",
         ];
 
         let mut formatted = String::new();
@@ -396,7 +403,10 @@ mod tests {
             columns: vec!["id".to_string(), "name".to_string()],
             rows: vec![
                 QueryRow {
-                    cells: vec![QueryCell::Integer(1), QueryCell::String("Alice".to_string())],
+                    cells: vec![
+                        QueryCell::Integer(1),
+                        QueryCell::String("Alice".to_string()),
+                    ],
                 },
                 QueryRow {
                     cells: vec![QueryCell::Integer(2), QueryCell::String("Bob".to_string())],

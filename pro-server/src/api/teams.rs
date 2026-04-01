@@ -7,12 +7,7 @@ use chrono::Utc;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::{
-    auth::Claims,
-    models::*,
-    services::team_service::TeamService,
-    AppState,
-};
+use crate::{auth::Claims, models::*, services::team_service::TeamService, AppState};
 
 pub fn team_routes() -> Router<AppState> {
     Router::new()
@@ -45,17 +40,24 @@ async fn create_team(
     let team_service = TeamService::new(state.db.pool().clone(), state.redis.clone());
 
     let team = team_service
-        .create_team(&claims.sub, &req.name, req.description.as_deref(), req.settings)
+        .create_team(
+            &claims.sub,
+            &req.name,
+            req.description.as_deref(),
+            req.settings,
+        )
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "team_creation_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "team_creation_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -68,21 +70,26 @@ async fn list_teams(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
     Query(params): Query<PaginationParams>,
-) -> Result<Json<SuccessResponse<PaginatedResponse<Team>>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
+) -> Result<
+    Json<SuccessResponse<PaginatedResponse<Team>>>,
+    (axum::http::StatusCode, Json<ErrorResponse>),
+> {
     let team_service = TeamService::new(state.db.pool().clone(), state.redis.clone());
 
     let (teams, total) = team_service
         .list_user_teams(&claims.sub, params.page, params.limit)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "list_teams_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "list_teams_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     let page = params.page.unwrap_or(1);
     let limit = params.limit.unwrap_or(20);
@@ -112,32 +119,33 @@ async fn get_team(
 ) -> Result<Json<SuccessResponse<Team>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let team_service = TeamService::new(state.db.pool().clone(), state.redis.clone());
 
-    let team = team_service
-        .get_team(&id)
-        .await
-        .map_err(|e| (
+    let team = team_service.get_team(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::NOT_FOUND,
             Json(ErrorResponse {
                 error: "team_not_found".to_string(),
                 message: e.to_string(),
                 code: Some("team_not_found".to_string()),
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     // Check if user is a member
     let is_member = team_service
         .is_team_member(&id, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !is_member {
         return Err((
@@ -147,7 +155,7 @@ async fn get_team(
                 message: "You are not a member of this team".to_string(),
                 code: Some("not_team_member".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
@@ -170,15 +178,17 @@ async fn update_team(
     let can_manage = team_service
         .has_team_permission(&id, &claims.sub, "manage")
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !can_manage {
         return Err((
@@ -188,22 +198,29 @@ async fn update_team(
                 message: "You don't have permission to update this team".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     let team = team_service
-        .update_team(&id, req.name.as_deref(), req.description.as_deref(), req.settings)
+        .update_team(
+            &id,
+            req.name.as_deref(),
+            req.description.as_deref(),
+            req.settings,
+        )
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "team_update_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "team_update_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -223,15 +240,17 @@ async fn delete_team(
     let is_owner = team_service
         .is_team_owner(&id, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !is_owner {
         return Err((
@@ -241,22 +260,21 @@ async fn delete_team(
                 message: "Only team owner can delete the team".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
-    team_service
-        .delete_team(&id)
-        .await
-        .map_err(|e| (
+    team_service.delete_team(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "team_deletion_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -276,15 +294,17 @@ async fn list_team_members(
     let is_member = team_service
         .is_team_member(&id, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !is_member {
         return Err((
@@ -294,22 +314,21 @@ async fn list_team_members(
                 message: "You are not a member of this team".to_string(),
                 code: Some("not_team_member".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
-    let members = team_service
-        .list_team_members(&id)
-        .await
-        .map_err(|e| (
+    let members = team_service.list_team_members(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "list_members_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -330,15 +349,17 @@ async fn invite_member(
     let can_invite = team_service
         .has_team_permission(&id, &claims.sub, "invite")
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !can_invite {
         return Err((
@@ -348,28 +369,37 @@ async fn invite_member(
                 message: "You don't have permission to invite members".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     let invitation = team_service
         .invite_member(&id, &req.email, req.role, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "invitation_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "invitation_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     // Send invitation email (async)
-    if let (Some(smtp_host), Some(smtp_from)) = (state.config.smtp_host.as_ref(), state.config.smtp_from.as_ref()) {
+    if let (Some(smtp_host), Some(smtp_from)) = (
+        state.config.smtp_host.as_ref(),
+        state.config.smtp_from.as_ref(),
+    ) {
         // Email sending logic would go here
         // For now, just log
-        tracing::info!("Would send invitation email to {} for team {}", req.email, id);
+        tracing::info!(
+            "Would send invitation email to {} for team {}",
+            req.email,
+            id
+        );
     }
 
     Ok(Json(SuccessResponse {
@@ -390,15 +420,17 @@ async fn remove_member(
     let is_owner_or_admin = team_service
         .has_team_permission(&team_id, &claims.sub, "manage")
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     // Can also remove yourself
     let is_self = member_id == claims.sub;
@@ -411,22 +443,24 @@ async fn remove_member(
                 message: "You don't have permission to remove this member".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     team_service
         .remove_member(&team_id, &member_id)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "remove_member_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "remove_member_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -447,15 +481,17 @@ async fn update_member_role(
     let can_manage = team_service
         .has_team_permission(&team_id, &claims.sub, "manage")
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !can_manage {
         return Err((
@@ -465,49 +501,51 @@ async fn update_member_role(
                 message: "You don't have permission to change member roles".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
-    let role_str = req.get("role")
-        .and_then(|v| v.as_str())
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_role".to_string(),
-                message: "Role is required".to_string(),
-                code: Some("missing_field".to_string()),
-                details: None,
-            })
-        ))?;
+    let role_str = req.get("role").and_then(|v| v.as_str()).ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_role".to_string(),
+            message: "Role is required".to_string(),
+            code: Some("missing_field".to_string()),
+            details: None,
+        }),
+    ))?;
 
     let role = match role_str {
         "admin" => TeamRole::Admin,
         "member" => TeamRole::Member,
         "guest" => TeamRole::Guest,
-        _ => return Err((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "invalid_role".to_string(),
-                message: format!("Invalid role: {}", role_str),
-                code: Some("invalid_value".to_string()),
-                details: None,
-            })
-        ))
+        _ => {
+            return Err((
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "invalid_role".to_string(),
+                    message: format!("Invalid role: {}", role_str),
+                    code: Some("invalid_value".to_string()),
+                    details: None,
+                }),
+            ))
+        }
     };
 
     let member = team_service
         .update_member_role(&team_id, &member_id, role)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "update_role_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "update_role_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -526,15 +564,17 @@ async fn accept_invitation(
     let member = team_service
         .accept_invitation(&token, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "accept_invitation_failed".to_string(),
-                message: e.to_string(),
-                code: Some("invitation_error".to_string()),
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "accept_invitation_failed".to_string(),
+                    message: e.to_string(),
+                    code: Some("invitation_error".to_string()),
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -553,15 +593,17 @@ async fn decline_invitation(
     team_service
         .decline_invitation(&token, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "decline_invitation_failed".to_string(),
-                message: e.to_string(),
-                code: Some("invitation_error".to_string()),
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "decline_invitation_failed".to_string(),
+                    message: e.to_string(),
+                    code: Some("invitation_error".to_string()),
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -581,15 +623,17 @@ async fn list_invitations(
     let can_manage = team_service
         .has_team_permission(&team_id, &claims.sub, "manage")
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !can_manage {
         return Err((
@@ -599,22 +643,21 @@ async fn list_invitations(
                 message: "You don't have permission to view invitations".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
-    let invitations = team_service
-        .list_invitations(&team_id)
-        .await
-        .map_err(|e| (
+    let invitations = team_service.list_invitations(&team_id).await.map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "list_invitations_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -634,15 +677,17 @@ async fn cancel_invitation(
     let can_manage = team_service
         .has_team_permission(&team_id, &claims.sub, "manage")
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !can_manage {
         return Err((
@@ -652,22 +697,24 @@ async fn cancel_invitation(
                 message: "You don't have permission to cancel invitations".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     team_service
         .cancel_invitation(&invitation_id, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "cancel_invitation_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "cancel_invitation_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -680,21 +727,24 @@ async fn get_team_settings(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
     Path(team_id): Path<String>,
-) -> Result<Json<SuccessResponse<serde_json::Value>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SuccessResponse<serde_json::Value>>, (axum::http::StatusCode, Json<ErrorResponse>)>
+{
     let team_service = TeamService::new(state.db.pool().clone(), state.redis.clone());
 
     let is_member = team_service
         .is_team_member(&team_id, &claims.sub)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !is_member {
         return Err((
@@ -704,22 +754,24 @@ async fn get_team_settings(
                 message: "You are not a member of this team".to_string(),
                 code: Some("not_team_member".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     let settings = team_service
         .get_team_settings(&team_id)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "get_settings_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "get_settings_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -733,21 +785,24 @@ async fn update_team_settings(
     Extension(claims): Extension<Claims>,
     Path(team_id): Path<String>,
     Json(settings): Json<serde_json::Value>,
-) -> Result<Json<SuccessResponse<serde_json::Value>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SuccessResponse<serde_json::Value>>, (axum::http::StatusCode, Json<ErrorResponse>)>
+{
     let team_service = TeamService::new(state.db.pool().clone(), state.redis.clone());
 
     let can_manage = team_service
         .has_team_permission(&team_id, &claims.sub, "manage")
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "permission_check_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "permission_check_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     if !can_manage {
         return Err((
@@ -757,22 +812,24 @@ async fn update_team_settings(
                 message: "You don't have permission to update team settings".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     let updated_settings = team_service
         .update_team_settings(&team_id, settings)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "update_settings_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "update_settings_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,

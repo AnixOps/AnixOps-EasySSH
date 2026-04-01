@@ -74,7 +74,7 @@ impl Resource {
         }
 
         match (&self.resource_id, &other.resource_id) {
-            (None, _) => true,    // self 是通配
+            (None, _) => true,        // self 是通配
             (Some(_), None) => false, // self 是特定，other 是通配
             (Some(a), Some(b)) => a == b,
         }
@@ -96,7 +96,12 @@ pub enum Operation {
 impl Operation {
     /// 获取CRUD操作
     pub fn crud() -> Vec<Operation> {
-        vec![Operation::Create, Operation::Read, Operation::Update, Operation::Delete]
+        vec![
+            Operation::Create,
+            Operation::Read,
+            Operation::Update,
+            Operation::Delete,
+        ]
     }
 
     /// 获取所有操作
@@ -122,19 +127,24 @@ pub struct Permission {
 impl Permission {
     /// 创建新权限
     pub fn new(resource: Resource, operation: Operation) -> Self {
-        Self { resource, operation }
+        Self {
+            resource,
+            operation,
+        }
     }
 
     /// 快捷创建
     pub fn crud(resource_type: ResourceType) -> Vec<Permission> {
-        Operation::crud().into_iter()
+        Operation::crud()
+            .into_iter()
             .map(|op| Permission::new(Resource::all(resource_type), op))
             .collect()
     }
 
     /// 完整权限
     pub fn full(resource_type: ResourceType) -> Vec<Permission> {
-        Operation::all().into_iter()
+        Operation::all()
+            .into_iter()
             .map(|op| Permission::new(Resource::all(resource_type), op))
             .collect()
     }
@@ -255,7 +265,9 @@ impl UserRoleAssignment {
 
     /// 检查是否过期
     pub fn is_expired(&self) -> bool {
-        self.expires_at.map(|e| chrono::Utc::now() > e).unwrap_or(false)
+        self.expires_at
+            .map(|e| chrono::Utc::now() > e)
+            .unwrap_or(false)
     }
 }
 
@@ -386,8 +398,14 @@ impl RbacManager {
         let mut team_viewer = RoleDefinition::new("Team Viewer")
             .with_description("团队观察者，只读访问")
             .as_system();
-        team_viewer.add_permission(Permission::new(Resource::all(ResourceType::Server), Operation::Read));
-        team_viewer.add_permission(Permission::new(Resource::all(ResourceType::Session), Operation::Read));
+        team_viewer.add_permission(Permission::new(
+            Resource::all(ResourceType::Server),
+            Operation::Read,
+        ));
+        team_viewer.add_permission(Permission::new(
+            Resource::all(ResourceType::Session),
+            Operation::Read,
+        ));
 
         // 个人用户
         let mut personal = RoleDefinition::new("Personal")
@@ -397,8 +415,14 @@ impl RbacManager {
         personal.add_permissions(Permission::full(ResourceType::Key));
         personal.add_permissions(Permission::full(ResourceType::Snippet));
         personal.add_permissions(Permission::full(ResourceType::Layout));
-        personal.add_permission(Permission::new(Resource::all(ResourceType::Config), Operation::Read));
-        personal.add_permission(Permission::new(Resource::all(ResourceType::Config), Operation::Update));
+        personal.add_permission(Permission::new(
+            Resource::all(ResourceType::Config),
+            Operation::Read,
+        ));
+        personal.add_permission(Permission::new(
+            Resource::all(ResourceType::Config),
+            Operation::Update,
+        ));
 
         self.roles.insert("super_admin".to_string(), super_admin);
         self.roles.insert("team_admin".to_string(), team_admin);
@@ -467,7 +491,10 @@ impl RbacManager {
     /// 分配角色给用户
     pub fn assign_role(&mut self, assignment: UserRoleAssignment) -> Result<(), LiteError> {
         if !self.roles.contains_key(&assignment.role_id) {
-            return Err(LiteError::Rbac(format!("Role {} not found", assignment.role_id)));
+            return Err(LiteError::Rbac(format!(
+                "Role {} not found",
+                assignment.role_id
+            )));
         }
 
         self.assignments
@@ -486,9 +513,7 @@ impl RbacManager {
         team_id: Option<&str>,
     ) -> Result<(), LiteError> {
         if let Some(assignments) = self.assignments.get_mut(user_id) {
-            assignments.retain(|a| {
-                !(a.role_id == role_id && a.team_id.as_deref() == team_id)
-            });
+            assignments.retain(|a| !(a.role_id == role_id && a.team_id.as_deref() == team_id));
         }
         Ok(())
     }
@@ -506,7 +531,8 @@ impl RbacManager {
         self.assignments
             .get(user_id)
             .map(|assignments| {
-                assignments.iter()
+                assignments
+                    .iter()
                     .filter(|a| !a.is_expired())
                     .filter(|a| a.team_id.as_deref() == Some(team_id))
                     .filter_map(|a| self.roles.get(&a.role_id))
@@ -516,11 +542,7 @@ impl RbacManager {
     }
 
     /// 检查权限
-    pub fn check_permission(
-        &self,
-        context: &PermissionContext,
-        permission: &Permission,
-    ) -> bool {
+    pub fn check_permission(&self, context: &PermissionContext, permission: &Permission) -> bool {
         // 超级管理员直接通过
         if context.is_super_admin {
             return true;
@@ -537,7 +559,9 @@ impl RbacManager {
         }
 
         // 获取用户角色
-        let user_assignments = self.assignments.get(&context.user_id)
+        let user_assignments = self
+            .assignments
+            .get(&context.user_id)
             .map(|a| a.iter().filter(|a| !a.is_expired()).collect::<Vec<_>>())
             .unwrap_or_default();
 
@@ -568,7 +592,9 @@ impl RbacManager {
         context: &PermissionContext,
         permissions: &[Permission],
     ) -> bool {
-        permissions.iter().any(|p| self.check_permission(context, p))
+        permissions
+            .iter()
+            .any(|p| self.check_permission(context, p))
     }
 
     /// 批量检查权限（全部）
@@ -577,7 +603,9 @@ impl RbacManager {
         context: &PermissionContext,
         permissions: &[Permission],
     ) -> bool {
-        permissions.iter().all(|p| self.check_permission(context, p))
+        permissions
+            .iter()
+            .all(|p| self.check_permission(context, p))
     }
 
     /// 添加策略
@@ -586,8 +614,14 @@ impl RbacManager {
     }
 
     /// 获取用户的所有权限
-    pub fn get_user_permissions(&self, user_id: &str, team_id: Option<&str>) -> HashSet<Permission> {
-        let assignments = self.assignments.get(user_id)
+    pub fn get_user_permissions(
+        &self,
+        user_id: &str,
+        team_id: Option<&str>,
+    ) -> HashSet<Permission> {
+        let assignments = self
+            .assignments
+            .get(user_id)
             .map(|a| a.iter().filter(|a| !a.is_expired()).collect::<Vec<_>>())
             .unwrap_or_default();
 
@@ -619,10 +653,7 @@ impl RbacManager {
         resource_id: &str,
         operation: Operation,
     ) -> bool {
-        let permission = Permission::new(
-            Resource::specific(resource_type, resource_id),
-            operation,
-        );
+        let permission = Permission::new(Resource::specific(resource_type, resource_id), operation);
         self.check_permission(context, &permission)
     }
 
@@ -644,7 +675,9 @@ impl Default for RbacManager {
 macro_rules! require_permission {
     ($rbac:expr, $ctx:expr, $resource:expr, $operation:expr) => {
         if !$rbac.check_permission($ctx, &$crate::rbac::Permission::new($resource, $operation)) {
-            return Err($crate::error::LiteError::Rbac("Permission denied".to_string()));
+            return Err($crate::error::LiteError::Rbac(
+                "Permission denied".to_string(),
+            ));
         }
     };
 }
@@ -682,8 +715,14 @@ mod tests {
     #[test]
     fn test_role_definition() {
         let mut role = RoleDefinition::new("Test Role");
-        role.add_permission(Permission::new(Resource::all(ResourceType::Server), Operation::Read));
-        role.add_permission(Permission::new(Resource::all(ResourceType::Server), Operation::Update));
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Server),
+            Operation::Read,
+        ));
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Server),
+            Operation::Update,
+        ));
 
         assert!(role.has_permission(&Permission::new(
             Resource::specific(ResourceType::Server, "srv1"),
@@ -723,16 +762,16 @@ mod tests {
         let ctx = PermissionContext::new("user1");
 
         // 应该可以创建服务器
-        assert!(rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Server),
-            Operation::Create,
-        )));
+        assert!(rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Server), Operation::Create,)
+        ));
 
         // 不应该能管理团队
-        assert!(!rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Team),
-            Operation::Manage,
-        )));
+        assert!(!rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Team), Operation::Manage,)
+        ));
     }
 
     #[test]
@@ -748,17 +787,17 @@ mod tests {
         let ctx = PermissionContext::new("user1").with_team("team1");
 
         // 在team1中可以管理成员
-        assert!(rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Member),
-            Operation::Manage,
-        )));
+        assert!(rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Member), Operation::Manage,)
+        ));
 
         // 在team2中不行
         let ctx2 = PermissionContext::new("user1").with_team("team2");
-        assert!(!rbac.check_permission(&ctx2, &Permission::new(
-            Resource::all(ResourceType::Member),
-            Operation::Manage,
-        )));
+        assert!(!rbac.check_permission(
+            &ctx2,
+            &Permission::new(Resource::all(ResourceType::Member), Operation::Manage,)
+        ));
     }
 
     #[test]
@@ -768,14 +807,14 @@ mod tests {
         let ctx = PermissionContext::new("admin").as_super_admin();
 
         // 超级管理员可以执行任何操作
-        assert!(rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::System),
-            Operation::Manage,
-        )));
-        assert!(rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Server),
-            Operation::Delete,
-        )));
+        assert!(rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::System), Operation::Manage,)
+        ));
+        assert!(rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Server), Operation::Delete,)
+        ));
     }
 
     #[test]
@@ -790,10 +829,10 @@ mod tests {
         let ctx = PermissionContext::new("user1");
 
         // 权限应该已过期
-        assert!(!rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Server),
-            Operation::Manage,
-        )));
+        assert!(!rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Server), Operation::Manage,)
+        ));
     }
 
     #[test]
@@ -822,8 +861,7 @@ mod tests {
         let mut rbac = RbacManager::new();
 
         // 创建继承personal的角色
-        let mut custom = RoleDefinition::new("Custom")
-            .inherits(vec!["personal"]);
+        let mut custom = RoleDefinition::new("Custom").inherits(vec!["personal"]);
 
         // 添加额外权限
         custom.add_permission(Permission::new(
@@ -840,16 +878,16 @@ mod tests {
         let ctx = PermissionContext::new("user1");
 
         // 应该继承personal的权限
-        assert!(rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Server),
-            Operation::Create,
-        )));
+        assert!(rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Server), Operation::Create,)
+        ));
 
         // 也应有自己的权限
-        assert!(rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::AuditLog),
-            Operation::Read,
-        )));
+        assert!(rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::AuditLog), Operation::Read,)
+        ));
     }
 
     #[test]
@@ -896,7 +934,9 @@ mod tests {
 
         let perms = rbac.get_user_permissions("user1", None);
         assert!(!perms.is_empty());
-        assert!(perms.iter().any(|p| p.resource.resource_type == ResourceType::Server));
+        assert!(perms
+            .iter()
+            .any(|p| p.resource.resource_type == ResourceType::Server));
     }
 
     #[test]
@@ -905,18 +945,18 @@ mod tests {
         rbac.setup_personal_user("user1").unwrap();
 
         let ctx = PermissionContext::new("user1");
-        assert!(rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Server),
-            Operation::Read,
-        )));
+        assert!(rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Server), Operation::Read,)
+        ));
 
         // 撤销角色
         rbac.revoke_role("user1", "personal", None).unwrap();
 
-        assert!(!rbac.check_permission(&ctx, &Permission::new(
-            Resource::all(ResourceType::Server),
-            Operation::Read,
-        )));
+        assert!(!rbac.check_permission(
+            &ctx,
+            &Permission::new(Resource::all(ResourceType::Server), Operation::Read,)
+        ));
     }
 
     #[test]

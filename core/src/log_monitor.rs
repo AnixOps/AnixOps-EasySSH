@@ -97,12 +97,7 @@ pub struct LogEntry {
 }
 
 impl LogEntry {
-    pub fn new(
-        source_id: String,
-        source_name: String,
-        raw_line: String,
-        sequence: u64,
-    ) -> Self {
+    pub fn new(source_id: String, source_name: String, raw_line: String, sequence: u64) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -147,9 +142,13 @@ impl LogEntry {
         }
 
         // 检查特殊错误指示器
-        if line.contains("Exception") || line.contains("exception") ||
-           line.contains("Stack trace") || line.contains("stacktrace") ||
-           line.contains("panic:") || line.contains("Panic") {
+        if line.contains("Exception")
+            || line.contains("exception")
+            || line.contains("Stack trace")
+            || line.contains("stacktrace")
+            || line.contains("panic:")
+            || line.contains("Panic")
+        {
             return LogLevel::ERROR;
         }
 
@@ -209,16 +208,24 @@ impl LogEntry {
         }
 
         // 提取请求ID
-        if let Ok(re) = Regex::new(r"(req[_-]?id[:=]\s*\w+|request[_-]?id[:=]\s*\w+|trace[_-]?id[:=]\s*\w+)") {
+        if let Ok(re) =
+            Regex::new(r"(req[_-]?id[:=]\s*\w+|request[_-]?id[:=]\s*\w+|trace[_-]?id[:=]\s*\w+)")
+        {
             if let Some(caps) = re.captures(line) {
-                metadata.insert("request_id".to_string(), caps.get(0).unwrap().as_str().to_string());
+                metadata.insert(
+                    "request_id".to_string(),
+                    caps.get(0).unwrap().as_str().to_string(),
+                );
             }
         }
 
         // 提取IP地址
         if let Ok(re) = Regex::new(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b") {
             if let Some(caps) = re.captures(line) {
-                metadata.insert("ip_address".to_string(), caps.get(1).unwrap().as_str().to_string());
+                metadata.insert(
+                    "ip_address".to_string(),
+                    caps.get(1).unwrap().as_str().to_string(),
+                );
             }
         }
 
@@ -381,8 +388,7 @@ impl Default for ParserConfig {
 impl LogSource {
     pub fn new(name: String, server_id: String, log_path: String, log_type: LogType) -> Self {
         let colors = [
-            "#0d6efd", "#6610f2", "#6f42c1", "#d63384",
-            "#dc3545", "#fd7e14", "#ffc107", "#198754",
+            "#0d6efd", "#6610f2", "#6f42c1", "#d63384", "#dc3545", "#fd7e14", "#ffc107", "#198754",
             "#20c997", "#0dcaf0", "#adb5bd",
         ];
 
@@ -438,11 +444,25 @@ pub struct LogAlertRule {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LogAlertCondition {
-    KeywordMatch { keywords: Vec<String>, case_sensitive: bool },
-    LevelThreshold { min_level: LogLevel, consecutive_count: usize },
-    RateThreshold { log_level: LogLevel, logs_per_minute: u32 },
-    PatternMatch { regex: String },
-    Composite { conditions: Vec<LogAlertCondition>, operator: LogicalOperator },
+    KeywordMatch {
+        keywords: Vec<String>,
+        case_sensitive: bool,
+    },
+    LevelThreshold {
+        min_level: LogLevel,
+        consecutive_count: usize,
+    },
+    RateThreshold {
+        log_level: LogLevel,
+        logs_per_minute: u32,
+    },
+    PatternMatch {
+        regex: String,
+    },
+    Composite {
+        conditions: Vec<LogAlertCondition>,
+        operator: LogicalOperator,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -453,12 +473,27 @@ pub enum LogicalOperator {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LogAlertAction {
-    Webhook { url: String, headers: HashMap<String, String> },
-    Email { recipients: Vec<String>, subject_template: String },
-    DesktopNotification { title: String, body_template: String },
-    Sound { file_path: String },
-    ExecuteCommand { command: String },
-    PauseStream { source_id: String },
+    Webhook {
+        url: String,
+        headers: HashMap<String, String>,
+    },
+    Email {
+        recipients: Vec<String>,
+        subject_template: String,
+    },
+    DesktopNotification {
+        title: String,
+        body_template: String,
+    },
+    Sound {
+        file_path: String,
+    },
+    ExecuteCommand {
+        command: String,
+    },
+    PauseStream {
+        source_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -495,7 +530,11 @@ impl LogAlertRule {
         self
     }
 
-    pub fn check(&mut self, entry: &LogEntry, recent_entries: &[LogEntry]) -> Option<LogAlertEvent> {
+    pub fn check(
+        &mut self,
+        entry: &LogEntry,
+        recent_entries: &[LogEntry],
+    ) -> Option<LogAlertEvent> {
         if !self.enabled {
             return None;
         }
@@ -512,7 +551,10 @@ impl LogAlertRule {
         }
 
         let triggered = match &self.condition {
-            LogAlertCondition::KeywordMatch { keywords, case_sensitive } => {
+            LogAlertCondition::KeywordMatch {
+                keywords,
+                case_sensitive,
+            } => {
                 let content = if *case_sensitive {
                     entry.raw_line.clone()
                 } else {
@@ -527,15 +569,18 @@ impl LogAlertRule {
                     content.contains(&keyword)
                 })
             }
-            LogAlertCondition::LevelThreshold { min_level, consecutive_count } => {
+            LogAlertCondition::LevelThreshold {
+                min_level,
+                consecutive_count,
+            } => {
                 if entry.level.priority() < min_level.priority() {
                     return None;
                 }
                 // 检查连续的日志条目
                 let mut count = 1;
                 for e in recent_entries.iter().rev().take(*consecutive_count) {
-                    if e.level.priority() >= min_level.priority() &&
-                       e.source_id == entry.source_id {
+                    if e.level.priority() >= min_level.priority() && e.source_id == entry.source_id
+                    {
                         count += 1;
                     } else {
                         break;
@@ -543,7 +588,10 @@ impl LogAlertRule {
                 }
                 count >= *consecutive_count
             }
-            LogAlertCondition::RateThreshold { log_level, logs_per_minute } => {
+            LogAlertCondition::RateThreshold {
+                log_level,
+                logs_per_minute,
+            } => {
                 if entry.level.priority() < log_level.priority() {
                     return None;
                 }
@@ -551,9 +599,9 @@ impl LogAlertRule {
                 let count = recent_entries
                     .iter()
                     .filter(|e| {
-                        e.source_id == entry.source_id &&
-                        e.timestamp >= one_minute_ago &&
-                        e.level.priority() >= log_level.priority()
+                        e.source_id == entry.source_id
+                            && e.timestamp >= one_minute_ago
+                            && e.level.priority() >= log_level.priority()
                     })
                     .count();
                 count as u32 >= *logs_per_minute
@@ -565,7 +613,10 @@ impl LogAlertRule {
                     false
                 }
             }
-            LogAlertCondition::Composite { conditions, operator } => {
+            LogAlertCondition::Composite {
+                conditions,
+                operator,
+            } => {
                 let results: Vec<bool> = conditions
                     .iter()
                     .map(|c| {
@@ -703,7 +754,10 @@ pub enum LogMonitorMessage {
     #[serde(rename = "alert")]
     Alert { alert: LogAlertEvent },
     #[serde(rename = "source_connected")]
-    SourceConnected { source_id: String, source_name: String },
+    SourceConnected {
+        source_id: String,
+        source_name: String,
+    },
     #[serde(rename = "source_disconnected")]
     SourceDisconnected { source_id: String, reason: String },
     #[serde(rename = "error")]
@@ -782,10 +836,12 @@ impl LogMonitorCenter {
         sources.remove(source_id);
 
         // 广播断开消息
-        let _ = self.broadcast_tx.send(LogMonitorMessage::SourceDisconnected {
-            source_id: source_id.to_string(),
-            reason: "User removed".to_string(),
-        });
+        let _ = self
+            .broadcast_tx
+            .send(LogMonitorMessage::SourceDisconnected {
+                source_id: source_id.to_string(),
+                reason: "User removed".to_string(),
+            });
 
         Ok(())
     }
@@ -842,7 +898,10 @@ impl LogMonitorCenter {
                 let cmd = match log_type {
                     LogType::SystemdJournal => {
                         if let Some(ref cursor) = last_position {
-                            format!("journalctl --after-cursor='{}' --no-pager -n {} --show-cursor", cursor, max_lines)
+                            format!(
+                                "journalctl --after-cursor='{}' --no-pager -n {} --show-cursor",
+                                cursor, max_lines
+                            )
                         } else {
                             format!("journalctl --no-pager -n {} -f --show-cursor", max_lines)
                         }
@@ -860,7 +919,8 @@ impl LogMonitorCenter {
                         if matches!(log_type, LogType::SystemdJournal) {
                             for line in &lines {
                                 if line.starts_with("-- cursor: ") {
-                                    last_position = Some(line.trim_start_matches("-- cursor: ").to_string());
+                                    last_position =
+                                        Some(line.trim_start_matches("-- cursor: ").to_string());
                                     break;
                                 }
                             }
@@ -906,7 +966,8 @@ impl LogMonitorCenter {
 
                             // 检查告警
                             let entries_read = entries.read().await;
-                            let _recent: Vec<LogEntry> = entries_read.iter().rev().take(100).cloned().collect();
+                            let _recent: Vec<LogEntry> =
+                                entries_read.iter().rev().take(100).cloned().collect();
                             drop(entries_read);
 
                             // 检查每条新条目的告警规则
@@ -955,8 +1016,13 @@ impl LogMonitorCenter {
         self.search(&filter).await
     }
 
-    pub async fn search_regex(&self, pattern: &str, limit: usize) -> Result<Vec<LogEntry>, LiteError> {
-        let _ = Regex::new(pattern).map_err(|e| LiteError::Config(format!("Invalid regex: {}", e)))?;
+    pub async fn search_regex(
+        &self,
+        pattern: &str,
+        limit: usize,
+    ) -> Result<Vec<LogEntry>, LiteError> {
+        let _ =
+            Regex::new(pattern).map_err(|e| LiteError::Config(format!("Invalid regex: {}", e)))?;
 
         let filter = LogFilter::new()
             .with_regex(pattern.to_string())
@@ -972,9 +1038,7 @@ impl LogMonitorCenter {
             .as_secs();
         let cutoff = now.saturating_sub(time_range_seconds);
 
-        let filtered: Vec<&LogEntry> = entries.iter()
-            .filter(|e| e.timestamp >= cutoff)
-            .collect();
+        let filtered: Vec<&LogEntry> = entries.iter().filter(|e| e.timestamp >= cutoff).collect();
 
         let total = filtered.len() as u64;
 
@@ -986,9 +1050,13 @@ impl LogMonitorCenter {
             *by_source.entry(entry.source_id.clone()).or_insert(0u64) += 1;
         }
 
-        let error_count = *by_level.get(&LogLevel::ERROR).unwrap_or(&0) +
-                         *by_level.get(&LogLevel::FATAL).unwrap_or(&0);
-        let error_rate = if total > 0 { (error_count as f64 / total as f64) * 100.0 } else { 0.0 };
+        let error_count = *by_level.get(&LogLevel::ERROR).unwrap_or(&0)
+            + *by_level.get(&LogLevel::FATAL).unwrap_or(&0);
+        let error_rate = if total > 0 {
+            (error_count as f64 / total as f64) * 100.0
+        } else {
+            0.0
+        };
 
         let minutes = (time_range_seconds as f64 / 60.0).max(1.0);
         let entries_per_minute = total as f64 / minutes;
@@ -1002,19 +1070,23 @@ impl LogMonitorCenter {
             let start = cutoff + (i * interval_size);
             let end = start + interval_size;
 
-            let interval_entries: Vec<&LogEntry> = filtered.iter()
+            let interval_entries: Vec<&LogEntry> = filtered
+                .iter()
                 .filter(|e| e.timestamp >= start && e.timestamp < end)
                 .copied()
                 .collect();
 
             let total_count = interval_entries.len() as u64;
-            let error_count = interval_entries.iter()
+            let error_count = interval_entries
+                .iter()
                 .filter(|e| e.level == LogLevel::ERROR || e.level == LogLevel::FATAL)
                 .count() as u64;
-            let warn_count = interval_entries.iter()
+            let warn_count = interval_entries
+                .iter()
                 .filter(|e| e.level == LogLevel::WARN)
                 .count() as u64;
-            let info_count = interval_entries.iter()
+            let info_count = interval_entries
+                .iter()
                 .filter(|e| e.level == LogLevel::INFO)
                 .count() as u64;
 
@@ -1046,9 +1118,11 @@ impl LogMonitorCenter {
             .as_secs();
         let cutoff = now.saturating_sub(time_range_seconds);
 
-        let filtered: Vec<&LogEntry> = entries.iter()
-            .filter(|e| e.timestamp >= cutoff &&
-                     (e.level == LogLevel::ERROR || e.level == LogLevel::FATAL))
+        let filtered: Vec<&LogEntry> = entries
+            .iter()
+            .filter(|e| {
+                e.timestamp >= cutoff && (e.level == LogLevel::ERROR || e.level == LogLevel::FATAL)
+            })
             .collect();
 
         // 错误模式识别
@@ -1073,7 +1147,8 @@ impl LogMonitorCenter {
             for pattern in &error_patterns {
                 if let Ok(re) = Regex::new(pattern) {
                     if re.is_match(&entry.message) {
-                        pattern_counts.entry(pattern.to_string())
+                        pattern_counts
+                            .entry(pattern.to_string())
                             .or_default()
                             .push(entry);
                     }
@@ -1084,13 +1159,14 @@ impl LogMonitorCenter {
         let mut patterns: Vec<ErrorPattern> = pattern_counts
             .iter()
             .map(|(p, entries)| {
-                let sorted: Vec<&&LogEntry> = entries.iter()
-                    .map(|e| e)
-                    .collect();
+                let sorted: Vec<&&LogEntry> = entries.iter().map(|e| e).collect();
                 ErrorPattern {
                     pattern: p.clone(),
                     count: entries.len() as u64,
-                    sample_message: sorted.first().map(|e| e.message.clone()).unwrap_or_default(),
+                    sample_message: sorted
+                        .first()
+                        .map(|e| e.message.clone())
+                        .unwrap_or_default(),
                     first_seen: sorted.first().map(|e| e.timestamp).unwrap_or(0),
                     last_seen: sorted.last().map(|e| e.timestamp).unwrap_or(0),
                 }
@@ -1108,16 +1184,25 @@ impl LogMonitorCenter {
         let window_size = 100u64;
 
         for i in (cutoff..=now).step_by(window_size as usize) {
-            let window_errors: Vec<&&LogEntry> = filtered.iter()
+            let window_errors: Vec<&&LogEntry> = filtered
+                .iter()
                 .filter(|e| e.timestamp >= i && e.timestamp < i + window_size)
                 .collect();
 
             if window_errors.len() > error_spike_threshold as usize {
                 anomalies.push(Anomaly {
                     timestamp: i,
-                    description: format!("错误激增: {} 个错误在 {} 秒内", window_errors.len(), window_size),
+                    description: format!(
+                        "错误激增: {} 个错误在 {} 秒内",
+                        window_errors.len(),
+                        window_size
+                    ),
                     severity: LogLevel::ERROR,
-                    related_entries: window_errors.iter().take(10).map(|e| e.id.clone()).collect(),
+                    related_entries: window_errors
+                        .iter()
+                        .take(10)
+                        .map(|e| e.id.clone())
+                        .collect(),
                 });
             }
         }
@@ -1126,12 +1211,9 @@ impl LogMonitorCenter {
         let mut trends = Vec::new();
         let mid_point = cutoff + (time_range_seconds / 2);
 
-        let first_half_errors = filtered.iter()
-            .filter(|e| e.timestamp < mid_point)
-            .count() as f64;
-        let second_half_errors = filtered.iter()
-            .filter(|e| e.timestamp >= mid_point)
-            .count() as f64;
+        let first_half_errors = filtered.iter().filter(|e| e.timestamp < mid_point).count() as f64;
+        let second_half_errors =
+            filtered.iter().filter(|e| e.timestamp >= mid_point).count() as f64;
 
         if first_half_errors > 0.0 {
             let change = ((second_half_errors - first_half_errors) / first_half_errors) * 100.0;
@@ -1162,10 +1244,8 @@ impl LogMonitorCenter {
         let entries = self.search(&config.filter).await;
 
         let output = match config.format {
-            ExportFormat::JSON => {
-                serde_json::to_string_pretty(&entries)
-                    .map_err(|e| LiteError::Config(format!("JSON serialize error: {}", e)))?
-            }
+            ExportFormat::JSON => serde_json::to_string_pretty(&entries)
+                .map_err(|e| LiteError::Config(format!("JSON serialize error: {}", e)))?,
             ExportFormat::CSV => {
                 let mut wtr = csv::Writer::from_path(output_path)
                     .map_err(|e| LiteError::Io(e.to_string()))?;
@@ -1176,23 +1256,34 @@ impl LogMonitorCenter {
                         entry.timestamp.to_string(),
                         format!("{:?}", entry.level),
                         entry.source_name,
-                        if config.include_raw { entry.raw_line } else { entry.message },
-                    ]).map_err(|e| LiteError::Io(e.to_string()))?;
+                        if config.include_raw {
+                            entry.raw_line
+                        } else {
+                            entry.message
+                        },
+                    ])
+                    .map_err(|e| LiteError::Io(e.to_string()))?;
                 }
                 wtr.flush().map_err(|e| LiteError::Io(e.to_string()))?;
                 return Ok(());
             }
-            ExportFormat::PlainText => {
-                entries.iter()
-                    .map(|e| format!("[{}] [{}] {}: {}",
+            ExportFormat::PlainText => entries
+                .iter()
+                .map(|e| {
+                    format!(
+                        "[{}] [{}] {}: {}",
                         e.timestamp,
                         format!("{:?}", e.level),
                         e.source_name,
-                        if config.include_raw { &e.raw_line } else { &e.message }
-                    ))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+                        if config.include_raw {
+                            &e.raw_line
+                        } else {
+                            &e.message
+                        }
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
             ExportFormat::HTML => {
                 let mut html = String::from("<html><head><style>");
                 html.push_str("body{font-family:monospace;padding:20px;}");
@@ -1213,7 +1304,11 @@ impl LogMonitorCenter {
                         entry.timestamp,
                         entry.level,
                         entry.source_name,
-                        html_escape(&if config.include_raw { entry.raw_line } else { entry.message })
+                        html_escape(&if config.include_raw {
+                            entry.raw_line
+                        } else {
+                            entry.message
+                        })
                     ));
                 }
 
@@ -1230,12 +1325,12 @@ impl LogMonitorCenter {
             );
             use std::io::Write;
             let mut encoder = encoder;
-            encoder.write_all(output.as_bytes())
+            encoder
+                .write_all(output.as_bytes())
                 .map_err(|e| LiteError::Io(e.to_string()))?;
             encoder.finish().map_err(|e| LiteError::Io(e.to_string()))?;
         } else {
-            std::fs::write(output_path, output)
-                .map_err(|e| LiteError::Io(e.to_string()))?;
+            std::fs::write(output_path, output).map_err(|e| LiteError::Io(e.to_string()))?;
         }
 
         Ok(())
@@ -1294,7 +1389,10 @@ impl LogMonitorCenter {
                     entries_guard.drain(0..excess);
                 }
 
-                log::info!("Log rotation: removed {} old entries", original_len - entries_guard.len());
+                log::info!(
+                    "Log rotation: removed {} old entries",
+                    original_len - entries_guard.len()
+                );
             }
         });
     }
@@ -1345,7 +1443,8 @@ impl LogMonitorWebSocketServer {
 
     pub async fn start(&self) -> Result<(), LiteError> {
         let addr = format!("127.0.0.1:{}", self.port);
-        let listener = TcpListener::bind(&addr).await
+        let listener = TcpListener::bind(&addr)
+            .await
             .map_err(|e| LiteError::Io(format!("Failed to bind: {}", e)))?;
 
         log::info!("Log monitor WebSocket server started on {}", addr);
@@ -1421,7 +1520,7 @@ async fn handle_client_command(
     center: &LogMonitorCenter,
     sender: &mut futures_util::stream::SplitSink<
         tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
-        Message
+        Message,
     >,
 ) {
     match cmd.action.as_str() {
@@ -1436,7 +1535,9 @@ async fn handle_client_command(
             }
         }
         "stats" => {
-            let range = cmd.params.get("range_seconds")
+            let range = cmd
+                .params
+                .get("range_seconds")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(3600);
             let stats = center.get_stats(range).await;
@@ -1447,7 +1548,9 @@ async fn handle_client_command(
             let _ = sender.send(Message::Text(response.to_string())).await;
         }
         "analyze" => {
-            let range = cmd.params.get("range_seconds")
+            let range = cmd
+                .params
+                .get("range_seconds")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(3600);
             let analysis = center.analyze(range).await;
@@ -1483,9 +1586,10 @@ use futures_util::{SinkExt, StreamExt};
 // FFI导出
 // ============================================================================
 
-
 #[no_mangle]
-pub extern "C" fn log_monitor_center_create(ssh_manager_ptr: *mut Arc<RwLock<SshSessionManager>>) -> *mut LogMonitorCenter {
+pub extern "C" fn log_monitor_center_create(
+    ssh_manager_ptr: *mut Arc<RwLock<SshSessionManager>>,
+) -> *mut LogMonitorCenter {
     if ssh_manager_ptr.is_null() {
         return std::ptr::null_mut();
     }
@@ -1532,12 +1636,20 @@ mod tests {
 
     #[test]
     fn test_log_entry_detect_level() {
-        let entry = LogEntry::new("src1".to_string(), "Test".to_string(),
-            "2024-01-01 10:00:00 ERROR Something failed".to_string(), 1);
+        let entry = LogEntry::new(
+            "src1".to_string(),
+            "Test".to_string(),
+            "2024-01-01 10:00:00 ERROR Something failed".to_string(),
+            1,
+        );
         assert_eq!(entry.level, LogLevel::ERROR);
 
-        let entry2 = LogEntry::new("src1".to_string(), "Test".to_string(),
-            "2024-01-01 10:00:00 WARN Low disk space".to_string(), 2);
+        let entry2 = LogEntry::new(
+            "src1".to_string(),
+            "Test".to_string(),
+            "2024-01-01 10:00:00 WARN Low disk space".to_string(),
+            2,
+        );
         assert_eq!(entry2.level, LogLevel::WARN);
     }
 
@@ -1548,16 +1660,24 @@ mod tests {
             LogAlertCondition::KeywordMatch {
                 keywords: vec!["error".to_string(), "failed".to_string()],
                 case_sensitive: false,
-            }
+            },
         );
 
-        let entry = LogEntry::new("src1".to_string(), "Test".to_string(),
-            "Connection failed".to_string(), 1);
+        let entry = LogEntry::new(
+            "src1".to_string(),
+            "Test".to_string(),
+            "Connection failed".to_string(),
+            1,
+        );
 
         assert!(rule.check(&entry, &[]).is_some());
 
-        let entry2 = LogEntry::new("src1".to_string(), "Test".to_string(),
-            "Everything is fine".to_string(), 2);
+        let entry2 = LogEntry::new(
+            "src1".to_string(),
+            "Test".to_string(),
+            "Everything is fine".to_string(),
+            2,
+        );
 
         assert!(rule.check(&entry2, &[]).is_none());
     }
@@ -1568,12 +1688,20 @@ mod tests {
             .with_min_level(LogLevel::WARN)
             .with_keywords(vec!["error".to_string()]);
 
-        let entry1 = LogEntry::new("src1".to_string(), "Test".to_string(),
-            "ERROR connection failed".to_string(), 1);
+        let entry1 = LogEntry::new(
+            "src1".to_string(),
+            "Test".to_string(),
+            "ERROR connection failed".to_string(),
+            1,
+        );
         assert!(entry1.matches_filter(&filter));
 
-        let entry2 = LogEntry::new("src1".to_string(), "Test".to_string(),
-            "DEBUG some info".to_string(), 2);
+        let entry2 = LogEntry::new(
+            "src1".to_string(),
+            "Test".to_string(),
+            "DEBUG some info".to_string(),
+            2,
+        );
         assert!(!entry2.matches_filter(&filter));
     }
 }

@@ -1,6 +1,6 @@
 //! Ed25519 signature verification for update packages
 
-use ed25519_dalek::{VerifyingKey, Signature, Verifier};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use hex;
 use std::fmt;
 
@@ -14,7 +14,8 @@ impl SignatureVerifier {
         let bytes = hex::decode(hex_public_key.trim())
             .map_err(|e| anyhow::anyhow!("Invalid public key hex: {}", e))?;
 
-        let key_bytes: [u8; 32] = bytes.try_into()
+        let key_bytes: [u8; 32] = bytes
+            .try_into()
             .map_err(|_| anyhow::anyhow!("Invalid public key length"))?;
         let public_key = VerifyingKey::from_bytes(&key_bytes)
             .map_err(|_| anyhow::anyhow!("Invalid Ed25519 public key"))?;
@@ -24,8 +25,11 @@ impl SignatureVerifier {
 
     /// Verify signature
     pub fn verify(&self, data: &[u8], signature: &[u8]) -> anyhow::Result<bool> {
-        let sig = Signature::from_bytes(signature.try_into()
-            .map_err(|_| anyhow::anyhow!("Invalid signature length"))?);
+        let sig = Signature::from_bytes(
+            signature
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("Invalid signature length"))?,
+        );
 
         match self.public_key.verify(data, &sig) {
             Ok(_) => Ok(true),
@@ -42,7 +46,11 @@ impl SignatureVerifier {
     }
 
     /// Verify detached signature file
-    pub fn verify_detached(&self, data: &[u8], signature_file_content: &[u8]) -> anyhow::Result<bool> {
+    pub fn verify_detached(
+        &self,
+        data: &[u8],
+        signature_file_content: &[u8],
+    ) -> anyhow::Result<bool> {
         // Try different formats
 
         // 1. Raw binary signature
@@ -78,7 +86,11 @@ impl SignatureVerifier {
     pub fn fingerprint(&self) -> String {
         let bytes = self.public_key.to_bytes();
         let hex = hex::encode(&bytes);
-        format!("ed25519:{:.16}...{:.16}", &hex[..16], &hex[hex.len()-16..])
+        format!(
+            "ed25519:{:.16}...{:.16}",
+            &hex[..16],
+            &hex[hex.len() - 16..]
+        )
     }
 }
 
@@ -100,7 +112,8 @@ pub struct KeyManager {
 impl KeyManager {
     pub fn new(primary_hex: &str) -> anyhow::Result<Self> {
         let bytes = hex::decode(primary_hex.trim())?;
-        let key_bytes: [u8; 32] = bytes.try_into()
+        let key_bytes: [u8; 32] = bytes
+            .try_into()
             .map_err(|_| anyhow::anyhow!("Invalid primary key length"))?;
         let primary_key = VerifyingKey::from_bytes(&key_bytes)
             .map_err(|_| anyhow::anyhow!("Invalid primary key"))?;
@@ -114,7 +127,8 @@ impl KeyManager {
 
     pub fn add_backup_key(&mut self, hex_key: &str) -> anyhow::Result<()> {
         let bytes = hex::decode(hex_key.trim())?;
-        let key_bytes: [u8; 32] = bytes.try_into()
+        let key_bytes: [u8; 32] = bytes
+            .try_into()
             .map_err(|_| anyhow::anyhow!("Invalid backup key length"))?;
         let key = VerifyingKey::from_bytes(&key_bytes)
             .map_err(|_| anyhow::anyhow!("Invalid backup key"))?;
@@ -189,7 +203,10 @@ impl CertificateChain {
             } else {
                 // Issuer's public key
                 let issuer_cert = &self.certificates[i + 1];
-                let key_bytes: [u8; 32] = issuer_cert.public_key.as_slice().try_into()
+                let key_bytes: [u8; 32] = issuer_cert
+                    .public_key
+                    .as_slice()
+                    .try_into()
                     .map_err(|_| anyhow::anyhow!("Invalid issuer public key length"))?;
                 &VerifyingKey::from_bytes(&key_bytes)?
             };
@@ -205,7 +222,12 @@ impl CertificateChain {
     fn verify_cert_signature(&self, cert: &Certificate, key: &VerifyingKey) -> bool {
         // In real implementation, this would verify the certificate signature
         // For now, simplified check
-        let data = format!("{}|{}|{}", cert.subject, cert.issuer, hex::encode(&cert.public_key));
+        let data = format!(
+            "{}|{}|{}",
+            cert.subject,
+            cert.issuer,
+            hex::encode(&cert.public_key)
+        );
 
         if let Ok(sig_bytes) = <[u8; 64]>::try_from(&cert.signature[..]) {
             let sig = Signature::from_bytes(&sig_bytes);
@@ -256,7 +278,9 @@ mod tests {
         assert!(verifier.verify(data, &signature.to_bytes()).unwrap());
 
         // Verify with wrong data should fail
-        assert!(!verifier.verify(b"wrong data", &signature.to_bytes()).unwrap());
+        assert!(!verifier
+            .verify(b"wrong data", &signature.to_bytes())
+            .unwrap());
     }
 
     #[test]

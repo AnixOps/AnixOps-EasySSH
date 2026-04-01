@@ -24,8 +24,8 @@ pub const SUPPORTED_LANGUAGES: &[(&str, &str, &str)] = &[
     ("fr", "Français", "French"),
     ("es", "Español", "Spanish"),
     ("ru", "Русский", "Russian"),
-    ("ar", "العربية", "Arabic"),     // RTL
-    ("he", "עברית", "Hebrew"),       // RTL
+    ("ar", "العربية", "Arabic"), // RTL
+    ("he", "עברית", "Hebrew"),   // RTL
 ];
 
 /// Default fallback language
@@ -67,7 +67,9 @@ impl TranslationStore {
         }
 
         let is_rtl = RTL_LANGUAGES.contains(&system_lang.to_string().as_str())
-            || RTL_LANGUAGES.iter().any(|&rtl| system_lang.to_string().starts_with(rtl));
+            || RTL_LANGUAGES
+                .iter()
+                .any(|&rtl| system_lang.to_string().starts_with(rtl));
 
         Self {
             current_lang: RwLock::new(system_lang),
@@ -82,9 +84,9 @@ impl TranslationStore {
 
     fn set_language(&self, lang: LanguageIdentifier) -> Result<(), I18nError> {
         let lang_str = lang.to_string();
-        let is_supported = SUPPORTED_LANGUAGES.iter().any(|(code, _, _)| {
-            lang_str == *code || lang_str.starts_with(code)
-        });
+        let is_supported = SUPPORTED_LANGUAGES
+            .iter()
+            .any(|(code, _, _)| lang_str == *code || lang_str.starts_with(code));
 
         if !is_supported {
             return Err(I18nError::UnsupportedLanguage(lang_str));
@@ -215,8 +217,10 @@ fn load_translation_file(lang: &LanguageIdentifier) -> Option<String> {
         return Some(content);
     }
 
-    warn!("Could not load translations for {} (tried {:?} and {:?})",
-          lang, file_path, base_file_path);
+    warn!(
+        "Could not load translations for {} (tried {:?} and {:?})",
+        lang, file_path, base_file_path
+    );
     None
 }
 
@@ -269,7 +273,8 @@ pub fn get_current_language() -> String {
 
 /// Set current language by code
 pub fn set_language(code: &str) -> Result<(), I18nError> {
-    let lang_id = code.parse::<LanguageIdentifier>()
+    let lang_id = code
+        .parse::<LanguageIdentifier>()
         .map_err(|e| I18nError::ParseError(e.to_string()))?;
     TRANSLATION_STORE.set_language(lang_id)
 }
@@ -291,7 +296,8 @@ pub fn get_supported_languages() -> &'static [(&'static str, &'static str, &'sta
 
 /// Get display name for a language
 pub fn get_language_display_name(code: &str) -> Option<&'static str> {
-    SUPPORTED_LANGUAGES.iter()
+    SUPPORTED_LANGUAGES
+        .iter()
         .find(|(c, _, _)| *c == code)
         .map(|(_, name, _)| *name)
 }
@@ -346,34 +352,44 @@ pub fn format_number(num: impl Into<f64>) -> String {
         "de" | "de-DE" | "fr" | "fr-FR" | "ru" | "ru-RU" => {
             let int_part = num.trunc() as i64;
             let frac_part = ((num.fract().abs() * 100.0).round() as i64).abs();
-            format!("{}.{:02}", int_part.to_string()
-                .chars()
-                .rev()
-                .collect::<Vec<_>>()
-                .chunks(3)
-                .map(|c| c.iter().collect::<String>())
-                .collect::<Vec<_>>()
-                .join(" ")
-                .chars()
-                .rev()
-                .collect::<String>(), frac_part)
-                .replace('.', ",")
-                .replace(' ', ".")
+            format!(
+                "{}.{:02}",
+                int_part
+                    .to_string()
+                    .chars()
+                    .rev()
+                    .collect::<Vec<_>>()
+                    .chunks(3)
+                    .map(|c| c.iter().collect::<String>())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .chars()
+                    .rev()
+                    .collect::<String>(),
+                frac_part
+            )
+            .replace('.', ",")
+            .replace(' ', ".")
         }
         _ => {
             let int_part = num.trunc() as i64;
             let frac_part = ((num.fract().abs() * 100.0).round() as i64).abs();
-            format!("{}.{:02}", int_part.to_string()
-                .chars()
-                .rev()
-                .collect::<Vec<_>>()
-                .chunks(3)
-                .map(|c| c.iter().collect::<String>())
-                .collect::<Vec<_>>()
-                .join(",")
-                .chars()
-                .rev()
-                .collect::<String>(), frac_part)
+            format!(
+                "{}.{:02}",
+                int_part
+                    .to_string()
+                    .chars()
+                    .rev()
+                    .collect::<Vec<_>>()
+                    .chunks(3)
+                    .map(|c| c.iter().collect::<String>())
+                    .collect::<Vec<_>>()
+                    .join(",")
+                    .chars()
+                    .rev()
+                    .collect::<String>(),
+                frac_part
+            )
         }
     }
 }

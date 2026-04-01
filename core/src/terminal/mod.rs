@@ -1,8 +1,8 @@
 //! Terminal module
 //! Provides native terminal launching (Lite) and embedded terminal emulator (Standard/Pro)
 
-use std::process::Command;
 use crate::error::LiteError;
+use std::process::Command;
 
 // Submodules
 #[cfg(feature = "embedded-terminal")]
@@ -22,11 +22,11 @@ pub use embedded::{PtyTerminal, TerminalEmulator, TerminalManager};
 #[cfg(feature = "embedded-terminal")]
 pub use multitab::{TabInfo, TabManager, TabState};
 #[cfg(feature = "embedded-terminal")]
-pub use theme::{TerminalTheme, ThemeManager, ColorPalette, CursorStyle};
+pub use theme::{ColorPalette, CursorStyle, TerminalTheme, ThemeManager};
 #[cfg(feature = "embedded-terminal")]
-pub use webgl::{WebGlRenderer, RenderStats, WebGlConfig};
+pub use webgl::{RenderStats, WebGlConfig, WebGlRenderer};
 #[cfg(feature = "embedded-terminal")]
-pub use xterm_compat::{XtermCompat, XtermMode, EscapeSequence};
+pub use xterm_compat::{EscapeSequence, XtermCompat, XtermMode};
 
 // ============ Native Terminal Launch (Lite Version) ============
 
@@ -195,7 +195,9 @@ pub fn open_native_terminal(
         }
     }
 
-    Err(LiteError::Terminal("No available terminal found".to_string()))
+    Err(LiteError::Terminal(
+        "No available terminal found".to_string(),
+    ))
 }
 
 /// 检查命令是否可用

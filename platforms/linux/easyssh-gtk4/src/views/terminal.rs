@@ -139,24 +139,27 @@ impl TerminalView {
         }));
 
         // Enter key on command entry
-        self.command_entry.connect_activate(glib::clone!(@weak self as view => move |_| {
-            view.execute_command();
-        }));
+        self.command_entry
+            .connect_activate(glib::clone!(@weak self as view => move |_| {
+                view.execute_command();
+            }));
 
         // History navigation
-        self.command_entry.connect_key_pressed(glib::clone!(@weak self as view => move |_, key, _, _| {
-            match key {
-                gtk4::gdk::Key::Up => {
-                    view.navigate_history(true);
-                    glib::Propagation::Stop
+        self.command_entry.connect_key_pressed(
+            glib::clone!(@weak self as view => move |_, key, _, _| {
+                match key {
+                    gtk4::gdk::Key::Up => {
+                        view.navigate_history(true);
+                        glib::Propagation::Stop
+                    }
+                    gtk4::gdk::Key::Down => {
+                        view.navigate_history(false);
+                        glib::Propagation::Stop
+                    }
+                    _ => glib::Propagation::Proceed,
                 }
-                gtk4::gdk::Key::Down => {
-                    view.navigate_history(false);
-                    glib::Propagation::Stop
-                }
-                _ => glib::Propagation::Proceed,
-            }
-        }));
+            }),
+        );
     }
 
     fn setup_output_polling(&self) {
@@ -219,7 +222,8 @@ impl TerminalView {
 
         // Display command in terminal
         let end_iter = self.text_buffer.end_iter();
-        self.text_buffer.insert(&end_iter, &format!("$ {}\n", command));
+        self.text_buffer
+            .insert(&end_iter, &format!("$ {}\n", command));
 
         // Send command
         if let Some(ref session_id) = *self.session_id.borrow() {
@@ -227,7 +231,8 @@ impl TerminalView {
             let vm = self.view_model.lock().unwrap();
             if let Err(e) = vm.write_shell_input(session_id, line.as_bytes()) {
                 let end_iter = self.text_buffer.end_iter();
-                self.text_buffer.insert(&end_iter, &format!("Error: {}\n", e));
+                self.text_buffer
+                    .insert(&end_iter, &format!("Error: {}\n", e));
             }
         }
 

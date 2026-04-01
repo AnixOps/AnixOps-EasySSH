@@ -8,9 +8,9 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time::{interval, Duration, Instant};
 
 use crate::monitoring::metrics::ServerMetrics;
-use crate::monitoring::ServerConnectionConfig;
 use crate::monitoring::storage::MetricsStorage;
 use crate::monitoring::MonitoringError;
+use crate::monitoring::ServerConnectionConfig;
 
 /// Metrics collector that fetches data from remote servers
 pub struct MetricsCollector {
@@ -35,10 +35,7 @@ enum CollectionMessage {
 }
 
 impl MetricsCollector {
-    pub fn new(
-        storage: Arc<MetricsStorage>,
-        collection_interval_secs: u64,
-    ) -> Self {
+    pub fn new(storage: Arc<MetricsStorage>, collection_interval_secs: u64) -> Self {
         Self {
             storage,
             collection_interval_secs,
@@ -154,9 +151,9 @@ impl MetricsCollector {
     ) -> Result<(), MonitoringError> {
         let config = {
             let servers_guard = servers.read().await;
-            let state = servers_guard
-                .get(server_id)
-                .ok_or_else(|| MonitoringError::Collection(format!("Server {} not found", server_id)))?;
+            let state = servers_guard.get(server_id).ok_or_else(|| {
+                MonitoringError::Collection(format!("Server {} not found", server_id))
+            })?;
             state.config.clone()
         };
 
@@ -268,9 +265,8 @@ async fn collect_server_metrics(
     );
 
     // Parse network metrics
-    let network_metrics = parse_network_metrics(
-        "eth0: 1234567890 1234567 0 0 0 0 0 0 9876543210 987654 0 0 0 0 0 0",
-    );
+    let network_metrics =
+        parse_network_metrics("eth0: 1234567890 1234567 0 0 0 0 0 0 9876543210 987654 0 0 0 0 0 0");
 
     // Parse process metrics
     let process_metrics = parse_process_metrics("150\n145\n2");
@@ -362,7 +358,14 @@ fn parse_cpu_metrics(stat_line: &str, loadavg_line: &str) -> CpuMetrics {
         let softirq_ticks: f64 = parts.get(7).and_then(|s| s.parse().ok()).unwrap_or(0.0);
         let steal_ticks: f64 = parts.get(8).and_then(|s| s.parse().ok()).unwrap_or(0.0);
 
-        let total_ticks = user_ticks + nice_ticks + system_ticks + idle_ticks + iowait_ticks + irq_ticks + softirq_ticks + steal_ticks;
+        let total_ticks = user_ticks
+            + nice_ticks
+            + system_ticks
+            + idle_ticks
+            + iowait_ticks
+            + irq_ticks
+            + softirq_ticks
+            + steal_ticks;
         let idle_total = idle_ticks + iowait_ticks;
 
         if total_ticks > 0.0 {
@@ -376,9 +379,18 @@ fn parse_cpu_metrics(stat_line: &str, loadavg_line: &str) -> CpuMetrics {
 
     // Parse /proc/loadavg: load1 load5 load15 running/total last_pid
     let load_parts: Vec<&str> = loadavg_line.split_whitespace().collect();
-    let load1 = load_parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0.0);
-    let load5 = load_parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0.0);
-    let load15 = load_parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+    let load1 = load_parts
+        .get(0)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0);
+    let load5 = load_parts
+        .get(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0);
+    let load15 = load_parts
+        .get(2)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0);
 
     // Count CPU cores from /proc/cpuinfo would be separate command
     cores = 1; // Default to 1, would be parsed separately

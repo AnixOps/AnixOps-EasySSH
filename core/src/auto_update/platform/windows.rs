@@ -43,7 +43,13 @@ impl WindowsUpdater {
     async fn detect_msi_installation() -> bool {
         // Check registry for MSI installation
         let output = Command::new("reg")
-            .args(&["query", "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall", "/s", "/f", "EasySSH"])
+            .args(&[
+                "query",
+                "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+                "/s",
+                "/f",
+                "EasySSH",
+            ])
             .output();
 
         match output {
@@ -58,9 +64,9 @@ impl WindowsUpdater {
             .args(&[
                 "/i",
                 msi_path.to_str().unwrap(),
-                "/qn",           // No UI
-                "/norestart",    // Don't restart automatically
-                "/log",          // Log to temp
+                "/qn",        // No UI
+                "/norestart", // Don't restart automatically
+                "/log",       // Log to temp
                 self.temp_dir.join("install.log").to_str().unwrap(),
             ])
             .output()?;
@@ -120,10 +126,7 @@ del "%~f0"
     }
 
     /// Use MoveFileEx for delayed replacement on reboot
-    pub async fn schedule_replace_on_reboot(
-        source: &Path,
-        dest: &Path,
-    ) -> anyhow::Result<()> {
+    pub async fn schedule_replace_on_reboot(source: &Path, dest: &Path) -> anyhow::Result<()> {
         use std::os::windows::ffi::OsStrExt;
 
         // Convert paths to wide strings (UTF-16)
@@ -180,9 +183,7 @@ del "%~f0"
 
     /// Get Windows version info
     pub async fn get_windows_version() -> anyhow::Result<(u32, u32, u32)> {
-        use windows_sys::Win32::System::SystemInformation::{
-            GetVersionExW, OSVERSIONINFOW,
-        };
+        use windows_sys::Win32::System::SystemInformation::{GetVersionExW, OSVERSIONINFOW};
 
         unsafe {
             let mut osvi: OSVERSIONINFOW = std::mem::zeroed();
@@ -208,7 +209,8 @@ impl PlatformUpdater for WindowsUpdater {
     }
 
     async fn install_update(&self, package_path: &Path) -> anyhow::Result<()> {
-        let extension = package_path.extension()
+        let extension = package_path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("exe");
 
@@ -216,7 +218,8 @@ impl PlatformUpdater for WindowsUpdater {
             "msi" => self.install_msi(package_path).await,
             "exe" => {
                 // Check if NSIS installer
-                let file_stem = package_path.file_stem()
+                let file_stem = package_path
+                    .file_stem()
                     .and_then(|s| s.to_str())
                     .unwrap_or("");
 
@@ -252,7 +255,9 @@ impl PlatformUpdater for WindowsUpdater {
     async fn needs_elevation(&self, _package_path: &Path) -> anyhow::Result<bool> {
         // Check if running as admin by trying to open a privileged token
         use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_SUCCESS, HANDLE};
-        use windows_sys::Win32::Security::{GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation};
+        use windows_sys::Win32::Security::{
+            GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+        };
         use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
         unsafe {
@@ -308,10 +313,7 @@ impl PlatformUpdater for WindowsUpdater {
 }
 
 /// Replace executable on Windows using delayed move
-pub async fn replace_executable_windows(
-    current: &Path,
-    new: &Path,
-) -> anyhow::Result<()> {
+pub async fn replace_executable_windows(current: &Path, new: &Path) -> anyhow::Result<()> {
     WindowsUpdater::schedule_replace_on_reboot(new, current).await
 }
 
@@ -348,9 +350,11 @@ pub async fn create_update_task(package_path: &Path) -> anyhow::Result<()> {
     Command::new("schtasks.exe")
         .args(&[
             "/Create",
-            "/TN", task_name,
-            "/XML", xml_path.to_str().unwrap(),
-            "/F",  // Force overwrite
+            "/TN",
+            task_name,
+            "/XML",
+            xml_path.to_str().unwrap(),
+            "/F", // Force overwrite
         ])
         .output()?;
 

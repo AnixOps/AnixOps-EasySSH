@@ -5,12 +5,7 @@ use axum::{
 };
 use chrono::Utc;
 
-use crate::{
-    auth::Claims,
-    models::*,
-    services::audit_service::AuditService,
-    AppState,
-};
+use crate::{auth::Claims, models::*, services::audit_service::AuditService, AppState};
 
 pub fn audit_routes() -> Router<AppState> {
     Router::new()
@@ -23,7 +18,10 @@ async fn query_audit_logs(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
     Query(params): Query<QueryAuditLogsRequest>,
-) -> Result<Json<SuccessResponse<AuditLogListResponse>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
+) -> Result<
+    Json<SuccessResponse<AuditLogListResponse>>,
+    (axum::http::StatusCode, Json<ErrorResponse>),
+> {
     let audit_service = AuditService::new(state.db.pool().clone());
 
     // Check permissions
@@ -35,10 +33,11 @@ async fn query_audit_logs(
                 axum::http::StatusCode::FORBIDDEN,
                 Json(ErrorResponse {
                     error: "forbidden".to_string(),
-                    message: "You don't have permission to view audit logs for this team".to_string(),
+                    message: "You don't have permission to view audit logs for this team"
+                        .to_string(),
                     code: Some("insufficient_permissions".to_string()),
                     details: None,
-                })
+                }),
             ));
         }
     } else if !claims.is_admin {
@@ -50,7 +49,7 @@ async fn query_audit_logs(
                 message: "Must specify team_id to view audit logs".to_string(),
                 code: Some("missing_team_id".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
@@ -69,15 +68,17 @@ async fn query_audit_logs(
             offset,
         )
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "query_logs_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "query_logs_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -106,10 +107,11 @@ async fn export_audit_logs(
                 axum::http::StatusCode::FORBIDDEN,
                 Json(ErrorResponse {
                     error: "forbidden".to_string(),
-                    message: "You don't have permission to export audit logs for this team".to_string(),
+                    message: "You don't have permission to export audit logs for this team"
+                        .to_string(),
                     code: Some("insufficient_permissions".to_string()),
                     details: None,
-                })
+                }),
             ));
         }
     } else if !claims.is_admin {
@@ -120,7 +122,7 @@ async fn export_audit_logs(
                 message: "Must specify team_id to export audit logs".to_string(),
                 code: Some("missing_team_id".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
@@ -137,41 +139,50 @@ async fn export_audit_logs(
             0,
         )
         .await
-        .map_err(|e| (
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "export_logs_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
+
+    // Serialize to CSV
+    let csv = serialize_to_csv(&logs).map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
-                error: "export_logs_failed".to_string(),
+                error: "csv_serialization_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
-
-    // Serialize to CSV
-    let csv = serialize_to_csv(&logs).map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "csv_serialization_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
+            }),
+        )
+    })?;
 
     let response = axum::response::Response::builder()
         .status(axum::http::StatusCode::OK)
         .header("Content-Type", "text/csv")
-        .header("Content-Disposition", "attachment; filename=\"audit_logs.csv\"")
+        .header(
+            "Content-Disposition",
+            "attachment; filename=\"audit_logs.csv\"",
+        )
         .body(csv)
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "response_build_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "response_build_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(response)
 }
@@ -180,7 +191,8 @@ async fn get_audit_stats(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
     Query(params): Query<QueryAuditLogsRequest>,
-) -> Result<Json<SuccessResponse<serde_json::Value>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SuccessResponse<serde_json::Value>>, (axum::http::StatusCode, Json<ErrorResponse>)>
+{
     let audit_service = AuditService::new(state.db.pool().clone());
 
     // Check permissions
@@ -191,10 +203,11 @@ async fn get_audit_stats(
                 axum::http::StatusCode::FORBIDDEN,
                 Json(ErrorResponse {
                     error: "forbidden".to_string(),
-                    message: "You don't have permission to view audit stats for this team".to_string(),
+                    message: "You don't have permission to view audit stats for this team"
+                        .to_string(),
                     code: Some("insufficient_permissions".to_string()),
                     details: None,
-                })
+                }),
             ));
         }
     } else if !claims.is_admin {
@@ -205,26 +218,24 @@ async fn get_audit_stats(
                 message: "Must specify team_id to view audit stats".to_string(),
                 code: Some("missing_team_id".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     let stats = audit_service
-        .get_stats(
-            params.team_id.as_deref(),
-            params.from_date,
-            params.to_date,
-        )
+        .get_stats(params.team_id.as_deref(), params.from_date, params.to_date)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "stats_query_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "stats_query_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -268,7 +279,9 @@ fn serialize_to_csv(logs: &[AuditLog]) -> anyhow::Result<String> {
 
     // Rows
     for log in logs {
-        let details = log.details.as_ref()
+        let details = log
+            .details
+            .as_ref()
             .map(|d| d.to_string())
             .unwrap_or_default()
             .replace('"', "\"\"");

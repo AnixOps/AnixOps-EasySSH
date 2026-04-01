@@ -4,11 +4,11 @@
 //!
 //! 将自然语言描述转换为Shell命令
 
-use std::sync::Arc;
 use anyhow::Result;
+use std::sync::Arc;
 
-use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::context::TerminalContext;
+use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::providers::{ChatRequest, Message, Role};
 
 /// 自然语言转命令请求
@@ -65,11 +65,11 @@ pub struct GeneratedCommand {
 /// 风险等级
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RiskLevel {
-    Safe,       // 安全，无副作用
-    ReadOnly,   // 只读操作
-    Moderate,   // 可能有副作用
+    Safe,        // 安全，无副作用
+    ReadOnly,    // 只读操作
+    Moderate,    // 可能有副作用
     Destructive, // 可能破坏数据
-    Dangerous,  // 高风险操作
+    Dangerous,   // 高风险操作
 }
 
 impl RiskLevel {
@@ -125,46 +125,158 @@ impl NaturalLanguageProcessor {
 
         let patterns: Vec<(&str, &str, &str, RiskLevel)> = vec![
             // 查看当前目录
-            ("show current directory", "pwd", "Print working directory", RiskLevel::ReadOnly),
-            ("what directory am i in", "pwd", "Print working directory", RiskLevel::ReadOnly),
-            ("current path", "pwd", "Print working directory", RiskLevel::ReadOnly),
-
+            (
+                "show current directory",
+                "pwd",
+                "Print working directory",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "what directory am i in",
+                "pwd",
+                "Print working directory",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "current path",
+                "pwd",
+                "Print working directory",
+                RiskLevel::ReadOnly,
+            ),
             // 列出文件
-            ("list files", "ls -la", "List all files with details", RiskLevel::ReadOnly),
-            ("show files", "ls -la", "List all files with details", RiskLevel::ReadOnly),
-            ("what files are here", "ls -la", "List all files with details", RiskLevel::ReadOnly),
-
+            (
+                "list files",
+                "ls -la",
+                "List all files with details",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "show files",
+                "ls -la",
+                "List all files with details",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "what files are here",
+                "ls -la",
+                "List all files with details",
+                RiskLevel::ReadOnly,
+            ),
             // 查看磁盘空间
-            ("disk space", "df -h", "Show disk space usage", RiskLevel::ReadOnly),
-            ("how much space is left", "df -h", "Show disk space usage", RiskLevel::ReadOnly),
-            ("check disk usage", "df -h", "Show disk space usage", RiskLevel::ReadOnly),
-
+            (
+                "disk space",
+                "df -h",
+                "Show disk space usage",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "how much space is left",
+                "df -h",
+                "Show disk space usage",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "check disk usage",
+                "df -h",
+                "Show disk space usage",
+                RiskLevel::ReadOnly,
+            ),
             // 查看内存
-            ("memory usage", "free -h", "Show memory usage", RiskLevel::ReadOnly),
-            ("how much memory is free", "free -h", "Show memory usage", RiskLevel::ReadOnly),
-            ("ram usage", "free -h", "Show memory usage", RiskLevel::ReadOnly),
-
+            (
+                "memory usage",
+                "free -h",
+                "Show memory usage",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "how much memory is free",
+                "free -h",
+                "Show memory usage",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "ram usage",
+                "free -h",
+                "Show memory usage",
+                RiskLevel::ReadOnly,
+            ),
             // 查看进程
-            ("running processes", "ps aux", "List running processes", RiskLevel::ReadOnly),
-            ("what processes are running", "ps aux", "List running processes", RiskLevel::ReadOnly),
-            ("show processes", "ps aux", "List running processes", RiskLevel::ReadOnly),
-
+            (
+                "running processes",
+                "ps aux",
+                "List running processes",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "what processes are running",
+                "ps aux",
+                "List running processes",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "show processes",
+                "ps aux",
+                "List running processes",
+                RiskLevel::ReadOnly,
+            ),
             // CPU监控
-            ("cpu usage", "top", "Show CPU and process usage", RiskLevel::ReadOnly),
-            ("what's using cpu", "top", "Show CPU and process usage", RiskLevel::ReadOnly),
-
+            (
+                "cpu usage",
+                "top",
+                "Show CPU and process usage",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "what's using cpu",
+                "top",
+                "Show CPU and process usage",
+                RiskLevel::ReadOnly,
+            ),
             // 查看时间
-            ("current time", "date", "Show current date and time", RiskLevel::ReadOnly),
-            ("what time is it", "date", "Show current date and time", RiskLevel::ReadOnly),
-
+            (
+                "current time",
+                "date",
+                "Show current date and time",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "what time is it",
+                "date",
+                "Show current date and time",
+                RiskLevel::ReadOnly,
+            ),
             // 查看用户信息
-            ("who am i", "whoami", "Show current user", RiskLevel::ReadOnly),
-            ("current user", "whoami", "Show current user", RiskLevel::ReadOnly),
-
+            (
+                "who am i",
+                "whoami",
+                "Show current user",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "current user",
+                "whoami",
+                "Show current user",
+                RiskLevel::ReadOnly,
+            ),
             // 网络信息
-            ("ip address", "ip addr", "Show network interfaces", RiskLevel::ReadOnly),
-            ("my ip", "ip addr", "Show network interfaces", RiskLevel::ReadOnly),
-            ("network interfaces", "ip addr", "Show network interfaces", RiskLevel::ReadOnly),
+            (
+                "ip address",
+                "ip addr",
+                "Show network interfaces",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "my ip",
+                "ip addr",
+                "Show network interfaces",
+                RiskLevel::ReadOnly,
+            ),
+            (
+                "network interfaces",
+                "ip addr",
+                "Show network interfaces",
+                RiskLevel::ReadOnly,
+            ),
         ];
 
         for (pattern, cmd, desc, risk) in patterns {
@@ -178,7 +290,10 @@ impl NaturalLanguageProcessor {
                         risk_level: risk,
                         requires_confirmation: risk.requires_confirmation(),
                     }],
-                    explanation: format!("Converted '{}' to '{}': {}", request.natural_language, cmd, desc),
+                    explanation: format!(
+                        "Converted '{}' to '{}': {}",
+                        request.natural_language, cmd, desc
+                    ),
                     alternatives: vec![],
                 });
             }
@@ -228,9 +343,7 @@ EXPLANATION: <brief explanation of the conversion>"#,
 
         let user_prompt = format!(
             "Context: {}\nWorking directory: {}\n\nConvert to command: {}\n\nOutput:",
-            context_str,
-            request.context.working_directory,
-            request.natural_language
+            context_str, request.context.working_directory, request.natural_language
         );
 
         let chat_request = ChatRequest {
@@ -274,13 +387,15 @@ EXPLANATION: <brief explanation of the conversion>"#,
 
             if line.starts_with("COMMAND:") {
                 // 保存之前的命令
-                if let (Some(cmd), Some(desc), Some(safety)) = (&current_cmd, &current_desc, &current_safety) {
+                if let (Some(cmd), Some(desc), Some(safety)) =
+                    (&current_cmd, &current_desc, &current_safety)
+                {
                     commands.push(GeneratedCommand {
                         command: cmd.clone(),
                         description: desc.clone(),
                         confidence: current_confidence,
                         is_safe: matches!(safety, RiskLevel::Safe | RiskLevel::ReadOnly),
-                        risk_level: safety.clone(),
+                        risk_level: *safety,
                         requires_confirmation: safety.requires_confirmation(),
                     });
                 }
@@ -304,7 +419,7 @@ EXPLANATION: <brief explanation of the conversion>"#,
                 let conf_str = line[11..].trim();
                 current_confidence = conf_str.parse().unwrap_or(0.8);
             } else if line.starts_with("ALTERNATIVE") && line.contains(":") {
-                let alt = line.splitn(2, ':').nth(1).unwrap_or("").trim();
+                let alt = line.split_once(':').map(|x| x.1).unwrap_or("").trim();
                 if !alt.is_empty() {
                     alternatives.push(alt.to_string());
                 }
@@ -324,13 +439,15 @@ EXPLANATION: <brief explanation of the conversion>"#,
         }
 
         // 保存最后一个命令
-        if let (Some(cmd), Some(desc), Some(safety)) = (&current_cmd, &current_desc, &current_safety) {
+        if let (Some(cmd), Some(desc), Some(safety)) =
+            (&current_cmd, &current_desc, &current_safety)
+        {
             commands.push(GeneratedCommand {
                 command: cmd.clone(),
                 description: desc.clone(),
                 confidence: current_confidence,
                 is_safe: matches!(safety, RiskLevel::Safe | RiskLevel::ReadOnly),
-                risk_level: safety.clone(),
+                risk_level: *safety,
                 requires_confirmation: safety.requires_confirmation(),
             });
         }

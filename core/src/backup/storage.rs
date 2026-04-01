@@ -1,6 +1,6 @@
 //! Backup storage backends (local, S3, GCS, Azure)
 
-use super::{BackupError, BackupResult, CloudCredentials, BandwidthLimit};
+use super::{BackupError, BackupResult, BandwidthLimit, CloudCredentials};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,10 +13,20 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 #[async_trait]
 pub trait StorageBackend: Send + Sync {
     /// Store a file
-    async fn store(&self, key: &str, data: &[u8], metadata: HashMap<String, String>) -> BackupResult<u64>;
+    async fn store(
+        &self,
+        key: &str,
+        data: &[u8],
+        metadata: HashMap<String, String>,
+    ) -> BackupResult<u64>;
 
     /// Store from a local file
-    async fn store_file(&self, key: &str, path: &Path, metadata: HashMap<String, String>) -> BackupResult<u64>;
+    async fn store_file(
+        &self,
+        key: &str,
+        path: &Path,
+        metadata: HashMap<String, String>,
+    ) -> BackupResult<u64>;
 
     /// Retrieve a file
     async fn retrieve(&self, key: &str) -> BackupResult<Vec<u8>>;
@@ -103,41 +113,63 @@ impl LocalStorage {
 
 #[async_trait]
 impl StorageBackend for LocalStorage {
-    async fn store(&self, key: &str, data: &[u8], metadata: HashMap<String, String>) -> BackupResult<u64> {
+    async fn store(
+        &self,
+        key: &str,
+        data: &[u8],
+        metadata: HashMap<String, String>,
+    ) -> BackupResult<u64> {
         let path = self.full_path(key);
 
         // Create parent directories
         if let Some(parent) = path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(BackupError::Io)?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         // Write file with metadata as extended attributes (platform-specific)
-        tokio::fs::write(&path, data).await.map_err(BackupError::Io)?;
+        tokio::fs::write(&path, data)
+            .await
+            .map_err(BackupError::Io)?;
 
         // Store metadata in a sidecar file
         if !metadata.is_empty() {
             let meta_path = path.with_extension("meta.json");
-            let meta_json = serde_json::to_string(&metadata)
-                .map_err(|e| BackupError::Config(e.to_string()))?;
-            tokio::fs::write(&meta_path, meta_json).await.map_err(BackupError::Io)?;
+            let meta_json =
+                serde_json::to_string(&metadata).map_err(|e| BackupError::Config(e.to_string()))?;
+            tokio::fs::write(&meta_path, meta_json)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         Ok(data.len() as u64)
     }
 
-    async fn store_file(&self, key: &str, source: &Path, metadata: HashMap<String, String>) -> BackupResult<u64> {
+    async fn store_file(
+        &self,
+        key: &str,
+        source: &Path,
+        metadata: HashMap<String, String>,
+    ) -> BackupResult<u64> {
         let dest = self.full_path(key);
 
         // Create parent directories
         if let Some(parent) = dest.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(BackupError::Io)?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         // Copy file with bandwidth limiting
         if self.bandwidth_limit.bytes_per_second > 0 {
             // Throttled copy
-            let mut src = tokio::fs::File::open(source).await.map_err(BackupError::Io)?;
-            let mut dst = tokio::fs::File::create(&dest).await.map_err(BackupError::Io)?;
+            let mut src = tokio::fs::File::open(source)
+                .await
+                .map_err(BackupError::Io)?;
+            let mut dst = tokio::fs::File::create(&dest)
+                .await
+                .map_err(BackupError::Io)?;
 
             let chunk_size = self.get_chunk_size();
             let mut buffer = vec![0u8; chunk_size];
@@ -162,15 +194,19 @@ impl StorageBackend for LocalStorage {
 
             dst.flush().await.map_err(BackupError::Io)?;
         } else {
-            tokio::fs::copy(source, &dest).await.map_err(BackupError::Io)?;
+            tokio::fs::copy(source, &dest)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         // Store metadata
         if !metadata.is_empty() {
             let meta_path = dest.with_extension("meta.json");
-            let meta_json = serde_json::to_string(&metadata)
-                .map_err(|e| BackupError::Config(e.to_string()))?;
-            tokio::fs::write(&meta_path, meta_json).await.map_err(BackupError::Io)?;
+            let meta_json =
+                serde_json::to_string(&metadata).map_err(|e| BackupError::Config(e.to_string()))?;
+            tokio::fs::write(&meta_path, meta_json)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         let metadata = tokio::fs::metadata(&dest).await.map_err(BackupError::Io)?;
@@ -184,13 +220,17 @@ impl StorageBackend for LocalStorage {
 
     async fn retrieve_file(&self, key: &str, dest: &Path) -> BackupResult<u64> {
         let source = self.full_path(key);
-        let bytes = tokio::fs::copy(&source, dest).await.map_err(BackupError::Io)?;
+        let bytes = tokio::fs::copy(&source, dest)
+            .await
+            .map_err(BackupError::Io)?;
         Ok(bytes)
     }
 
     async fn delete(&self, key: &str) -> BackupResult<()> {
         let path = self.full_path(key);
-        tokio::fs::remove_file(&path).await.map_err(BackupError::Io)?;
+        tokio::fs::remove_file(&path)
+            .await
+            .map_err(BackupError::Io)?;
 
         // Also delete metadata file if exists
         let meta_path = path.with_extension("meta.json");
@@ -207,21 +247,33 @@ impl StorageBackend for LocalStorage {
             return Ok(objects);
         }
 
-        let mut entries = tokio::fs::read_dir(&prefix_path).await.map_err(BackupError::Io)?;
+        let mut entries = tokio::fs::read_dir(&prefix_path)
+            .await
+            .map_err(BackupError::Io)?;
 
         while let Some(entry) = entries.next_entry().await.map_err(BackupError::Io)? {
             let metadata = entry.metadata().await.map_err(BackupError::Io)?;
             if metadata.is_file() && entry.file_name() != "meta.json" {
-                let key = entry.path().strip_prefix(&self.base_path)
-                    .map_err(|e| BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?
+                let key = entry
+                    .path()
+                    .strip_prefix(&self.base_path)
+                    .map_err(|e| {
+                        BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+                    })?
                     .to_string_lossy()
                     .to_string();
 
-                let modified: DateTime<Utc> = metadata.modified()
-                    .map_err(|e| BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?
+                let modified: DateTime<Utc> = metadata
+                    .modified()
+                    .map_err(|e| {
+                        BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+                    })?
                     .into();
-                let created: DateTime<Utc> = metadata.created()
-                    .map_err(|e| BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?
+                let created: DateTime<Utc> = metadata
+                    .created()
+                    .map_err(|e| {
+                        BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+                    })?
                     .into();
 
                 // Load metadata if exists
@@ -255,10 +307,12 @@ impl StorageBackend for LocalStorage {
         let path = self.full_path(key);
         let metadata = tokio::fs::metadata(&path).await.map_err(BackupError::Io)?;
 
-        let modified: DateTime<Utc> = metadata.modified()
+        let modified: DateTime<Utc> = metadata
+            .modified()
             .map_err(|e| BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?
             .into();
-        let created: DateTime<Utc> = metadata.created()
+        let created: DateTime<Utc> = metadata
+            .created()
             .map_err(|e| BackupError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?
             .into();
 
@@ -324,14 +378,16 @@ pub struct S3Storage {
 #[cfg(feature = "backup-aws")]
 impl S3Storage {
     /// Create new S3 storage
-    pub async fn new(bucket: &str, prefix: &str, _credentials: &CloudCredentials, region: &str) -> BackupResult<Self> {
+    pub async fn new(
+        bucket: &str,
+        prefix: &str,
+        _credentials: &CloudCredentials,
+        region: &str,
+    ) -> BackupResult<Self> {
         // AWS SDK initialization for version 0.35/0.57
         // Use Region from aws_sdk_s3::config which implements ProvideRegion
         let region = aws_sdk_s3::config::Region::new(region.to_string());
-        let config = aws_config::from_env()
-            .region(region)
-            .load()
-            .await;
+        let config = aws_config::from_env().region(region).load().await;
 
         let client = aws_sdk_s3::Client::new(&config);
 
@@ -351,10 +407,16 @@ impl S3Storage {
 #[cfg(feature = "backup-aws")]
 #[async_trait]
 impl StorageBackend for S3Storage {
-    async fn store(&self, key: &str, data: &[u8], metadata: HashMap<String, String>) -> BackupResult<u64> {
+    async fn store(
+        &self,
+        key: &str,
+        data: &[u8],
+        metadata: HashMap<String, String>,
+    ) -> BackupResult<u64> {
         let s3_key = self.make_key(key);
 
-        let mut builder = self.client
+        let mut builder = self
+            .client
             .put_object()
             .bucket(&self.bucket)
             .key(&s3_key)
@@ -365,12 +427,20 @@ impl StorageBackend for S3Storage {
             builder = builder.metadata(k, v);
         }
 
-        builder.send().await.map_err(|e| BackupError::Cloud(e.to_string()))?;
+        builder
+            .send()
+            .await
+            .map_err(|e| BackupError::Cloud(e.to_string()))?;
 
         Ok(data.len() as u64)
     }
 
-    async fn store_file(&self, key: &str, path: &Path, metadata: HashMap<String, String>) -> BackupResult<u64> {
+    async fn store_file(
+        &self,
+        key: &str,
+        path: &Path,
+        metadata: HashMap<String, String>,
+    ) -> BackupResult<u64> {
         let s3_key = self.make_key(key);
         let data = tokio::fs::read(path).await.map_err(BackupError::Io)?;
         self.store(key, &data, metadata).await
@@ -379,7 +449,8 @@ impl StorageBackend for S3Storage {
     async fn retrieve(&self, key: &str) -> BackupResult<Vec<u8>> {
         let s3_key = self.make_key(key);
 
-        let response = self.client
+        let response = self
+            .client
             .get_object()
             .bucket(&self.bucket)
             .key(&s3_key)
@@ -387,7 +458,10 @@ impl StorageBackend for S3Storage {
             .await
             .map_err(|e| BackupError::Cloud(e.to_string()))?;
 
-        let data = response.body.collect().await
+        let data = response
+            .body
+            .collect()
+            .await
             .map_err(|e| BackupError::Cloud(e.to_string()))?;
 
         Ok(data.to_vec())
@@ -395,7 +469,9 @@ impl StorageBackend for S3Storage {
 
     async fn retrieve_file(&self, key: &str, dest: &Path) -> BackupResult<u64> {
         let data = self.retrieve(key).await?;
-        tokio::fs::write(dest, &data).await.map_err(BackupError::Io)?;
+        tokio::fs::write(dest, &data)
+            .await
+            .map_err(BackupError::Io)?;
         Ok(data.len() as u64)
     }
 
@@ -416,7 +492,8 @@ impl StorageBackend for S3Storage {
     async fn list(&self, prefix: &str) -> BackupResult<Vec<StorageObject>> {
         let s3_prefix = self.make_key(prefix);
 
-        let response = self.client
+        let response = self
+            .client
             .list_objects_v2()
             .bucket(&self.bucket)
             .prefix(&s3_prefix)
@@ -431,7 +508,8 @@ impl StorageBackend for S3Storage {
                 let key = obj.key.clone().unwrap_or_default();
                 let size = obj.size as u64;
                 // Handle AWS SDK DateTime conversion
-                let modified = obj.last_modified
+                let modified = obj
+                    .last_modified
                     .and_then(|t| {
                         // AWS SDK 0.28 uses different DateTime format
                         // Convert to chrono DateTime<Utc>
@@ -464,7 +542,8 @@ impl StorageBackend for S3Storage {
     async fn metadata(&self, key: &str) -> BackupResult<StorageObject> {
         let s3_key = self.make_key(key);
 
-        let response = self.client
+        let response = self
+            .client
             .head_object()
             .bucket(&self.bucket)
             .key(&s3_key)
@@ -474,7 +553,8 @@ impl StorageBackend for S3Storage {
 
         let size = response.content_length as u64;
         // Handle AWS SDK DateTime conversion
-        let modified = response.last_modified
+        let modified = response
+            .last_modified
             .and_then(|t| {
                 let secs = t.as_secs_f64() as i64;
                 DateTime::from_timestamp(secs, 0)
@@ -492,7 +572,8 @@ impl StorageBackend for S3Storage {
     }
 
     async fn stats(&self) -> BackupResult<StorageStats> {
-        let response = self.client
+        let response = self
+            .client
             .list_objects_v2()
             .bucket(&self.bucket)
             .prefix(&self.prefix)
@@ -566,12 +647,19 @@ impl BackupStorage {
     }
 
     /// Store to all backends
-    pub async fn store(&self, key: &str, data: &[u8], metadata: HashMap<String, String>) -> BackupResult<u64> {
+    pub async fn store(
+        &self,
+        key: &str,
+        data: &[u8],
+        metadata: HashMap<String, String>,
+    ) -> BackupResult<u64> {
         // Store to primary
         let size = self.primary.store(key, data, metadata.clone()).await?;
 
         // Store to mirrors concurrently
-        let mirror_futures: Vec<_> = self.mirrors.iter()
+        let mirror_futures: Vec<_> = self
+            .mirrors
+            .iter()
             .map(|m| m.store(key, data, metadata.clone()))
             .collect();
 
@@ -596,7 +684,9 @@ impl BackupStorage {
                         return Ok(data);
                     }
                 }
-                Err(BackupError::Storage("Key not found in any storage".to_string()))
+                Err(BackupError::Storage(
+                    "Key not found in any storage".to_string(),
+                ))
             }
         }
     }
@@ -652,10 +742,21 @@ mod tests {
         let storage = LocalStorage::new(temp_dir.path()).unwrap();
 
         // Store multiple files
-        storage.store("file1.txt", b"content1", HashMap::new()).await.unwrap();
-        storage.store("file2.txt", b"content2", HashMap::new()).await.unwrap();
-        tokio::fs::create_dir_all(temp_dir.path().join("subdir")).await.unwrap();
-        storage.store("subdir/file3.txt", b"content3", HashMap::new()).await.unwrap();
+        storage
+            .store("file1.txt", b"content1", HashMap::new())
+            .await
+            .unwrap();
+        storage
+            .store("file2.txt", b"content2", HashMap::new())
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(temp_dir.path().join("subdir"))
+            .await
+            .unwrap();
+        storage
+            .store("subdir/file3.txt", b"content3", HashMap::new())
+            .await
+            .unwrap();
 
         // List all
         let objects = storage.list("").await.unwrap();

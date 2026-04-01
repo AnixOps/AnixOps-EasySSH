@@ -1,21 +1,20 @@
 #![allow(dead_code)]
 
-/// High-Performance Thread Pool for Background Tasks
-/// Uses work-stealing algorithm for optimal CPU utilization
-
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::Arc;
 use parking_lot::Mutex;
 use std::collections::VecDeque;
+/// High-Performance Thread Pool for Background Tasks
+/// Uses work-stealing algorithm for optimal CPU utilization
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Task priority levels
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TaskPriority {
-    Critical = 0,  // UI-critical tasks
-    High = 1,      // User-initiated actions
-    Normal = 2,    // Background operations
-    Low = 3,       // Maintenance tasks
+    Critical = 0,   // UI-critical tasks
+    High = 1,       // User-initiated actions
+    Normal = 2,     // Background operations
+    Low = 3,        // Maintenance tasks
     Background = 4, // Deferred work
 }
 
@@ -70,12 +69,7 @@ impl WorkStealingPool {
         let mut workers = Vec::with_capacity(num_threads);
 
         for id in 0..num_threads {
-            let worker = Worker::new(
-                id,
-                global_queue.clone(),
-                shutdown.clone(),
-                stats.clone(),
-            );
+            let worker = Worker::new(id, global_queue.clone(), shutdown.clone(), stats.clone());
             workers.push(worker);
         }
 
@@ -100,11 +94,13 @@ impl WorkStealingPool {
         let mut queue = self.global_queue.lock();
 
         // Priority queue insertion
-        let insert_pos = queue.iter()
+        let insert_pos = queue
+            .iter()
             .position(|t| t.priority > priority)
             .unwrap_or(queue.len());
 
-        if insert_pos < 10000 { // Max queue size
+        if insert_pos < 10000 {
+            // Max queue size
             queue.insert(insert_pos, task);
         } else {
             drop(queue);
@@ -211,13 +207,17 @@ impl Worker {
 
             if let Some(task) = task {
                 let wait_time = task.enqueue_time.elapsed().as_millis() as u64;
-                stats.total_wait_time_ms.fetch_add(wait_time, Ordering::Relaxed);
+                stats
+                    .total_wait_time_ms
+                    .fetch_add(wait_time, Ordering::Relaxed);
 
                 let start = std::time::Instant::now();
                 (task.f)();
                 let exec_time = start.elapsed().as_millis() as u64;
 
-                stats.total_execution_time_ms.fetch_add(exec_time, Ordering::Relaxed);
+                stats
+                    .total_execution_time_ms
+                    .fetch_add(exec_time, Ordering::Relaxed);
                 stats.completed.fetch_add(1, Ordering::Relaxed);
             } else {
                 std::thread::sleep(Duration::from_millis(1));

@@ -175,7 +175,11 @@ impl FeedbackCollector {
         // Send full feedback to server if configured
         // (Implementation depends on backend integration)
 
-        println!("[Feedback] Received: {} - {}", feedback.feedback_type_as_str(), sanitized);
+        println!(
+            "[Feedback] Received: {} - {}",
+            feedback.feedback_type_as_str(),
+            sanitized
+        );
 
         Ok(())
     }
@@ -253,8 +257,14 @@ impl FeedbackCollector {
         // Redact potential passwords, keys, hostnames
         let patterns = [
             (r"password[:=]\s*\S+", "password=[REDACTED]"),
-            (r"-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----", "[PRIVATE-KEY-REDACTED]"),
-            (r"\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b", "[IP-REDACTED]"),
+            (
+                r"-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----",
+                "[PRIVATE-KEY-REDACTED]",
+            ),
+            (
+                r"\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",
+                "[IP-REDACTED]",
+            ),
         ];
 
         // Note: Use regex in production
@@ -282,7 +292,11 @@ impl FeedbackCollector {
     }
 
     /// Check if user should be prompted for feedback
-    pub fn should_prompt_for_feedback(&self, session_count: u32, days_since_last_prompt: u32) -> bool {
+    pub fn should_prompt_for_feedback(
+        &self,
+        session_count: u32,
+        days_since_last_prompt: u32,
+    ) -> bool {
         // Ask after 5 sessions and at least 7 days since last prompt
         session_count >= 5 && days_since_last_prompt >= 7
     }
@@ -297,7 +311,9 @@ impl FeedbackCollector {
 
         for fb in feedbacks.iter() {
             *by_category.entry(fb.category.clone()).or_insert(0) += 1;
-            *by_type.entry(fb.feedback_type_as_str().to_string()).or_insert(0) += 1;
+            *by_type
+                .entry(fb.feedback_type_as_str().to_string())
+                .or_insert(0) += 1;
 
             if let FeedbackRating::Stars(r) = fb.rating {
                 ratings.push(r);
@@ -354,11 +370,31 @@ impl FeedbackCollector {
         FeedbackFormModel {
             categories: self.get_categories(),
             feedback_types: vec![
-                (FeedbackType::General, "General Feedback".to_string(), "Share your thoughts".to_string()),
-                (FeedbackType::BugReport, "Report Bug".to_string(), "Help us fix issues".to_string()),
-                (FeedbackType::FeatureRequest, "Feature Request".to_string(), "Suggest improvements".to_string()),
-                (FeedbackType::Performance, "Performance".to_string(), "Speed or responsiveness".to_string()),
-                (FeedbackType::UiUx, "UI/UX".to_string(), "Interface feedback".to_string()),
+                (
+                    FeedbackType::General,
+                    "General Feedback".to_string(),
+                    "Share your thoughts".to_string(),
+                ),
+                (
+                    FeedbackType::BugReport,
+                    "Report Bug".to_string(),
+                    "Help us fix issues".to_string(),
+                ),
+                (
+                    FeedbackType::FeatureRequest,
+                    "Feature Request".to_string(),
+                    "Suggest improvements".to_string(),
+                ),
+                (
+                    FeedbackType::Performance,
+                    "Performance".to_string(),
+                    "Speed or responsiveness".to_string(),
+                ),
+                (
+                    FeedbackType::UiUx,
+                    "UI/UX".to_string(),
+                    "Interface feedback".to_string(),
+                ),
             ],
             allow_screenshot: false, // Would need screenshot capability
             allow_contact: true,
@@ -368,7 +404,8 @@ impl FeedbackCollector {
     /// Create NPS survey model
     pub fn get_nps_model(&self) -> NpsSurveyModel {
         NpsSurveyModel {
-            question: "How likely are you to recommend EasySSH to a friend or colleague?".to_string(),
+            question: "How likely are you to recommend EasySSH to a friend or colleague?"
+                .to_string(),
             scale_min: 0,
             scale_max: 10,
             scale_labels: ("Not likely".to_string(), "Very likely".to_string()),

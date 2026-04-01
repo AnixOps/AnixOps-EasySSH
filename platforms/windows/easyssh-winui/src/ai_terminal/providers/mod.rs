@@ -7,15 +7,14 @@
 //! - Anthropic Claude API
 //! - 本地模型 (llama.cpp, Ollama)
 
+use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use anyhow::Result;
 
-pub mod openai;
 pub mod claude;
 pub mod local;
-
+pub mod openai;
 
 /// 提供商类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

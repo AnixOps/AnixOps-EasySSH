@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 #![allow(dead_code)]
 
 //! EasySSH Professional Theme System
@@ -39,7 +38,9 @@ pub mod serde_color32 {
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Color32, D::Error> {
         let value = u32::deserialize(deserializer)?;
         let bytes = value.to_le_bytes();
-        Ok(Color32::from_rgba_premultiplied(bytes[0], bytes[1], bytes[2], bytes[3]))
+        Ok(Color32::from_rgba_premultiplied(
+            bytes[0], bytes[1], bytes[2], bytes[3],
+        ))
     }
 }
 
@@ -48,19 +49,27 @@ pub mod serde_vec_color32 {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     pub fn serialize<S: Serializer>(colors: &[Color32], serializer: S) -> Result<S::Ok, S::Error> {
-        let values: Vec<u32> = colors.iter().map(|c| {
-            let rgba = c.to_array();
-            u32::from_le_bytes([rgba[0], rgba[1], rgba[2], rgba[3]])
-        }).collect();
+        let values: Vec<u32> = colors
+            .iter()
+            .map(|c| {
+                let rgba = c.to_array();
+                u32::from_le_bytes([rgba[0], rgba[1], rgba[2], rgba[3]])
+            })
+            .collect();
         values.serialize(serializer)
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Color32>, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Vec<Color32>, D::Error> {
         let values: Vec<u32> = Vec::deserialize(deserializer)?;
-        Ok(values.iter().map(|&v| {
-            let bytes = v.to_le_bytes();
-            Color32::from_rgba_premultiplied(bytes[0], bytes[1], bytes[2], bytes[3])
-        }).collect())
+        Ok(values
+            .iter()
+            .map(|&v| {
+                let bytes = v.to_le_bytes();
+                Color32::from_rgba_premultiplied(bytes[0], bytes[1], bytes[2], bytes[3])
+            })
+            .collect())
     }
 }
 
@@ -68,18 +77,13 @@ pub mod serde_vec_color32 {
 // CURSOR STYLES
 // ============================================================================
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Default)]
 pub enum CursorStyle {
+    #[default]
     Block,
     Line,
     Underscore,
     EmptyBox,
-}
-
-impl Default for CursorStyle {
-    fn default() -> Self {
-        CursorStyle::Block
-    }
 }
 
 impl CursorStyle {
@@ -102,17 +106,12 @@ impl CursorStyle {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CursorBlinkMode {
+    #[default]
     Blink,
     Solid,
-    Smooth,  // iTerm2-style smooth blink
-}
-
-impl Default for CursorBlinkMode {
-    fn default() -> Self {
-        CursorBlinkMode::Blink
-    }
+    Smooth, // iTerm2-style smooth blink
 }
 
 // ============================================================================
@@ -606,18 +605,18 @@ impl TerminalPalette {
 /// Semantic token types for shell syntax highlighting
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum SemanticTokenType {
-    Command,      // Shell built-ins and commands
-    Argument,     // Command arguments
-    Path,         // File paths
-    String,       // Quoted strings
-    Variable,     // Environment variables
-    Comment,      // Shell comments
-    Keyword,      // Shell keywords (if, for, while, etc.)
-    Operator,     // Operators (|, &&, ||, etc.)
-    Number,       // Numeric values
-    Error,        // Syntax errors
-    Function,     // Function definitions
-    Parameter,    // Parameters ($1, $2, etc.)
+    Command,   // Shell built-ins and commands
+    Argument,  // Command arguments
+    Path,      // File paths
+    String,    // Quoted strings
+    Variable,  // Environment variables
+    Comment,   // Shell comments
+    Keyword,   // Shell keywords (if, for, while, etc.)
+    Operator,  // Operators (|, &&, ||, etc.)
+    Number,    // Numeric values
+    Error,     // Syntax errors
+    Function,  // Function definitions
+    Parameter, // Parameters ($1, $2, etc.)
 }
 
 /// Semantic highlighting configuration
@@ -663,18 +662,18 @@ impl SemanticHighlighting {
     pub fn one_dark() -> Self {
         Self {
             enabled: true,
-            command_color: Color32::from_rgb(0x61, 0xaf, 0xef),      // Blue
-            argument_color: Color32::from_rgb(0xab, 0xb2, 0xbf),      // White/gray
-            path_color: Color32::from_rgb(0xe5, 0xc0, 0x7b),        // Yellow
-            string_color: Color32::from_rgb(0x98, 0xc3, 0x79),      // Green
-            variable_color: Color32::from_rgb(0xe0, 0x6c, 0x75),    // Red
-            comment_color: Color32::from_rgb(0x5c, 0x63, 0x70),     // Bright black
-            keyword_color: Color32::from_rgb(0xc6, 0x78, 0xdd),     // Magenta
-            operator_color: Color32::from_rgb(0x56, 0xb6, 0xc2),     // Cyan
-            number_color: Color32::from_rgb(0xd1, 0x9a, 0x66),      // Orange
-            error_color: Color32::from_rgb(0xff, 0x00, 0x00),        // Bright red
-            function_color: Color32::from_rgb(0xd1, 0x9a, 0x66),    // Orange
-            parameter_color: Color32::from_rgb(0xe0, 0x6c, 0x75),  // Red
+            command_color: Color32::from_rgb(0x61, 0xaf, 0xef), // Blue
+            argument_color: Color32::from_rgb(0xab, 0xb2, 0xbf), // White/gray
+            path_color: Color32::from_rgb(0xe5, 0xc0, 0x7b),    // Yellow
+            string_color: Color32::from_rgb(0x98, 0xc3, 0x79),  // Green
+            variable_color: Color32::from_rgb(0xe0, 0x6c, 0x75), // Red
+            comment_color: Color32::from_rgb(0x5c, 0x63, 0x70), // Bright black
+            keyword_color: Color32::from_rgb(0xc6, 0x78, 0xdd), // Magenta
+            operator_color: Color32::from_rgb(0x56, 0xb6, 0xc2), // Cyan
+            number_color: Color32::from_rgb(0xd1, 0x9a, 0x66),  // Orange
+            error_color: Color32::from_rgb(0xff, 0x00, 0x00),   // Bright red
+            function_color: Color32::from_rgb(0xd1, 0x9a, 0x66), // Orange
+            parameter_color: Color32::from_rgb(0xe0, 0x6c, 0x75), // Red
             bold_commands: true,
             italic_comments: true,
             underline_paths: true,
@@ -737,8 +736,8 @@ pub struct FontTuning {
     pub font_family: String,
     pub font_size: f32,
     pub font_weight: FontWeight,
-    pub line_height: f32,      // Multiplier (1.0 = normal)
-    pub letter_spacing: f32,   // In pixels
+    pub line_height: f32,    // Multiplier (1.0 = normal)
+    pub letter_spacing: f32, // In pixels
     pub ligatures: bool,
 }
 
@@ -763,10 +762,10 @@ impl Default for FontTuning {
 pub struct BackgroundSettings {
     pub enabled: bool,
     pub image_path: Option<PathBuf>,
-    pub opacity: f32,          // 0.0 - 1.0
+    pub opacity: f32, // 0.0 - 1.0
     pub stretch_mode: BackgroundStretchMode,
-    pub blur_radius: f32,      // Gaussian blur in pixels
-    pub darkening: f32,        // 0.0 - 1.0 (for better text readability)
+    pub blur_radius: f32, // Gaussian blur in pixels
+    pub darkening: f32,   // 0.0 - 1.0 (for better text readability)
     pub blend_mode: BlendMode,
 }
 
@@ -821,8 +820,8 @@ pub struct TerminalTheme {
     pub cursor_blink_interval_ms: u64,
     pub font_tuning: FontTuning,
     pub background: BackgroundSettings,
-    pub transparency: f32,           // Terminal background transparency (0.0 - 1.0)
-    pub use_bright_bold: bool,       // Show bold text in bright colors
+    pub transparency: f32,     // Terminal background transparency (0.0 - 1.0)
+    pub use_bright_bold: bool, // Show bold text in bright colors
     pub scrollback_lines: usize,
 }
 
@@ -1007,7 +1006,8 @@ impl TerminalTheme {
             id: "tokyo-night".to_string(),
             name: "Tokyo Night".to_string(),
             author: "enkia".to_string(),
-            description: "A clean, dark theme that celebrates the lights of Downtown Tokyo".to_string(),
+            description: "A clean, dark theme that celebrates the lights of Downtown Tokyo"
+                .to_string(),
             version: "1.0".to_string(),
             palette: TerminalPalette::tokyo_night(),
             semantic_highlighting: SemanticHighlighting::one_dark(),
@@ -1091,8 +1091,8 @@ pub struct DynamicThemeConfig {
     pub enabled: bool,
     pub day_theme_id: String,
     pub night_theme_id: String,
-    pub day_start_hour: u8,    // 6 = 6:00 AM
-    pub night_start_hour: u8,  // 18 = 6:00 PM
+    pub day_start_hour: u8,   // 6 = 6:00 AM
+    pub night_start_hour: u8, // 18 = 6:00 PM
     pub transition_duration_minutes: u8,
     pub use_system_theme: bool, // Use Windows light/dark mode
 }
@@ -1182,8 +1182,8 @@ impl ThemeStore {
 
     /// Save store to cache
     pub fn save_cache(&self) -> anyhow::Result<()> {
-        let cache_path = Self::cache_path()
-            .ok_or_else(|| anyhow::anyhow!("Could not determine cache path"))?;
+        let cache_path =
+            Self::cache_path().ok_or_else(|| anyhow::anyhow!("Could not determine cache path"))?;
         let content = serde_json::to_string_pretty(self)?;
         std::fs::write(cache_path, content)?;
         Ok(())
@@ -1233,73 +1233,122 @@ pub fn import_vscode_theme(json_content: &str) -> anyhow::Result<TerminalTheme> 
     // Map VS Code colors to terminal palette
     let colors = &vscode_theme.colors;
 
-    if let Some(bg) = colors.get("terminal.background")
-        .and_then(|v| parse_vscode_color(v)) {
+    if let Some(bg) = colors
+        .get("terminal.background")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.background = bg;
     }
 
-    if let Some(fg) = colors.get("terminal.foreground")
-        .and_then(|v| parse_vscode_color(v)) {
+    if let Some(fg) = colors
+        .get("terminal.foreground")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.foreground = fg;
     }
 
     // Map ANSI colors
-    if let Some(c) = colors.get("terminal.ansiBlack").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBlack")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.black = c;
     }
-    if let Some(c) = colors.get("terminal.ansiRed").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors.get("terminal.ansiRed").and_then(parse_vscode_color) {
         theme.palette.red = c;
     }
-    if let Some(c) = colors.get("terminal.ansiGreen").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiGreen")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.green = c;
     }
-    if let Some(c) = colors.get("terminal.ansiYellow").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiYellow")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.yellow = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBlue").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors.get("terminal.ansiBlue").and_then(parse_vscode_color) {
         theme.palette.blue = c;
     }
-    if let Some(c) = colors.get("terminal.ansiMagenta").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiMagenta")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.magenta = c;
     }
-    if let Some(c) = colors.get("terminal.ansiCyan").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors.get("terminal.ansiCyan").and_then(parse_vscode_color) {
         theme.palette.cyan = c;
     }
-    if let Some(c) = colors.get("terminal.ansiWhite").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiWhite")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.white = c;
     }
 
     // Bright colors
-    if let Some(c) = colors.get("terminal.ansiBrightBlack").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightBlack")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_black = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBrightRed").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightRed")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_red = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBrightGreen").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightGreen")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_green = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBrightYellow").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightYellow")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_yellow = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBrightBlue").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightBlue")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_blue = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBrightMagenta").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightMagenta")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_magenta = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBrightCyan").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightCyan")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_cyan = c;
     }
-    if let Some(c) = colors.get("terminal.ansiBrightWhite").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.ansiBrightWhite")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.bright_white = c;
     }
 
     // Cursor and selection
-    if let Some(c) = colors.get("terminalCursor.background").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminalCursor.background")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.cursor = c;
     }
-    if let Some(c) = colors.get("terminal.selectionBackground").and_then(|v| parse_vscode_color(v)) {
+    if let Some(c) = colors
+        .get("terminal.selectionBackground")
+        .and_then(parse_vscode_color)
+    {
         theme.palette.selection = c;
     }
 
@@ -1314,51 +1363,91 @@ pub fn export_vscode_theme(theme: &TerminalTheme) -> anyhow::Result<String> {
     let mut colors = HashMap::new();
 
     // Terminal colors
-    colors.insert("terminal.background".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.background)));
-    colors.insert("terminal.foreground".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.foreground)));
+    colors.insert(
+        "terminal.background".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.background)),
+    );
+    colors.insert(
+        "terminal.foreground".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.foreground)),
+    );
 
     // ANSI colors
-    colors.insert("terminal.ansiBlack".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.black)));
-    colors.insert("terminal.ansiRed".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.red)));
-    colors.insert("terminal.ansiGreen".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.green)));
-    colors.insert("terminal.ansiYellow".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.yellow)));
-    colors.insert("terminal.ansiBlue".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.blue)));
-    colors.insert("terminal.ansiMagenta".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.magenta)));
-    colors.insert("terminal.ansiCyan".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.cyan)));
-    colors.insert("terminal.ansiWhite".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.white)));
+    colors.insert(
+        "terminal.ansiBlack".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.black)),
+    );
+    colors.insert(
+        "terminal.ansiRed".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.red)),
+    );
+    colors.insert(
+        "terminal.ansiGreen".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.green)),
+    );
+    colors.insert(
+        "terminal.ansiYellow".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.yellow)),
+    );
+    colors.insert(
+        "terminal.ansiBlue".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.blue)),
+    );
+    colors.insert(
+        "terminal.ansiMagenta".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.magenta)),
+    );
+    colors.insert(
+        "terminal.ansiCyan".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.cyan)),
+    );
+    colors.insert(
+        "terminal.ansiWhite".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.white)),
+    );
 
     // Bright colors
-    colors.insert("terminal.ansiBrightBlack".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_black)));
-    colors.insert("terminal.ansiBrightRed".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_red)));
-    colors.insert("terminal.ansiBrightGreen".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_green)));
-    colors.insert("terminal.ansiBrightYellow".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_yellow)));
-    colors.insert("terminal.ansiBrightBlue".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_blue)));
-    colors.insert("terminal.ansiBrightMagenta".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_magenta)));
-    colors.insert("terminal.ansiBrightCyan".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_cyan)));
-    colors.insert("terminal.ansiBrightWhite".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.bright_white)));
+    colors.insert(
+        "terminal.ansiBrightBlack".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_black)),
+    );
+    colors.insert(
+        "terminal.ansiBrightRed".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_red)),
+    );
+    colors.insert(
+        "terminal.ansiBrightGreen".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_green)),
+    );
+    colors.insert(
+        "terminal.ansiBrightYellow".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_yellow)),
+    );
+    colors.insert(
+        "terminal.ansiBrightBlue".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_blue)),
+    );
+    colors.insert(
+        "terminal.ansiBrightMagenta".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_magenta)),
+    );
+    colors.insert(
+        "terminal.ansiBrightCyan".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_cyan)),
+    );
+    colors.insert(
+        "terminal.ansiBrightWhite".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.bright_white)),
+    );
 
-    colors.insert("terminalCursor.background".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.cursor)));
-    colors.insert("terminal.selectionBackground".to_string(),
-        serde_json::Value::String(color_to_hex(theme.palette.selection)));
+    colors.insert(
+        "terminalCursor.background".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.cursor)),
+    );
+    colors.insert(
+        "terminal.selectionBackground".to_string(),
+        serde_json::Value::String(color_to_hex(theme.palette.selection)),
+    );
 
     let vscode_theme = VSCodeThemeImport {
         name: theme.name.clone(),
@@ -1393,8 +1482,7 @@ fn color_to_hex(color: Color32) -> String {
 
 fn sanitize_id(name: &str) -> String {
     name.to_lowercase()
-        .replace(' ', "-")
-        .replace('_', "-")
+        .replace([' ', '_'], "-")
         .replace(|c: char| !c.is_alphanumeric() && c != '-', "")
 }
 
@@ -1494,8 +1582,15 @@ impl ThemeManager {
         if theme.name.is_empty() {
             return Err(anyhow::anyhow!("Theme name cannot be empty"));
         }
-        if !theme.id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-            return Err(anyhow::anyhow!("Theme ID contains invalid characters: {}", theme.id));
+        if !theme
+            .id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(anyhow::anyhow!(
+                "Theme ID contains invalid characters: {}",
+                theme.id
+            ));
         }
 
         self.custom_themes.insert(theme.id.clone(), theme);
@@ -1535,7 +1630,12 @@ impl ThemeManager {
     }
 
     /// Export theme to file
-    pub fn export_theme(&self, theme_id: &str, path: &PathBuf, format: ExportFormat) -> anyhow::Result<()> {
+    pub fn export_theme(
+        &self,
+        theme_id: &str,
+        path: &PathBuf,
+        format: ExportFormat,
+    ) -> anyhow::Result<()> {
         let theme = if let Some(theme) = self.custom_themes.get(theme_id) {
             theme.clone()
         } else {
@@ -1581,8 +1681,11 @@ impl ThemeManager {
 
     /// Get theme by ID
     pub fn get_theme(&self, theme_id: &str) -> Option<TerminalTheme> {
-        self.custom_themes.get(theme_id).cloned()
-            .or_else(|| TerminalTheme::all_built_in().into_iter().find(|t| t.id == theme_id))
+        self.custom_themes.get(theme_id).cloned().or_else(|| {
+            TerminalTheme::all_built_in()
+                .into_iter()
+                .find(|t| t.id == theme_id)
+        })
     }
 }
 
@@ -1700,7 +1803,9 @@ impl ThemeEditor {
                 if ui.button("💾 Save Theme").clicked() {
                     // Only modify ID/name if this is a built-in theme (original_id matches editing_theme.id)
                     // and we're not already editing a custom theme
-                    if self.editing_theme.id == self.original_id && !self.original_id.ends_with("-custom") {
+                    if self.editing_theme.id == self.original_id
+                        && !self.original_id.ends_with("-custom")
+                    {
                         // Create a copy with custom suffix
                         self.editing_theme.id = format!("{}-custom", self.original_id);
                         self.editing_theme.name = format!("{} (Custom)", self.editing_theme.name);
@@ -1714,7 +1819,11 @@ impl ThemeEditor {
                             self.close();
                         }
                         Err(e) => {
-                            tracing::error!("Failed to save theme '{}': {}", self.editing_theme.id, e);
+                            tracing::error!(
+                                "Failed to save theme '{}': {}",
+                                self.editing_theme.id,
+                                e
+                            );
                         }
                     }
                 }
@@ -1819,7 +1928,8 @@ impl ThemeEditor {
                         self.color_to_edit = Some("blue".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Magenta", self.editing_theme.palette.magenta) {
+                    if Self::render_color_button(ui, "Magenta", self.editing_theme.palette.magenta)
+                    {
                         self.color_to_edit = Some("magenta".to_string());
                         self.show_color_picker = true;
                     }
@@ -1835,35 +1945,67 @@ impl ThemeEditor {
 
                 cols[1].vertical(|ui| {
                     ui.label("Bright");
-                    if Self::render_color_button(ui, "Bright Black", self.editing_theme.palette.bright_black) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright Black",
+                        self.editing_theme.palette.bright_black,
+                    ) {
                         self.color_to_edit = Some("bright_black".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Bright Red", self.editing_theme.palette.bright_red) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright Red",
+                        self.editing_theme.palette.bright_red,
+                    ) {
                         self.color_to_edit = Some("bright_red".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Bright Green", self.editing_theme.palette.bright_green) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright Green",
+                        self.editing_theme.palette.bright_green,
+                    ) {
                         self.color_to_edit = Some("bright_green".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Bright Yellow", self.editing_theme.palette.bright_yellow) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright Yellow",
+                        self.editing_theme.palette.bright_yellow,
+                    ) {
                         self.color_to_edit = Some("bright_yellow".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Bright Blue", self.editing_theme.palette.bright_blue) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright Blue",
+                        self.editing_theme.palette.bright_blue,
+                    ) {
                         self.color_to_edit = Some("bright_blue".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Bright Magenta", self.editing_theme.palette.bright_magenta) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright Magenta",
+                        self.editing_theme.palette.bright_magenta,
+                    ) {
                         self.color_to_edit = Some("bright_magenta".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Bright Cyan", self.editing_theme.palette.bright_cyan) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright Cyan",
+                        self.editing_theme.palette.bright_cyan,
+                    ) {
                         self.color_to_edit = Some("bright_cyan".to_string());
                         self.show_color_picker = true;
                     }
-                    if Self::render_color_button(ui, "Bright White", self.editing_theme.palette.bright_white) {
+                    if Self::render_color_button(
+                        ui,
+                        "Bright White",
+                        self.editing_theme.palette.bright_white,
+                    ) {
                         self.color_to_edit = Some("bright_white".to_string());
                         self.show_color_picker = true;
                     }
@@ -1876,9 +2018,11 @@ impl ThemeEditor {
         let mut clicked = false;
         ui.horizontal(|ui| {
             // Color swatch
-            let (rect, response) = ui.allocate_exact_size(egui::Vec2::splat(24.0), egui::Sense::click());
+            let (rect, response) =
+                ui.allocate_exact_size(egui::Vec2::splat(24.0), egui::Sense::click());
             ui.painter().rect_filled(rect, 4.0, color);
-            ui.painter().rect_stroke(rect, 4.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
+            ui.painter()
+                .rect_stroke(rect, 4.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
 
             if response.clicked() {
                 clicked = true;
@@ -1896,7 +2040,11 @@ impl ThemeEditor {
         };
 
         let color = self.get_color_value(&color_id);
-        let mut rgb = [color.r() as f32 / 255.0, color.g() as f32 / 255.0, color.b() as f32 / 255.0];
+        let mut rgb = [
+            color.r() as f32 / 255.0,
+            color.g() as f32 / 255.0,
+            color.b() as f32 / 255.0,
+        ];
         let mut should_close = false;
 
         egui::Window::new("Color Picker")
@@ -2014,7 +2162,10 @@ impl ThemeEditor {
         ui.label("Cursor Style");
         for style in CursorStyle::all() {
             let selected = self.editing_theme.cursor_style == style;
-            if ui.selectable_label(selected, style.display_name()).clicked() {
+            if ui
+                .selectable_label(selected, style.display_name())
+                .clicked()
+            {
                 self.editing_theme.cursor_style = style;
             }
         }
@@ -2024,13 +2175,25 @@ impl ThemeEditor {
         // Blink mode
         ui.label("Blink Mode");
         ui.horizontal(|ui| {
-            ui.radio_value(&mut self.editing_theme.cursor_blink, CursorBlinkMode::Solid, "Solid (No Blink)");
+            ui.radio_value(
+                &mut self.editing_theme.cursor_blink,
+                CursorBlinkMode::Solid,
+                "Solid (No Blink)",
+            );
         });
         ui.horizontal(|ui| {
-            ui.radio_value(&mut self.editing_theme.cursor_blink, CursorBlinkMode::Blink, "Blink");
+            ui.radio_value(
+                &mut self.editing_theme.cursor_blink,
+                CursorBlinkMode::Blink,
+                "Blink",
+            );
         });
         ui.horizontal(|ui| {
-            ui.radio_value(&mut self.editing_theme.cursor_blink, CursorBlinkMode::Smooth, "Smooth (iTerm2 style)");
+            ui.radio_value(
+                &mut self.editing_theme.cursor_blink,
+                CursorBlinkMode::Smooth,
+                "Smooth (iTerm2 style)",
+            );
         });
 
         ui.add_space(20.0);
@@ -2038,9 +2201,11 @@ impl ThemeEditor {
         // Blink interval
         ui.horizontal(|ui| {
             ui.label("Blink Interval (ms):");
-            ui.add(egui::DragValue::new(&mut self.editing_theme.cursor_blink_interval_ms)
-                .speed(50)
-                .range(100..=2000));
+            ui.add(
+                egui::DragValue::new(&mut self.editing_theme.cursor_blink_interval_ms)
+                    .speed(50)
+                    .range(100..=2000),
+            );
         });
     }
 
@@ -2059,9 +2224,11 @@ impl ThemeEditor {
         // Font size
         ui.horizontal(|ui| {
             ui.label("Font Size (px):");
-            ui.add(egui::DragValue::new(&mut self.editing_theme.font_tuning.font_size)
-                .speed(0.5)
-                .range(8.0..=72.0));
+            ui.add(
+                egui::DragValue::new(&mut self.editing_theme.font_tuning.font_size)
+                    .speed(0.5)
+                    .range(8.0..=72.0),
+            );
         });
 
         ui.add_space(10.0);
@@ -2069,9 +2236,11 @@ impl ThemeEditor {
         // Line height
         ui.horizontal(|ui| {
             ui.label("Line Height:");
-            ui.add(egui::DragValue::new(&mut self.editing_theme.font_tuning.line_height)
-                .speed(0.05)
-                .range(0.8..=2.0));
+            ui.add(
+                egui::DragValue::new(&mut self.editing_theme.font_tuning.line_height)
+                    .speed(0.05)
+                    .range(0.8..=2.0),
+            );
         });
 
         ui.add_space(10.0);
@@ -2079,20 +2248,28 @@ impl ThemeEditor {
         // Letter spacing
         ui.horizontal(|ui| {
             ui.label("Letter Spacing (px):");
-            ui.add(egui::DragValue::new(&mut self.editing_theme.font_tuning.letter_spacing)
-                .speed(0.1)
-                .range(-2.0..=5.0));
+            ui.add(
+                egui::DragValue::new(&mut self.editing_theme.font_tuning.letter_spacing)
+                    .speed(0.1)
+                    .range(-2.0..=5.0),
+            );
         });
 
         ui.add_space(10.0);
 
         // Ligatures
-        ui.checkbox(&mut self.editing_theme.font_tuning.ligatures, "Enable Font Ligatures (=>, !=, etc.)");
+        ui.checkbox(
+            &mut self.editing_theme.font_tuning.ligatures,
+            "Enable Font Ligatures (=>, !=, etc.)",
+        );
 
         ui.add_space(10.0);
 
         // Use bright for bold
-        ui.checkbox(&mut self.editing_theme.use_bright_bold, "Use bright colors for bold text");
+        ui.checkbox(
+            &mut self.editing_theme.use_bright_bold,
+            "Use bright colors for bold text",
+        );
     }
 
     fn render_background_tab(&mut self, ui: &mut egui::Ui) {
@@ -2100,7 +2277,10 @@ impl ThemeEditor {
         ui.add_space(15.0);
 
         // Enable background image
-        ui.checkbox(&mut self.editing_theme.background.enabled, "Enable Background Image");
+        ui.checkbox(
+            &mut self.editing_theme.background.enabled,
+            "Enable Background Image",
+        );
 
         if self.editing_theme.background.enabled {
             ui.add_space(10.0);
@@ -2117,7 +2297,8 @@ impl ThemeEditor {
                 if ui.button("Browse...").clicked() {
                     if let Some(path) = rfd::FileDialog::new()
                         .add_filter("Images", &["png", "jpg", "jpeg", "gif", "bmp", "webp"])
-                        .pick_file() {
+                        .pick_file()
+                    {
                         self.editing_theme.background.image_path = Some(path);
                     }
                 }
@@ -2128,21 +2309,29 @@ impl ThemeEditor {
             // Opacity
             ui.horizontal(|ui| {
                 ui.label("Image Opacity:");
-                ui.add(egui::Slider::new(&mut self.editing_theme.background.opacity, 0.0..=1.0));
+                ui.add(egui::Slider::new(
+                    &mut self.editing_theme.background.opacity,
+                    0.0..=1.0,
+                ));
             });
 
             // Blur
             ui.horizontal(|ui| {
                 ui.label("Blur Radius:");
-                ui.add(egui::DragValue::new(&mut self.editing_theme.background.blur_radius)
-                    .speed(0.5)
-                    .range(0.0..=50.0));
+                ui.add(
+                    egui::DragValue::new(&mut self.editing_theme.background.blur_radius)
+                        .speed(0.5)
+                        .range(0.0..=50.0),
+                );
             });
 
             // Darkening
             ui.horizontal(|ui| {
                 ui.label("Darkening:");
-                ui.add(egui::Slider::new(&mut self.editing_theme.background.darkening, 0.0..=1.0));
+                ui.add(egui::Slider::new(
+                    &mut self.editing_theme.background.darkening,
+                    0.0..=1.0,
+                ));
             });
 
             ui.add_space(15.0);
@@ -2151,7 +2340,10 @@ impl ThemeEditor {
             ui.label("Terminal Transparency");
             ui.horizontal(|ui| {
                 ui.label("Opacity:");
-                ui.add(egui::Slider::new(&mut self.editing_theme.transparency, 0.0..=1.0));
+                ui.add(egui::Slider::new(
+                    &mut self.editing_theme.transparency,
+                    0.0..=1.0,
+                ));
             });
         }
     }
@@ -2160,7 +2352,10 @@ impl ThemeEditor {
         ui.heading("Semantic Highlighting");
         ui.add_space(15.0);
 
-        ui.checkbox(&mut self.editing_theme.semantic_highlighting.enabled, "Enable Semantic Highlighting");
+        ui.checkbox(
+            &mut self.editing_theme.semantic_highlighting.enabled,
+            "Enable Semantic Highlighting",
+        );
 
         if self.editing_theme.semantic_highlighting.enabled {
             ui.add_space(15.0);
@@ -2191,21 +2386,29 @@ impl ThemeEditor {
 
     fn render_sem_color_row(ui: &mut egui::Ui, label: &str, color: &mut Color32) {
         ui.horizontal(|ui| {
-            let (rect, _response) = ui.allocate_exact_size(egui::Vec2::splat(20.0), egui::Sense::click());
+            let (rect, _response) =
+                ui.allocate_exact_size(egui::Vec2::splat(20.0), egui::Sense::click());
             ui.painter().rect_filled(rect, 3.0, *color);
-            ui.painter().rect_stroke(rect, 3.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
+            ui.painter()
+                .rect_stroke(rect, 3.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
             ui.label(label);
         });
     }
 
     fn render_sem_color_button(&self, ui: &mut egui::Ui, label: &str, color: &mut Color32) {
         ui.horizontal(|ui| {
-            let (rect, response) = ui.allocate_exact_size(egui::Vec2::splat(20.0), egui::Sense::click());
+            let (rect, response) =
+                ui.allocate_exact_size(egui::Vec2::splat(20.0), egui::Sense::click());
             ui.painter().rect_filled(rect, 3.0, *color);
-            ui.painter().rect_stroke(rect, 3.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
+            ui.painter()
+                .rect_stroke(rect, 3.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
 
             if response.clicked() {
-                let _rgb = [color.r() as f32 / 255.0, color.g() as f32 / 255.0, color.b() as f32 / 255.0];
+                let _rgb = [
+                    color.r() as f32 / 255.0,
+                    color.g() as f32 / 255.0,
+                    color.b() as f32 / 255.0,
+                ];
                 // Simple color picker dialog would open here
                 // For now, use a simple input
                 *color = egui::Color32::from_rgb(
@@ -2229,7 +2432,7 @@ impl ThemeEditor {
 
         let (rect, _response) = ui.allocate_exact_size(
             egui::Vec2::new(available_width, height),
-            egui::Sense::hover()
+            egui::Sense::hover(),
         );
 
         // Background
@@ -2250,67 +2453,109 @@ impl ThemeEditor {
                 ui.painter().rect_filled(
                     egui::Rect::from_min_size(
                         egui::Pos2::new(cursor_x, y),
-                        egui::Vec2::new(font_size * 0.6, line_height)
+                        egui::Vec2::new(font_size * 0.6, line_height),
                     ),
                     2.0,
-                    self.editing_theme.palette.cursor
+                    self.editing_theme.palette.cursor,
                 );
                 ui.painter().text(
                     egui::Pos2::new(cursor_x + 2.0, y),
                     egui::Align2::LEFT_TOP,
                     "$",
                     font.clone(),
-                    self.editing_theme.palette.cursor_text
+                    self.editing_theme.palette.cursor_text,
                 );
             }
             CursorStyle::Line => {
                 ui.painter().line_segment(
                     [
                         egui::Pos2::new(cursor_x, y),
-                        egui::Pos2::new(cursor_x, y + line_height)
+                        egui::Pos2::new(cursor_x, y + line_height),
                     ],
-                    egui::Stroke::new(2.0, self.editing_theme.palette.cursor)
+                    egui::Stroke::new(2.0, self.editing_theme.palette.cursor),
                 );
             }
             CursorStyle::Underscore => {
                 ui.painter().line_segment(
                     [
                         egui::Pos2::new(cursor_x, y + line_height - 2.0),
-                        egui::Pos2::new(cursor_x + font_size * 0.6, y + line_height - 2.0)
+                        egui::Pos2::new(cursor_x + font_size * 0.6, y + line_height - 2.0),
                     ],
-                    egui::Stroke::new(2.0, self.editing_theme.palette.cursor)
+                    egui::Stroke::new(2.0, self.editing_theme.palette.cursor),
                 );
             }
             CursorStyle::EmptyBox => {
                 ui.painter().rect_stroke(
                     egui::Rect::from_min_size(
                         egui::Pos2::new(cursor_x, y),
-                        egui::Vec2::new(font_size * 0.6, line_height)
+                        egui::Vec2::new(font_size * 0.6, line_height),
                     ),
                     2.0,
-                    egui::Stroke::new(2.0, self.editing_theme.palette.cursor)
+                    egui::Stroke::new(2.0, self.editing_theme.palette.cursor),
                 );
             }
         }
 
         // Draw sample text lines with semantic highlighting
         let sample_lines = vec![
-            ("ls -la /home/user", vec![
-                ("ls", self.editing_theme.semantic_highlighting.command_color, true),
-                (" -la", self.editing_theme.semantic_highlighting.argument_color, false),
-                (" /home/user", self.editing_theme.semantic_highlighting.path_color, false),
-            ]),
-            ("echo $PATH", vec![
-                ("echo", self.editing_theme.semantic_highlighting.command_color, true),
-                (" $PATH", self.editing_theme.semantic_highlighting.variable_color, false),
-            ]),
-            ("# List files", vec![
-                ("# List files", self.editing_theme.semantic_highlighting.comment_color, false),
-            ]),
-            ("git status", vec![
-                ("git", self.editing_theme.semantic_highlighting.command_color, true),
-                (" status", self.editing_theme.semantic_highlighting.argument_color, false),
-            ]),
+            (
+                "ls -la /home/user",
+                vec![
+                    (
+                        "ls",
+                        self.editing_theme.semantic_highlighting.command_color,
+                        true,
+                    ),
+                    (
+                        " -la",
+                        self.editing_theme.semantic_highlighting.argument_color,
+                        false,
+                    ),
+                    (
+                        " /home/user",
+                        self.editing_theme.semantic_highlighting.path_color,
+                        false,
+                    ),
+                ],
+            ),
+            (
+                "echo $PATH",
+                vec![
+                    (
+                        "echo",
+                        self.editing_theme.semantic_highlighting.command_color,
+                        true,
+                    ),
+                    (
+                        " $PATH",
+                        self.editing_theme.semantic_highlighting.variable_color,
+                        false,
+                    ),
+                ],
+            ),
+            (
+                "# List files",
+                vec![(
+                    "# List files",
+                    self.editing_theme.semantic_highlighting.comment_color,
+                    false,
+                )],
+            ),
+            (
+                "git status",
+                vec![
+                    (
+                        "git",
+                        self.editing_theme.semantic_highlighting.command_color,
+                        true,
+                    ),
+                    (
+                        " status",
+                        self.editing_theme.semantic_highlighting.argument_color,
+                        false,
+                    ),
+                ],
+            ),
         ];
 
         y += line_height + 5.0;
@@ -2318,13 +2563,16 @@ impl ThemeEditor {
         for (_full_line, segments) in sample_lines {
             let mut x = rect.min.x + 10.0;
             for (text, color, bold) in segments {
-                let _text_with_spacing = text.chars().map(|c| {
-                    if letter_spacing > 0.0 {
-                        format!("{}", c)
-                    } else {
-                        c.to_string()
-                    }
-                }).collect::<String>();
+                let _text_with_spacing = text
+                    .chars()
+                    .map(|c| {
+                        if letter_spacing > 0.0 {
+                            format!("{}", c)
+                        } else {
+                            c.to_string()
+                        }
+                    })
+                    .collect::<String>();
 
                 let text_color = if self.editing_theme.semantic_highlighting.enabled {
                     color
@@ -2341,7 +2589,7 @@ impl ThemeEditor {
                     } else {
                         font.clone()
                     },
-                    text_color
+                    text_color,
                 );
 
                 x += font_size * 0.6 * text.len() as f32 + letter_spacing * text.len() as f32;
@@ -2390,7 +2638,12 @@ impl ThemeGallery {
         self.is_open = false;
     }
 
-    pub fn render(&mut self, ctx: &egui::Context, manager: &mut ThemeManager, editor: &mut ThemeEditor) {
+    pub fn render(
+        &mut self,
+        ctx: &egui::Context,
+        manager: &mut ThemeManager,
+        editor: &mut ThemeEditor,
+    ) {
         if !self.is_open {
             return;
         }
@@ -2427,13 +2680,20 @@ impl ThemeGallery {
         }
     }
 
-    fn render_gallery_content(&mut self, ui: &mut egui::Ui, manager: &mut ThemeManager, editor: &mut ThemeEditor) {
+    fn render_gallery_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        manager: &mut ThemeManager,
+        editor: &mut ThemeEditor,
+    ) {
         // Toolbar
         ui.horizontal(|ui| {
             // Search
-            ui.add(egui::TextEdit::singleline(&mut self.search_query)
-                .hint_text("Search themes...")
-                .desired_width(200.0));
+            ui.add(
+                egui::TextEdit::singleline(&mut self.search_query)
+                    .hint_text("Search themes...")
+                    .desired_width(200.0),
+            );
 
             ui.add_space(20.0);
 
@@ -2467,7 +2727,8 @@ impl ThemeGallery {
                 if ui.button("📥 Import...").clicked() {
                     if let Some(path) = rfd::FileDialog::new()
                         .add_filter("Theme files", &["json"])
-                        .pick_file() {
+                        .pick_file()
+                    {
                         let _ = manager.import_theme(&path);
                     }
                 }
@@ -2487,7 +2748,11 @@ impl ThemeGallery {
                 let selected = self.filter_tag.as_deref() == Some(tag)
                     || (*tag == "All" && self.filter_tag.is_none());
                 if ui.selectable_label(selected, *tag).clicked() {
-                    self.filter_tag = if *tag == "All" { None } else { Some(tag.to_string()) };
+                    self.filter_tag = if *tag == "All" {
+                        None
+                    } else {
+                        Some(tag.to_string())
+                    };
                 }
             }
         });
@@ -2496,34 +2761,44 @@ impl ThemeGallery {
 
         // Theme grid/list
         let themes = manager.all_themes();
-        let filtered_themes: Vec<_> = themes.iter().filter(|t| {
-            // Search filter
-            let matches_search = self.search_query.is_empty()
-                || t.name.to_lowercase().contains(&self.search_query.to_lowercase())
-                || t.author.to_lowercase().contains(&self.search_query.to_lowercase());
+        let filtered_themes: Vec<_> = themes
+            .iter()
+            .filter(|t| {
+                // Search filter
+                let matches_search = self.search_query.is_empty()
+                    || t.name
+                        .to_lowercase()
+                        .contains(&self.search_query.to_lowercase())
+                    || t.author
+                        .to_lowercase()
+                        .contains(&self.search_query.to_lowercase());
 
-            // Tag filter
-            let matches_tag = match self.filter_tag.as_deref() {
-                None | Some("All") => true,
-                Some("Dark") => t.palette.background.r() < 100,
-                Some("Light") => t.palette.background.r() > 200,
-                Some("Favorites") => manager.is_favorite(&t.id),
-                Some("Custom") => manager.custom_themes.contains_key(&t.id),
-                _ => true,
-            };
+                // Tag filter
+                let matches_tag = match self.filter_tag.as_deref() {
+                    None | Some("All") => true,
+                    Some("Dark") => t.palette.background.r() < 100,
+                    Some("Light") => t.palette.background.r() > 200,
+                    Some("Favorites") => manager.is_favorite(&t.id),
+                    Some("Custom") => manager.custom_themes.contains_key(&t.id),
+                    _ => true,
+                };
 
-            matches_search && matches_tag
-        }).collect();
+                matches_search && matches_tag
+            })
+            .collect();
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            match self.view_mode {
-                GalleryViewMode::Grid => self.render_grid_view(ui, &filtered_themes, manager),
-                GalleryViewMode::List => self.render_list_view(ui, &filtered_themes, manager),
-            }
+        egui::ScrollArea::vertical().show(ui, |ui| match self.view_mode {
+            GalleryViewMode::Grid => self.render_grid_view(ui, &filtered_themes, manager),
+            GalleryViewMode::List => self.render_list_view(ui, &filtered_themes, manager),
         });
     }
 
-    fn render_grid_view(&mut self, ui: &mut egui::Ui, themes: &[&TerminalTheme], manager: &mut ThemeManager) {
+    fn render_grid_view(
+        &mut self,
+        ui: &mut egui::Ui,
+        themes: &[&TerminalTheme],
+        manager: &mut ThemeManager,
+    ) {
         let available_width = ui.available_width();
         let card_width = 200.0;
         let columns = (available_width / card_width).max(1.0) as usize;
@@ -2542,13 +2817,24 @@ impl ThemeGallery {
         }
     }
 
-    fn render_list_view(&mut self, ui: &mut egui::Ui, themes: &[&TerminalTheme], manager: &mut ThemeManager) {
+    fn render_list_view(
+        &mut self,
+        ui: &mut egui::Ui,
+        themes: &[&TerminalTheme],
+        manager: &mut ThemeManager,
+    ) {
         for theme in themes {
             ui.horizontal(|ui| {
                 // Preview swatch
-                let (rect, response) = ui.allocate_exact_size(egui::Vec2::new(60.0, 40.0), egui::Sense::click());
-                ui.painter().rect_filled(rect, 4.0, theme.palette.background);
-                ui.painter().rect_stroke(rect, 4.0, egui::Stroke::new(2.0, theme.palette.foreground));
+                let (rect, response) =
+                    ui.allocate_exact_size(egui::Vec2::new(60.0, 40.0), egui::Sense::click());
+                ui.painter()
+                    .rect_filled(rect, 4.0, theme.palette.background);
+                ui.painter().rect_stroke(
+                    rect,
+                    4.0,
+                    egui::Stroke::new(2.0, theme.palette.foreground),
+                );
 
                 // Sample text in theme colors
                 ui.painter().text(
@@ -2556,7 +2842,7 @@ impl ThemeGallery {
                     egui::Align2::LEFT_TOP,
                     "Aa",
                     FontId::new(14.0, FontFamily::Monospace),
-                    theme.palette.foreground
+                    theme.palette.foreground,
                 );
 
                 if response.clicked() {
@@ -2587,19 +2873,28 @@ impl ThemeGallery {
         }
     }
 
-    fn render_theme_card(&mut self, ui: &mut egui::Ui, theme: &TerminalTheme, manager: &mut ThemeManager) {
+    fn render_theme_card(
+        &mut self,
+        ui: &mut egui::Ui,
+        theme: &TerminalTheme,
+        manager: &mut ThemeManager,
+    ) {
         let card_width = 180.0;
         let card_height = 140.0;
 
         let card_response = egui::Frame::group(ui.style())
             .fill(theme.palette.background)
             .stroke(egui::Stroke::new(
-                if self.selected_theme_id == theme.id { 3.0 } else { 1.0 },
+                if self.selected_theme_id == theme.id {
+                    3.0
+                } else {
+                    1.0
+                },
                 if self.selected_theme_id == theme.id {
                     egui::Color32::from_rgb(64, 156, 255)
                 } else {
                     theme.palette.foreground
-                }
+                },
             ))
             .rounding(Rounding::same(8.0))
             .show(ui, |ui| {
@@ -2618,7 +2913,8 @@ impl ThemeGallery {
                             theme.palette.cyan,
                         ];
                         for color in colors {
-                            let (rect, _) = ui.allocate_exact_size(swatch_size, egui::Sense::hover());
+                            let (rect, _) =
+                                ui.allocate_exact_size(swatch_size, egui::Sense::hover());
                             ui.painter_at(rect).rect_filled(rect, 3.0, color);
                         }
                     });
@@ -2626,20 +2922,26 @@ impl ThemeGallery {
                     ui.add_space(10.0);
 
                     // Theme name
-                    ui.label(egui::RichText::new(&theme.name)
-                        .color(theme.palette.foreground)
-                        .strong());
+                    ui.label(
+                        egui::RichText::new(&theme.name)
+                            .color(theme.palette.foreground)
+                            .strong(),
+                    );
 
-                    ui.label(egui::RichText::new(format!("by {}", theme.author))
-                        .color(theme.palette.foreground.linear_multiply(0.7))
-                        .small());
+                    ui.label(
+                        egui::RichText::new(format!("by {}", theme.author))
+                            .color(theme.palette.foreground.linear_multiply(0.7))
+                            .small(),
+                    );
 
                     ui.add_space(10.0);
 
                     // Sample text
-                    ui.label(egui::RichText::new("Hello, World!")
-                        .color(theme.palette.foreground)
-                        .font(FontId::new(12.0, FontFamily::Monospace)));
+                    ui.label(
+                        egui::RichText::new("Hello, World!")
+                            .color(theme.palette.foreground)
+                            .font(FontId::new(12.0, FontFamily::Monospace)),
+                    );
                 });
             });
 
@@ -2661,23 +2963,29 @@ impl ThemeGallery {
             }
 
             let is_fav = manager.is_favorite(&theme.id);
-            if ui.button(if is_fav { "Remove from Favorites" } else { "Add to Favorites" }).clicked() {
+            if ui
+                .button(if is_fav {
+                    "Remove from Favorites"
+                } else {
+                    "Add to Favorites"
+                })
+                .clicked()
+            {
                 manager.toggle_favorite(&theme.id);
                 ui.close_menu();
             }
 
-            if manager.custom_themes.contains_key(&theme.id) {
-                if ui.button("Delete").clicked() {
-                    manager.delete_custom_theme(&theme.id);
-                    ui.close_menu();
-                }
+            if manager.custom_themes.contains_key(&theme.id) && ui.button("Delete").clicked() {
+                manager.delete_custom_theme(&theme.id);
+                ui.close_menu();
             }
 
             if ui.button("Export...").clicked() {
                 if let Some(path) = rfd::FileDialog::new()
                     .add_filter("JSON", &["json"])
                     .set_file_name(format!("{}.json", theme.id))
-                    .save_file() {
+                    .save_file()
+                {
                     let _ = manager.export_theme(&theme.id, &path, ExportFormat::Native);
                 }
                 ui.close_menu();
@@ -2691,7 +2999,12 @@ impl ThemeGallery {
 // ============================================================================
 
 /// Extension to integrate themes into the existing Settings panel
-pub fn render_theme_settings(ui: &mut egui::Ui, manager: &mut ThemeManager, gallery: &mut ThemeGallery, editor: &mut ThemeEditor) {
+pub fn render_theme_settings(
+    ui: &mut egui::Ui,
+    manager: &mut ThemeManager,
+    gallery: &mut ThemeGallery,
+    editor: &mut ThemeEditor,
+) {
     ui.heading("Terminal Theme");
     ui.add_space(15.0);
 
@@ -2702,9 +3015,11 @@ pub fn render_theme_settings(ui: &mut egui::Ui, manager: &mut ThemeManager, gall
             ui.label(egui::RichText::new(&manager.current_theme.name).strong());
 
             let palette = &manager.current_theme.palette;
-            let (rect, _) = ui.allocate_exact_size(egui::Vec2::new(60.0, 30.0), egui::Sense::hover());
+            let (rect, _) =
+                ui.allocate_exact_size(egui::Vec2::new(60.0, 30.0), egui::Sense::hover());
             ui.painter().rect_filled(rect, 4.0, palette.background);
-            ui.painter().rect_stroke(rect, 4.0, egui::Stroke::new(1.0, palette.foreground));
+            ui.painter()
+                .rect_stroke(rect, 4.0, egui::Stroke::new(1.0, palette.foreground));
         });
 
         ui.add_space(10.0);
@@ -2727,7 +3042,10 @@ pub fn render_theme_settings(ui: &mut egui::Ui, manager: &mut ThemeManager, gall
     ui.add_space(10.0);
 
     ui.group(|ui| {
-        ui.checkbox(&mut manager.dynamic_config.enabled, "Enable automatic theme switching");
+        ui.checkbox(
+            &mut manager.dynamic_config.enabled,
+            "Enable automatic theme switching",
+        );
 
         if manager.dynamic_config.enabled {
             ui.add_space(10.0);
@@ -2744,7 +3062,10 @@ pub fn render_theme_settings(ui: &mut egui::Ui, manager: &mut ThemeManager, gall
 
             ui.add_space(10.0);
 
-            ui.checkbox(&mut manager.dynamic_config.use_system_theme, "Follow Windows theme preference");
+            ui.checkbox(
+                &mut manager.dynamic_config.use_system_theme,
+                "Follow Windows theme preference",
+            );
         }
     });
 
@@ -2758,7 +3079,8 @@ pub fn render_theme_settings(ui: &mut egui::Ui, manager: &mut ThemeManager, gall
         if ui.button("📥 Import Theme...").clicked() {
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter("Theme files", &["json"])
-                .pick_file() {
+                .pick_file()
+            {
                 let _ = manager.import_theme(&path);
             }
         }
@@ -2767,8 +3089,10 @@ pub fn render_theme_settings(ui: &mut egui::Ui, manager: &mut ThemeManager, gall
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter("JSON", &["json"])
                 .set_file_name(format!("{}.json", manager.current_theme.id))
-                .save_file() {
-                let _ = manager.export_theme(&manager.current_theme.id, &path, ExportFormat::Native);
+                .save_file()
+            {
+                let _ =
+                    manager.export_theme(&manager.current_theme.id, &path, ExportFormat::Native);
             }
         }
 
@@ -2776,8 +3100,10 @@ pub fn render_theme_settings(ui: &mut egui::Ui, manager: &mut ThemeManager, gall
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter("JSON", &["json"])
                 .set_file_name(format!("{}-vscode.json", manager.current_theme.id))
-                .save_file() {
-                let _ = manager.export_theme(&manager.current_theme.id, &path, ExportFormat::VSCode);
+                .save_file()
+            {
+                let _ =
+                    manager.export_theme(&manager.current_theme.id, &path, ExportFormat::VSCode);
             }
         }
     });

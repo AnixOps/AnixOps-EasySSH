@@ -2,8 +2,8 @@ use crate::git_types::*;
 use git2::{
     build::{CheckoutBuilder, RepoBuilder},
     AutotagOption, BranchType, Cred, Diff, DiffOptions, FetchOptions as GitFetchOptions,
-    IndexAddOption, MergeOptions, Oid, PushOptions as GitPushOptions, RemoteCallbacks,
-    Repository, Sort, StashFlags, SubmoduleUpdate,
+    IndexAddOption, MergeOptions, Oid, PushOptions as GitPushOptions, RemoteCallbacks, Repository,
+    Sort, StashFlags, SubmoduleUpdate,
 };
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -20,9 +20,13 @@ pub struct GitClient {
 impl GitClient {
     /// Helper to get repository guard
     fn get_repo(&self) -> Result<std::sync::MutexGuard<'_, Repository>, GitError> {
-        self.repo.as_ref()
+        self.repo
+            .as_ref()
             .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))
-            .and_then(|r| r.lock().map_err(|_| GitError::RepositoryNotFound("Lock poisoned".to_string())))
+            .and_then(|r| {
+                r.lock()
+                    .map_err(|_| GitError::RepositoryNotFound("Lock poisoned".to_string()))
+            })
     }
 
     /// Create a new Git client
@@ -43,7 +47,11 @@ impl GitClient {
             if let Ok(guard) = creds.lock() {
                 if let Some(ref cred) = *guard {
                     match cred {
-                        CredentialType::SshKey { username, private_key, passphrase } => {
+                        CredentialType::SshKey {
+                            username,
+                            private_key,
+                            passphrase,
+                        } => {
                             if allowed_types.contains(git2::CredentialType::SSH_KEY) {
                                 return Cred::ssh_key(
                                     username,
@@ -143,10 +151,13 @@ impl GitClient {
 
     /// Get repository status
     pub fn status(&self) -> Result<RepoStatus, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let head = repo.head().ok();
         let branch = head
@@ -158,7 +169,7 @@ impl GitClient {
         let (upstream, ahead, behind) = if let Some(ref head_ref) = head {
             if let Ok(upstream) = repo.branch_upstream_remote(head_ref.name().unwrap_or("")) {
                 let upstream_name = upstream.as_str().unwrap_or("");
-                let upstream_ref = format!("refs/remotes/{}/{}" , upstream_name, branch);
+                let upstream_ref = format!("refs/remotes/{}/{}", upstream_name, branch);
 
                 let local_oid = head_ref.target();
                 let upstream_oid = repo.refname_to_id(&upstream_ref).ok();
@@ -190,12 +201,19 @@ impl GitClient {
 
         for entry in statuses.iter() {
             let status = entry.status();
-            if status.is_index_new() || status.is_index_modified() || status.is_index_deleted() ||
-               status.is_index_renamed() || status.is_index_typechange() {
+            if status.is_index_new()
+                || status.is_index_modified()
+                || status.is_index_deleted()
+                || status.is_index_renamed()
+                || status.is_index_typechange()
+            {
                 staged += 1;
             }
-            if status.is_wt_modified() || status.is_wt_deleted() || status.is_wt_renamed() ||
-               status.is_wt_typechange() {
+            if status.is_wt_modified()
+                || status.is_wt_deleted()
+                || status.is_wt_renamed()
+                || status.is_wt_typechange()
+            {
                 unstaged += 1;
             }
             if status.is_wt_new() {
@@ -206,7 +224,10 @@ impl GitClient {
             }
         }
 
-        let last_commit = head.as_ref().and_then(|h| h.target()).map(|oid| oid.to_string());
+        let last_commit = head
+            .as_ref()
+            .and_then(|h| h.target())
+            .map(|oid| oid.to_string());
 
         let stash_count = self.stash_list()?.len();
 
@@ -229,10 +250,13 @@ impl GitClient {
 
     /// Get detailed file statuses
     pub fn file_statuses(&self) -> Result<Vec<FileEntry>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut opts = git2::StatusOptions::new();
         opts.include_untracked(true)
@@ -246,17 +270,18 @@ impl GitClient {
             let path = entry.path().unwrap_or("").to_string();
             let status = entry.status();
 
-            let (staged_status, unstaged_status): (Option<FileStatus>, Option<FileStatus>) = if status.is_index_new() {
-                (Some(FileStatus::Added), None)
-            } else if status.is_index_modified() {
-                (Some(FileStatus::Modified), None)
-            } else if status.is_index_deleted() {
-                (Some(FileStatus::Deleted), None)
-            } else if status.is_index_renamed() {
-                (Some(FileStatus::Renamed), None)
-            } else {
-                (None, None)
-            };
+            let (staged_status, unstaged_status): (Option<FileStatus>, Option<FileStatus>) =
+                if status.is_index_new() {
+                    (Some(FileStatus::Added), None)
+                } else if status.is_index_modified() {
+                    (Some(FileStatus::Modified), None)
+                } else if status.is_index_deleted() {
+                    (Some(FileStatus::Deleted), None)
+                } else if status.is_index_renamed() {
+                    (Some(FileStatus::Renamed), None)
+                } else {
+                    (None, None)
+                };
 
             let wt_status = if status.is_wt_modified() {
                 Some(FileStatus::Modified)
@@ -298,10 +323,13 @@ impl GitClient {
 
     /// Stage files
     pub fn stage(&self, paths: &[&str]) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut index = repo.index()?;
         index.add_all(paths, IndexAddOption::DEFAULT, None)?;
@@ -311,10 +339,13 @@ impl GitClient {
 
     /// Unstage files
     pub fn unstage(&self, paths: &[&str]) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let head = repo.head()?;
         let target = head.peel_to_commit()?;
@@ -326,20 +357,23 @@ impl GitClient {
             index.remove_path(Path::new(path))?;
             if let Some(entry) = tree.get_path(Path::new(path)).ok() {
                 if let Some(obj) = repo.find_object(entry.id(), None).ok() {
-                    index.add_frombuffer(&git2::IndexEntry {
-                        ctime: git2::IndexTime::new(0, 0),
-                        mtime: git2::IndexTime::new(0, 0),
-                        dev: 0,
-                        ino: 0,
-                        mode: entry.filemode_raw() as u32,
-                        uid: 0,
-                        gid: 0,
-                        file_size: 0,
-                        id: entry.id(),
-                        flags: 0,
-                        flags_extended: 0,
-                        path: path.as_bytes().to_vec(),
-                    }, &obj.as_blob().map(|b| b.content()).unwrap_or(b""))?;
+                    index.add_frombuffer(
+                        &git2::IndexEntry {
+                            ctime: git2::IndexTime::new(0, 0),
+                            mtime: git2::IndexTime::new(0, 0),
+                            dev: 0,
+                            ino: 0,
+                            mode: entry.filemode_raw() as u32,
+                            uid: 0,
+                            gid: 0,
+                            file_size: 0,
+                            id: entry.id(),
+                            flags: 0,
+                            flags_extended: 0,
+                            path: path.as_bytes().to_vec(),
+                        },
+                        &obj.as_blob().map(|b| b.content()).unwrap_or(b""),
+                    )?;
                 }
             }
         }
@@ -350,10 +384,13 @@ impl GitClient {
 
     /// Discard changes in working directory
     pub fn discard(&self, paths: &[&str]) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut checkout_opts = CheckoutBuilder::new();
         checkout_opts.force();
@@ -367,10 +404,13 @@ impl GitClient {
 
     /// Commit changes
     pub fn commit(&self, message: &str, amend: bool) -> Result<String, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let sig = repo.signature()?;
         let mut index = repo.index()?;
@@ -401,33 +441,30 @@ impl GitClient {
 
         let parents: Vec<&git2::Commit> = parent_commits.iter().collect();
 
-        let commit_id = repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            message,
-            &tree,
-            &parents,
-        )?;
+        let commit_id = repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &parents)?;
 
         Ok(commit_id.to_string())
     }
 
     /// Get commit history
     pub fn log(&self, branch: Option<&str>, limit: usize) -> Result<Vec<CommitInfo>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut revwalk = repo.revwalk()?;
 
         if let Some(b) = branch {
-            let reference = repo.find_reference(&format!("refs/heads/{}", b))
+            let reference = repo
+                .find_reference(&format!("refs/heads/{}", b))
                 .or_else(|_| repo.find_reference(&format!("refs/remotes/origin/{}", b)))?;
-            let oid = reference.target().ok_or_else(|| {
-                GitError::InvalidReference("Branch not found".to_string())
-            })?;
+            let oid = reference
+                .target()
+                .ok_or_else(|| GitError::InvalidReference("Branch not found".to_string()))?;
             revwalk.push(oid)?;
         } else {
             revwalk.push_head()?;
@@ -465,10 +502,13 @@ impl GitClient {
 
     /// Get diff for a commit
     pub fn diff_commit(&self, commit_id: &str) -> Result<Vec<DiffEntry>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let oid = Oid::from_str(commit_id)?;
         let commit = repo.find_commit(oid)?;
@@ -492,10 +532,13 @@ impl GitClient {
 
     /// Get diff between working directory and HEAD
     pub fn diff_workdir(&self) -> Result<Vec<DiffEntry>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let head = repo.head()?;
         let tree = head.peel_to_tree()?;
@@ -508,10 +551,13 @@ impl GitClient {
 
     /// Get staged diff
     pub fn diff_staged(&self) -> Result<Vec<DiffEntry>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let head = repo.head()?;
         let head_tree = head.peel_to_tree()?;
@@ -521,7 +567,8 @@ impl GitClient {
         let index_tree = repo.find_tree(index_tree)?;
 
         let mut diff_opts = DiffOptions::new();
-        let diff = repo.diff_tree_to_tree(Some(&head_tree), Some(&index_tree), Some(&mut diff_opts))?;
+        let diff =
+            repo.diff_tree_to_tree(Some(&head_tree), Some(&index_tree), Some(&mut diff_opts))?;
 
         self.format_diff(&diff)
     }
@@ -541,8 +588,14 @@ impl GitClient {
                     _ => FileStatus::Modified,
                 };
 
-                let old_file = delta.old_file().path().map(|p| p.to_string_lossy().to_string());
-                let new_file = delta.new_file().path().map(|p| p.to_string_lossy().to_string());
+                let old_file = delta
+                    .old_file()
+                    .path()
+                    .map(|p| p.to_string_lossy().to_string());
+                let new_file = delta
+                    .new_file()
+                    .path()
+                    .map(|p| p.to_string_lossy().to_string());
 
                 entries.borrow_mut().push(DiffEntry {
                     old_file,
@@ -589,10 +642,13 @@ impl GitClient {
 
     /// Get all branches
     pub fn branches(&self) -> Result<Vec<BranchInfo>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let head = repo.head().ok();
         let head_name = head.as_ref().and_then(|h| h.shorthand());
@@ -605,7 +661,8 @@ impl GitClient {
             let is_head = head_name == Some(&name);
 
             let upstream = branch.upstream().ok();
-            let upstream_name = upstream.as_ref()
+            let upstream_name = upstream
+                .as_ref()
                 .and_then(|u| u.name().ok().flatten())
                 .map(|n| n.to_string());
 
@@ -616,7 +673,11 @@ impl GitClient {
                 (0, 0)
             };
 
-            let last_commit = branch.get().peel_to_commit().ok().map(|c| c.id().to_string());
+            let last_commit = branch
+                .get()
+                .peel_to_commit()
+                .ok()
+                .map(|c| c.id().to_string());
 
             branches.push(BranchInfo {
                 name,
@@ -633,7 +694,11 @@ impl GitClient {
             let (branch, _) = branch?;
             let name = branch.name()?.unwrap_or("").to_string();
 
-            let last_commit = branch.get().peel_to_commit().ok().map(|c| c.id().to_string());
+            let last_commit = branch
+                .get()
+                .peel_to_commit()
+                .ok()
+                .map(|c| c.id().to_string());
 
             branches.push(BranchInfo {
                 name,
@@ -651,10 +716,13 @@ impl GitClient {
 
     /// Create a new branch
     pub fn create_branch(&self, name: &str, start_point: Option<&str>) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let commit = if let Some(point) = start_point {
             let obj = repo.revparse_single(point)?;
@@ -670,10 +738,13 @@ impl GitClient {
 
     /// Switch to a branch
     pub fn checkout_branch(&self, name: &str, create: bool) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let (obj, reference) = repo.revparse_ext(name)?;
 
@@ -695,10 +766,13 @@ impl GitClient {
 
     /// Delete a branch
     pub fn delete_branch(&self, name: &str) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut branch = repo.find_branch(name, BranchType::Local)?;
         branch.delete()?;
@@ -708,10 +782,13 @@ impl GitClient {
 
     /// Merge branch into current branch
     pub fn merge(&self, branch_name: &str) -> Result<MergeResult, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let their_ref = repo.find_reference(&format!("refs/heads/{}", branch_name))?;
         let their_commit = their_ref.peel_to_commit()?;
@@ -730,7 +807,9 @@ impl GitClient {
         }
 
         if analysis.is_unborn() {
-            return Err(GitError::InvalidReference("Cannot merge unborn branch".to_string()));
+            return Err(GitError::InvalidReference(
+                "Cannot merge unborn branch".to_string(),
+            ));
         }
 
         let mut merge_opts = MergeOptions::new();
@@ -772,7 +851,11 @@ impl GitClient {
         let parent = head.peel_to_commit()?;
 
         let sig = repo.signature()?;
-        let msg = format!("Merge branch '{}' into {}", branch_name, head.shorthand().unwrap_or("HEAD"));
+        let msg = format!(
+            "Merge branch '{}' into {}",
+            branch_name,
+            head.shorthand().unwrap_or("HEAD")
+        );
 
         let commit_id = repo.commit(
             Some("HEAD"),
@@ -789,16 +872,22 @@ impl GitClient {
             success: true,
             conflicts: vec![],
             auto_committed: true,
-            message: format!("Merge commit created: {}", commit_id.to_string()[..7].to_string()),
+            message: format!(
+                "Merge commit created: {}",
+                commit_id.to_string()[..7].to_string()
+            ),
         })
     }
 
     /// Get current merge conflicts
     pub fn get_conflicts(&self) -> Result<Vec<ConflictInfo>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let index = repo.index()?;
         let conflicts = index.conflicts()?;
@@ -807,12 +896,17 @@ impl GitClient {
         for conflict in conflicts {
             let conflict = conflict?;
 
-            let path = std::str::from_utf8(&conflict.ancestor.as_ref()
-                .or(conflict.our.as_ref())
-                .or(conflict.their.as_ref())
-                .unwrap().path)
-                .map_err(|_| GitError::IoError("Invalid path encoding".to_string()))?
-                .to_string();
+            let path = std::str::from_utf8(
+                &conflict
+                    .ancestor
+                    .as_ref()
+                    .or(conflict.our.as_ref())
+                    .or(conflict.their.as_ref())
+                    .unwrap()
+                    .path,
+            )
+            .map_err(|_| GitError::IoError("Invalid path encoding".to_string()))?
+            .to_string();
 
             let get_content = |entry: &git2::IndexEntry| -> Result<String, GitError> {
                 let blob = repo.find_blob(entry.id)?;
@@ -820,15 +914,20 @@ impl GitClient {
             };
 
             let ancestor_id = conflict.ancestor.as_ref().map(|e| e.id.to_string());
-            let our_id = conflict.our.as_ref().map(|e| e.id.to_string()).unwrap_or_default();
-            let their_id = conflict.their.as_ref().map(|e| e.id.to_string()).unwrap_or_default();
+            let our_id = conflict
+                .our
+                .as_ref()
+                .map(|e| e.id.to_string())
+                .unwrap_or_default();
+            let their_id = conflict
+                .their
+                .as_ref()
+                .map(|e| e.id.to_string())
+                .unwrap_or_default();
 
-            let ancestor_content = conflict.ancestor.as_ref()
-                .and_then(|e| get_content(e).ok());
-            let our_content = conflict.our.as_ref()
-                .and_then(|e| get_content(e).ok());
-            let their_content = conflict.their.as_ref()
-                .and_then(|e| get_content(e).ok());
+            let ancestor_content = conflict.ancestor.as_ref().and_then(|e| get_content(e).ok());
+            let our_content = conflict.our.as_ref().and_then(|e| get_content(e).ok());
+            let their_content = conflict.their.as_ref().and_then(|e| get_content(e).ok());
 
             result.push(ConflictInfo {
                 path,
@@ -846,10 +945,13 @@ impl GitClient {
 
     /// Resolve a conflict
     pub fn resolve_conflict(&self, path: &str, content: &str) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut index = repo.index()?;
 
@@ -883,10 +985,13 @@ impl GitClient {
 
     /// Abort current merge
     pub fn abort_merge(&self) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         repo.cleanup_state()?;
 
@@ -900,10 +1005,13 @@ impl GitClient {
 
     /// Get remotes
     pub fn remotes(&self) -> Result<Vec<RemoteInfo>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let remote_names = repo.remotes()?;
         let mut remotes = Vec::new();
@@ -924,10 +1032,13 @@ impl GitClient {
 
     /// Add a remote
     pub fn add_remote(&self, name: &str, url: &str) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         repo.remote(name, url)?;
         Ok(())
@@ -935,10 +1046,13 @@ impl GitClient {
 
     /// Remove a remote
     pub fn remove_remote(&self, name: &str) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         repo.remote_delete(name)?;
         Ok(())
@@ -946,10 +1060,13 @@ impl GitClient {
 
     /// Fetch from remote
     pub fn fetch(&self, options: &FetchOptions) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut remote = repo.find_remote(&options.remote)?;
 
@@ -971,10 +1088,13 @@ impl GitClient {
 
     /// Push to remote
     pub fn push(&self, refspec: &str, options: &PushOptions) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut remote = repo.find_remote(&options.remote)?;
 
@@ -992,7 +1112,11 @@ impl GitClient {
         if options.set_upstream {
             let branch = repo.head()?.shorthand().unwrap_or("HEAD").to_string();
             let mut branch = repo.find_branch(&branch, BranchType::Local)?;
-            branch.set_upstream(Some(&format!("{}/{}", options.remote, branch.name()?.unwrap_or(""))))?;
+            branch.set_upstream(Some(&format!(
+                "{}/{}",
+                options.remote,
+                branch.name()?.unwrap_or("")
+            )))?;
         }
 
         Ok(())
@@ -1006,10 +1130,13 @@ impl GitClient {
             tags: false,
         })?;
 
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let head = repo.head()?;
         let branch_name = head.shorthand().unwrap_or("HEAD");
@@ -1035,7 +1162,12 @@ impl GitClient {
         if is_fast_forward {
             let tree = their_commit.tree()?;
             repo.checkout_tree(&tree.into_object(), None)?;
-            repo.reference(&format!("refs/heads/{}", branch_name), their_commit.id(), true, "pull: fast-forward")?;
+            repo.reference(
+                &format!("refs/heads/{}", branch_name),
+                their_commit.id(),
+                true,
+                "pull: fast-forward",
+            )?;
             repo.set_head(&format!("refs/heads/{}", branch_name))?;
 
             return Ok(MergeResult {
@@ -1051,10 +1183,13 @@ impl GitClient {
 
     /// Get all tags
     pub fn tags(&self) -> Result<Vec<TagInfo>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut tags = Vec::new();
 
@@ -1063,11 +1198,7 @@ impl GitClient {
 
             let (message, tagger, is_annotated) = if let Ok(tag) = repo.find_tag(oid) {
                 let tagger_sig = tag.tagger().map(|s| GitSignature::from(s));
-                (
-                    tag.message().map(|m| m.to_string()),
-                    tagger_sig,
-                    true,
-                )
+                (tag.message().map(|m| m.to_string()), tagger_sig, true)
             } else {
                 (None, None, false)
             };
@@ -1093,10 +1224,13 @@ impl GitClient {
         target: Option<&str>,
         message: Option<&str>,
     ) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let target_obj = if let Some(t) = target {
             repo.revparse_single(t)?
@@ -1107,21 +1241,9 @@ impl GitClient {
 
         if let Some(msg) = message {
             let sig = repo.signature()?;
-            repo.tag(
-                name,
-                &target_obj,
-                &sig,
-                msg,
-                true,
-            )?;
+            repo.tag(name, &target_obj, &sig, msg, true)?;
         } else {
-            repo.tag(
-                name,
-                &target_obj,
-                &repo.signature()?,
-                "",
-                false,
-            )?;
+            repo.tag(name, &target_obj, &repo.signature()?, "", false)?;
         }
 
         Ok(())
@@ -1129,10 +1251,13 @@ impl GitClient {
 
     /// Delete a tag
     pub fn delete_tag(&self, name: &str) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         repo.tag_delete(name)?;
         Ok(())
@@ -1141,19 +1266,25 @@ impl GitClient {
     /// Push a tag to remote
     pub fn push_tag(&self, tag_name: &str, remote: &str) -> Result<(), GitError> {
         let refspec = format!("refs/tags/{}", tag_name);
-        self.push(&refspec, &PushOptions {
-            remote: remote.to_string(),
-            force: false,
-            set_upstream: false,
-        })
+        self.push(
+            &refspec,
+            &PushOptions {
+                remote: remote.to_string(),
+                force: false,
+                set_upstream: false,
+            },
+        )
     }
 
     /// Get all stashes
     pub fn stash_list(&self) -> Result<Vec<StashEntry>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let mut repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let mut repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut stashes = Vec::new();
 
@@ -1170,11 +1301,18 @@ impl GitClient {
     }
 
     /// Create a stash
-    pub fn stash_save(&self, message: Option<&str>, include_untracked: bool) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let mut repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+    pub fn stash_save(
+        &self,
+        message: Option<&str>,
+        include_untracked: bool,
+    ) -> Result<(), GitError> {
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let mut repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let sig = repo.signature()?;
         let default_msg = "WIP on stash";
@@ -1192,10 +1330,13 @@ impl GitClient {
 
     /// Pop a stash
     pub fn stash_pop(&self, index: usize) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let mut repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let mut repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         repo.stash_pop(index as usize, None)?;
         Ok(())
@@ -1203,10 +1344,13 @@ impl GitClient {
 
     /// Apply a stash without removing it
     pub fn stash_apply(&self, index: usize) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let mut repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let mut repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         repo.stash_apply(index as usize, None)?;
         Ok(())
@@ -1214,10 +1358,13 @@ impl GitClient {
 
     /// Drop a stash
     pub fn stash_drop(&self, index: usize) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let mut repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let mut repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         repo.stash_drop(index as usize)?;
         Ok(())
@@ -1225,10 +1372,13 @@ impl GitClient {
 
     /// Get submodules
     pub fn submodules(&self) -> Result<Vec<SubmoduleInfo>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let submodules = repo.submodules()?;
         let mut result = Vec::new();
@@ -1288,21 +1438,31 @@ impl GitClient {
 
     /// Add a submodule
     pub fn add_submodule(&self, url: &str, path: &Path) -> Result<(), GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let _ = repo.submodule(url, path, false)?;
         Ok(())
     }
 
     /// Blame file
-    pub fn blame(&self, path: &str, oldest_commit: Option<&str>) -> Result<Vec<BlameLine>, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+    pub fn blame(
+        &self,
+        path: &str,
+        oldest_commit: Option<&str>,
+    ) -> Result<Vec<BlameLine>, GitError> {
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut opts = git2::BlameOptions::new();
 
@@ -1342,10 +1502,13 @@ impl GitClient {
 
     /// Get repository statistics
     pub fn stats(&self) -> Result<RepoStats, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let mut revwalk = repo.revwalk()?;
         revwalk.push_head()?;
@@ -1365,9 +1528,7 @@ impl GitClient {
             }
         }
 
-        let size_bytes = std::fs::metadata(repo.path())
-            .map(|m| m.len())
-            .unwrap_or(0);
+        let size_bytes = std::fs::metadata(repo.path()).map(|m| m.len()).unwrap_or(0);
 
         Ok(RepoStats {
             commit_count,
@@ -1381,10 +1542,13 @@ impl GitClient {
 
     /// Get file content at specific commit
     pub fn get_file_at_commit(&self, path: &str, commit_id: &str) -> Result<String, GitError> {
-        let repo = self.repo.as_ref().ok_or_else(|| {
-            GitError::RepositoryNotFound("No repository open".to_string())
-        })?;
-        let repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+        let repo = self
+            .repo
+            .as_ref()
+            .ok_or_else(|| GitError::RepositoryNotFound("No repository open".to_string()))?;
+        let repo = repo
+            .lock()
+            .map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
 
         let oid = Oid::from_str(commit_id)?;
         let commit = repo.find_commit(oid)?;

@@ -75,9 +75,7 @@ impl ConsentCategory {
             ConsentCategory::Experimentation => {
                 "Participate in A/B tests to try new features and improvements."
             }
-            ConsentCategory::Feedback => {
-                "Collect your feedback to improve the product experience."
-            }
+            ConsentCategory::Feedback => "Collect your feedback to improve the product experience.",
         }
     }
 
@@ -96,7 +94,7 @@ pub enum PrivacyRegion {
     /// California (CCPA)
     California,
     /// Other regions with strict privacy laws
-    Brazil,    // LGPD
+    Brazil, // LGPD
     Canada,    // PIPEDA
     Australia, // Privacy Act
     /// Default/Other
@@ -111,9 +109,9 @@ impl PrivacyRegion {
 
         // EU countries
         let eu_countries = [
-            "at", "be", "bg", "hr", "cy", "cz", "dk", "ee", "fi", "fr",
-            "de", "gr", "hu", "ie", "it", "lv", "lt", "lu", "mt", "nl",
-            "pl", "pt", "ro", "sk", "si", "es", "se", // EU-27
+            "at", "be", "bg", "hr", "cy", "cz", "dk", "ee", "fi", "fr", "de", "gr", "hu", "ie",
+            "it", "lv", "lt", "lu", "mt", "nl", "pl", "pt", "ro", "sk", "si", "es",
+            "se", // EU-27
             "gb", "uk", // UK (still GDPR-covered)
             "no", "is", "li", "ch", // EEA
         ];

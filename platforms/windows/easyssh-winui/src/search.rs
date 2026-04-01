@@ -145,7 +145,11 @@ impl RecentUsageTracker {
     }
 
     pub fn update_connection_duration(&mut self, server_id: &str, duration_secs: u64) {
-        if let Some(conn) = self.connections.iter_mut().find(|c| c.server_id == server_id) {
+        if let Some(conn) = self
+            .connections
+            .iter_mut()
+            .find(|c| c.server_id == server_id)
+        {
             conn.duration_secs = duration_secs;
         }
     }
@@ -188,8 +192,7 @@ impl PinyinConverter {
         let pinyin = Self::to_pinyin(text);
         let query_lower = query.to_lowercase();
 
-        pinyin.contains(&query_lower) ||
-        Self::fuzzy_match(&pinyin, &query_lower)
+        pinyin.contains(&query_lower) || Self::fuzzy_match(&pinyin, &query_lower)
     }
 
     /// Simple fuzzy matching algorithm
@@ -205,7 +208,9 @@ impl PinyinConverter {
         let mut pattern_idx = 0;
 
         while text_idx < text_chars.len() && pattern_idx < pattern_chars.len() {
-            if text_chars[text_idx].to_lowercase().next() == pattern_chars[pattern_idx].to_lowercase().next() {
+            if text_chars[text_idx].to_lowercase().next()
+                == pattern_chars[pattern_idx].to_lowercase().next()
+            {
                 pattern_idx += 1;
             }
             text_idx += 1;
@@ -332,25 +337,40 @@ impl GlobalSearchEngine {
             let host_score = self.calculate_match_score(&server.host, &query_lower);
             let user_score = self.calculate_match_score(&server.username, &query_lower);
 
-            let best_score = score.total_score().max(host_score.total_score()).max(user_score.total_score());
+            let best_score = score
+                .total_score()
+                .max(host_score.total_score())
+                .max(user_score.total_score());
 
             if query.is_empty() || best_score > 0.0 {
                 let is_fav = favorites.contains(&server.id);
                 let is_connected = active_sessions.contains(&server.id);
 
                 // Boost favorites
-                let final_score = if is_fav { best_score + 1000.0 } else { best_score };
+                let final_score = if is_fav {
+                    best_score + 1000.0
+                } else {
+                    best_score
+                };
 
                 // Boost connected servers
-                let final_score = if is_connected { final_score + 500.0 } else { final_score };
+                let final_score = if is_connected {
+                    final_score + 500.0
+                } else {
+                    final_score
+                };
 
                 // Get server tags
-                let server_tags = tags.get(&server.id)
+                let server_tags = tags
+                    .get(&server.id)
                     .map(|t| t.join(", "))
                     .unwrap_or_default();
 
                 let subtitle = if is_connected {
-                    format!("{}@{}:{} ● Connected", server.username, server.host, server.port)
+                    format!(
+                        "{}@{}:{} ● Connected",
+                        server.username, server.host, server.port
+                    )
                 } else {
                     format!("{}@{}:{}", server.username, server.host, server.port)
                 };
@@ -448,7 +468,11 @@ impl GlobalSearchEngine {
         }
 
         // Sort by score (descending)
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         results
     }
@@ -513,7 +537,11 @@ impl GlobalSearchEngine {
 
         // Only recent filter
         if filter.only_recent {
-            let is_recent = self.recent_usage.connections.iter().any(|c| c.server_id == server.id);
+            let is_recent = self
+                .recent_usage
+                .connections
+                .iter()
+                .any(|c| c.server_id == server.id);
             if !is_recent {
                 return false;
             }
@@ -565,7 +593,12 @@ impl GlobalSearchEngine {
                 results.push(SearchResult {
                     id: server.id.clone(),
                     result_type: SearchResultType::Server,
-                    title: format!("{}Recent: {}{}", if is_fav { "★ " } else { "" }, server.name, if is_connected { " ●" } else { "" }),
+                    title: format!(
+                        "{}Recent: {}{}",
+                        if is_fav { "★ " } else { "" },
+                        server.name,
+                        if is_connected { " ●" } else { "" }
+                    ),
                     subtitle: format!("{}@{}:{}", server.username, server.host, server.port),
                     icon: "🕐".to_string(),
                     score: 2000.0,

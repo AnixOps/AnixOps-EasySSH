@@ -2,12 +2,11 @@
 
 /// Render Optimization System
 /// Reduces egui unnecessary redraws by 80%+
-
 use egui::*;
+use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use parking_lot::Mutex;
 
 /// Dirty region tracking for selective redraw
 pub struct DirtyRegionTracker {
@@ -431,7 +430,7 @@ use std::sync::OnceLock;
 static GLOBAL_RENDER_OPTIMIZER: OnceLock<RenderOptimizer> = OnceLock::new();
 
 pub fn global_render_optimizer() -> &'static RenderOptimizer {
-    GLOBAL_RENDER_OPTIMIZER.get_or_init(|| RenderOptimizer::new())
+    GLOBAL_RENDER_OPTIMIZER.get_or_init(RenderOptimizer::new)
 }
 
 /// Fast path for checking if animations should run

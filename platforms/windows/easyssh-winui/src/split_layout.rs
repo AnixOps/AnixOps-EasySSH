@@ -93,10 +93,7 @@ impl PanelContent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LayoutNode {
     /// A leaf node containing a panel
-    Leaf {
-        id: PanelId,
-        content: PanelContent,
-    },
+    Leaf { id: PanelId, content: PanelContent },
     /// A horizontal split container
     Horizontal {
         children: Vec<LayoutNode>,
@@ -137,7 +134,10 @@ impl LayoutNode {
     /// Find a panel by ID
     pub fn find_panel(&self, id: PanelId) -> Option<&PanelContent> {
         match self {
-            LayoutNode::Leaf { id: leaf_id, content } if *leaf_id == id => Some(content),
+            LayoutNode::Leaf {
+                id: leaf_id,
+                content,
+            } if *leaf_id == id => Some(content),
             LayoutNode::Leaf { .. } => None,
             LayoutNode::Horizontal { children, .. } | LayoutNode::Vertical { children, .. } => {
                 children.iter().find_map(|c| c.find_panel(id))
@@ -148,7 +148,10 @@ impl LayoutNode {
     /// Find a panel by ID (mutable)
     pub fn find_panel_mut(&mut self, id: PanelId) -> Option<&mut PanelContent> {
         match self {
-            LayoutNode::Leaf { id: leaf_id, content } if *leaf_id == id => Some(content),
+            LayoutNode::Leaf {
+                id: leaf_id,
+                content,
+            } if *leaf_id == id => Some(content),
             LayoutNode::Leaf { .. } => None,
             LayoutNode::Horizontal { children, .. } | LayoutNode::Vertical { children, .. } => {
                 children.iter_mut().find_map(|c| c.find_panel_mut(id))
@@ -160,7 +163,8 @@ impl LayoutNode {
     pub fn remove_panel(&mut self, id: PanelId) -> bool {
         match self {
             LayoutNode::Leaf { id: leaf_id, .. } => *leaf_id == id,
-            LayoutNode::Horizontal { children, ratios } | LayoutNode::Vertical { children, ratios } => {
+            LayoutNode::Horizontal { children, ratios }
+            | LayoutNode::Vertical { children, ratios } => {
                 let mut removed_idx = None;
                 for (idx, child) in children.iter_mut().enumerate() {
                     if child.remove_panel(id) {
@@ -185,15 +189,25 @@ impl LayoutNode {
     }
 
     /// Split a panel horizontally
-    pub fn split_horizontal(&mut self, target_id: PanelId, new_content: PanelContent) -> Option<PanelId> {
+    pub fn split_horizontal(
+        &mut self,
+        target_id: PanelId,
+        new_content: PanelContent,
+    ) -> Option<PanelId> {
         if let LayoutNode::Leaf { id, content } = self {
             if *id == target_id {
                 let new_id = PanelId::new();
                 let old_content = std::mem::take(content);
                 *self = LayoutNode::Horizontal {
                     children: vec![
-                        LayoutNode::Leaf { id: *id, content: old_content },
-                        LayoutNode::Leaf { id: new_id, content: new_content },
+                        LayoutNode::Leaf {
+                            id: *id,
+                            content: old_content,
+                        },
+                        LayoutNode::Leaf {
+                            id: new_id,
+                            content: new_content,
+                        },
                     ],
                     ratios: vec![0.5, 0.5],
                 };
@@ -201,7 +215,9 @@ impl LayoutNode {
             }
         }
 
-        if let LayoutNode::Horizontal { children, .. } | LayoutNode::Vertical { children, .. } = self {
+        if let LayoutNode::Horizontal { children, .. } | LayoutNode::Vertical { children, .. } =
+            self
+        {
             for child in children.iter_mut() {
                 if let Some(id) = child.split_horizontal(target_id, new_content.clone()) {
                     return Some(id);
@@ -212,15 +228,25 @@ impl LayoutNode {
     }
 
     /// Split a panel vertically
-    pub fn split_vertical(&mut self, target_id: PanelId, new_content: PanelContent) -> Option<PanelId> {
+    pub fn split_vertical(
+        &mut self,
+        target_id: PanelId,
+        new_content: PanelContent,
+    ) -> Option<PanelId> {
         if let LayoutNode::Leaf { id, content } = self {
             if *id == target_id {
                 let new_id = PanelId::new();
                 let old_content = std::mem::take(content);
                 *self = LayoutNode::Vertical {
                     children: vec![
-                        LayoutNode::Leaf { id: *id, content: old_content },
-                        LayoutNode::Leaf { id: new_id, content: new_content },
+                        LayoutNode::Leaf {
+                            id: *id,
+                            content: old_content,
+                        },
+                        LayoutNode::Leaf {
+                            id: new_id,
+                            content: new_content,
+                        },
                     ],
                     ratios: vec![0.5, 0.5],
                 };
@@ -228,7 +254,9 @@ impl LayoutNode {
             }
         }
 
-        if let LayoutNode::Horizontal { children, .. } | LayoutNode::Vertical { children, .. } = self {
+        if let LayoutNode::Horizontal { children, .. } | LayoutNode::Vertical { children, .. } =
+            self
+        {
             for child in children.iter_mut() {
                 if let Some(id) = child.split_vertical(target_id, new_content.clone()) {
                     return Some(id);
@@ -310,7 +338,10 @@ impl Default for SplitLayout {
     fn default() -> Self {
         let mut panels = HashMap::new();
         let server_list_id = PanelId::new();
-        panels.insert(server_list_id, PanelContent::new(PanelType::ServerList, "Servers"));
+        panels.insert(
+            server_list_id,
+            PanelContent::new(PanelType::ServerList, "Servers"),
+        );
 
         Self {
             root: LayoutNode::Leaf {
@@ -338,8 +369,8 @@ impl SplitLayout {
 
         // Replace root with terminal
         let term_id = PanelId::new();
-        let term_content = PanelContent::new(PanelType::Terminal, server_name.clone())
-            .with_session(session_id);
+        let term_content =
+            PanelContent::new(PanelType::Terminal, server_name.clone()).with_session(session_id);
         layout.panels.insert(term_id, term_content.clone());
         layout.root = LayoutNode::Leaf {
             id: term_id,
@@ -387,9 +418,15 @@ impl SplitLayout {
     }
 
     /// Split a panel horizontally (adds new panel to the right)
-    pub fn split_panel_horizontal(&mut self, target_id: PanelId, new_content: PanelContent) -> Option<PanelId> {
+    pub fn split_panel_horizontal(
+        &mut self,
+        target_id: PanelId,
+        new_content: PanelContent,
+    ) -> Option<PanelId> {
         let new_id = self.add_panel(new_content);
-        let result = self.root.split_horizontal(target_id, self.panels[&new_id].clone());
+        let result = self
+            .root
+            .split_horizontal(target_id, self.panels[&new_id].clone());
         if result.is_none() {
             // Rollback
             self.panels.remove(&new_id);
@@ -399,9 +436,15 @@ impl SplitLayout {
     }
 
     /// Split a panel vertically (adds new panel below)
-    pub fn split_panel_vertical(&mut self, target_id: PanelId, new_content: PanelContent) -> Option<PanelId> {
+    pub fn split_panel_vertical(
+        &mut self,
+        target_id: PanelId,
+        new_content: PanelContent,
+    ) -> Option<PanelId> {
         let new_id = self.add_panel(new_content);
-        let result = self.root.split_vertical(target_id, self.panels[&new_id].clone());
+        let result = self
+            .root
+            .split_vertical(target_id, self.panels[&new_id].clone());
         if result.is_none() {
             // Rollback
             self.panels.remove(&new_id);
@@ -465,7 +508,13 @@ impl SplitLayout {
     }
 
     /// Start resizing a splitter
-    pub fn start_resize(&mut self, path: Vec<usize>, is_horizontal: bool, pos: f32, ratios: Vec<f32>) {
+    pub fn start_resize(
+        &mut self,
+        path: Vec<usize>,
+        is_horizontal: bool,
+        pos: f32,
+        ratios: Vec<f32>,
+    ) {
         self.resizing_splitter = Some((path, is_horizontal));
         self.resize_start_pos = pos;
         self.resize_start_ratios = ratios;
@@ -536,14 +585,30 @@ impl SplitLayout {
             }
             LayoutNode::Horizontal { children, ratios } => {
                 Self::render_split(
-                    ui, children, ratios, rect, active, render_panel,
-                    path, splitter_width, true, depth + 1,
+                    ui,
+                    children,
+                    ratios,
+                    rect,
+                    active,
+                    render_panel,
+                    path,
+                    splitter_width,
+                    true,
+                    depth + 1,
                 );
             }
             LayoutNode::Vertical { children, ratios } => {
                 Self::render_split(
-                    ui, children, ratios, rect, active, render_panel,
-                    path, splitter_width, false, depth + 1,
+                    ui,
+                    children,
+                    ratios,
+                    rect,
+                    active,
+                    render_panel,
+                    path,
+                    splitter_width,
+                    false,
+                    depth + 1,
                 );
             }
         }
@@ -577,11 +642,18 @@ impl SplitLayout {
             rect.height() - (num_children as f32 - 1.0) * splitter_width
         };
 
-        let mut current_pos = if is_horizontal { rect.min.x } else { rect.min.y };
+        let mut current_pos = if is_horizontal {
+            rect.min.x
+        } else {
+            rect.min.y
+        };
 
         // Use index-based iteration to satisfy borrow checker
         for idx in 0..num_children {
-            let ratio = ratios.get(idx).copied().unwrap_or(1.0 / num_children as f32);
+            let ratio = ratios
+                .get(idx)
+                .copied()
+                .unwrap_or(1.0 / num_children as f32);
             let size = total_size * ratio.clamp(0.1, 0.9);
 
             let child_rect = if is_horizontal {
@@ -601,8 +673,14 @@ impl SplitLayout {
                 let mut new_path = path.to_vec();
                 new_path.push(idx);
                 Self::render_node_recursive(
-                    ui, child, child_rect, active, render_panel,
-                    &new_path, splitter_width, depth,
+                    ui,
+                    child,
+                    child_rect,
+                    active,
+                    render_panel,
+                    &new_path,
+                    splitter_width,
+                    depth,
                 );
             }
 
@@ -629,7 +707,10 @@ impl SplitLayout {
 
                 if is_horizontal {
                     ui.painter().line_segment(
-                        [egui::pos2(line_pos, rect.min.y), egui::pos2(line_pos, rect.max.y)],
+                        [
+                            egui::pos2(line_pos, rect.min.y),
+                            egui::pos2(line_pos, rect.max.y),
+                        ],
                         egui::Stroke::new(
                             if is_hovered { 3.0 } else { 1.0 },
                             if is_hovered {
@@ -641,7 +722,10 @@ impl SplitLayout {
                     );
                 } else {
                     ui.painter().line_segment(
-                        [egui::pos2(rect.min.x, line_pos), egui::pos2(rect.max.x, line_pos)],
+                        [
+                            egui::pos2(rect.min.x, line_pos),
+                            egui::pos2(rect.max.x, line_pos),
+                        ],
                         egui::Stroke::new(
                             if is_hovered { 3.0 } else { 1.0 },
                             if is_hovered {
@@ -654,10 +738,8 @@ impl SplitLayout {
                 }
 
                 // Handle resize interaction
-                let resize_response = ui.allocate_rect(
-                    splitter_rect.expand(4.0),
-                    egui::Sense::drag(),
-                );
+                let resize_response =
+                    ui.allocate_rect(splitter_rect.expand(4.0), egui::Sense::drag());
 
                 if resize_response.dragged() {
                     let delta = if is_horizontal {
@@ -710,9 +792,12 @@ impl SplitLayout {
         }
     }
 
-
     /// Get a suggested drop target based on mouse position within a rect
-    pub fn drop_target_at_pos(rect: egui::Rect, pos: egui::Pos2, threshold: f32) -> Option<DropTarget> {
+    pub fn drop_target_at_pos(
+        rect: egui::Rect,
+        pos: egui::Pos2,
+        threshold: f32,
+    ) -> Option<DropTarget> {
         let center = rect.center();
         let dx = pos.x - center.x;
         let dy = pos.y - center.y;
@@ -803,8 +888,14 @@ impl LayoutPresets {
     pub fn terminal_sftp(terminal: PanelContent, sftp: PanelContent) -> LayoutNode {
         LayoutNode::Horizontal {
             children: vec![
-                LayoutNode::Leaf { id: PanelId::new(), content: terminal },
-                LayoutNode::Leaf { id: PanelId::new(), content: sftp },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: terminal,
+                },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: sftp,
+                },
             ],
             ratios: vec![0.7, 0.3],
         }
@@ -814,20 +905,39 @@ impl LayoutPresets {
     pub fn terminal_monitor(terminal: PanelContent, monitor: PanelContent) -> LayoutNode {
         LayoutNode::Vertical {
             children: vec![
-                LayoutNode::Leaf { id: PanelId::new(), content: terminal },
-                LayoutNode::Leaf { id: PanelId::new(), content: monitor },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: terminal,
+                },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: monitor,
+                },
             ],
             ratios: vec![0.75, 0.25],
         }
     }
 
     /// Three-way split: servers left, terminal center, sftp right
-    pub fn triple_panel(servers: PanelContent, terminal: PanelContent, sftp: PanelContent) -> LayoutNode {
+    pub fn triple_panel(
+        servers: PanelContent,
+        terminal: PanelContent,
+        sftp: PanelContent,
+    ) -> LayoutNode {
         LayoutNode::Horizontal {
             children: vec![
-                LayoutNode::Leaf { id: PanelId::new(), content: servers },
-                LayoutNode::Leaf { id: PanelId::new(), content: terminal },
-                LayoutNode::Leaf { id: PanelId::new(), content: sftp },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: servers,
+                },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: terminal,
+                },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: sftp,
+                },
             ],
             ratios: vec![0.2, 0.55, 0.25],
         }
@@ -842,14 +952,26 @@ impl LayoutPresets {
     ) -> LayoutNode {
         LayoutNode::Horizontal {
             children: vec![
-                LayoutNode::Leaf { id: PanelId::new(), content: servers },
+                LayoutNode::Leaf {
+                    id: PanelId::new(),
+                    content: servers,
+                },
                 LayoutNode::Vertical {
                     children: vec![
-                        LayoutNode::Leaf { id: PanelId::new(), content: terminal },
+                        LayoutNode::Leaf {
+                            id: PanelId::new(),
+                            content: terminal,
+                        },
                         LayoutNode::Horizontal {
                             children: vec![
-                                LayoutNode::Leaf { id: PanelId::new(), content: monitor },
-                                LayoutNode::Leaf { id: PanelId::new(), content: sftp },
+                                LayoutNode::Leaf {
+                                    id: PanelId::new(),
+                                    content: monitor,
+                                },
+                                LayoutNode::Leaf {
+                                    id: PanelId::new(),
+                                    content: sftp,
+                                },
                             ],
                             ratios: vec![0.5, 0.5],
                         },

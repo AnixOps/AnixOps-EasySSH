@@ -1,6 +1,9 @@
 use crate::types::*;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
-use reqwest::{Client, Method, header::{HeaderMap, HeaderName, HeaderValue}};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Client, Method,
+};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use url::Url;
@@ -50,22 +53,23 @@ impl HttpClient {
         req_builder = self.add_body(req_builder, &request.body).await?;
 
         // Execute request
-        let response = req_builder
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    ApiError::Timeout
-                } else {
-                    ApiError::Network(e.to_string())
-                }
-            })?;
+        let response = req_builder.send().await.map_err(|e| {
+            if e.is_timeout() {
+                ApiError::Timeout
+            } else {
+                ApiError::Network(e.to_string())
+            }
+        })?;
 
         let time_ms = start.elapsed().as_millis() as u64;
 
         // Extract response info
         let status = response.status().as_u16();
-        let status_text = response.status().canonical_reason().unwrap_or("Unknown").to_string();
+        let status_text = response
+            .status()
+            .canonical_reason()
+            .unwrap_or("Unknown")
+            .to_string();
 
         // Extract headers
         let mut headers = HashMap::new();
@@ -104,8 +108,7 @@ impl HttpClient {
     }
 
     fn build_url(&self, base_url: &str, params: &[KeyValue]) -> ApiResult<Url> {
-        let mut url = Url::parse(base_url)
-            .map_err(|e| ApiError::InvalidUrl(e.to_string()))?;
+        let mut url = Url::parse(base_url).map_err(|e| ApiError::InvalidUrl(e.to_string()))?;
 
         // Add query parameters
         let mut query_pairs = url.query_pairs_mut();
@@ -172,8 +175,7 @@ impl HttpClient {
                 header_map.insert(
                     HeaderName::from_bytes(key.as_bytes())
                         .map_err(|e| ApiError::Auth(e.to_string()))?,
-                    HeaderValue::from_str(value)
-                        .map_err(|e| ApiError::Auth(e.to_string()))?,
+                    HeaderValue::from_str(value).map_err(|e| ApiError::Auth(e.to_string()))?,
                 );
             }
             _ => {}
@@ -214,11 +216,16 @@ impl HttpClient {
                         MultipartValue::Text { content } => {
                             form = form.text(part.name.clone(), content.clone());
                         }
-                        MultipartValue::File { data, filename, mime_type } => {
+                        MultipartValue::File {
+                            data,
+                            filename,
+                            mime_type,
+                        } => {
                             let mut file_part = reqwest::multipart::Part::bytes(data.clone())
                                 .file_name(filename.clone());
                             if let Some(mime) = mime_type {
-                                file_part = file_part.mime_str(mime)
+                                file_part = file_part
+                                    .mime_str(mime)
                                     .map_err(|e| ApiError::InvalidBody(e.to_string()))?;
                             }
                             form = form.part(part.name.clone(), file_part);
@@ -227,13 +234,18 @@ impl HttpClient {
                 }
                 Ok(builder.multipart(form))
             }
-            Body::Binary { data, filename, mime_type } => {
+            Body::Binary {
+                data,
+                filename,
+                mime_type,
+            } => {
                 let mut part = reqwest::multipart::Part::bytes(data.clone());
                 if let Some(name) = filename {
                     part = part.file_name(name.clone());
                 }
                 if let Some(mime) = mime_type {
-                    part = part.mime_str(mime)
+                    part = part
+                        .mime_str(mime)
                         .map_err(|e| ApiError::InvalidBody(e.to_string()))?;
                 }
                 let form = reqwest::multipart::Form::new().part("file", part);
@@ -271,7 +283,9 @@ mod tests {
             },
         ];
 
-        let url = client.build_url("https://example.com/api", &params).unwrap();
+        let url = client
+            .build_url("https://example.com/api", &params)
+            .unwrap();
         assert_eq!(url.as_str(), "https://example.com/api?foo=bar&baz=qux");
     }
 

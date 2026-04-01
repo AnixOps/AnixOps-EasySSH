@@ -183,7 +183,12 @@ mod model_tests {
 
     // ==================== Form Validation Tests ====================
 
-    fn validate_server_form(name: &str, host: &str, port: i64, username: &str) -> Result<(), Vec<&'static str>> {
+    fn validate_server_form(
+        name: &str,
+        host: &str,
+        port: i64,
+        username: &str,
+    ) -> Result<(), Vec<&'static str>> {
         let mut errors = Vec::new();
 
         if name.is_empty() {
@@ -284,8 +289,14 @@ mod model_tests {
     #[test]
     fn test_filter_servers_empty_query() {
         let servers = vec![
-            TestServer { name: "Web".to_string(), host: "10.0.0.1".to_string() },
-            TestServer { name: "DB".to_string(), host: "10.0.0.2".to_string() },
+            TestServer {
+                name: "Web".to_string(),
+                host: "10.0.0.1".to_string(),
+            },
+            TestServer {
+                name: "DB".to_string(),
+                host: "10.0.0.2".to_string(),
+            },
         ];
 
         let filtered = filter_servers_by_query(&servers, "");
@@ -295,8 +306,14 @@ mod model_tests {
     #[test]
     fn test_filter_servers_by_name() {
         let servers = vec![
-            TestServer { name: "Production Web".to_string(), host: "10.0.0.1".to_string() },
-            TestServer { name: "Database".to_string(), host: "10.0.0.2".to_string() },
+            TestServer {
+                name: "Production Web".to_string(),
+                host: "10.0.0.1".to_string(),
+            },
+            TestServer {
+                name: "Database".to_string(),
+                host: "10.0.0.2".to_string(),
+            },
         ];
 
         let filtered = filter_servers_by_query(&servers, "web");
@@ -307,8 +324,14 @@ mod model_tests {
     #[test]
     fn test_filter_servers_by_host() {
         let servers = vec![
-            TestServer { name: "Web".to_string(), host: "10.0.0.1".to_string() },
-            TestServer { name: "DB".to_string(), host: "10.0.0.2".to_string() },
+            TestServer {
+                name: "Web".to_string(),
+                host: "10.0.0.1".to_string(),
+            },
+            TestServer {
+                name: "DB".to_string(),
+                host: "10.0.0.2".to_string(),
+            },
         ];
 
         let filtered = filter_servers_by_query(&servers, "10.0.0.2");
@@ -318,9 +341,10 @@ mod model_tests {
 
     #[test]
     fn test_filter_servers_case_insensitive() {
-        let servers = vec![
-            TestServer { name: "Web Server".to_string(), host: "10.0.0.1".to_string() },
-        ];
+        let servers = vec![TestServer {
+            name: "Web Server".to_string(),
+            host: "10.0.0.1".to_string(),
+        }];
 
         let filtered = filter_servers_by_query(&servers, "WEB");
         assert_eq!(filtered.len(), 1);
@@ -328,9 +352,10 @@ mod model_tests {
 
     #[test]
     fn test_filter_servers_no_match() {
-        let servers = vec![
-            TestServer { name: "Web".to_string(), host: "10.0.0.1".to_string() },
-        ];
+        let servers = vec![TestServer {
+            name: "Web".to_string(),
+            host: "10.0.0.1".to_string(),
+        }];
 
         let filtered = filter_servers_by_query(&servers, "database");
         assert!(filtered.is_empty());
@@ -338,11 +363,17 @@ mod model_tests {
 
     // ==================== Server Grouping Tests ====================
 
-    fn group_servers_by_group_id(servers: &[TestServerWithGroup]) -> std::collections::HashMap<Option<String>, Vec<&TestServerWithGroup>> {
-        let mut groups: std::collections::HashMap<Option<String>, Vec<&TestServerWithGroup>> = std::collections::HashMap::new();
+    fn group_servers_by_group_id(
+        servers: &[TestServerWithGroup],
+    ) -> std::collections::HashMap<Option<String>, Vec<&TestServerWithGroup>> {
+        let mut groups: std::collections::HashMap<Option<String>, Vec<&TestServerWithGroup>> =
+            std::collections::HashMap::new();
 
         for server in servers {
-            groups.entry(server.group_id.clone()).or_default().push(server);
+            groups
+                .entry(server.group_id.clone())
+                .or_default()
+                .push(server);
         }
 
         groups
@@ -357,10 +388,22 @@ mod model_tests {
     #[test]
     fn test_group_servers() {
         let servers = vec![
-            TestServerWithGroup { name: "Prod Web".to_string(), group_id: Some("prod".to_string()) },
-            TestServerWithGroup { name: "Prod DB".to_string(), group_id: Some("prod".to_string()) },
-            TestServerWithGroup { name: "Dev Web".to_string(), group_id: Some("dev".to_string()) },
-            TestServerWithGroup { name: "Standalone".to_string(), group_id: None },
+            TestServerWithGroup {
+                name: "Prod Web".to_string(),
+                group_id: Some("prod".to_string()),
+            },
+            TestServerWithGroup {
+                name: "Prod DB".to_string(),
+                group_id: Some("prod".to_string()),
+            },
+            TestServerWithGroup {
+                name: "Dev Web".to_string(),
+                group_id: Some("dev".to_string()),
+            },
+            TestServerWithGroup {
+                name: "Standalone".to_string(),
+                group_id: None,
+            },
         ];
 
         let grouped = group_servers_by_group_id(&servers);

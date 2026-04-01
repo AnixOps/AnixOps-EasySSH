@@ -5,11 +5,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use easyssh_core::{
-    ExportFormat, ConfigConflictResolution as ConflictResolution, ImportResult, ImportFormat,
-    get_supported_languages, get_current_language, set_language, get_language_display_name,
-};
 use crate::app_settings::SettingsManager;
+use easyssh_core::{
+    get_current_language, get_language_display_name, get_supported_languages, set_language,
+    ConfigConflictResolution as ConflictResolution, ExportFormat, ImportFormat, ImportResult,
+};
 
 /// UI Theme mode for application appearance
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -195,8 +195,12 @@ impl SettingsPanel {
         self.terminal_auto_scroll = settings.terminal_auto_scroll;
         self.terminal_copy_on_select = settings.terminal_copy_on_select;
 
-        tracing::info!("Settings panel initialized with font: {} {}px (zoom: {})",
-            self.terminal_font_family, self.terminal_font_size, self.terminal_font_zoom);
+        tracing::info!(
+            "Settings panel initialized with font: {} {}px (zoom: {})",
+            self.terminal_font_family,
+            self.terminal_font_size,
+            self.terminal_font_zoom
+        );
     }
 
     /// Check if there's a pending theme change
@@ -235,7 +239,11 @@ impl SettingsPanel {
 
     /// Get current font settings
     pub fn get_font_settings(&self) -> (&str, f32, f32) {
-        (&self.terminal_font_family, self.terminal_font_size, self.terminal_font_zoom)
+        (
+            &self.terminal_font_family,
+            self.terminal_font_size,
+            self.terminal_font_zoom,
+        )
     }
 
     /// Get current accessibility settings
@@ -261,7 +269,8 @@ impl SettingsPanel {
                 UiThemeMode::Light => "light",
                 UiThemeMode::Dark => "dark",
                 UiThemeMode::System => "system",
-            }.to_string();
+            }
+            .to_string();
 
             manager.set_theme_mode(theme_mode_str);
             manager.set_accessibility(self.high_contrast, self.reduce_motion, self.large_text);
@@ -285,7 +294,11 @@ impl SettingsPanel {
         }
     }
 
-    pub fn render(&mut self, ctx: &egui::Context, view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>) {
+    pub fn render(
+        &mut self,
+        ctx: &egui::Context,
+        view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>,
+    ) {
         if !self.is_open {
             return;
         }
@@ -318,7 +331,11 @@ impl SettingsPanel {
         }
     }
 
-    fn render_settings_content(&mut self, ui: &mut egui::Ui, _view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>) {
+    fn render_settings_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        _view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>,
+    ) {
         ui.horizontal(|ui| {
             // Left sidebar - tabs
             ui.vertical(|ui| {
@@ -334,7 +351,10 @@ impl SettingsPanel {
 
                 ui.add_space(20.0);
 
-                if ui.add(egui::Button::new("Close").min_size([120.0, 40.0].into())).clicked() {
+                if ui
+                    .add(egui::Button::new("Close").min_size([120.0, 40.0].into()))
+                    .clicked()
+                {
                     self.close();
                 }
             });
@@ -392,28 +412,28 @@ impl SettingsPanel {
                     .show_ui(ui, |ui| {
                         for (code, native_name, _english_name) in get_supported_languages() {
                             let is_selected = self.selected_language == *code;
-                            if ui.selectable_label(is_selected, *native_name).clicked() {
-                                if self.selected_language != *code {
-                                    self.selected_language = code.to_string();
+                            if ui.selectable_label(is_selected, *native_name).clicked()
+                                && self.selected_language != *code
+                            {
+                                self.selected_language = code.to_string();
 
-                                    // Apply the language change immediately
-                                    if let Err(e) = set_language(code) {
-                                        eprintln!("Failed to set language to {}: {}", code, e);
-                                    } else {
-                                        println!("Language changed to: {} ({})", native_name, code);
+                                // Apply the language change immediately
+                                if let Err(e) = set_language(code) {
+                                    eprintln!("Failed to set language to {}: {}", code, e);
+                                } else {
+                                    println!("Language changed to: {} ({})", native_name, code);
 
-                                        // Update settings manager if available
-                                        if let Some(ref manager) = self.settings_manager {
-                                            if let Err(e) = manager.set_language(code.to_string()) {
-                                                eprintln!("Failed to persist language setting: {}", e);
-                                            } else {
-                                                println!("Language setting persisted to disk");
-                                            }
+                                    // Update settings manager if available
+                                    if let Some(ref manager) = self.settings_manager {
+                                        if let Err(e) = manager.set_language(code.to_string()) {
+                                            eprintln!("Failed to persist language setting: {}", e);
+                                        } else {
+                                            println!("Language setting persisted to disk");
                                         }
-
-                                        // Set pending language change for UI refresh
-                                        self.pending_language_change = Some(code.to_string());
                                     }
+
+                                    // Set pending language change for UI refresh
+                                    self.pending_language_change = Some(code.to_string());
                                 }
                             }
                         }
@@ -429,18 +449,16 @@ impl SettingsPanel {
                     .selected_text(self.ui_theme_mode.display_name())
                     .width(180.0)
                     .show_ui(ui, |ui| {
-                        let themes = [
-                            UiThemeMode::Dark,
-                            UiThemeMode::Light,
-                            UiThemeMode::System,
-                        ];
+                        let themes = [UiThemeMode::Dark, UiThemeMode::Light, UiThemeMode::System];
                         for theme in themes {
                             let is_selected = self.ui_theme_mode == theme;
-                            if ui.selectable_label(is_selected, theme.display_name()).clicked() {
-                                if self.ui_theme_mode != theme {
-                                    self.pending_theme_change = Some(theme);
-                                    self.ui_theme_mode = theme;
-                                }
+                            if ui
+                                .selectable_label(is_selected, theme.display_name())
+                                .clicked()
+                                && self.ui_theme_mode != theme
+                            {
+                                self.pending_theme_change = Some(theme);
+                                self.ui_theme_mode = theme;
                             }
                         }
                     });
@@ -472,12 +490,12 @@ impl SettingsPanel {
                     .show_ui(ui, |ui| {
                         for (value, display) in available_fonts {
                             let is_selected = self.terminal_font_family == value;
-                            if ui.selectable_label(is_selected, display).clicked() {
-                                if self.terminal_font_family != value {
-                                    self.terminal_font_family = value.to_string();
-                                    self.pending_font_change = true;
-                                    tracing::info!("Font family changed to: {}", value);
-                                }
+                            if ui.selectable_label(is_selected, display).clicked()
+                                && self.terminal_font_family != value
+                            {
+                                self.terminal_font_family = value.to_string();
+                                self.pending_font_change = true;
+                                tracing::info!("Font family changed to: {}", value);
                             }
                         }
                     });
@@ -492,7 +510,7 @@ impl SettingsPanel {
                     egui::DragValue::new(&mut self.terminal_font_size)
                         .speed(0.5)
                         .range(8.0..=32.0)
-                        .suffix(" px")
+                        .suffix(" px"),
                 );
                 if response.changed() {
                     self.pending_font_change = true;
@@ -517,7 +535,7 @@ impl SettingsPanel {
                 let response = ui.add(
                     egui::Slider::new(&mut self.terminal_font_zoom, 0.5..=2.0)
                         .text("x")
-                        .step_by(0.1)
+                        .step_by(0.1),
                 );
                 if response.changed() {
                     self.pending_font_change = true;
@@ -542,19 +560,34 @@ impl SettingsPanel {
             ui.label("Terminal Behavior:");
             ui.add_space(5.0);
 
-            if ui.checkbox(&mut self.terminal_use_webgl, "Use WebGL terminal (faster)").changed() {
+            if ui
+                .checkbox(&mut self.terminal_use_webgl, "Use WebGL terminal (faster)")
+                .changed()
+            {
                 self.pending_font_change = true;
                 tracing::info!("WebGL setting changed to: {}", self.terminal_use_webgl);
             }
 
-            if ui.checkbox(&mut self.terminal_auto_scroll, "Auto-scroll terminal output").changed() {
+            if ui
+                .checkbox(
+                    &mut self.terminal_auto_scroll,
+                    "Auto-scroll terminal output",
+                )
+                .changed()
+            {
                 self.pending_font_change = true;
                 tracing::info!("Auto-scroll changed to: {}", self.terminal_auto_scroll);
             }
 
-            if ui.checkbox(&mut self.terminal_copy_on_select, "Copy on select").changed() {
+            if ui
+                .checkbox(&mut self.terminal_copy_on_select, "Copy on select")
+                .changed()
+            {
                 self.pending_font_change = true;
-                tracing::info!("Copy on select changed to: {}", self.terminal_copy_on_select);
+                tracing::info!(
+                    "Copy on select changed to: {}",
+                    self.terminal_copy_on_select
+                );
             }
 
             ui.add_space(15.0);
@@ -563,21 +596,28 @@ impl SettingsPanel {
             ui.separator();
             ui.add_space(5.0);
             let effective_size = self.terminal_font_size * self.terminal_font_zoom;
-            ui.label(egui::RichText::new(format!(
-                "Preview: {} at {:.1}px (effective: {:.1}px)",
-                self.terminal_font_family, self.terminal_font_size, effective_size
-            )).color(egui::Color32::from_rgb(100, 180, 255)).size(12.0));
+            ui.label(
+                egui::RichText::new(format!(
+                    "Preview: {} at {:.1}px (effective: {:.1}px)",
+                    self.terminal_font_family, self.terminal_font_size, effective_size
+                ))
+                .color(egui::Color32::from_rgb(100, 180, 255))
+                .size(12.0),
+            );
         });
 
         // Save button
         ui.add_space(15.0);
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(
-                    egui::Button::new("💾 Save Settings")
-                        .min_size([140.0, 36.0].into())
-                        .fill(egui::Color32::from_rgb(64, 156, 255))
-                ).clicked() {
+                if ui
+                    .add(
+                        egui::Button::new("💾 Save Settings")
+                            .min_size([140.0, 36.0].into())
+                            .fill(egui::Color32::from_rgb(64, 156, 255)),
+                    )
+                    .clicked()
+                {
                     self.save_settings();
                 }
             });
@@ -590,7 +630,11 @@ impl SettingsPanel {
 
         // Import Section
         ui.group(|ui| {
-            ui.label(egui::RichText::new("Import Configuration").strong().size(16.0));
+            ui.label(
+                egui::RichText::new("Import Configuration")
+                    .strong()
+                    .size(16.0),
+            );
             ui.add_space(10.0);
 
             ui.label("Import servers, groups, and settings from various formats:");
@@ -601,11 +645,31 @@ impl SettingsPanel {
                 egui::ComboBox::from_id_source(egui::Id::new("import_format"))
                     .selected_text(format!("{:?}", self.import_format))
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.import_format, ImportFormat::AutoDetect, "Auto-detect");
-                        ui.selectable_value(&mut self.import_format, ImportFormat::Json, "JSON (.json)");
-                        ui.selectable_value(&mut self.import_format, ImportFormat::JsonEncrypted, "Encrypted JSON (.json.enc)");
-                        ui.selectable_value(&mut self.import_format, ImportFormat::Csv, "CSV (.csv)");
-                        ui.selectable_value(&mut self.import_format, ImportFormat::SshConfig, "SSH Config (.ssh/config)");
+                        ui.selectable_value(
+                            &mut self.import_format,
+                            ImportFormat::AutoDetect,
+                            "Auto-detect",
+                        );
+                        ui.selectable_value(
+                            &mut self.import_format,
+                            ImportFormat::Json,
+                            "JSON (.json)",
+                        );
+                        ui.selectable_value(
+                            &mut self.import_format,
+                            ImportFormat::JsonEncrypted,
+                            "Encrypted JSON (.json.enc)",
+                        );
+                        ui.selectable_value(
+                            &mut self.import_format,
+                            ImportFormat::Csv,
+                            "CSV (.csv)",
+                        );
+                        ui.selectable_value(
+                            &mut self.import_format,
+                            ImportFormat::SshConfig,
+                            "SSH Config (.ssh/config)",
+                        );
                     });
             });
 
@@ -613,17 +677,33 @@ impl SettingsPanel {
 
             ui.horizontal(|ui| {
                 ui.label("Conflict Resolution:");
-                ui.radio_value(&mut self.conflict_resolution, ConflictResolution::Skip, "Skip existing");
-                ui.radio_value(&mut self.conflict_resolution, ConflictResolution::Overwrite, "Overwrite");
-                ui.radio_value(&mut self.conflict_resolution, ConflictResolution::Merge, "Merge");
+                ui.radio_value(
+                    &mut self.conflict_resolution,
+                    ConflictResolution::Skip,
+                    "Skip existing",
+                );
+                ui.radio_value(
+                    &mut self.conflict_resolution,
+                    ConflictResolution::Overwrite,
+                    "Overwrite",
+                );
+                ui.radio_value(
+                    &mut self.conflict_resolution,
+                    ConflictResolution::Merge,
+                    "Merge",
+                );
             });
 
             ui.add_space(10.0);
 
-            if ui.add(egui::Button::new("📁 Import from File...")
-                .min_size([150.0, 40.0].into())
-                .fill(egui::Color32::from_rgb(64, 156, 255)))
-                .clicked() {
+            if ui
+                .add(
+                    egui::Button::new("📁 Import from File...")
+                        .min_size([150.0, 40.0].into())
+                        .fill(egui::Color32::from_rgb(64, 156, 255)),
+                )
+                .clicked()
+            {
                 self.show_import_dialog = true;
             }
 
@@ -637,7 +717,11 @@ impl SettingsPanel {
 
         // Export Section
         ui.group(|ui| {
-            ui.label(egui::RichText::new("Export Configuration").strong().size(16.0));
+            ui.label(
+                egui::RichText::new("Export Configuration")
+                    .strong()
+                    .size(16.0),
+            );
             ui.add_space(10.0);
 
             ui.label("Export your configuration for backup or migration:");
@@ -649,9 +733,21 @@ impl SettingsPanel {
                     .selected_text(self.export_format.to_string())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut self.export_format, ExportFormat::Json, "JSON");
-                        ui.selectable_value(&mut self.export_format, ExportFormat::JsonEncrypted, "Encrypted JSON");
-                        ui.selectable_value(&mut self.export_format, ExportFormat::Csv, "CSV (servers only)");
-                        ui.selectable_value(&mut self.export_format, ExportFormat::SshConfig, "SSH Config");
+                        ui.selectable_value(
+                            &mut self.export_format,
+                            ExportFormat::JsonEncrypted,
+                            "Encrypted JSON",
+                        );
+                        ui.selectable_value(
+                            &mut self.export_format,
+                            ExportFormat::Csv,
+                            "CSV (servers only)",
+                        );
+                        ui.selectable_value(
+                            &mut self.export_format,
+                            ExportFormat::SshConfig,
+                            "SSH Config",
+                        );
                     });
             });
 
@@ -659,19 +755,28 @@ impl SettingsPanel {
                 ui.add_space(10.0);
                 ui.horizontal(|ui| {
                     ui.label("Password:");
-                    ui.add(egui::TextEdit::singleline(&mut self.export_password)
-                        .password(true)
-                        .desired_width(200.0));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.export_password)
+                            .password(true)
+                            .desired_width(200.0),
+                    );
                 });
-                ui.checkbox(&mut self.export_include_secrets, "Include passwords (encrypted)");
+                ui.checkbox(
+                    &mut self.export_include_secrets,
+                    "Include passwords (encrypted)",
+                );
             }
 
             ui.add_space(10.0);
 
-            if ui.add(egui::Button::new("💾 Export to File...")
-                .min_size([150.0, 40.0].into())
-                .fill(egui::Color32::from_rgb(72, 199, 116)))
-                .clicked() {
+            if ui
+                .add(
+                    egui::Button::new("💾 Export to File...")
+                        .min_size([150.0, 40.0].into())
+                        .fill(egui::Color32::from_rgb(72, 199, 116)),
+                )
+                .clicked()
+            {
                 self.show_export_dialog = true;
             }
         });
@@ -695,10 +800,26 @@ impl SettingsPanel {
                     egui::ComboBox::from_id_source(egui::Id::new("cloud_provider"))
                         .selected_text(format!("{:?}", self.cloud_provider))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.cloud_provider, CloudProvider::Dropbox, "Dropbox");
-                            ui.selectable_value(&mut self.cloud_provider, CloudProvider::GoogleDrive, "Google Drive");
-                            ui.selectable_value(&mut self.cloud_provider, CloudProvider::OneDrive, "OneDrive");
-                            ui.selectable_value(&mut self.cloud_provider, CloudProvider::Custom, "Custom (S3/WebDAV)");
+                            ui.selectable_value(
+                                &mut self.cloud_provider,
+                                CloudProvider::Dropbox,
+                                "Dropbox",
+                            );
+                            ui.selectable_value(
+                                &mut self.cloud_provider,
+                                CloudProvider::GoogleDrive,
+                                "Google Drive",
+                            );
+                            ui.selectable_value(
+                                &mut self.cloud_provider,
+                                CloudProvider::OneDrive,
+                                "OneDrive",
+                            );
+                            ui.selectable_value(
+                                &mut self.cloud_provider,
+                                CloudProvider::Custom,
+                                "Custom (S3/WebDAV)",
+                            );
                         });
                 });
 
@@ -706,9 +827,11 @@ impl SettingsPanel {
 
                 ui.horizontal(|ui| {
                     ui.label("API Key/Token:");
-                    ui.add(egui::TextEdit::singleline(&mut self.cloud_api_key)
-                        .password(true)
-                        .desired_width(300.0));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.cloud_api_key)
+                            .password(true)
+                            .desired_width(300.0),
+                    );
                 });
 
                 ui.add_space(10.0);
@@ -753,9 +876,11 @@ impl SettingsPanel {
 
             ui.horizontal(|ui| {
                 ui.label("Current Password:");
-                ui.add(egui::TextEdit::singleline(&mut self.master_password)
-                    .password(true)
-                    .desired_width(200.0));
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.master_password)
+                        .password(true)
+                        .desired_width(200.0),
+                );
             });
 
             ui.add_space(10.0);
@@ -807,7 +932,8 @@ impl SettingsPanel {
 
                 // System mode button
                 let system_selected = self.ui_theme_mode == UiThemeMode::System;
-                if ui.selectable_label(system_selected, "🖥 System").clicked() && !system_selected {
+                if ui.selectable_label(system_selected, "🖥 System").clicked() && !system_selected
+                {
                     self.ui_theme_mode = UiThemeMode::System;
                     self.pending_theme_change = Some(UiThemeMode::System);
                 }
@@ -821,7 +947,9 @@ impl SettingsPanel {
                 UiThemeMode::Light => "Current: Light Mode",
                 UiThemeMode::System => "Current: Following System",
             };
-            ui.label(egui::RichText::new(theme_status).color(egui::Color32::from_rgb(100, 180, 255)));
+            ui.label(
+                egui::RichText::new(theme_status).color(egui::Color32::from_rgb(100, 180, 255)),
+            );
         });
 
         ui.add_space(20.0);
@@ -831,12 +959,18 @@ impl SettingsPanel {
             ui.add_space(10.0);
 
             // FIX: Bind checkbox directly to self field and use changed() for immediate update
-            if ui.checkbox(&mut self.high_contrast, "High contrast mode").changed() {
+            if ui
+                .checkbox(&mut self.high_contrast, "High contrast mode")
+                .changed()
+            {
                 self.pending_accessibility_change = true;
                 tracing::info!("High contrast mode changed to: {}", self.high_contrast);
             }
 
-            if ui.checkbox(&mut self.reduce_motion, "Reduce motion").changed() {
+            if ui
+                .checkbox(&mut self.reduce_motion, "Reduce motion")
+                .changed()
+            {
                 self.pending_accessibility_change = true;
                 tracing::info!("Reduce motion changed to: {}", self.reduce_motion);
             }
@@ -849,7 +983,9 @@ impl SettingsPanel {
 
         ui.add_space(20.0);
 
-        ui.label("For advanced terminal theme options, use the Theme Gallery (🎨 button in toolbar)");
+        ui.label(
+            "For advanced terminal theme options, use the Theme Gallery (🎨 button in toolbar)",
+        );
     }
 
     /// Placeholder for themes tab - actual rendering is done from main.rs
@@ -871,7 +1007,11 @@ impl SettingsPanel {
         ui.label("The Theme Gallery provides a visual preview of all themes!");
     }
 
-    fn render_import_dialog(&mut self, ctx: &egui::Context, view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>) {
+    fn render_import_dialog(
+        &mut self,
+        ctx: &egui::Context,
+        view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>,
+    ) {
         egui::Window::new("Import Configuration")
             .collapsible(false)
             .resizable(false)
@@ -894,7 +1034,8 @@ impl SettingsPanel {
                         .add_filter("JSON", &["json"])
                         .add_filter("CSV", &["csv"])
                         .add_filter("SSH Config", &["config", "", "*"])
-                        .pick_file() {
+                        .pick_file()
+                    {
                         self.import_file_path = Some(path);
                     }
                 }
@@ -905,9 +1046,11 @@ impl SettingsPanel {
                 if self.import_format == ImportFormat::JsonEncrypted {
                     ui.horizontal(|ui| {
                         ui.label("Password:");
-                        ui.add(egui::TextEdit::singleline(&mut self.master_password)
-                            .password(true)
-                            .desired_width(200.0));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.master_password)
+                                .password(true)
+                                .desired_width(200.0),
+                        );
                     });
                     ui.add_space(10.0);
                 }
@@ -921,10 +1064,14 @@ impl SettingsPanel {
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let can_import = self.import_file_path.is_some() &&
-                            (self.import_format != ImportFormat::JsonEncrypted || !self.master_password.is_empty());
+                        let can_import = self.import_file_path.is_some()
+                            && (self.import_format != ImportFormat::JsonEncrypted
+                                || !self.master_password.is_empty());
 
-                        if ui.add_enabled(can_import, egui::Button::new("Import")).clicked() {
+                        if ui
+                            .add_enabled(can_import, egui::Button::new("Import"))
+                            .clicked()
+                        {
                             self.perform_import(view_model);
                             self.show_import_dialog = false;
                             self.show_import_result = true;
@@ -934,7 +1081,11 @@ impl SettingsPanel {
             });
     }
 
-    fn render_export_dialog(&mut self, ctx: &egui::Context, view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>) {
+    fn render_export_dialog(
+        &mut self,
+        ctx: &egui::Context,
+        view_model: &Arc<Mutex<crate::viewmodels::AppViewModel>>,
+    ) {
         egui::Window::new("Export Configuration")
             .collapsible(false)
             .resizable(false)
@@ -958,7 +1109,9 @@ impl SettingsPanel {
 
                     dialog = match self.export_format {
                         ExportFormat::Json => dialog.add_filter("JSON", &["json"]),
-                        ExportFormat::JsonEncrypted => dialog.add_filter("Encrypted JSON", &["enc", "json"]),
+                        ExportFormat::JsonEncrypted => {
+                            dialog.add_filter("Encrypted JSON", &["enc", "json"])
+                        }
                         ExportFormat::Csv => dialog.add_filter("CSV", &["csv"]),
                         ExportFormat::SshConfig => dialog.add_filter("SSH Config", &["config", ""]),
                     };
@@ -997,7 +1150,10 @@ impl SettingsPanel {
                         ui.label(format!("⟲ Servers merged: {}", result.servers_merged));
                     }
                     ui.label(format!("✓ Groups imported: {}", result.groups_imported));
-                    ui.label(format!("✓ Identities imported: {}", result.identities_imported));
+                    ui.label(format!(
+                        "✓ Identities imported: {}",
+                        result.identities_imported
+                    ));
                     ui.label(format!("✓ Snippets imported: {}", result.snippets_imported));
                     ui.label(format!("✓ Tags imported: {}", result.tags_imported));
 
@@ -1006,7 +1162,11 @@ impl SettingsPanel {
                         ui.separator();
                         ui.label(egui::RichText::new("Errors:").color(egui::Color32::RED));
                         for error in &result.errors {
-                            ui.label(egui::RichText::new(format!("• {}", error)).color(egui::Color32::RED).small());
+                            ui.label(
+                                egui::RichText::new(format!("• {}", error))
+                                    .color(egui::Color32::RED)
+                                    .small(),
+                            );
                         }
                     }
                 } else {
@@ -1056,8 +1216,11 @@ impl SettingsPanel {
                     }
 
                     // Get database from view model
-                    let result = view_model.lock().unwrap()
-                        .import_config(&self.import_content, self.import_format.clone(), self.conflict_resolution.clone());
+                    let result = view_model.lock().unwrap().import_config(
+                        &self.import_content,
+                        self.import_format.clone(),
+                        self.conflict_resolution.clone(),
+                    );
 
                     self.import_result = result.ok();
                 }

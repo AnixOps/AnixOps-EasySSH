@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Restore options
 #[derive(Serialize, Deserialize)]
@@ -173,53 +173,70 @@ impl RestoreManager {
         info!("Starting restore from snapshot {}", snapshot_id.0);
 
         // Determine target path
-        let target_path = options.target_path.as_ref()
+        let target_path = options
+            .target_path
+            .as_ref()
             .map(|p| p.clone())
             .unwrap_or_else(|| PathBuf::from("."));
 
         // Create target directory
         if !options.dry_run {
-            tokio::fs::create_dir_all(&target_path).await.map_err(BackupError::Io)?;
+            tokio::fs::create_dir_all(&target_path)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
         // Download and extract backup
         let temp_dir = tempfile::TempDir::new().map_err(|e| BackupError::Io(e))?;
         let backup_path = temp_dir.path().join("backup.tar.gz");
 
-        self.report_progress(&options, RestoreProgress {
-            phase: RestorePhase::Preparing,
-            current_file: None,
-            files_processed: 0,
-            files_total: 0,
-            bytes_processed: 0,
-            bytes_total: 0,
-            percent_complete: 0.0,
-            estimated_seconds_remaining: None,
-            errors: vec![],
-        });
+        self.report_progress(
+            &options,
+            RestoreProgress {
+                phase: RestorePhase::Preparing,
+                current_file: None,
+                files_processed: 0,
+                files_total: 0,
+                bytes_processed: 0,
+                bytes_total: 0,
+                percent_complete: 0.0,
+                estimated_seconds_remaining: None,
+                errors: vec![],
+            },
+        );
 
         // Retrieve backup from storage
-        self.report_progress(&options, RestoreProgress {
-            phase: RestorePhase::Downloading,
-            current_file: None,
-            files_processed: 0,
-            files_total: 0,
-            bytes_processed: 0,
-            bytes_total: 0,
-            percent_complete: 5.0,
-            estimated_seconds_remaining: None,
-            errors: vec![],
-        });
+        self.report_progress(
+            &options,
+            RestoreProgress {
+                phase: RestorePhase::Downloading,
+                current_file: None,
+                files_processed: 0,
+                files_total: 0,
+                bytes_processed: 0,
+                bytes_total: 0,
+                percent_complete: 5.0,
+                estimated_seconds_remaining: None,
+                errors: vec![],
+            },
+        );
 
-        match self.storage.retrieve(&format!("snapshots/{}", snapshot_id.0)).await {
+        match self
+            .storage
+            .retrieve(&format!("snapshots/{}", snapshot_id.0))
+            .await
+        {
             Ok(data) => {
                 if !options.dry_run {
-                    tokio::fs::write(&backup_path, data).await.map_err(BackupError::Io)?;
+                    tokio::fs::write(&backup_path, data)
+                        .await
+                        .map_err(BackupError::Io)?;
                 }
             }
             Err(e) => {
                 return Err(BackupError::Storage(format!(
-                    "Failed to retrieve snapshot: {}", e
+                    "Failed to retrieve snapshot: {}",
+                    e
                 )));
             }
         }
@@ -229,17 +246,20 @@ impl RestoreManager {
         // Decryption would happen here if encrypted
 
         // Decompress
-        self.report_progress(&options, RestoreProgress {
-            phase: RestorePhase::Decompressing,
-            current_file: None,
-            files_processed: 0,
-            files_total: 0,
-            bytes_processed: 0,
-            bytes_total: 0,
-            percent_complete: 20.0,
-            estimated_seconds_remaining: None,
-            errors: vec![],
-        });
+        self.report_progress(
+            &options,
+            RestoreProgress {
+                phase: RestorePhase::Decompressing,
+                current_file: None,
+                files_processed: 0,
+                files_total: 0,
+                bytes_processed: 0,
+                bytes_total: 0,
+                percent_complete: 20.0,
+                estimated_seconds_remaining: None,
+                errors: vec![],
+            },
+        );
 
         let extract_path = temp_dir.path().join("extracted");
         if !options.dry_run {
@@ -247,17 +267,20 @@ impl RestoreManager {
         }
 
         // Copy files to target
-        self.report_progress(&options, RestoreProgress {
-            phase: RestorePhase::Copying,
-            current_file: None,
-            files_processed: 0,
-            files_total: 0,
-            bytes_processed: 0,
-            bytes_total: 0,
-            percent_complete: 40.0,
-            estimated_seconds_remaining: None,
-            errors: vec![],
-        });
+        self.report_progress(
+            &options,
+            RestoreProgress {
+                phase: RestorePhase::Copying,
+                current_file: None,
+                files_processed: 0,
+                files_total: 0,
+                bytes_processed: 0,
+                bytes_total: 0,
+                percent_complete: 40.0,
+                estimated_seconds_remaining: None,
+                errors: vec![],
+            },
+        );
 
         // Walk through extracted files
         let entries: Vec<_> = walkdir::WalkDir::new(&extract_path)
@@ -267,18 +290,23 @@ impl RestoreManager {
             .collect();
 
         let total_files = entries.len() as u64;
-        let total_bytes: u64 = entries.iter()
+        let total_bytes: u64 = entries
+            .iter()
             .filter_map(|e| e.metadata().ok())
             .map(|m| m.len())
             .sum();
 
         for (i, entry) in entries.iter().enumerate() {
             let source_path = entry.path();
-            let relative_path = source_path.strip_prefix(&extract_path).unwrap_or(source_path);
+            let relative_path = source_path
+                .strip_prefix(&extract_path)
+                .unwrap_or(source_path);
 
             // Filter by selected files if specified
             if !options.selected_files.is_empty() {
-                let should_include = options.selected_files.iter()
+                let should_include = options
+                    .selected_files
+                    .iter()
                     .any(|p| relative_path.starts_with(p));
                 if !should_include {
                     files_skipped += 1;
@@ -288,17 +316,20 @@ impl RestoreManager {
 
             let target_file = target_path.join(relative_path);
 
-            self.report_progress(&options, RestoreProgress {
-                phase: RestorePhase::Copying,
-                current_file: Some(relative_path.to_path_buf()),
-                files_processed: i as u64,
-                files_total: total_files,
-                bytes_processed: bytes_restored,
-                bytes_total: total_bytes,
-                percent_complete: 40.0 + (i as f64 / total_files as f64) * 50.0,
-                estimated_seconds_remaining: None,
-                errors: errors.clone(),
-            });
+            self.report_progress(
+                &options,
+                RestoreProgress {
+                    phase: RestorePhase::Copying,
+                    current_file: Some(relative_path.to_path_buf()),
+                    files_processed: i as u64,
+                    files_total: total_files,
+                    bytes_processed: bytes_restored,
+                    bytes_total: total_bytes,
+                    percent_complete: 40.0 + (i as f64 / total_files as f64) * 50.0,
+                    estimated_seconds_remaining: None,
+                    errors: errors.clone(),
+                },
+            );
 
             // Check if file exists
             if target_file.exists() && !options.overwrite {
@@ -310,7 +341,9 @@ impl RestoreManager {
             // Create parent directory
             if let Some(parent) = target_file.parent() {
                 if !options.dry_run {
-                    tokio::fs::create_dir_all(parent).await.map_err(BackupError::Io)?;
+                    tokio::fs::create_dir_all(parent)
+                        .await
+                        .map_err(BackupError::Io)?;
                 }
             }
 
@@ -327,7 +360,9 @@ impl RestoreManager {
                                 #[cfg(unix)]
                                 {
                                     use std::os::unix::fs::PermissionsExt;
-                                    let perms = std::fs::Permissions::from_mode(metadata.permissions().mode());
+                                    let perms = std::fs::Permissions::from_mode(
+                                        metadata.permissions().mode(),
+                                    );
                                     let _ = tokio::fs::set_permissions(&target_file, perms).await;
                                 }
                             }
@@ -347,17 +382,20 @@ impl RestoreManager {
 
         // Verify after restore
         if options.verify_after_restore && !options.dry_run {
-            self.report_progress(&options, RestoreProgress {
-                phase: RestorePhase::Verifying,
-                current_file: None,
-                files_processed: files_restored,
-                files_total: total_files,
-                bytes_processed: bytes_restored,
-                bytes_total: total_bytes,
-                percent_complete: 95.0,
-                estimated_seconds_remaining: None,
-                errors: errors.clone(),
-            });
+            self.report_progress(
+                &options,
+                RestoreProgress {
+                    phase: RestorePhase::Verifying,
+                    current_file: None,
+                    files_processed: files_restored,
+                    files_total: total_files,
+                    bytes_processed: bytes_restored,
+                    bytes_total: total_bytes,
+                    percent_complete: 95.0,
+                    estimated_seconds_remaining: None,
+                    errors: errors.clone(),
+                },
+            );
 
             // Basic verification - check file count
             let restored_count = walkdir::WalkDir::new(&target_path)
@@ -378,8 +416,10 @@ impl RestoreManager {
 
         let success = files_failed == 0 || (files_restored > 0 && errors.len() < 10);
 
-        info!("Restore completed: {} files restored, {} skipped, {} failed in {:.2}s",
-            files_restored, files_skipped, files_failed, duration);
+        info!(
+            "Restore completed: {} files restored, {} skipped, {} failed in {:.2}s",
+            files_restored, files_skipped, files_failed, duration
+        );
 
         Ok(RestoreResult {
             success,
@@ -405,8 +445,13 @@ impl RestoreManager {
         let temp_dir = tempfile::TempDir::new().map_err(|e| BackupError::Io(e))?;
         let backup_path = temp_dir.path().join("backup.tar.gz");
 
-        let data = self.storage.retrieve(&format!("snapshots/{}", snapshot_id.0)).await?;
-        tokio::fs::write(&backup_path, data).await.map_err(BackupError::Io)?;
+        let data = self
+            .storage
+            .retrieve(&format!("snapshots/{}", snapshot_id.0))
+            .await?;
+        tokio::fs::write(&backup_path, data)
+            .await
+            .map_err(BackupError::Io)?;
 
         // Extract
         let extract_path = temp_dir.path().join("extracted");
@@ -423,13 +468,21 @@ impl RestoreManager {
 
         // Create parent directory
         if let Some(parent) = target_path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(BackupError::Io)?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(BackupError::Io)?;
         }
 
-        let bytes = tokio::fs::copy(&source_file, target_path).await.map_err(BackupError::Io)?;
+        let bytes = tokio::fs::copy(&source_file, target_path)
+            .await
+            .map_err(BackupError::Io)?;
 
-        info!("Restored single file: {} -> {} ({} bytes)",
-            file_path.display(), target_path.display(), bytes);
+        info!(
+            "Restored single file: {} -> {} ({} bytes)",
+            file_path.display(),
+            target_path.display(),
+            bytes
+        );
 
         Ok(bytes)
     }
@@ -444,7 +497,7 @@ impl RestoreManager {
         // This would replay WAL/bingo logs to reach a specific point in time
         // For now, return error as this requires database-specific implementation
         Err(BackupError::Restore(
-            "Point-in-time recovery not yet implemented".to_string()
+            "Point-in-time recovery not yet implemented".to_string(),
         ))
     }
 
@@ -506,9 +559,15 @@ pub async fn one_click_restore(
     let result = manager.restore(snapshot_id).await?;
 
     if result.success {
-        info!("One-click restore completed successfully to {:?}", target_path);
+        info!(
+            "One-click restore completed successfully to {:?}",
+            target_path
+        );
     } else {
-        error!("One-click restore failed with {} errors", result.errors.len());
+        error!(
+            "One-click restore failed with {} errors",
+            result.errors.len()
+        );
     }
 
     Ok(result)
@@ -523,8 +582,12 @@ pub async fn preview_restore(
     let backup_path = temp_dir.path().join("backup.tar.gz");
 
     // Download backup
-    let data = storage.retrieve(&format!("snapshots/{}", snapshot_id.0)).await?;
-    tokio::fs::write(&backup_path, data).await.map_err(BackupError::Io)?;
+    let data = storage
+        .retrieve(&format!("snapshots/{}", snapshot_id.0))
+        .await?;
+    tokio::fs::write(&backup_path, data)
+        .await
+        .map_err(BackupError::Io)?;
 
     // Extract
     let extract_path = temp_dir.path().join("extracted");
@@ -618,8 +681,12 @@ mod tests {
         // Create a mock backup
         let backup_dir = temp_dir.path().join("backup");
         tokio::fs::create_dir_all(&backup_dir).await.unwrap();
-        tokio::fs::write(backup_dir.join("file1.txt"), b"content1").await.unwrap();
-        tokio::fs::write(backup_dir.join("file2.txt"), b"content2").await.unwrap();
+        tokio::fs::write(backup_dir.join("file1.txt"), b"content1")
+            .await
+            .unwrap();
+        tokio::fs::write(backup_dir.join("file2.txt"), b"content2")
+            .await
+            .unwrap();
 
         // Note: preview_restore needs actual storage, so we just test the struct
         let preview = RestorePreview {

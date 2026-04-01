@@ -2,13 +2,15 @@
 
 //! Claude提供商实现
 
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::time::Duration;
-use anyhow::{Result, Context};
 
-use super::{AiProvider, ChatRequest, ChatResponse, Message, ProviderConfig, ProviderType, Role, TokenUsage};
+use super::{
+    AiProvider, ChatRequest, ChatResponse, Message, ProviderConfig, ProviderType, Role, TokenUsage,
+};
 
 pub struct ClaudeProvider {
     client: Client,
@@ -18,7 +20,8 @@ pub struct ClaudeProvider {
 
 impl ClaudeProvider {
     pub async fn new(config: ProviderConfig) -> Result<Self> {
-        let base_url = config.api_base
+        let base_url = config
+            .api_base
             .as_ref()
             .cloned()
             .unwrap_or_else(|| "https://api.anthropic.com".to_string());
@@ -113,9 +116,7 @@ impl AiProvider for ClaudeProvider {
             .unwrap_or("")
             .to_string();
 
-        let finish_reason = response_json["stop_reason"]
-            .as_str()
-            .map(|s| s.to_string());
+        let finish_reason = response_json["stop_reason"].as_str().map(|s| s.to_string());
 
         let usage = response_json["usage"].as_object().map(|u| TokenUsage {
             prompt_tokens: u["input_tokens"].as_u64().unwrap_or(0) as u32,
@@ -147,10 +148,7 @@ impl AiProvider for ClaudeProvider {
             stream: false,
         };
 
-        match self.chat(test_request).await {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        (self.chat(test_request).await).is_ok()
     }
 
     fn name(&self) -> &'static str {

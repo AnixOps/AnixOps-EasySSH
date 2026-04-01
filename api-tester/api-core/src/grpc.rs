@@ -50,13 +50,16 @@ impl GrpcClient {
         // In a full implementation, you would need protobuf definitions
         // and generated code from .proto files
 
-        let channel = self.channel.as_ref()
+        let channel = self
+            .channel
+            .as_ref()
             .ok_or_else(|| ApiError::Grpc("Not connected".to_string()))?;
 
         // Create a dynamic gRPC request
         // For now, return an error indicating this needs protobuf definitions
         Err(ApiError::Grpc(
-            "gRPC calls require protobuf definitions. Use reflection or generated code.".to_string()
+            "gRPC calls require protobuf definitions. Use reflection or generated code."
+                .to_string(),
         ))
     }
 
@@ -87,43 +90,31 @@ impl GrpcClient {
 
 /// Parse protobuf message from JSON using type information
 #[cfg(feature = "grpc")]
-pub fn json_to_protobuf(
-    json: &serde_json::Value,
-    message_type: &str,
-) -> ApiResult<Vec<u8>> {
+pub fn json_to_protobuf(json: &serde_json::Value, message_type: &str) -> ApiResult<Vec<u8>> {
     // This would use prost to serialize the JSON to protobuf bytes
     // Requires type descriptor from .proto file
     Err(ApiError::Grpc(
-        "Protobuf serialization requires message descriptors".to_string()
+        "Protobuf serialization requires message descriptors".to_string(),
     ))
 }
 
 #[cfg(not(feature = "grpc"))]
-pub fn json_to_protobuf(
-    _json: &serde_json::Value,
-    _message_type: &str,
-) -> ApiResult<Vec<u8>> {
+pub fn json_to_protobuf(_json: &serde_json::Value, _message_type: &str) -> ApiResult<Vec<u8>> {
     Err(ApiError::Grpc("gRPC feature not enabled".to_string()))
 }
 
 /// Parse protobuf message to JSON
 #[cfg(feature = "grpc")]
-pub fn protobuf_to_json(
-    data: &[u8],
-    message_type: &str,
-) -> ApiResult<serde_json::Value> {
+pub fn protobuf_to_json(data: &[u8], message_type: &str) -> ApiResult<serde_json::Value> {
     // This would use prost to deserialize protobuf bytes to JSON
     // Requires type descriptor from .proto file
     Err(ApiError::Grpc(
-        "Protobuf deserialization requires message descriptors".to_string()
+        "Protobuf deserialization requires message descriptors".to_string(),
     ))
 }
 
 #[cfg(not(feature = "grpc"))]
-pub fn protobuf_to_json(
-    _data: &[u8],
-    _message_type: &str,
-) -> ApiResult<serde_json::Value> {
+pub fn protobuf_to_json(_data: &[u8], _message_type: &str) -> ApiResult<serde_json::Value> {
     Err(ApiError::Grpc("gRPC feature not enabled".to_string()))
 }
 
@@ -132,6 +123,6 @@ pub fn load_proto_file(path: &str) -> ApiResult<Vec<GrpcMethod>> {
     // This would use prost-build or similar to parse .proto file
     // and extract service/method definitions
     Err(ApiError::Grpc(
-        "Proto file loading requires prost-build".to_string()
+        "Proto file loading requires prost-build".to_string(),
     ))
 }

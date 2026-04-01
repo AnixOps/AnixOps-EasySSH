@@ -8,7 +8,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// Global startup profiler instance
-static STARTUP_PROFILER: std::sync::OnceLock<Arc<Mutex<StartupProfiler>>> = std::sync::OnceLock::new();
+static STARTUP_PROFILER: std::sync::OnceLock<Arc<Mutex<StartupProfiler>>> =
+    std::sync::OnceLock::new();
 
 /// Gets the global startup profiler instance
 pub fn global_profiler() -> Arc<Mutex<StartupProfiler>> {
@@ -117,10 +118,13 @@ impl StartupProfiler {
 
         StartupReport {
             total_time: self.total_elapsed(),
-            phases: phases.iter().map(|p| PhaseReport {
-                name: p.name.clone(),
-                duration_ms: p.duration.map(|d| d.as_millis() as f64).unwrap_or(0.0),
-            }).collect(),
+            phases: phases
+                .iter()
+                .map(|p| PhaseReport {
+                    name: p.name.clone(),
+                    duration_ms: p.duration.map(|d| d.as_millis() as f64).unwrap_or(0.0),
+                })
+                .collect(),
             db_initialized: self.db_initialized,
             ui_ready: self.ui_ready,
         }

@@ -1,5 +1,5 @@
-use gtk4::prelude::*;
 use gtk4::glib;
+use gtk4::prelude::*;
 
 use crate::models::{Server, ServerStatus};
 

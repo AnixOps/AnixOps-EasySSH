@@ -18,46 +18,28 @@ pub enum GitWorkflowAction {
     },
 
     /// Stage files
-    Stage {
-        paths: Vec<String>,
-    },
+    Stage { paths: Vec<String> },
 
     /// Unstage files
-    Unstage {
-        paths: Vec<String>,
-    },
+    Unstage { paths: Vec<String> },
 
     /// Commit changes
-    Commit {
-        message: String,
-    },
+    Commit { message: String },
 
     /// Push to remote
-    Push {
-        remote: String,
-        refspec: String,
-    },
+    Push { remote: String, refspec: String },
 
     /// Pull from remote
-    Pull {
-        remote: String,
-    },
+    Pull { remote: String },
 
     /// Fetch from remote
-    Fetch {
-        remote: String,
-    },
+    Fetch { remote: String },
 
     /// Checkout branch
-    Checkout {
-        branch: String,
-        create: bool,
-    },
+    Checkout { branch: String, create: bool },
 
     /// Merge branch
-    Merge {
-        branch: String,
-    },
+    Merge { branch: String },
 
     /// Create tag
     CreateTag {
@@ -66,44 +48,28 @@ pub enum GitWorkflowAction {
     },
 
     /// Push tag
-    PushTag {
-        name: String,
-        remote: String,
-    },
+    PushTag { name: String, remote: String },
 
     /// Stash save
-    StashSave {
-        message: Option<String>,
-    },
+    StashSave { message: Option<String> },
 
     /// Stash pop
-    StashPop {
-        index: usize,
-    },
+    StashPop { index: usize },
 
     /// Submodule update
     SubmoduleUpdate,
 
     /// Discard changes
-    Discard {
-        paths: Vec<String>,
-    },
+    Discard { paths: Vec<String> },
 
     /// Add remote
-    AddRemote {
-        name: String,
-        url: String,
-    },
+    AddRemote { name: String, url: String },
 
     /// Remove remote
-    RemoveRemote {
-        name: String,
-    },
+    RemoveRemote { name: String },
 
     /// Set credentials
-    SetCredentials {
-        credentials: CredentialType,
-    },
+    SetCredentials { credentials: CredentialType },
 
     /// Get repository status
     GetStatus,
@@ -117,7 +83,6 @@ pub enum GitWorkflowAction {
     // ============================================================================
     // Git Flow Actions
     // ============================================================================
-
     /// Initialize Git Flow
     GitFlowInit {
         /// Main production branch (default: main)
@@ -141,15 +106,10 @@ pub enum GitWorkflowAction {
     },
 
     /// Finish a feature branch
-    GitFlowFeatureFinish {
-        name: String,
-        keep_branch: bool,
-    },
+    GitFlowFeatureFinish { name: String, keep_branch: bool },
 
     /// Publish feature branch to remote
-    GitFlowFeaturePublish {
-        name: String,
-    },
+    GitFlowFeaturePublish { name: String },
 
     /// Start a release branch
     GitFlowReleaseStart {
@@ -180,7 +140,6 @@ pub enum GitWorkflowAction {
     // ============================================================================
     // PR Management Actions
     // ============================================================================
-
     /// Create a pull request
     CreatePullRequest {
         title: String,
@@ -206,9 +165,7 @@ pub enum GitWorkflowAction {
     },
 
     /// Get pull request details
-    GetPullRequest {
-        number: u64,
-    },
+    GetPullRequest { number: u64 },
 
     /// Review a pull request
     ReviewPullRequest {
@@ -228,7 +185,6 @@ pub enum GitWorkflowAction {
     // ============================================================================
     // CI/CD Actions
     // ============================================================================
-
     /// Get CI/CD pipeline status
     GetCiStatus {
         branch: Option<String>,
@@ -243,19 +199,14 @@ pub enum GitWorkflowAction {
     },
 
     /// Retry CI/CD pipeline
-    RetryCiPipeline {
-        pipeline_id: String,
-    },
+    RetryCiPipeline { pipeline_id: String },
 
     /// Cancel CI/CD pipeline
-    CancelCiPipeline {
-        pipeline_id: String,
-    },
+    CancelCiPipeline { pipeline_id: String },
 
     // ============================================================================
     // Code Review Actions
     // ============================================================================
-
     /// Run code review checklist
     RunCodeReviewChecklist {
         branch: String,
@@ -264,9 +215,7 @@ pub enum GitWorkflowAction {
     },
 
     /// Get code review report
-    GetCodeReviewReport {
-        commit_id: String,
-    },
+    GetCodeReviewReport { commit_id: String },
 
     /// Add PR comment
     AddPrComment {
@@ -339,7 +288,9 @@ impl GitWorkflowAction {
             GitWorkflowAction::Stage { paths } => format!("Stage {} files", paths.len()),
             GitWorkflowAction::Unstage { paths } => format!("Unstage {} files", paths.len()),
             GitWorkflowAction::Commit { message } => format!("Commit: {}", message),
-            GitWorkflowAction::Push { remote, refspec } => format!("Push {} to {}", refspec, remote),
+            GitWorkflowAction::Push { remote, refspec } => {
+                format!("Push {} to {}", refspec, remote)
+            }
             GitWorkflowAction::Pull { remote } => format!("Pull from {}", remote),
             GitWorkflowAction::Fetch { remote } => format!("Fetch from {}", remote),
             GitWorkflowAction::Checkout { branch, create } => {
@@ -351,11 +302,15 @@ impl GitWorkflowAction {
             }
             GitWorkflowAction::Merge { branch } => format!("Merge branch {}", branch),
             GitWorkflowAction::CreateTag { name, .. } => format!("Create tag {}", name),
-            GitWorkflowAction::PushTag { name, remote } => format!("Push tag {} to {}", name, remote),
+            GitWorkflowAction::PushTag { name, remote } => {
+                format!("Push tag {} to {}", name, remote)
+            }
             GitWorkflowAction::StashSave { .. } => "Save stash".to_string(),
             GitWorkflowAction::StashPop { index } => format!("Pop stash at index {}", index),
             GitWorkflowAction::SubmoduleUpdate => "Update submodules".to_string(),
-            GitWorkflowAction::Discard { paths } => format!("Discard changes in {} files", paths.len()),
+            GitWorkflowAction::Discard { paths } => {
+                format!("Discard changes in {} files", paths.len())
+            }
             GitWorkflowAction::AddRemote { name, url } => format!("Add remote {} ({})", name, url),
             GitWorkflowAction::RemoveRemote { name } => format!("Remove remote {}", name),
             GitWorkflowAction::SetCredentials { .. } => "Set Git credentials".to_string(),
@@ -364,13 +319,27 @@ impl GitWorkflowAction {
 
             // Git Flow
             GitWorkflowAction::GitFlowInit { .. } => "Initialize Git Flow".to_string(),
-            GitWorkflowAction::GitFlowFeatureStart { name, .. } => format!("Start feature branch {}", name),
-            GitWorkflowAction::GitFlowFeatureFinish { name, .. } => format!("Finish feature branch {}", name),
-            GitWorkflowAction::GitFlowFeaturePublish { name } => format!("Publish feature branch {}", name),
-            GitWorkflowAction::GitFlowReleaseStart { version, .. } => format!("Start release {}", version),
-            GitWorkflowAction::GitFlowReleaseFinish { version, .. } => format!("Finish release {}", version),
-            GitWorkflowAction::GitFlowHotfixStart { version, .. } => format!("Start hotfix {}", version),
-            GitWorkflowAction::GitFlowHotfixFinish { version, .. } => format!("Finish hotfix {}", version),
+            GitWorkflowAction::GitFlowFeatureStart { name, .. } => {
+                format!("Start feature branch {}", name)
+            }
+            GitWorkflowAction::GitFlowFeatureFinish { name, .. } => {
+                format!("Finish feature branch {}", name)
+            }
+            GitWorkflowAction::GitFlowFeaturePublish { name } => {
+                format!("Publish feature branch {}", name)
+            }
+            GitWorkflowAction::GitFlowReleaseStart { version, .. } => {
+                format!("Start release {}", version)
+            }
+            GitWorkflowAction::GitFlowReleaseFinish { version, .. } => {
+                format!("Finish release {}", version)
+            }
+            GitWorkflowAction::GitFlowHotfixStart { version, .. } => {
+                format!("Start hotfix {}", version)
+            }
+            GitWorkflowAction::GitFlowHotfixFinish { version, .. } => {
+                format!("Finish hotfix {}", version)
+            }
 
             // PR Management
             GitWorkflowAction::CreatePullRequest { title, .. } => format!("Create PR: {}", title),
@@ -383,54 +352,63 @@ impl GitWorkflowAction {
             // CI/CD
             GitWorkflowAction::GetCiStatus { .. } => "Get CI status".to_string(),
             GitWorkflowAction::ListCiPipelines { .. } => "List CI pipelines".to_string(),
-            GitWorkflowAction::RetryCiPipeline { pipeline_id } => format!("Retry pipeline {}", pipeline_id),
-            GitWorkflowAction::CancelCiPipeline { pipeline_id } => format!("Cancel pipeline {}", pipeline_id),
+            GitWorkflowAction::RetryCiPipeline { pipeline_id } => {
+                format!("Retry pipeline {}", pipeline_id)
+            }
+            GitWorkflowAction::CancelCiPipeline { pipeline_id } => {
+                format!("Cancel pipeline {}", pipeline_id)
+            }
 
             // Code Review
-            GitWorkflowAction::RunCodeReviewChecklist { .. } => "Run code review checklist".to_string(),
-            GitWorkflowAction::GetCodeReviewReport { commit_id } => format!("Get review report for {}", commit_id),
-            GitWorkflowAction::AddPrComment { file_path, .. } => {
-                match file_path {
-                    Some(path) => format!("Add comment on {}", path),
-                    None => "Add PR comment".to_string(),
-                }
+            GitWorkflowAction::RunCodeReviewChecklist { .. } => {
+                "Run code review checklist".to_string()
             }
+            GitWorkflowAction::GetCodeReviewReport { commit_id } => {
+                format!("Get review report for {}", commit_id)
+            }
+            GitWorkflowAction::AddPrComment { file_path, .. } => match file_path {
+                Some(path) => format!("Add comment on {}", path),
+                None => "Add PR comment".to_string(),
+            },
         }
     }
 
     /// Check if action is a Git Flow action
     pub fn is_gitflow(&self) -> bool {
-        matches!(self,
-            GitWorkflowAction::GitFlowInit { .. } |
-            GitWorkflowAction::GitFlowFeatureStart { .. } |
-            GitWorkflowAction::GitFlowFeatureFinish { .. } |
-            GitWorkflowAction::GitFlowFeaturePublish { .. } |
-            GitWorkflowAction::GitFlowReleaseStart { .. } |
-            GitWorkflowAction::GitFlowReleaseFinish { .. } |
-            GitWorkflowAction::GitFlowHotfixStart { .. } |
-            GitWorkflowAction::GitFlowHotfixFinish { .. }
+        matches!(
+            self,
+            GitWorkflowAction::GitFlowInit { .. }
+                | GitWorkflowAction::GitFlowFeatureStart { .. }
+                | GitWorkflowAction::GitFlowFeatureFinish { .. }
+                | GitWorkflowAction::GitFlowFeaturePublish { .. }
+                | GitWorkflowAction::GitFlowReleaseStart { .. }
+                | GitWorkflowAction::GitFlowReleaseFinish { .. }
+                | GitWorkflowAction::GitFlowHotfixStart { .. }
+                | GitWorkflowAction::GitFlowHotfixFinish { .. }
         )
     }
 
     /// Check if action is a PR management action
     pub fn is_pr_management(&self) -> bool {
-        matches!(self,
-            GitWorkflowAction::CreatePullRequest { .. } |
-            GitWorkflowAction::UpdatePullRequest { .. } |
-            GitWorkflowAction::ListPullRequests { .. } |
-            GitWorkflowAction::GetPullRequest { .. } |
-            GitWorkflowAction::ReviewPullRequest { .. } |
-            GitWorkflowAction::MergePullRequest { .. }
+        matches!(
+            self,
+            GitWorkflowAction::CreatePullRequest { .. }
+                | GitWorkflowAction::UpdatePullRequest { .. }
+                | GitWorkflowAction::ListPullRequests { .. }
+                | GitWorkflowAction::GetPullRequest { .. }
+                | GitWorkflowAction::ReviewPullRequest { .. }
+                | GitWorkflowAction::MergePullRequest { .. }
         )
     }
 
     /// Check if action is a CI/CD action
     pub fn is_ci_cd(&self) -> bool {
-        matches!(self,
-            GitWorkflowAction::GetCiStatus { .. } |
-            GitWorkflowAction::ListCiPipelines { .. } |
-            GitWorkflowAction::RetryCiPipeline { .. } |
-            GitWorkflowAction::CancelCiPipeline { .. }
+        matches!(
+            self,
+            GitWorkflowAction::GetCiStatus { .. }
+                | GitWorkflowAction::ListCiPipelines { .. }
+                | GitWorkflowAction::RetryCiPipeline { .. }
+                | GitWorkflowAction::CancelCiPipeline { .. }
         )
     }
 }
@@ -695,7 +673,13 @@ impl CiPipelineStatus {
     }
 
     pub fn is_completed(&self) -> bool {
-        matches!(self, CiPipelineStatus::Success | CiPipelineStatus::Failed | CiPipelineStatus::Canceled | CiPipelineStatus::Skipped)
+        matches!(
+            self,
+            CiPipelineStatus::Success
+                | CiPipelineStatus::Failed
+                | CiPipelineStatus::Canceled
+                | CiPipelineStatus::Skipped
+        )
     }
 
     pub fn is_successful(&self) -> bool {
@@ -959,7 +943,6 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
             is_required: true,
             auto_checkable: true,
         },
-
         // Functionality
         ChecklistItem {
             id: "fn-1".to_string(),
@@ -988,7 +971,6 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
             is_required: true,
             auto_checkable: false,
         },
-
         // Security
         ChecklistItem {
             id: "sc-1".to_string(),
@@ -1003,7 +985,8 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
             id: "sc-2".to_string(),
             category: ReviewCategory::Security,
             title: "Injection prevention".to_string(),
-            description: "SQL injection, XSS, and other injection attacks are prevented".to_string(),
+            description: "SQL injection, XSS, and other injection attacks are prevented"
+                .to_string(),
             is_checked: false,
             is_required: true,
             auto_checkable: false,
@@ -1017,7 +1000,6 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
             is_required: true,
             auto_checkable: false,
         },
-
         // Performance
         ChecklistItem {
             id: "pf-1".to_string(),
@@ -1037,7 +1019,6 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
             is_required: true,
             auto_checkable: true,
         },
-
         // Tests
         ChecklistItem {
             id: "ts-1".to_string(),
@@ -1066,7 +1047,6 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
             is_required: false,
             auto_checkable: false,
         },
-
         // Documentation
         ChecklistItem {
             id: "dc-1".to_string(),
@@ -1095,7 +1075,6 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
             is_required: true,
             auto_checkable: true,
         },
-
         // Architecture
         ChecklistItem {
             id: "ar-1".to_string(),
@@ -1119,7 +1098,10 @@ pub fn create_standard_checklist() -> Vec<ChecklistItem> {
 }
 
 /// Check if a branch name follows Git Flow naming convention
-pub fn parse_gitflow_branch(name: &str, config: &GitFlowConfig) -> Option<(GitFlowBranchType, String)> {
+pub fn parse_gitflow_branch(
+    name: &str,
+    config: &GitFlowConfig,
+) -> Option<(GitFlowBranchType, String)> {
     if name == config.main_branch {
         return Some((GitFlowBranchType::Main, name.to_string()));
     }
@@ -1146,7 +1128,11 @@ pub fn parse_gitflow_branch(name: &str, config: &GitFlowConfig) -> Option<(GitFl
 }
 
 /// Build full branch name from type and name
-pub fn build_gitflow_branch_name(branch_type: GitFlowBranchType, name: &str, config: &GitFlowConfig) -> String {
+pub fn build_gitflow_branch_name(
+    branch_type: GitFlowBranchType,
+    name: &str,
+    config: &GitFlowConfig,
+) -> String {
     let prefix = branch_type.prefix(config);
     format!("{}{}", prefix, name)
 }
@@ -1185,7 +1171,12 @@ impl GitWorkflowBuilder {
     }
 
     /// Add clone with branch action
-    pub fn clone_branch(mut self, url: impl Into<String>, path: impl Into<String>, branch: impl Into<String>) -> Self {
+    pub fn clone_branch(
+        mut self,
+        url: impl Into<String>,
+        path: impl Into<String>,
+        branch: impl Into<String>,
+    ) -> Self {
         self.actions.push(GitWorkflowAction::Clone {
             url: url.into(),
             path: path.into(),
@@ -1220,7 +1211,9 @@ impl GitWorkflowBuilder {
 
     /// Add stage all action
     pub fn stage_all(mut self) -> Self {
-        self.actions.push(GitWorkflowAction::Stage { paths: vec![".".to_string()] });
+        self.actions.push(GitWorkflowAction::Stage {
+            paths: vec![".".to_string()],
+        });
         self
     }
 
@@ -1336,11 +1329,12 @@ impl GitWorkflowBuilder {
 
     /// Add run code review checklist action
     pub fn run_checklist(mut self, branch: impl Into<String>) -> Self {
-        self.actions.push(GitWorkflowAction::RunCodeReviewChecklist {
-            branch: branch.into(),
-            base_branch: None,
-            checklist_items: create_standard_checklist(),
-        });
+        self.actions
+            .push(GitWorkflowAction::RunCodeReviewChecklist {
+                branch: branch.into(),
+                base_branch: None,
+                checklist_items: create_standard_checklist(),
+            });
         self
     }
 
@@ -1419,7 +1413,8 @@ pub fn git_merge(branch: impl Into<String>) -> GitWorkflowAction {
 
 /// Create a complete feature workflow
 pub fn feature_workflow(config: &GitFlowConfig, feature_name: &str) -> Vec<GitWorkflowAction> {
-    let feature_branch = build_gitflow_branch_name(GitFlowBranchType::Feature, feature_name, config);
+    let feature_branch =
+        build_gitflow_branch_name(GitFlowBranchType::Feature, feature_name, config);
 
     vec![
         GitWorkflowAction::GitFlowFeatureStart {
@@ -1557,7 +1552,8 @@ impl PullRequestTemplate {
 ## Related Issues
 <!-- Link to related issues -->
 Closes #{issue_number}
-"#.to_string(),
+"#
+            .to_string(),
             default_reviewers: vec![],
             default_labels: vec!["feature".to_string()],
         }
@@ -1586,7 +1582,8 @@ Closes #{issue_number}
 ## Related Issues
 <!-- Link to related issues -->
 Fixes #{issue_number}
-"#.to_string(),
+"#
+            .to_string(),
             default_reviewers: vec![],
             default_labels: vec!["bugfix".to_string()],
         }
@@ -1613,7 +1610,8 @@ Fixes #{issue_number}
 
 ## Related Incidents
 <!-- Link to incident reports -->
-"#.to_string(),
+"#
+            .to_string(),
             default_reviewers: vec![],
             default_labels: vec!["hotfix".to_string(), "priority-critical".to_string()],
         }
@@ -1640,7 +1638,8 @@ Fixes #{issue_number}
 - [ ] Deploy to production
 - [ ] Verify monitoring
 - [ ] Notify stakeholders
-"#.to_string(),
+"#
+            .to_string(),
             default_reviewers: vec![],
             default_labels: vec!["release".to_string()],
         }
@@ -1741,11 +1740,7 @@ impl Default for CiIntegrationSettings {
             enabled: true,
             provider: CiProvider::GitHubActions,
             require_status_check: true,
-            required_statuses: vec![
-                "test".to_string(),
-                "lint".to_string(),
-                "build".to_string(),
-            ],
+            required_statuses: vec!["test".to_string(), "lint".to_string(), "build".to_string()],
             auto_merge_on_pass: false,
             notify_on_failure: true,
             notify_channels: vec!["email".to_string()],

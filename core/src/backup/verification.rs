@@ -4,7 +4,7 @@ use super::{BackupError, BackupResult, SnapshotId};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncReadExt;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Backup verification options
 #[derive(Debug, Clone)]
@@ -76,7 +76,11 @@ impl BackupVerifier {
     }
 
     /// Verify a backup file integrity
-    pub async fn verify_file(&self, path: &Path, expected_checksum: Option<&str>) -> VerificationResult {
+    pub async fn verify_file(
+        &self,
+        path: &Path,
+        expected_checksum: Option<&str>,
+    ) -> VerificationResult {
         let start_time = std::time::Instant::now();
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
@@ -146,7 +150,8 @@ impl BackupVerifier {
         }
 
         // Get file size
-        let total_bytes = tokio::fs::metadata(path).await
+        let total_bytes = tokio::fs::metadata(path)
+            .await
             .map(|m| m.len())
             .unwrap_or(0);
 
@@ -195,7 +200,9 @@ impl BackupVerifier {
             // Check if file is in manifest
             let expected_checksum = checksum_manifest.and_then(|m| m.get(relative_path).cloned());
 
-            let result = self.verify_file(file_path, expected_checksum.as_deref()).await;
+            let result = self
+                .verify_file(file_path, expected_checksum.as_deref())
+                .await;
 
             verified_files += result.verified_files;
             failed_files += result.failed_files;
@@ -291,11 +298,7 @@ impl BackupVerifier {
     }
 
     /// Verify backup index integrity
-    pub async fn verify_index(
-        &self,
-        index_path: &Path,
-        data_dir: &Path,
-    ) -> VerificationResult {
+    pub async fn verify_index(&self, index_path: &Path, data_dir: &Path) -> VerificationResult {
         let start_time = std::time::Instant::now();
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
@@ -407,9 +410,8 @@ impl BackupVerifier {
                 .map(|e| e.path().to_path_buf())
                 .collect();
 
-            let index_files: std::collections::HashSet<_> = index.keys()
-                .map(|k| data_dir.join(k))
-                .collect();
+            let index_files: std::collections::HashSet<_> =
+                index.keys().map(|k| data_dir.join(k)).collect();
 
             for file in disk_files.difference(&index_files) {
                 warnings.push(format!(
@@ -482,9 +484,11 @@ pub async fn save_checksum_manifest(
     manifest: &HashMap<PathBuf, String>,
     output_path: &Path,
 ) -> BackupResult<()> {
-    let json = serde_json::to_string_pretty(manifest)
-        .map_err(|e| BackupError::Config(e.to_string()))?;
-    tokio::fs::write(output_path, json).await.map_err(BackupError::Io)?;
+    let json =
+        serde_json::to_string_pretty(manifest).map_err(|e| BackupError::Config(e.to_string()))?;
+    tokio::fs::write(output_path, json)
+        .await
+        .map_err(BackupError::Io)?;
     Ok(())
 }
 
@@ -501,7 +505,8 @@ pub mod parity {
 
         // All chunks must be the same size
         let shard_size = chunks[0].len();
-        let mut shards: Vec<_> = chunks.iter()
+        let mut shards: Vec<_> = chunks
+            .iter()
             .cloned()
             .chain((0..parity_shards).map(|_| vec![0u8; shard_size]))
             .collect();
@@ -509,7 +514,8 @@ pub mod parity {
         // Convert to slices
         let mut shard_slices: Vec<_> = shards.iter_mut().map(|v| v.as_mut_slice()).collect();
 
-        r.encode(&mut shard_slices).map_err(|e| BackupError::Verification(e.to_string()))?;
+        r.encode(&mut shard_slices)
+            .map_err(|e| BackupError::Verification(e.to_string()))?;
 
         // Extract parity shards
         Ok(shards[data_shards..].to_vec())
@@ -535,7 +541,9 @@ mod tests {
     async fn test_verify_file() {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.txt");
-        tokio::fs::write(&test_file, b"Hello, World!").await.unwrap();
+        tokio::fs::write(&test_file, b"Hello, World!")
+            .await
+            .unwrap();
 
         let verifier = BackupVerifier::new(VerificationOptions::default());
         let checksum = blake3::hash(b"Hello, World!").to_hex().to_string();
@@ -545,7 +553,9 @@ mod tests {
         assert_eq!(result.verified_files, 1);
 
         // Test with wrong checksum
-        let result = verifier.verify_file(&test_file, Some("wrong_checksum")).await;
+        let result = verifier
+            .verify_file(&test_file, Some("wrong_checksum"))
+            .await;
         assert!(!result.success);
     }
 
@@ -554,8 +564,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         // Create test files
-        tokio::fs::write(temp_dir.path().join("file1.txt"), b"content1").await.unwrap();
-        tokio::fs::write(temp_dir.path().join("file2.txt"), b"content2").await.unwrap();
+        tokio::fs::write(temp_dir.path().join("file1.txt"), b"content1")
+            .await
+            .unwrap();
+        tokio::fs::write(temp_dir.path().join("file2.txt"), b"content2")
+            .await
+            .unwrap();
 
         let verifier = BackupVerifier::new(VerificationOptions::default());
         let result = verifier.verify_directory(temp_dir.path(), None).await;
@@ -568,8 +582,12 @@ mod tests {
     async fn test_create_checksum_manifest() {
         let temp_dir = TempDir::new().unwrap();
 
-        tokio::fs::write(temp_dir.path().join("file1.txt"), b"content1").await.unwrap();
-        tokio::fs::write(temp_dir.path().join("file2.txt"), b"content2").await.unwrap();
+        tokio::fs::write(temp_dir.path().join("file1.txt"), b"content1")
+            .await
+            .unwrap();
+        tokio::fs::write(temp_dir.path().join("file2.txt"), b"content2")
+            .await
+            .unwrap();
 
         let manifest = create_checksum_manifest(temp_dir.path()).await.unwrap();
 
@@ -588,7 +606,8 @@ mod tests {
         assert_eq!(parity.len(), 2);
 
         // Simulate losing one chunk
-        let mut corrupted: Vec<Option<Vec<u8>>> = chunks.iter()
+        let mut corrupted: Vec<Option<Vec<u8>>> = chunks
+            .iter()
             .enumerate()
             .map(|(i, c)| if i == 1 { None } else { Some(c.clone()) })
             .collect();

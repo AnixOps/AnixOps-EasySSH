@@ -2,9 +2,9 @@
 //!
 //! Provides user-friendly error messages with actionable recovery suggestions.
 
+use egui::{Align, Color32, Frame, Layout, Margin, RichText, Rounding, Stroke, Ui};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
-use egui::{Color32, RichText, Ui, Frame, Stroke, Rounding, Margin, Layout, Align};
 
 /// User-friendly error message with recovery actions
 #[derive(Clone)]
@@ -48,14 +48,14 @@ impl ErrorType {
 
     pub fn color(&self) -> Color32 {
         match self {
-            ErrorType::Connection => Color32::from_rgb(239, 68, 68),   // Red
+            ErrorType::Connection => Color32::from_rgb(239, 68, 68), // Red
             ErrorType::Authentication => Color32::from_rgb(245, 158, 11), // Orange
-            ErrorType::Network => Color32::from_rgb(59, 130, 246),      // Blue
-            ErrorType::FileSystem => Color32::from_rgb(139, 92, 246),   // Purple
+            ErrorType::Network => Color32::from_rgb(59, 130, 246),   // Blue
+            ErrorType::FileSystem => Color32::from_rgb(139, 92, 246), // Purple
             ErrorType::Configuration => Color32::from_rgb(107, 114, 128), // Gray
             ErrorType::Permission => Color32::from_rgb(236, 72, 153), // Pink
-            ErrorType::Timeout => Color32::from_rgb(245, 158, 11),      // Orange
-            ErrorType::Unknown => Color32::from_rgb(239, 68, 68),       // Red
+            ErrorType::Timeout => Color32::from_rgb(245, 158, 11),   // Orange
+            ErrorType::Unknown => Color32::from_rgb(239, 68, 68),    // Red
         }
     }
 }
@@ -102,9 +102,13 @@ impl UserError {
         let mut actions = vec![];
 
         // Connection errors
-        if error_lower.contains("connection") || error_lower.contains("timeout") || error_lower.contains("refused") {
+        if error_lower.contains("connection")
+            || error_lower.contains("timeout")
+            || error_lower.contains("refused")
+        {
             let suggestion = if error_lower.contains("timeout") {
-                "服务器响应超时。请检查：\n1. 网络连接是否正常\n2. 服务器是否在线\n3. 防火墙设置".to_string()
+                "服务器响应超时。请检查：\n1. 网络连接是否正常\n2. 服务器是否在线\n3. 防火墙设置"
+                    .to_string()
             } else {
                 "无法连接到服务器。请检查主机地址和端口设置。".to_string()
             };
@@ -121,11 +125,19 @@ impl UserError {
                 callback: std::sync::Arc::new(|| {}),
             });
 
-            return (ErrorType::Connection, "连接失败".to_string(), suggestion, actions);
+            return (
+                ErrorType::Connection,
+                "连接失败".to_string(),
+                suggestion,
+                actions,
+            );
         }
 
         // Authentication errors
-        if error_lower.contains("auth") || error_lower.contains("password") || error_lower.contains("key") {
+        if error_lower.contains("auth")
+            || error_lower.contains("password")
+            || error_lower.contains("key")
+        {
             let suggestion = if error_lower.contains("key") {
                 "SSH密钥认证失败。请检查：\n1. 密钥文件是否正确\n2. 密钥权限是否正确（应为600）\n3. 服务器是否配置了对应的公钥".to_string()
             } else {
@@ -144,11 +156,19 @@ impl UserError {
                 callback: std::sync::Arc::new(|| {}),
             });
 
-            return (ErrorType::Authentication, "认证失败".to_string(), suggestion, actions);
+            return (
+                ErrorType::Authentication,
+                "认证失败".to_string(),
+                suggestion,
+                actions,
+            );
         }
 
         // Network errors
-        if error_lower.contains("network") || error_lower.contains("dns") || error_lower.contains("resolve") {
+        if error_lower.contains("network")
+            || error_lower.contains("dns")
+            || error_lower.contains("resolve")
+        {
             actions.push(ErrorAction {
                 label: "检查网络".to_string(),
                 action_type: ActionType::Settings,
@@ -164,7 +184,11 @@ impl UserError {
         }
 
         // File system errors
-        if error_lower.contains("file") || error_lower.contains("directory") || error_lower.contains("path") || error_lower.contains("sftp") {
+        if error_lower.contains("file")
+            || error_lower.contains("directory")
+            || error_lower.contains("path")
+            || error_lower.contains("sftp")
+        {
             let suggestion = if error_lower.contains("permission") {
                 "文件权限不足。请检查服务器上的文件权限设置。".to_string()
             } else if error_lower.contains("not found") || error_lower.contains("exist") {
@@ -181,11 +205,19 @@ impl UserError {
                 callback: std::sync::Arc::new(|| {}),
             });
 
-            return (ErrorType::FileSystem, "文件操作失败".to_string(), suggestion, actions);
+            return (
+                ErrorType::FileSystem,
+                "文件操作失败".to_string(),
+                suggestion,
+                actions,
+            );
         }
 
         // Permission errors
-        if error_lower.contains("permission") || error_lower.contains("denied") || error_lower.contains("unauthorized") {
+        if error_lower.contains("permission")
+            || error_lower.contains("denied")
+            || error_lower.contains("unauthorized")
+        {
             actions.push(ErrorAction {
                 label: "检查权限".to_string(),
                 action_type: ActionType::Settings,
@@ -201,7 +233,10 @@ impl UserError {
         }
 
         // Configuration errors
-        if error_lower.contains("config") || error_lower.contains("setting") || error_lower.contains("invalid") {
+        if error_lower.contains("config")
+            || error_lower.contains("setting")
+            || error_lower.contains("invalid")
+        {
             actions.push(ErrorAction {
                 label: "查看帮助".to_string(),
                 action_type: ActionType::Help,
@@ -237,7 +272,12 @@ impl UserError {
         )
     }
 
-    pub fn with_action(mut self, label: impl Into<String>, action_type: ActionType, callback: impl Fn() + Send + Sync + 'static) -> Self {
+    pub fn with_action(
+        mut self,
+        label: impl Into<String>,
+        action_type: ActionType,
+        callback: impl Fn() + Send + Sync + 'static,
+    ) -> Self {
         self.actions.push(ErrorAction {
             label: label.into(),
             action_type,
@@ -257,7 +297,12 @@ impl UserError {
     }
 
     /// Render the error message
-    pub fn render(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, on_dismiss: impl FnOnce()) -> bool {
+    pub fn render(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        on_dismiss: impl FnOnce(),
+    ) -> bool {
         let error_color = self.error_type.color();
         let bg_color = error_color.linear_multiply(0.1);
 
@@ -273,16 +318,13 @@ impl UserError {
 
                 // Header with icon and title
                 ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(self.error_type.icon())
-                            .size(24.0)
-                    );
+                    ui.label(RichText::new(self.error_type.icon()).size(24.0));
 
                     ui.label(
                         RichText::new(&self.title)
                             .size(16.0)
                             .strong()
-                            .color(error_color)
+                            .color(error_color),
                     );
 
                     // Dismiss button
@@ -301,7 +343,7 @@ impl UserError {
                         RichText::new(&self.message)
                             .size(12.0)
                             .color(theme.text_secondary)
-                            .monospace()
+                            .monospace(),
                     );
                 });
 
@@ -311,7 +353,7 @@ impl UserError {
                 ui.label(
                     RichText::new(&self.suggestion)
                         .size(14.0)
-                        .color(theme.text_primary)
+                        .color(theme.text_primary),
                 );
 
                 ui.add_space(12.0);
@@ -330,11 +372,9 @@ impl UserError {
                                     .style(crate::design::AccessibleButtonStyle::Secondary)
                                     .build()
                             }
-                            _ => {
-                                crate::design::AccessibleButton::new(theme, &action.label)
-                                    .style(crate::design::AccessibleButtonStyle::Ghost)
-                                    .build()
-                            }
+                            _ => crate::design::AccessibleButton::new(theme, &action.label)
+                                .style(crate::design::AccessibleButtonStyle::Ghost)
+                                .build(),
                         };
 
                         if ui.add(button).clicked() {
@@ -373,9 +413,10 @@ impl ErrorQueue {
     pub fn push(&mut self, error: UserError) {
         // Check for duplicates if deduplication is enabled
         if self.deduplicate {
-            let is_duplicate = self.errors.iter().any(|e| {
-                e.message == error.message && e.error_type == error.error_type
-            });
+            let is_duplicate = self
+                .errors
+                .iter()
+                .any(|e| e.message == error.message && e.error_type == error.error_type);
 
             if is_duplicate {
                 return;
@@ -461,14 +502,14 @@ impl InlineError {
                 ui.label(
                     RichText::new("⚠")
                         .size(16.0)
-                        .color(crate::design::SemanticColors::WARNING)
+                        .color(crate::design::SemanticColors::WARNING),
                 );
             }
 
             ui.label(
                 RichText::new(&self.message)
                     .size(13.0)
-                    .color(crate::design::SemanticColors::DANGER)
+                    .color(crate::design::SemanticColors::DANGER),
             );
         });
     }
@@ -490,19 +531,22 @@ impl SuccessMessage {
         Frame::group(ui.style())
             .fill(crate::design::SemanticColors::SUCCESS.linear_multiply(0.1))
             .rounding(Rounding::same(6.0))
-            .stroke(Stroke::new(1.0, crate::design::SemanticColors::SUCCESS.linear_multiply(0.3)))
+            .stroke(Stroke::new(
+                1.0,
+                crate::design::SemanticColors::SUCCESS.linear_multiply(0.3),
+            ))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new("✓")
                             .size(18.0)
-                            .color(crate::design::SemanticColors::SUCCESS)
+                            .color(crate::design::SemanticColors::SUCCESS),
                     );
 
                     ui.label(
                         RichText::new(&self.message)
                             .size(14.0)
-                            .color(theme.text_primary)
+                            .color(theme.text_primary),
                     );
                 });
             });
@@ -554,11 +598,7 @@ impl ConfirmDialog {
                 crate::design::BrandColors::C500
             };
 
-            ui.label(
-                RichText::new(icon)
-                    .size(48.0)
-                    .color(icon_color)
-            );
+            ui.label(RichText::new(icon).size(48.0).color(icon_color));
 
             ui.add_space(16.0);
 
@@ -567,7 +607,7 @@ impl ConfirmDialog {
                 RichText::new(&self.title)
                     .size(18.0)
                     .strong()
-                    .color(theme.text_primary)
+                    .color(theme.text_primary),
             );
 
             ui.add_space(8.0);
@@ -576,7 +616,7 @@ impl ConfirmDialog {
             ui.label(
                 RichText::new(&self.message)
                     .size(14.0)
-                    .color(theme.text_secondary)
+                    .color(theme.text_secondary),
             );
 
             ui.add_space(24.0);
@@ -589,19 +629,25 @@ impl ConfirmDialog {
                     crate::design::AccessibleButtonStyle::Primary
                 };
 
-                if ui.add(
-                    crate::design::AccessibleButton::new(theme, &self.confirm_label)
-                        .style(confirm_style)
-                        .build()
-                ).clicked() {
+                if ui
+                    .add(
+                        crate::design::AccessibleButton::new(theme, &self.confirm_label)
+                            .style(confirm_style)
+                            .build(),
+                    )
+                    .clicked()
+                {
                     result = Some(true);
                 }
 
-                if ui.add(
-                    crate::design::AccessibleButton::new(theme, &self.cancel_label)
-                        .style(crate::design::AccessibleButtonStyle::Ghost)
-                        .build()
-                ).clicked() {
+                if ui
+                    .add(
+                        crate::design::AccessibleButton::new(theme, &self.cancel_label)
+                            .style(crate::design::AccessibleButtonStyle::Ghost)
+                            .build(),
+                    )
+                    .clicked()
+                {
                     result = Some(false);
                 }
             });

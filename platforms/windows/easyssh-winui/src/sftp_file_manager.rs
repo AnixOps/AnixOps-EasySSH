@@ -124,7 +124,7 @@ impl SftpFileManager {
             remote_edit_path: false,
             remote_path_input: String::from("/"),
             remote_error: None,
-            icon_theme: FileIconTheme::default(),
+            icon_theme: FileIconTheme,
             transfer_queue: TransferQueue::new(),
             file_preview: FilePreview::new(),
             show_new_folder_dialog: false,
@@ -205,11 +205,9 @@ impl SftpFileManager {
         file_name: &str,
         total_size: u64,
     ) {
-        let transfer_id = self.transfer_queue.add(
-            file_name.to_string(),
-            total_size,
-            TransferDirection::Upload,
-        );
+        let transfer_id =
+            self.transfer_queue
+                .add(file_name.to_string(), total_size, TransferDirection::Upload);
         self.show_transfer_queue = true;
 
         // Start the transfer
@@ -226,16 +224,14 @@ impl SftpFileManager {
         thread::spawn(move || {
             // Read local file
             match fs::read(&local_path_str) {
-                Ok(contents) => {
-                    match vm.sftp_upload(&sid, &remote_path, &contents) {
-                        Ok(_) => {
-                            eprintln!("Upload completed: {} ({} bytes)", file_name, contents.len());
-                        }
-                        Err(e) => {
-                            eprintln!("Upload failed for {}: {}", file_name, e);
-                        }
+                Ok(contents) => match vm.sftp_upload(&sid, &remote_path, &contents) {
+                    Ok(_) => {
+                        eprintln!("Upload completed: {} ({} bytes)", file_name, contents.len());
                     }
-                }
+                    Err(e) => {
+                        eprintln!("Upload failed for {}: {}", file_name, e);
+                    }
+                },
                 Err(e) => {
                     eprintln!("Failed to read local file {}: {}", local_path_str, e);
                 }
@@ -428,25 +424,23 @@ impl SftpFileManager {
                 }
 
                 // Drop target
-                if response.hovered() && self.drag_source.is_some() {
-                    if entry.is_dir {
-                        ui.painter().rect_stroke(
-                            response.rect,
-                            2.0,
-                            egui::Stroke::new(2.0, egui::Color32::YELLOW),
-                        );
+                if response.hovered() && self.drag_source.is_some() && entry.is_dir {
+                    ui.painter().rect_stroke(
+                        response.rect,
+                        2.0,
+                        egui::Stroke::new(2.0, egui::Color32::YELLOW),
+                    );
 
-                        // Handle drop
-                        if ui.input(|i| i.pointer.any_released()) {
-                            if let Some((source_side, _source_idx)) = self.drag_source.take() {
-                                self.handle_drop(
-                                    source_side,
-                                    PaneSide::Local,
-                                    Some(idx),
-                                    view_model,
-                                    session_id,
-                                );
-                            }
+                    // Handle drop
+                    if ui.input(|i| i.pointer.any_released()) {
+                        if let Some((source_side, _source_idx)) = self.drag_source.take() {
+                            self.handle_drop(
+                                source_side,
+                                PaneSide::Local,
+                                Some(idx),
+                                view_model,
+                                session_id,
+                            );
                         }
                     }
                 }
@@ -459,7 +453,13 @@ impl SftpFileManager {
                     if background_rect
                         .contains(ui.input(|i| i.pointer.interact_pos().unwrap_or_default()))
                     {
-                        self.handle_drop(source_side, PaneSide::Local, None, view_model, session_id);
+                        self.handle_drop(
+                            source_side,
+                            PaneSide::Local,
+                            None,
+                            view_model,
+                            session_id,
+                        );
                     }
                 }
             }
@@ -558,25 +558,23 @@ impl SftpFileManager {
                 }
 
                 // Drop target
-                if response.hovered() && self.drag_source.is_some() {
-                    if entry.is_dir {
-                        ui.painter().rect_stroke(
-                            response.rect,
-                            2.0,
-                            egui::Stroke::new(2.0, egui::Color32::YELLOW),
-                        );
+                if response.hovered() && self.drag_source.is_some() && entry.is_dir {
+                    ui.painter().rect_stroke(
+                        response.rect,
+                        2.0,
+                        egui::Stroke::new(2.0, egui::Color32::YELLOW),
+                    );
 
-                        // Handle drop
-                        if ui.input(|i| i.pointer.any_released()) {
-                            if let Some((source_side, _source_idx)) = self.drag_source.take() {
-                                self.handle_drop(
-                                    source_side,
-                                    PaneSide::Remote,
-                                    Some(idx),
-                                    view_model,
-                                    session_id,
-                                );
-                            }
+                    // Handle drop
+                    if ui.input(|i| i.pointer.any_released()) {
+                        if let Some((source_side, _source_idx)) = self.drag_source.take() {
+                            self.handle_drop(
+                                source_side,
+                                PaneSide::Remote,
+                                Some(idx),
+                                view_model,
+                                session_id,
+                            );
                         }
                     }
                 }
@@ -589,7 +587,13 @@ impl SftpFileManager {
                     if background_rect
                         .contains(ui.input(|i| i.pointer.interact_pos().unwrap_or_default()))
                     {
-                        self.handle_drop(source_side, PaneSide::Remote, None, view_model, session_id);
+                        self.handle_drop(
+                            source_side,
+                            PaneSide::Remote,
+                            None,
+                            view_model,
+                            session_id,
+                        );
                     }
                 }
             }
@@ -778,7 +782,12 @@ impl SftpFileManager {
                 if let Some(source_idx) = self.drag_source.map(|(_, idx)| idx) {
                     // Clone entry data before calling self methods to avoid borrow issues
                     let entry_data = self.local_entries.get(source_idx).map(|entry| {
-                        (entry.path.clone(), entry.name.clone(), entry.size, entry.is_dir)
+                        (
+                            entry.path.clone(),
+                            entry.name.clone(),
+                            entry.size,
+                            entry.is_dir,
+                        )
                     });
 
                     if let Some((path, name, size, is_dir)) = entry_data {
@@ -799,14 +808,7 @@ impl SftpFileManager {
                         let remote_path = format!("{}/{}", target_dir.trim_end_matches('/'), name);
 
                         // Execute upload
-                        self.execute_upload(
-                            view_model,
-                            sid,
-                            &path,
-                            &remote_path,
-                            &name,
-                            size,
-                        );
+                        self.execute_upload(view_model, sid, &path, &remote_path, &name, size);
                     }
                 }
             }
@@ -814,7 +816,12 @@ impl SftpFileManager {
                 if let Some(source_idx) = self.drag_source.map(|(_, idx)| idx) {
                     // Clone entry data before calling self methods to avoid borrow issues
                     let entry_data = self.remote_entries.get(source_idx).map(|entry| {
-                        (entry.path.clone(), entry.name.clone(), entry.size, entry.is_dir)
+                        (
+                            entry.path.clone(),
+                            entry.name.clone(),
+                            entry.size,
+                            entry.is_dir,
+                        )
                     });
 
                     if let Some((path, name, size, is_dir)) = entry_data {
@@ -865,7 +872,12 @@ impl SftpFileManager {
         self.context_menu_open = true;
     }
 
-    fn render_context_menu(&mut self, ctx: &egui::Context, view_model: &AppViewModel, session_id: Option<&str>) {
+    fn render_context_menu(
+        &mut self,
+        ctx: &egui::Context,
+        view_model: &AppViewModel,
+        session_id: Option<&str>,
+    ) {
         if !self.context_menu_open {
             return;
         }
@@ -892,12 +904,21 @@ impl SftpFileManager {
                     if ui.button("Upload").clicked() {
                         // Clone data before calling self method to avoid borrow issues
                         let entry_data = self.local_entries.get(idx).map(|entry| {
-                            (entry.path.clone(), entry.name.clone(), entry.size, entry.is_dir)
+                            (
+                                entry.path.clone(),
+                                entry.name.clone(),
+                                entry.size,
+                                entry.is_dir,
+                            )
                         });
                         if let Some((path, name, size, is_dir)) = entry_data {
                             if !is_dir {
                                 if let Some(sid) = session_id {
-                                    let remote_path = format!("{}/{}", self.remote_path.trim_end_matches('/'), name);
+                                    let remote_path = format!(
+                                        "{}/{}",
+                                        self.remote_path.trim_end_matches('/'),
+                                        name
+                                    );
                                     self.execute_upload(
                                         view_model,
                                         sid,
@@ -951,7 +972,12 @@ impl SftpFileManager {
                     if ui.button("Download").clicked() {
                         // Clone data before calling self method to avoid borrow issues
                         let entry_data = self.remote_entries.get(idx).map(|entry| {
-                            (entry.path.clone(), entry.name.clone(), entry.size, entry.is_dir)
+                            (
+                                entry.path.clone(),
+                                entry.name.clone(),
+                                entry.size,
+                                entry.is_dir,
+                            )
                         });
                         if let Some((path, name, size, is_dir)) = entry_data {
                             if !is_dir {

@@ -210,7 +210,8 @@ impl PooledConnectionInner {
 
     fn cache_statement(&self, sql: &str, prepared: &str) {
         let mut cache = self.statement_cache.write();
-        if cache.len() >= 100 { // Max cache size
+        if cache.len() >= 100 {
+            // Max cache size
             // Remove oldest entry (simple FIFO)
             if let Some(oldest) = cache.keys().next().cloned() {
                 cache.remove(&oldest);
@@ -405,7 +406,9 @@ impl OptimizedConnectionPool {
                         conn_lock.use_count += 1;
                     }
 
-                    self.statistics.total_acquired.fetch_add(1, Ordering::SeqCst);
+                    self.statistics
+                        .total_acquired
+                        .fetch_add(1, Ordering::SeqCst);
                     let wait_ms = start.elapsed().as_millis() as u64;
                     self.statistics
                         .total_acquire_wait_ms
@@ -435,7 +438,9 @@ impl OptimizedConnectionPool {
                         conn_lock.use_count += 1;
                         drop(conn_lock);
 
-                        self.statistics.total_acquired.fetch_add(1, Ordering::SeqCst);
+                        self.statistics
+                            .total_acquired
+                            .fetch_add(1, Ordering::SeqCst);
                         let wait_ms = start.elapsed().as_millis() as u64;
                         self.statistics
                             .total_acquire_wait_ms
@@ -455,11 +460,8 @@ impl OptimizedConnectionPool {
             }
 
             // Wait for a connection to become available
-            let wait_result = tokio::time::timeout(
-                Duration::from_millis(100),
-                self.notify.notified(),
-            )
-            .await;
+            let wait_result =
+                tokio::time::timeout(Duration::from_millis(100), self.notify.notified()).await;
 
             if wait_result.is_err() {
                 // Timeout, check if we exceeded total acquire timeout
@@ -473,9 +475,7 @@ impl OptimizedConnectionPool {
     }
 
     /// Create a new database connection
-    async fn create_connection(
-        &self,
-    ) -> Result<Arc<RwLock<PooledConnectionInner>>, DatabaseError> {
+    async fn create_connection(&self) -> Result<Arc<RwLock<PooledConnectionInner>>, DatabaseError> {
         let _permit = self
             .creation_semaphore
             .acquire()
@@ -570,10 +570,7 @@ impl OptimizedConnectionPool {
     }
 
     /// Check connection health
-    async fn check_connection_health(
-        &self,
-        conn: &Arc<RwLock<PooledConnectionInner>>,
-    ) -> bool {
+    async fn check_connection_health(&self, conn: &Arc<RwLock<PooledConnectionInner>>) -> bool {
         let health_check = async {
             let conn_lock = conn.read();
             conn_lock.driver.ping().await
@@ -615,7 +612,9 @@ impl OptimizedConnectionPool {
         drop(conn_lock);
 
         self.idle_connections.lock().push_back(conn);
-        self.statistics.total_released.fetch_add(1, Ordering::SeqCst);
+        self.statistics
+            .total_released
+            .fetch_add(1, Ordering::SeqCst);
 
         // Notify waiting acquires
         self.notify.notify_one();
@@ -768,7 +767,10 @@ impl OptimizedConnectionPool {
         let query_count = self.statistics.query_count.load(Ordering::SeqCst);
 
         let cache_hits = self.statistics.statement_cache_hits.load(Ordering::SeqCst);
-        let cache_misses = self.statistics.statement_cache_misses.load(Ordering::SeqCst);
+        let cache_misses = self
+            .statistics
+            .statement_cache_misses
+            .load(Ordering::SeqCst);
         let cache_total = cache_hits + cache_misses;
 
         PoolStatistics {
@@ -900,14 +902,19 @@ impl PooledConnectionGuard {
     }
 
     /// Execute a query on this connection
-    pub async fn query(&self, sql: &str) -> Result<crate::database_client::QueryResult, DatabaseError> {
+    pub async fn query(
+        &self,
+        sql: &str,
+    ) -> Result<crate::database_client::QueryResult, DatabaseError> {
         let start = Instant::now();
 
         let result = if let Some(ref conn) = self.connection {
             let conn_lock = conn.read();
             conn_lock.driver.query(sql).await
         } else {
-            return Err(DatabaseError::ConnectionError("Connection not available".to_string()));
+            return Err(DatabaseError::ConnectionError(
+                "Connection not available".to_string(),
+            ));
         };
 
         // Record latency
@@ -930,7 +937,9 @@ impl PooledConnectionGuard {
             let conn_lock = conn.read();
             conn_lock.driver.execute(sql).await
         } else {
-            return Err(DatabaseError::ConnectionError("Connection not available".to_string()));
+            return Err(DatabaseError::ConnectionError(
+                "Connection not available".to_string(),
+            ));
         };
 
         // Record latency

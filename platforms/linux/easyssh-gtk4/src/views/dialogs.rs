@@ -1,10 +1,10 @@
+use crate::app::AppViewModel;
+use crate::models::Server;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::Mutex;
-use crate::app::AppViewModel;
-use crate::models::Server;
 
 pub struct AddServerDialog {
     dialog: adw::Dialog,
@@ -128,16 +128,20 @@ impl AddServerDialog {
         };
 
         // Connect signals
-        save_btn.connect_clicked(glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
-            this.do_save();
-        }));
+        save_btn.connect_clicked(
+            glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
+                this.do_save();
+            }),
+        );
 
-        cancel_btn.connect_clicked(glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
-            dialog.close();
-            if let Some(cb) = this.cancel_callback.take() {
-                cb();
-            }
-        }));
+        cancel_btn.connect_clicked(
+            glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
+                dialog.close();
+                if let Some(cb) = this.cancel_callback.take() {
+                    cb();
+                }
+            }),
+        );
 
         dialog.present(Some(parent));
 
@@ -177,7 +181,9 @@ impl AddServerDialog {
                     if !password.is_empty() {
                         // Get the server ID (we need to retrieve it)
                         if let Ok(servers) = vm.get_servers() {
-                            if let Some(server) = servers.iter().find(|s| s.name == name && s.host == host) {
+                            if let Some(server) =
+                                servers.iter().find(|s| s.name == name && s.host == host)
+                            {
                                 let _ = vm.save_password(&server.id, &password);
                             }
                         }
@@ -223,7 +229,11 @@ pub struct ConnectDialog {
 }
 
 impl ConnectDialog {
-    pub fn new(parent: &adw::ApplicationWindow, server: Server, view_model: Arc<Mutex<AppViewModel>>) -> Self {
+    pub fn new(
+        parent: &adw::ApplicationWindow,
+        server: Server,
+        view_model: Arc<Mutex<AppViewModel>>,
+    ) -> Self {
         let dialog = adw::Dialog::builder()
             .title(&format!("Connect to {}", server.name))
             .content_width(400)
@@ -308,23 +318,27 @@ impl ConnectDialog {
         };
 
         // Connect signals
-        connect_btn.connect_clicked(glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
-            let password = this.password_entry.text().to_string();
-            let password_opt = if password.is_empty() { None } else { Some(password) };
-            let save = this.save_switch.is_active();
+        connect_btn.connect_clicked(
+            glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
+                let password = this.password_entry.text().to_string();
+                let password_opt = if password.is_empty() { None } else { Some(password) };
+                let save = this.save_switch.is_active();
 
-            dialog.close();
-            if let Some(cb) = this.connect_callback.take() {
-                cb(password_opt, save);
-            }
-        }));
+                dialog.close();
+                if let Some(cb) = this.connect_callback.take() {
+                    cb(password_opt, save);
+                }
+            }),
+        );
 
-        cancel_btn.connect_clicked(glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
-            dialog.close();
-            if let Some(cb) = this.cancel_callback.take() {
-                cb();
-            }
-        }));
+        cancel_btn.connect_clicked(
+            glib::clone!(@weak dialog, @weak dialog_obj as this => move |_| {
+                dialog.close();
+                if let Some(cb) = this.cancel_callback.take() {
+                    cb();
+                }
+            }),
+        );
 
         dialog.present(Some(parent));
 

@@ -24,21 +24,11 @@ impl FindReplace {
 }
 
 /// Search options
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SearchOptions {
     pub case_sensitive: bool,
     pub whole_word: bool,
     pub regex: bool,
-}
-
-impl Default for SearchOptions {
-    fn default() -> Self {
-        Self {
-            case_sensitive: false,
-            whole_word: false,
-            regex: false,
-        }
-    }
 }
 
 /// Match

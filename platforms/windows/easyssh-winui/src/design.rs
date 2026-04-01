@@ -12,7 +12,7 @@
 //! @version 1.1.0
 //! @platform Windows (native egui)
 
-use egui::{Color32, Rounding, Shadow, Stroke, Vec2, Margin, FontId, FontFamily, FontData};
+use egui::{Color32, FontData, FontFamily, FontId, Margin, Rounding, Shadow, Stroke, Vec2};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 // ============================================================================
@@ -94,10 +94,10 @@ impl HighContrastColors {
     // Pure black and white for maximum contrast
     pub const BLACK: Color32 = Color32::from_rgb(0x00, 0x00, 0x00);
     pub const WHITE: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
-    pub const YELLOW: Color32 = Color32::from_rgb(0xFF, 0xFF, 0x00);  // Focus/highlight
-    pub const CYAN: Color32 = Color32::from_rgb(0x00, 0xFF, 0xFF);    // Links
-    pub const GREEN: Color32 = Color32::from_rgb(0x00, 0xFF, 0x00);   // Success
-    pub const RED: Color32 = Color32::from_rgb(0xFF, 0x00, 0x00);     // Danger
+    pub const YELLOW: Color32 = Color32::from_rgb(0xFF, 0xFF, 0x00); // Focus/highlight
+    pub const CYAN: Color32 = Color32::from_rgb(0x00, 0xFF, 0xFF); // Links
+    pub const GREEN: Color32 = Color32::from_rgb(0x00, 0xFF, 0x00); // Success
+    pub const RED: Color32 = Color32::from_rgb(0xFF, 0x00, 0x00); // Danger
     pub const MAGENTA: Color32 = Color32::from_rgb(0xFF, 0x00, 0xFF); // Active
 }
 
@@ -109,18 +109,18 @@ impl HighContrastColors {
 pub struct NeutralColors;
 
 impl NeutralColors {
-    pub const C0: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);    // #FFFFFF
-    pub const C50: Color32 = Color32::from_rgb(0xFA, 0xFA, 0xFA);   // #FAFAFA
-    pub const C100: Color32 = Color32::from_rgb(0xF5, 0xF5, 0xF5);  // #F5F5F5
-    pub const C200: Color32 = Color32::from_rgb(0xEB, 0xEB, 0xEB);  // #EBEBEB
-    pub const C300: Color32 = Color32::from_rgb(0xE0, 0xE0, 0xE0);  // #E0E0E0
-    pub const C400: Color32 = Color32::from_rgb(0xC4, 0xC4, 0xC4);  // #C4C4C4
-    pub const C500: Color32 = Color32::from_rgb(0x9E, 0x9E, 0x9E);  // #9E9E9E
-    pub const C600: Color32 = Color32::from_rgb(0x75, 0x75, 0x75);  // #757575
-    pub const C700: Color32 = Color32::from_rgb(0x52, 0x52, 0x52);  // #525252
-    pub const C800: Color32 = Color32::from_rgb(0x36, 0x36, 0x36);  // #363636
-    pub const C900: Color32 = Color32::from_rgb(0x1A, 0x1A, 0x1A);  // #1A1A1A
-    pub const C950: Color32 = Color32::from_rgb(0x0D, 0x0D, 0x0D);  // #0D0D0D
+    pub const C0: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF); // #FFFFFF
+    pub const C50: Color32 = Color32::from_rgb(0xFA, 0xFA, 0xFA); // #FAFAFA
+    pub const C100: Color32 = Color32::from_rgb(0xF5, 0xF5, 0xF5); // #F5F5F5
+    pub const C200: Color32 = Color32::from_rgb(0xEB, 0xEB, 0xEB); // #EBEBEB
+    pub const C300: Color32 = Color32::from_rgb(0xE0, 0xE0, 0xE0); // #E0E0E0
+    pub const C400: Color32 = Color32::from_rgb(0xC4, 0xC4, 0xC4); // #C4C4C4
+    pub const C500: Color32 = Color32::from_rgb(0x9E, 0x9E, 0x9E); // #9E9E9E
+    pub const C600: Color32 = Color32::from_rgb(0x75, 0x75, 0x75); // #757575
+    pub const C700: Color32 = Color32::from_rgb(0x52, 0x52, 0x52); // #525252
+    pub const C800: Color32 = Color32::from_rgb(0x36, 0x36, 0x36); // #363636
+    pub const C900: Color32 = Color32::from_rgb(0x1A, 0x1A, 0x1A); // #1A1A1A
+    pub const C950: Color32 = Color32::from_rgb(0x0D, 0x0D, 0x0D); // #0D0D0D
     pub const C1000: Color32 = Color32::from_rgb(0x00, 0x00, 0x00); // #000000
 }
 
@@ -128,7 +128,7 @@ impl NeutralColors {
 pub struct BrandColors;
 
 impl BrandColors {
-    pub const C50: Color32 = Color32::from_rgb(0xEF, 0xF6, 0xFF);   // #EFF6FF
+    pub const C50: Color32 = Color32::from_rgb(0xEF, 0xF6, 0xFF); // #EFF6FF
     pub const C100: Color32 = Color32::from_rgb(0xDB, 0xEA, 0xFE); // #DBEAFE
     pub const C200: Color32 = Color32::from_rgb(0xBF, 0xDB, 0xFE); // #BFDBFE
     pub const C300: Color32 = Color32::from_rgb(0x93, 0xC5, 0xFD); // #93C5FD
@@ -145,13 +145,13 @@ impl BrandColors {
 pub struct SemanticColors;
 
 impl SemanticColors {
-    pub const SUCCESS: Color32 = Color32::from_rgb(0x22, 0xC5, 0x5E);  // #22C55E
+    pub const SUCCESS: Color32 = Color32::from_rgb(0x22, 0xC5, 0x5E); // #22C55E
     pub const SUCCESS_LIGHT: Color32 = Color32::from_rgba_premultiplied(0x22, 0xC5, 0x5E, 26); // 10%
-    pub const WARNING: Color32 = Color32::from_rgb(0xF5, 0x9E, 0x0B);  // #F59E0B
+    pub const WARNING: Color32 = Color32::from_rgb(0xF5, 0x9E, 0x0B); // #F59E0B
     pub const WARNING_LIGHT: Color32 = Color32::from_rgba_premultiplied(0xF5, 0x9E, 0x0B, 26);
-    pub const DANGER: Color32 = Color32::from_rgb(0xEF, 0x44, 0x44);  // #EF4444
+    pub const DANGER: Color32 = Color32::from_rgb(0xEF, 0x44, 0x44); // #EF4444
     pub const DANGER_LIGHT: Color32 = Color32::from_rgba_premultiplied(0xEF, 0x44, 0x44, 26);
-    pub const INFO: Color32 = Color32::from_rgb(0x3B, 0x82, 0xF6);     // #3B82F6
+    pub const INFO: Color32 = Color32::from_rgb(0x3B, 0x82, 0xF6); // #3B82F6
 }
 
 /// Terminal colors (One Dark theme compatible)
@@ -195,17 +195,12 @@ impl StatusColors {
 // THEME - Light/Dark/HighContrast mode support
 // ============================================================================
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum Theme {
     Light,
+    #[default]
     Dark,
     HighContrast, // WCAG AAA compliant
-}
-
-impl Default for Theme {
-    fn default() -> Self {
-        Theme::Dark // SSH clients typically use dark theme
-    }
 }
 
 impl Theme {
@@ -841,15 +836,25 @@ impl RtlLayout {
 
     /// Get layout direction multiplier (-1 for RTL, 1 for LTR)
     pub fn direction_multiplier() -> f32 {
-        if Self::is_rtl() { -1.0 } else { 1.0 }
+        if Self::is_rtl() {
+            -1.0
+        } else {
+            1.0
+        }
     }
 
     /// Adjust text alignment for RTL
     pub fn text_align(left_aligned: bool) -> egui::Align {
         if Self::is_rtl() {
-            if left_aligned { egui::Align::RIGHT } else { egui::Align::LEFT }
+            if left_aligned {
+                egui::Align::RIGHT
+            } else {
+                egui::Align::LEFT
+            }
+        } else if left_aligned {
+            egui::Align::LEFT
         } else {
-            if left_aligned { egui::Align::LEFT } else { egui::Align::RIGHT }
+            egui::Align::RIGHT
         }
     }
 }
@@ -861,16 +866,33 @@ impl RtlLayout {
 /// Extension trait for egui UI to apply design tokens with accessibility
 pub trait DesignUiExt {
     /// Apply primary button style with accessible label
-    fn primary_button(&self, theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Button<'_>;
+    fn primary_button(
+        &self,
+        theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Button<'_>;
 
     /// Apply secondary button style with accessible label
-    fn secondary_button(&self, theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Button<'_>;
+    fn secondary_button(
+        &self,
+        theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Button<'_>;
 
     /// Apply ghost button style with accessible label
-    fn ghost_button(&self, theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Button<'_>;
+    fn ghost_button(
+        &self,
+        theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Button<'_>;
 
     /// Icon button with accessible label (FIXED: always has label)
-    fn icon_button(&self, theme: &DesignTheme, icon: &str, accessible_label: &str) -> egui::Button<'_>;
+    fn icon_button(
+        &self,
+        theme: &DesignTheme,
+        icon: &str,
+        accessible_label: &str,
+    ) -> egui::Button<'_>;
 
     /// Card container style
     fn card_frame(&self, theme: &DesignTheme) -> egui::Frame;
@@ -882,37 +904,56 @@ pub trait DesignUiExt {
     fn with_focus_indicator(&self, theme: &DesignTheme) -> egui::Frame;
 
     /// Accessible link button with visible focus
-    fn accessible_link(&self, theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Hyperlink;
+    fn accessible_link(
+        &self,
+        theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Hyperlink;
 
     /// Announce to screen reader
     fn announce(&mut self, message: &str, priority: AnnouncePriority);
 }
 
 impl DesignUiExt for egui::Ui {
-    fn primary_button(&self, theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Button<'_> {
+    fn primary_button(
+        &self,
+        theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Button<'_> {
         egui::Button::new(label)
             .fill(theme.interactive_primary)
             .min_size(Vec2::splat(Dimensions::BUTTON_MIN_SIZE)) // WCAG 2.5.5
     }
 
-    fn secondary_button(&self, theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Button<'_> {
+    fn secondary_button(
+        &self,
+        theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Button<'_> {
         egui::Button::new(label)
             .fill(theme.interactive_secondary)
             .min_size(Vec2::splat(Dimensions::BUTTON_MIN_SIZE))
     }
 
-    fn ghost_button(&self, _theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Button<'_> {
+    fn ghost_button(
+        &self,
+        _theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Button<'_> {
         egui::Button::new(label)
             .fill(Color32::TRANSPARENT)
             .min_size(Vec2::splat(Dimensions::BUTTON_MIN_SIZE))
     }
 
-    fn icon_button(&self, _theme: &DesignTheme, icon: &str, _accessible_label: &str) -> egui::Button<'_> {
+    fn icon_button(
+        &self,
+        _theme: &DesignTheme,
+        icon: &str,
+        _accessible_label: &str,
+    ) -> egui::Button<'_> {
         // FIXED: Icon button now ALWAYS has an accessible label
         // Format: "icon|accessible_label" or use rich text with alt text
-        let text = egui::RichText::new(icon)
-            .size(16.0)
-            .strong();
+        let text = egui::RichText::new(icon).size(16.0).strong();
 
         egui::Button::new(text)
             .fill(Color32::TRANSPARENT)
@@ -928,7 +969,7 @@ impl DesignUiExt for egui::Ui {
             .rounding(Radius::LG)
             .stroke(Stroke::new(
                 if theme.high_contrast { 2.0 } else { 1.0 },
-                theme.border_subtle
+                theme.border_subtle,
             ))
             .shadow(Shadows::card(theme))
     }
@@ -948,10 +989,13 @@ impl DesignUiExt for egui::Ui {
             .rounding(Radius::MD)
     }
 
-    fn accessible_link(&self, _theme: &DesignTheme, label: impl Into<egui::WidgetText>) -> egui::Hyperlink {
-        let link = egui::Hyperlink::from_label_and_url(label, "");
+    fn accessible_link(
+        &self,
+        _theme: &DesignTheme,
+        label: impl Into<egui::WidgetText>,
+    ) -> egui::Hyperlink {
         // Note: egui Hyperlink styling is limited, custom rendering needed for full WCAG compliance
-        link
+        egui::Hyperlink::from_label_and_url(label, "")
     }
 
     fn announce(&mut self, message: &str, priority: AnnouncePriority) {
@@ -1059,9 +1103,21 @@ pub fn relative_luminance(color: Color32) -> f32 {
     let g = color.g() as f32 / 255.0;
     let b = color.b() as f32 / 255.0;
 
-    let r = if r <= 0.03928 { r / 12.92 } else { ((r + 0.055) / 1.055).powf(2.4) };
-    let g = if g <= 0.03928 { g / 12.92 } else { ((g + 0.055) / 1.055).powf(2.4) };
-    let b = if b <= 0.03928 { b / 12.92 } else { ((b + 0.055) / 1.055).powf(2.4) };
+    let r = if r <= 0.03928 {
+        r / 12.92
+    } else {
+        ((r + 0.055) / 1.055).powf(2.4)
+    };
+    let g = if g <= 0.03928 {
+        g / 12.92
+    } else {
+        ((g + 0.055) / 1.055).powf(2.4)
+    };
+    let b = if b <= 0.03928 {
+        b / 12.92
+    } else {
+        ((b + 0.055) / 1.055).powf(2.4)
+    };
 
     0.2126 * r + 0.7152 * g + 0.0722 * b
 }
@@ -1182,7 +1238,10 @@ mod tests {
     fn test_accessible_button_min_size() {
         // WCAG 2.5.5 requires minimum 44x44 touch targets
         let min_size = Dimensions::BUTTON_MIN_SIZE;
-        assert!(min_size >= 44.0, "Button minimum size must be at least 44px per WCAG 2.5.5");
+        assert!(
+            min_size >= 44.0,
+            "Button minimum size must be at least 44px per WCAG 2.5.5"
+        );
     }
 
     #[test]
@@ -1192,9 +1251,18 @@ mod tests {
         let hc = DesignTheme::high_contrast();
 
         // WCAG 2.1 AA requires focus indicator to be at least 2px thick
-        assert!(light.focus_thickness >= 2.0, "Light theme focus must be >= 2px");
-        assert!(dark.focus_thickness >= 2.0, "Dark theme focus must be >= 2px");
-        assert!(hc.focus_thickness >= 2.0, "High contrast focus must be >= 2px");
+        assert!(
+            light.focus_thickness >= 2.0,
+            "Light theme focus must be >= 2px"
+        );
+        assert!(
+            dark.focus_thickness >= 2.0,
+            "Dark theme focus must be >= 2px"
+        );
+        assert!(
+            hc.focus_thickness >= 2.0,
+            "High contrast focus must be >= 2px"
+        );
     }
 
     #[test]
@@ -1210,13 +1278,20 @@ mod tests {
     #[test]
     fn test_large_text_typography() {
         // Enable large text mode
-        AccessibilitySettings::global().large_text.store(true, Ordering::Relaxed);
+        AccessibilitySettings::global()
+            .large_text
+            .store(true, Ordering::Relaxed);
 
         let font = Typography::sans(14.0);
-        assert!(font.size >= 18.0, "Large text mode should enforce minimum 18px");
+        assert!(
+            font.size >= 18.0,
+            "Large text mode should enforce minimum 18px"
+        );
 
         // Reset
-        AccessibilitySettings::global().large_text.store(false, Ordering::Relaxed);
+        AccessibilitySettings::global()
+            .large_text
+            .store(false, Ordering::Relaxed);
     }
 
     #[test]
@@ -1244,7 +1319,10 @@ mod tests {
         let white = Color32::WHITE;
 
         let ratio = contrast_ratio(black, white);
-        assert!(ratio > 20.0 && ratio < 22.0, "Black/White contrast should be ~21:1");
+        assert!(
+            ratio > 20.0 && ratio < 22.0,
+            "Black/White contrast should be ~21:1"
+        );
     }
 
     #[test]
@@ -1281,13 +1359,17 @@ mod tests {
         assert!(!RtlLayout::is_rtl());
 
         // Enable RTL
-        AccessibilitySettings::global().rtl_layout.store(true, Ordering::Relaxed);
+        AccessibilitySettings::global()
+            .rtl_layout
+            .store(true, Ordering::Relaxed);
         assert!(RtlLayout::is_rtl());
 
         // Test direction multiplier
         assert_eq!(RtlLayout::direction_multiplier(), -1.0);
 
         // Reset
-        AccessibilitySettings::global().rtl_layout.store(false, Ordering::Relaxed);
+        AccessibilitySettings::global()
+            .rtl_layout
+            .store(false, Ordering::Relaxed);
     }
 }

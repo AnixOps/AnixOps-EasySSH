@@ -163,10 +163,7 @@ impl LinuxUpdater {
         tokio::fs::copy(appimage_path, &target_path).await?;
 
         // Make executable
-        tokio::fs::set_permissions(
-            &target_path,
-            std::fs::Permissions::from_mode(0o755),
-        ).await?;
+        tokio::fs::set_permissions(&target_path, std::fs::Permissions::from_mode(0o755)).await?;
 
         // Update desktop integration
         self.update_desktop_integration(&target_path).await?;
@@ -220,7 +217,12 @@ Terminal=false
     /// Install Snap
     async fn install_snap(&self, snap_path: &Path) -> anyhow::Result<()> {
         let output = Command::new("sudo")
-            .args(&["snap", "install", "--dangerous", snap_path.to_str().unwrap()])
+            .args(&[
+                "snap",
+                "install",
+                "--dangerous",
+                snap_path.to_str().unwrap(),
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -236,9 +238,8 @@ Terminal=false
 
         // Backup current binary
         if target_path.exists() {
-            let backup = target_path.with_extension(
-                format!("backup.{}", chrono::Local::now().timestamp())
-            );
+            let backup =
+                target_path.with_extension(format!("backup.{}", chrono::Local::now().timestamp()));
             tokio::fs::copy(&target_path, &backup).await?;
         }
 
@@ -246,10 +247,7 @@ Terminal=false
         tokio::fs::copy(binary_path, &target_path).await?;
 
         // Make executable
-        tokio::fs::set_permissions(
-            &target_path,
-            std::fs::Permissions::from_mode(0o755),
-        ).await?;
+        tokio::fs::set_permissions(&target_path, std::fs::Permissions::from_mode(0o755)).await?;
 
         Ok(())
     }
@@ -322,27 +320,21 @@ Terminal=false
     /// Check if package is already installed
     pub async fn is_package_installed(&self, package_name: &str) -> anyhow::Result<bool> {
         let result = match self.package_manager {
-            PackageManager::Apt => {
-                Command::new("dpkg")
-                    .args(&["-l", package_name])
-                    .output()?
-                    .status
-                    .success()
-            }
-            PackageManager::Dnf | PackageManager::Yum => {
-                Command::new("rpm")
-                    .args(&["-q", package_name])
-                    .output()?
-                    .status
-                    .success()
-            }
-            PackageManager::Pacman => {
-                Command::new("pacman")
-                    .args(&["-Q", package_name])
-                    .output()?
-                    .status
-                    .success()
-            }
+            PackageManager::Apt => Command::new("dpkg")
+                .args(&["-l", package_name])
+                .output()?
+                .status
+                .success(),
+            PackageManager::Dnf | PackageManager::Yum => Command::new("rpm")
+                .args(&["-q", package_name])
+                .output()?
+                .status
+                .success(),
+            PackageManager::Pacman => Command::new("pacman")
+                .args(&["-Q", package_name])
+                .output()?
+                .status
+                .success(),
             _ => false,
         };
 
@@ -387,8 +379,7 @@ impl PlatformUpdater for LinuxUpdater {
         let current_exe = std::env::current_exe()?;
 
         // Use execvp equivalent - replace current process
-        Command::new(&current_exe)
-            .spawn()?;
+        Command::new(&current_exe).spawn()?;
 
         std::process::exit(0);
     }
@@ -396,12 +387,12 @@ impl PlatformUpdater for LinuxUpdater {
     async fn needs_elevation(&self, _package_path: &Path) -> anyhow::Result<bool> {
         // Check if we need sudo
         match self.package_manager {
-            PackageManager::Apt |
-            PackageManager::Dnf |
-            PackageManager::Yum |
-            PackageManager::Pacman |
-            PackageManager::Zypper |
-            PackageManager::Snap => Ok(true),
+            PackageManager::Apt
+            | PackageManager::Dnf
+            | PackageManager::Yum
+            | PackageManager::Pacman
+            | PackageManager::Zypper
+            | PackageManager::Snap => Ok(true),
             _ => {
                 // Check write permission to install dir
                 let test_file = self.install_dir.join(".write_test");
@@ -453,11 +444,10 @@ pub async fn get_distribution() -> String {
     }
 
     // Fallback to lsb_release
-    if let Ok(output) = Command::new("lsb_release")
-        .args(&["-is"])
-        .output()
-    {
-        return String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+    if let Ok(output) = Command::new("lsb_release").args(&["-is"]).output() {
+        return String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .to_lowercase();
     }
 
     "unknown".to_string()
@@ -473,10 +463,7 @@ pub async fn get_distribution_version() -> String {
         }
     }
 
-    if let Ok(output) = Command::new("lsb_release")
-        .args(&["-rs"])
-        .output()
-    {
+    if let Ok(output) = Command::new("lsb_release").args(&["-rs"]).output() {
         return String::from_utf8_lossy(&output.stdout).trim().to_string();
     }
 

@@ -5,8 +5,9 @@
 //! This module provides UI rendering functions for the snippets system,
 //! designed to be used with the main EasySSHApp.
 
-use egui;
-use crate::snippets::{SnippetCategory, SnippetInputDialog, SnippetManager, Snippet, SnippetVariable};
+use crate::snippets::{
+    Snippet, SnippetCategory, SnippetInputDialog, SnippetManager, SnippetVariable,
+};
 
 /// Renders the snippets side panel
 pub fn render_snippets_panel(
@@ -36,7 +37,13 @@ pub fn render_snippets_panel(
             render_category_filters(ui, selected_category, manager);
             render_snippets_search(ui, search, manager);
             render_action_message(ui, action_message);
-            render_snippets_list(ui, manager, snippet_input_dialog, command_input, action_message);
+            render_snippets_list(
+                ui,
+                manager,
+                snippet_input_dialog,
+                command_input,
+                action_message,
+            );
             render_snippets_footer(ui, show_panel);
         });
 }
@@ -49,9 +56,20 @@ fn render_snippets_header(
 ) {
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new("📝").size(18.0));
-        ui.label(egui::RichText::new("Snippets").heading().color(egui::Color32::from_rgb(220, 225, 235)));
+        ui.label(
+            egui::RichText::new("Snippets")
+                .heading()
+                .color(egui::Color32::from_rgb(220, 225, 235)),
+        );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.add(egui::Button::new("+").fill(egui::Color32::from_rgb(64, 156, 255)).min_size([28.0, 28.0].into())).clicked() {
+            if ui
+                .add(
+                    egui::Button::new("+")
+                        .fill(egui::Color32::from_rgb(64, 156, 255))
+                        .min_size([28.0, 28.0].into()),
+                )
+                .clicked()
+            {
                 *show_add_dialog = true;
                 *new_snippet_form = super::NewSnippetForm::default();
             }
@@ -77,7 +95,11 @@ fn render_category_filters(
         for (label, cat) in categories {
             let is_selected = *selected_category == cat;
             let btn = egui::Button::new(egui::RichText::new(label).size(12.0))
-                .fill(if is_selected { egui::Color32::from_rgb(64, 156, 255) } else { egui::Color32::from_rgb(50, 55, 65) })
+                .fill(if is_selected {
+                    egui::Color32::from_rgb(64, 156, 255)
+                } else {
+                    egui::Color32::from_rgb(50, 55, 65)
+                })
                 .rounding(4.0);
             if ui.add(btn).clicked() {
                 *selected_category = cat.clone();
@@ -88,11 +110,7 @@ fn render_category_filters(
     ui.add_space(6.0);
 }
 
-fn render_snippets_search(
-    ui: &mut egui::Ui,
-    search: &mut String,
-    manager: &mut SnippetManager,
-) {
+fn render_snippets_search(ui: &mut egui::Ui, search: &mut String, manager: &mut SnippetManager) {
     ui.horizontal(|ui| {
         ui.label("🔍");
         let response = ui.text_edit_singleline(search);
@@ -128,14 +146,37 @@ fn render_snippets_list(
         let snippets_data: Vec<(String, String, SnippetCategory, Vec<String>, String)> = manager
             .filtered_snippets()
             .iter()
-            .map(|s| (s.id.clone(), s.name.clone(), s.category.clone(), s.tags.clone(), s.content.clone()))
+            .map(|s| {
+                (
+                    s.id.clone(),
+                    s.name.clone(),
+                    s.category.clone(),
+                    s.tags.clone(),
+                    s.content.clone(),
+                )
+            })
             .collect();
 
         if snippets_data.is_empty() {
-            ui.label(egui::RichText::new("No snippets found").color(egui::Color32::GRAY).size(12.0));
+            ui.label(
+                egui::RichText::new("No snippets found")
+                    .color(egui::Color32::GRAY)
+                    .size(12.0),
+            );
         } else {
             for (id, name, category, tags, content) in snippets_data {
-                render_snippet_item(ui, &id, &name, category, &tags, &content, manager, snippet_input_dialog, command_input, action_message);
+                render_snippet_item(
+                    ui,
+                    &id,
+                    &name,
+                    category,
+                    &tags,
+                    &content,
+                    manager,
+                    snippet_input_dialog,
+                    command_input,
+                    action_message,
+                );
             }
         }
     });
@@ -156,31 +197,60 @@ fn render_snippet_item(
     let is_team = snippet_category == SnippetCategory::Team;
     let icon = if is_team { "👥" } else { "▶" };
     let btn_text = format!("{} {}", icon, snippet_name);
-    let btn = egui::Button::new(egui::RichText::new(&btn_text).color(egui::Color32::from_rgb(200, 210, 220)).size(12.0))
-        .fill(egui::Color32::from_rgb(45, 50, 58))
-        .rounding(4.0)
-        .min_size([ui.available_width(), 32.0].into());
+    let btn = egui::Button::new(
+        egui::RichText::new(&btn_text)
+            .color(egui::Color32::from_rgb(200, 210, 220))
+            .size(12.0),
+    )
+    .fill(egui::Color32::from_rgb(45, 50, 58))
+    .rounding(4.0)
+    .min_size([ui.available_width(), 32.0].into());
     let response = ui.add(btn);
 
     if response.clicked() {
-        insert_snippet(snippet_id, snippet_name, snippet_content, snippet_category.clone(), manager, snippet_input_dialog, command_input, action_message);
+        insert_snippet(
+            snippet_id,
+            snippet_name,
+            snippet_content,
+            snippet_category.clone(),
+            manager,
+            snippet_input_dialog,
+            command_input,
+            action_message,
+        );
     }
 
     response.context_menu(|ui| {
         if ui.button("▶ Insert").clicked() {
-            insert_snippet(snippet_id, snippet_name, snippet_content, snippet_category.clone(), manager, snippet_input_dialog, command_input, action_message);
+            insert_snippet(
+                snippet_id,
+                snippet_name,
+                snippet_content,
+                snippet_category.clone(),
+                manager,
+                snippet_input_dialog,
+                command_input,
+                action_message,
+            );
             ui.close_menu();
         }
         if ui.button("📋 Copy").clicked() {
             ui.output_mut(|o| o.copied_text = snippet_content.to_string());
-            *action_message = Some((format!("Copied: {}", snippet_name), std::time::Instant::now()));
+            *action_message = Some((
+                format!("Copied: {}", snippet_name),
+                std::time::Instant::now(),
+            ));
             ui.close_menu();
         }
-        if snippet_category == SnippetCategory::Custom || snippet_category == SnippetCategory::Team {
+        if snippet_category == SnippetCategory::Custom || snippet_category == SnippetCategory::Team
+        {
             ui.separator();
             if ui.button("🗑 Delete").clicked() {
                 manager.delete_snippet(snippet_id);
-                *action_message = Some((format!("Deleted: {}", snippet_name), std::time::Instant::now()));
+                *action_message = Some((
+                    format!("Deleted: {}", snippet_name),
+                    std::time::Instant::now(),
+                ));
                 ui.close_menu();
             }
         }
@@ -191,10 +261,19 @@ fn render_snippet_item(
         ui.label(egui::RichText::new(snippet_name).strong());
         // Note: description not passed to avoid complexity, can be added if needed
         ui.separator();
-        ui.label(egui::RichText::new(snippet_content).monospace().size(11.0).color(egui::Color32::from_rgb(100, 180, 255)));
+        ui.label(
+            egui::RichText::new(snippet_content)
+                .monospace()
+                .size(11.0)
+                .color(egui::Color32::from_rgb(100, 180, 255)),
+        );
         if !snippet_tags.is_empty() {
             ui.add_space(4.0);
-            ui.label(egui::RichText::new(format!("Tags: {}", snippet_tags.join(", "))).size(10.0).color(egui::Color32::GRAY));
+            ui.label(
+                egui::RichText::new(format!("Tags: {}", snippet_tags.join(", ")))
+                    .size(10.0)
+                    .color(egui::Color32::GRAY),
+            );
         }
     });
 }
@@ -213,7 +292,10 @@ fn insert_snippet(
     let has_vars = snippet_content.contains("{{") && snippet_content.contains("}}");
     if !has_vars {
         *command_input = snippet_content.to_string();
-        *action_message = Some((format!("Inserted: {}", snippet_name), std::time::Instant::now()));
+        *action_message = Some((
+            format!("Inserted: {}", snippet_name),
+            std::time::Instant::now(),
+        ));
     } else {
         *snippet_input_dialog = SnippetInputDialog::from_fields(snippet_name, snippet_content);
     }
@@ -262,12 +344,23 @@ pub fn render_snippet_dialog(
     });
 
     egui::Window::new(format!("Insert: {}", dialog.snippet_name))
-        .collapsible(false).resizable(false).default_size([350.0, 200.0])
-        .frame(egui::Frame { fill: egui::Color32::from_rgb(42, 48, 58), stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 70, 85)), ..Default::default() })
+        .collapsible(false)
+        .resizable(false)
+        .default_size([350.0, 200.0])
+        .frame(egui::Frame {
+            fill: egui::Color32::from_rgb(42, 48, 58),
+            stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 70, 85)),
+            ..Default::default()
+        })
         .show(ctx, |ui| {
             ui.vertical_centered(|ui| {
                 ui.add_space(10.0);
-                ui.label(egui::RichText::new(&dialog.snippet_content).monospace().size(12.0).color(egui::Color32::from_rgb(150, 160, 180)));
+                ui.label(
+                    egui::RichText::new(&dialog.snippet_content)
+                        .monospace()
+                        .size(12.0)
+                        .color(egui::Color32::from_rgb(150, 160, 180)),
+                );
                 ui.add_space(15.0);
             });
 
@@ -278,20 +371,29 @@ pub fn render_snippet_dialog(
                 dialog.values.insert(key.clone(), value.clone());
                 ui.add_space(15.0);
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new("Cancel").min_size([80.0, 44.0].into())).clicked() {
+                    if ui
+                        .add(egui::Button::new("Cancel").min_size([80.0, 44.0].into()))
+                        .clicked()
+                    {
                         dialog.reset();
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let btn_text = if is_last { "Insert" } else { "Next" };
-                        let should_insert = ui.add(egui::Button::new(btn_text).min_size([100.0, 44.0].into())).clicked()
-                            || (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
+                        let should_insert = ui
+                            .add(egui::Button::new(btn_text).min_size([100.0, 44.0].into()))
+                            .clicked()
+                            || (response.lost_focus()
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter)));
                         if should_insert {
                             let val = dialog.values.get(&key).cloned().unwrap_or_default();
                             let done = dialog.set_current_value(val);
                             if done {
                                 let final_cmd = dialog.render_command();
                                 *command_input = final_cmd;
-                                *action_message = Some((format!("Inserted: {}", dialog.snippet_name), std::time::Instant::now()));
+                                *action_message = Some((
+                                    format!("Inserted: {}", dialog.snippet_name),
+                                    std::time::Instant::now(),
+                                ));
                                 dialog.reset();
                             }
                         }
@@ -299,7 +401,9 @@ pub fn render_snippet_dialog(
                 });
             } else {
                 ui.label("No variables required.");
-                if ui.button("Close").clicked() { dialog.reset(); }
+                if ui.button("Close").clicked() {
+                    dialog.reset();
+                }
             }
         });
 }
@@ -312,7 +416,9 @@ pub fn render_add_snippet_dialog(
     manager: &mut SnippetManager,
     action_message: &mut Option<(String, std::time::Instant)>,
 ) {
-    if !*show_dialog { return; }
+    if !*show_dialog {
+        return;
+    }
 
     egui::Window::new("Add New Snippet")
         .collapsible(false).resizable(false).default_size([400.0, 350.0])
@@ -341,8 +447,8 @@ pub fn render_add_snippet_dialog(
             ui.horizontal(|ui| {
                 if ui.button("Cancel").clicked() { *show_dialog = false; }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Button::new("Add Snippet").min_size([120.0, 44.0].into())).clicked() {
-                        if !form.name.is_empty() && !form.content.is_empty() {
+                    if ui.add(egui::Button::new("Add Snippet").min_size([120.0, 44.0].into())).clicked()
+                        && !form.name.is_empty() && !form.content.is_empty() {
                             let tags: Vec<String> = form.tags.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
                             let mut snippet = Snippet::new(form.name.clone(), form.content.clone())
                                 .with_category(form.category.clone())
@@ -355,7 +461,6 @@ pub fn render_add_snippet_dialog(
                             *action_message = Some((format!("Added snippet: {}", form.name), std::time::Instant::now()));
                             *form = super::NewSnippetForm::default();
                         }
-                    }
                 });
             });
         });

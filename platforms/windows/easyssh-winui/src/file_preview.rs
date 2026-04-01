@@ -157,7 +157,11 @@ impl FilePreview {
     }
 
     pub fn can_preview(&self, file_name: &str) -> bool {
-        let ext = file_name.split('.').last().unwrap_or("").to_lowercase();
+        let ext = file_name
+            .split('.')
+            .next_back()
+            .unwrap_or("")
+            .to_lowercase();
 
         let previewable = [
             // Text files
@@ -242,7 +246,11 @@ impl FilePreview {
     }
 
     fn detect_language(file_name: &str) -> String {
-        let ext = file_name.split('.').last().unwrap_or("").to_lowercase();
+        let ext = file_name
+            .split('.')
+            .next_back()
+            .unwrap_or("")
+            .to_lowercase();
         let name_lower = file_name.to_lowercase();
 
         let lang_map: HashMap<&str, &str> = [

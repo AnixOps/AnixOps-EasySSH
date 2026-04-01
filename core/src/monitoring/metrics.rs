@@ -88,25 +88,51 @@ impl MetricType {
     pub fn unit(&self) -> &'static str {
         match self {
             // Percentage
-            MetricType::CpuUsage | MetricType::CpuUser | MetricType::CpuSystem |
-            MetricType::CpuIowait | MetricType::CpuSteal | MetricType::MemoryUsage |
-            MetricType::SwapUsage | MetricType::DiskUsage | MetricType::DiskIoUtil => "%",
+            MetricType::CpuUsage
+            | MetricType::CpuUser
+            | MetricType::CpuSystem
+            | MetricType::CpuIowait
+            | MetricType::CpuSteal
+            | MetricType::MemoryUsage
+            | MetricType::SwapUsage
+            | MetricType::DiskUsage
+            | MetricType::DiskIoUtil => "%",
 
             // Bytes
-            MetricType::MemoryUsed | MetricType::MemoryTotal | MetricType::MemoryFree |
-            MetricType::MemoryBuffers | MetricType::MemoryCached | MetricType::MemoryAvailable |
-            MetricType::SwapUsed | MetricType::SwapTotal | MetricType::SwapFree |
-            MetricType::DiskUsed | MetricType::DiskTotal | MetricType::DiskFree |
-            MetricType::DiskReadBytes | MetricType::DiskWriteBytes |
-            MetricType::NetworkRxBytes | MetricType::NetworkTxBytes => "bytes",
+            MetricType::MemoryUsed
+            | MetricType::MemoryTotal
+            | MetricType::MemoryFree
+            | MetricType::MemoryBuffers
+            | MetricType::MemoryCached
+            | MetricType::MemoryAvailable
+            | MetricType::SwapUsed
+            | MetricType::SwapTotal
+            | MetricType::SwapFree
+            | MetricType::DiskUsed
+            | MetricType::DiskTotal
+            | MetricType::DiskFree
+            | MetricType::DiskReadBytes
+            | MetricType::DiskWriteBytes
+            | MetricType::NetworkRxBytes
+            | MetricType::NetworkTxBytes => "bytes",
 
             // Count
-            MetricType::CpuCores | MetricType::ProcessCount | MetricType::ProcessRunning |
-            MetricType::ProcessSleeping | MetricType::ProcessZombie | MetricType::ThreadCount |
-            MetricType::OpenFiles | MetricType::NetworkRxPackets | MetricType::NetworkTxPackets |
-            MetricType::NetworkRxErrors | MetricType::NetworkTxErrors |
-            MetricType::NetworkRxDropped | MetricType::NetworkTxDropped |
-            MetricType::ContextSwitches | MetricType::Interrupts | MetricType::Forks => "count",
+            MetricType::CpuCores
+            | MetricType::ProcessCount
+            | MetricType::ProcessRunning
+            | MetricType::ProcessSleeping
+            | MetricType::ProcessZombie
+            | MetricType::ThreadCount
+            | MetricType::OpenFiles
+            | MetricType::NetworkRxPackets
+            | MetricType::NetworkTxPackets
+            | MetricType::NetworkRxErrors
+            | MetricType::NetworkTxErrors
+            | MetricType::NetworkRxDropped
+            | MetricType::NetworkTxDropped
+            | MetricType::ContextSwitches
+            | MetricType::Interrupts
+            | MetricType::Forks => "count",
 
             // IOPS
             MetricType::DiskReadIops | MetricType::DiskWriteIops => "iops",
@@ -137,35 +163,67 @@ impl MetricType {
 
     pub fn category(&self) -> MetricCategory {
         match self {
-            MetricType::CpuUsage | MetricType::CpuUser | MetricType::CpuSystem |
-            MetricType::CpuIowait | MetricType::CpuSteal | MetricType::CpuCores |
-            MetricType::CpuLoad1 | MetricType::CpuLoad5 | MetricType::CpuLoad15 => MetricCategory::Cpu,
+            MetricType::CpuUsage
+            | MetricType::CpuUser
+            | MetricType::CpuSystem
+            | MetricType::CpuIowait
+            | MetricType::CpuSteal
+            | MetricType::CpuCores
+            | MetricType::CpuLoad1
+            | MetricType::CpuLoad5
+            | MetricType::CpuLoad15 => MetricCategory::Cpu,
 
-            MetricType::MemoryUsage | MetricType::MemoryUsed | MetricType::MemoryTotal |
-            MetricType::MemoryFree | MetricType::MemoryBuffers | MetricType::MemoryCached |
-            MetricType::MemoryAvailable | MetricType::SwapUsage | MetricType::SwapUsed |
-            MetricType::SwapTotal | MetricType::SwapFree => MetricCategory::Memory,
+            MetricType::MemoryUsage
+            | MetricType::MemoryUsed
+            | MetricType::MemoryTotal
+            | MetricType::MemoryFree
+            | MetricType::MemoryBuffers
+            | MetricType::MemoryCached
+            | MetricType::MemoryAvailable
+            | MetricType::SwapUsage
+            | MetricType::SwapUsed
+            | MetricType::SwapTotal
+            | MetricType::SwapFree => MetricCategory::Memory,
 
-            MetricType::DiskUsage | MetricType::DiskUsed | MetricType::DiskTotal |
-            MetricType::DiskFree | MetricType::DiskReadBytes | MetricType::DiskWriteBytes |
-            MetricType::DiskReadIops | MetricType::DiskWriteIops |
-            MetricType::DiskReadLatency | MetricType::DiskWriteLatency |
-            MetricType::DiskIoUtil => MetricCategory::Disk,
+            MetricType::DiskUsage
+            | MetricType::DiskUsed
+            | MetricType::DiskTotal
+            | MetricType::DiskFree
+            | MetricType::DiskReadBytes
+            | MetricType::DiskWriteBytes
+            | MetricType::DiskReadIops
+            | MetricType::DiskWriteIops
+            | MetricType::DiskReadLatency
+            | MetricType::DiskWriteLatency
+            | MetricType::DiskIoUtil => MetricCategory::Disk,
 
-            MetricType::NetworkRxBytes | MetricType::NetworkTxBytes |
-            MetricType::NetworkRxPackets | MetricType::NetworkTxPackets |
-            MetricType::NetworkRxErrors | MetricType::NetworkTxErrors |
-            MetricType::NetworkRxDropped | MetricType::NetworkTxDropped |
-            MetricType::NetworkRxMbps | MetricType::NetworkTxMbps => MetricCategory::Network,
+            MetricType::NetworkRxBytes
+            | MetricType::NetworkTxBytes
+            | MetricType::NetworkRxPackets
+            | MetricType::NetworkTxPackets
+            | MetricType::NetworkRxErrors
+            | MetricType::NetworkTxErrors
+            | MetricType::NetworkRxDropped
+            | MetricType::NetworkTxDropped
+            | MetricType::NetworkRxMbps
+            | MetricType::NetworkTxMbps => MetricCategory::Network,
 
-            MetricType::ProcessCount | MetricType::ProcessRunning |
-            MetricType::ProcessSleeping | MetricType::ProcessZombie |
-            MetricType::ThreadCount | MetricType::OpenFiles => MetricCategory::Process,
+            MetricType::ProcessCount
+            | MetricType::ProcessRunning
+            | MetricType::ProcessSleeping
+            | MetricType::ProcessZombie
+            | MetricType::ThreadCount
+            | MetricType::OpenFiles => MetricCategory::Process,
 
-            MetricType::Uptime | MetricType::BootTime | MetricType::ContextSwitches |
-            MetricType::Interrupts | MetricType::Forks => MetricCategory::System,
+            MetricType::Uptime
+            | MetricType::BootTime
+            | MetricType::ContextSwitches
+            | MetricType::Interrupts
+            | MetricType::Forks => MetricCategory::System,
 
-            MetricType::CpuTemp | MetricType::GpuTemp | MetricType::SystemTemp => MetricCategory::Temperature,
+            MetricType::CpuTemp | MetricType::GpuTemp | MetricType::SystemTemp => {
+                MetricCategory::Temperature
+            }
 
             MetricType::PowerUsage | MetricType::BatteryLevel => MetricCategory::Power,
 
@@ -328,7 +386,10 @@ impl ServerMetrics {
 
         if cpu_critical || memory_critical || disk_critical || load_critical {
             crate::monitoring::ServerHealthStatus::Critical
-        } else if self.cpu_usage > 70.0 || self.memory_usage_percent() > 70.0 || self.disk_usage_percent() > 80.0 {
+        } else if self.cpu_usage > 70.0
+            || self.memory_usage_percent() > 70.0
+            || self.disk_usage_percent() > 80.0
+        {
             crate::monitoring::ServerHealthStatus::Warning
         } else {
             crate::monitoring::ServerHealthStatus::Healthy

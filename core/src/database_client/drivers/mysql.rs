@@ -1,14 +1,19 @@
 //! MySQL database driver
 
 use async_trait::async_trait;
+use mysql_async::prelude::Queryable;
+use mysql_async::{Conn, Opts, OptsBuilder, QueryResult as MysqlQueryResult, Row as MysqlRow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use mysql_async::{Opts, OptsBuilder, Conn, QueryResult as MysqlQueryResult, Row as MysqlRow};
-use mysql_async::prelude::Queryable;
 
-use crate::database_client::{DatabaseDriver, DatabaseType, DatabaseError};
-use crate::database_client::drivers::{ConnectionInfo, TableInfo, TableType, TableDetail, ColumnInfo, IndexInfo, ForeignKeyInfo, DatabaseStats};
-use crate::database_client::{DatabaseSchema, SchemaTable, SchemaColumn, QueryResult, QueryRow, QueryCell, PerformanceMetrics};
+use crate::database_client::drivers::{
+    ColumnInfo, ConnectionInfo, DatabaseStats, ForeignKeyInfo, IndexInfo, TableDetail, TableInfo,
+    TableType,
+};
+use crate::database_client::{DatabaseDriver, DatabaseError, DatabaseType};
+use crate::database_client::{
+    DatabaseSchema, PerformanceMetrics, QueryCell, QueryResult, QueryRow, SchemaColumn, SchemaTable,
+};
 
 /// MySQL driver
 pub struct MySqlDriver {
@@ -46,11 +51,15 @@ impl MySqlDriver {
             mysql_async::Value::Float(f) => QueryCell::Float(f as f64),
             mysql_async::Value::Double(d) => QueryCell::Float(d),
             mysql_async::Value::Date(y, m, d, h, min, s, us) => {
-                let date_str = format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}", y, m, d, h, min, s, us);
+                let date_str = format!(
+                    "{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}",
+                    y, m, d, h, min, s, us
+                );
                 QueryCell::String(date_str)
             }
             mysql_async::Value::Time(is_neg, days, hours, minutes, seconds, micros) => {
-                let time_str = format!("{}{:02}:{:02}:{:02}.{:06}",
+                let time_str = format!(
+                    "{}{:02}:{:02}:{:02}.{:06}",
                     if is_neg { "-" } else { "" },
                     days * 24 + (hours as u32),
                     minutes,
@@ -72,7 +81,8 @@ impl MySqlDriver {
             "BLOB".to_string()
         } else if upper.contains("FLOAT") {
             "REAL".to_string()
-        } else if upper.contains("DOUBLE") || upper.contains("DECIMAL") || upper.contains("NUMERIC") {
+        } else if upper.contains("DOUBLE") || upper.contains("DECIMAL") || upper.contains("NUMERIC")
+        {
             "NUMERIC".to_string()
         } else if upper.contains("DATE") {
             "DATE".to_string()
@@ -100,7 +110,8 @@ impl DatabaseDriver for MySqlDriver {
             .pass(info.password.as_deref())
             .db_name(Some(&info.database));
 
-        let conn = Conn::new(opts).await
+        let conn = Conn::new(opts)
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
         self.connection = Some(Arc::new(Mutex::new(conn)));
@@ -130,7 +141,9 @@ impl DatabaseDriver for MySqlDriver {
 
         let start = std::time::Instant::now();
 
-        let result: Vec<MysqlRow> = c.query(query).await
+        let result: Vec<MysqlRow> = c
+            .query(query)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         if result.is_empty() {
@@ -145,7 +158,8 @@ impl DatabaseDriver for MySqlDriver {
         }
 
         // Get column names from first row
-        let column_names: Vec<String> = result[0].columns()
+        let column_names: Vec<String> = result[0]
+            .columns()
             .iter()
             .map(|col| col.name_str().to_string())
             .collect();
@@ -176,7 +190,8 @@ impl DatabaseDriver for MySqlDriver {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
 
-        c.query_drop(query).await
+        c.query_drop(query)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         Ok(c.affected_rows())
@@ -189,19 +204,20 @@ impl DatabaseDriver for MySqlDriver {
         for table in tables {
             let detail = self.get_table_info(&table.name).await?;
 
-            let columns = detail.columns.iter().map(|col| {
-                SchemaColumn {
+            let columns = detail
+                .columns
+                .iter()
+                .map(|col| SchemaColumn {
                     name: col.name.clone(),
                     data_type: col.data_type.clone(),
                     nullable: col.nullable,
                     default: col.default_value.clone(),
                     is_primary_key: col.is_primary_key,
-                    is_foreign_key: detail.foreign_keys.iter()
-                        .any(|fk| fk.column == col.name),
+                    is_foreign_key: detail.foreign_keys.iter().any(|fk| fk.column == col.name),
                     comment: col.comment.clone(),
                     extra: None,
-                }
-            }).collect();
+                })
+                .collect();
 
             schema_tables.push(SchemaTable {
                 name: table.name,
@@ -209,33 +225,45 @@ impl DatabaseDriver for MySqlDriver {
                 table_type: match table.table_type {
                     TableType::Table => crate::database_client::schema::SchemaTableType::Table,
                     TableType::View => crate::database_client::schema::SchemaTableType::View,
-                    TableType::SystemTable => crate::database_client::schema::SchemaTableType::System,
+                    TableType::SystemTable => {
+                        crate::database_client::schema::SchemaTableType::System
+                    }
                     _ => crate::database_client::schema::SchemaTableType::Table,
                 },
                 columns,
-                indexes: detail.indexes.iter().map(|idx| crate::database_client::schema::SchemaIndex {
-                    name: idx.name.clone(),
-                    columns: idx.columns.clone(),
-                    unique: idx.unique,
-                    primary: idx.primary,
-                    index_type: Some(idx.index_type.clone()),
-                    comment: None,
-                }).collect(),
-                foreign_keys: detail.foreign_keys.iter().map(|fk| crate::database_client::schema::SchemaForeignKey {
-                    name: fk.name.clone(),
-                    column: fk.column.clone(),
-                    referenced_table: fk.referenced_table.clone(),
-                    referenced_column: fk.referenced_column.clone(),
-                    on_update: Some(fk.on_update.clone()),
-                    on_delete: Some(fk.on_delete.clone()),
-                }).collect(),
+                indexes: detail
+                    .indexes
+                    .iter()
+                    .map(|idx| crate::database_client::schema::SchemaIndex {
+                        name: idx.name.clone(),
+                        columns: idx.columns.clone(),
+                        unique: idx.unique,
+                        primary: idx.primary,
+                        index_type: Some(idx.index_type.clone()),
+                        comment: None,
+                    })
+                    .collect(),
+                foreign_keys: detail
+                    .foreign_keys
+                    .iter()
+                    .map(|fk| crate::database_client::schema::SchemaForeignKey {
+                        name: fk.name.clone(),
+                        column: fk.column.clone(),
+                        referenced_table: fk.referenced_table.clone(),
+                        referenced_column: fk.referenced_column.clone(),
+                        on_update: Some(fk.on_update.clone()),
+                        on_delete: Some(fk.on_delete.clone()),
+                    })
+                    .collect(),
                 row_count: table.row_count,
                 comment: table.comment,
             });
         }
 
         Ok(DatabaseSchema {
-            database_name: self.info.as_ref()
+            database_name: self
+                .info
+                .as_ref()
                 .map(|c| c.database.clone())
                 .unwrap_or_default(),
             tables: schema_tables,
@@ -249,14 +277,21 @@ impl DatabaseDriver for MySqlDriver {
 
     async fn list_databases(&self) -> Result<Vec<String>, DatabaseError> {
         let result = self.query("SHOW DATABASES").await?;
-        let databases: Vec<String> = result.rows.iter()
+        let databases: Vec<String> = result
+            .rows
+            .iter()
             .filter_map(|row| {
                 row.cells.get(0).map(|cell| match cell {
                     QueryCell::String(s) => s.clone(),
                     _ => cell.to_string(),
                 })
             })
-            .filter(|db| db != "information_schema" && db != "mysql" && db != "performance_schema" && db != "sys")
+            .filter(|db| {
+                db != "information_schema"
+                    && db != "mysql"
+                    && db != "performance_schema"
+                    && db != "sys"
+            })
             .collect();
         Ok(databases)
     }
@@ -269,7 +304,9 @@ impl DatabaseDriver for MySqlDriver {
                      FROM INFORMATION_SCHEMA.TABLES
                      WHERE TABLE_SCHEMA = DATABASE()";
 
-        let result: Vec<MysqlRow> = c.query(query).await
+        let result: Vec<MysqlRow> = c
+            .query(query)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let mut tables = Vec::new();
@@ -305,7 +342,8 @@ impl DatabaseDriver for MySqlDriver {
 
     async fn get_table(&self, table_name: &str) -> Result<TableInfo, DatabaseError> {
         let tables = self.get_tables().await?;
-        tables.into_iter()
+        tables
+            .into_iter()
             .find(|t| t.name == table_name)
             .ok_or_else(|| DatabaseError::SchemaError(format!("Table not found: {}", table_name)))
     }
@@ -324,7 +362,9 @@ impl DatabaseDriver for MySqlDriver {
             table_name
         );
 
-        let result: Vec<MysqlRow> = c.query(&query).await
+        let result: Vec<MysqlRow> = c
+            .query(&query)
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
         let mut columns = Vec::new();
@@ -366,21 +406,29 @@ impl DatabaseDriver for MySqlDriver {
             table_name
         );
 
-        let result: Vec<MysqlRow> = c.query(&query).await
+        let result: Vec<MysqlRow> = c
+            .query(&query)
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
-        let mut indexes_map: std::collections::HashMap<String, (bool, Vec<String>, bool)> = std::collections::HashMap::new();
+        let mut indexes_map: std::collections::HashMap<String, (bool, Vec<String>, bool)> =
+            std::collections::HashMap::new();
         for row in result {
             let name: String = row.get(0).unwrap_or_default();
             let column: String = row.get(1).unwrap_or_default();
             let non_unique: i64 = row.get(2).unwrap_or(1);
             let is_primary = name == "PRIMARY";
 
-            let entry = indexes_map.entry(name.clone()).or_insert((non_unique == 0, Vec::new(), is_primary));
+            let entry = indexes_map.entry(name.clone()).or_insert((
+                non_unique == 0,
+                Vec::new(),
+                is_primary,
+            ));
             entry.1.push(column);
         }
 
-        let indexes: Vec<IndexInfo> = indexes_map.into_iter()
+        let indexes: Vec<IndexInfo> = indexes_map
+            .into_iter()
             .map(|(name, (unique, columns, primary))| IndexInfo {
                 name,
                 columns,
@@ -404,7 +452,9 @@ impl DatabaseDriver for MySqlDriver {
             table_name
         );
 
-        let result: Vec<MysqlRow> = c.query(&query).await
+        let result: Vec<MysqlRow> = c
+            .query(&query)
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
         let mut foreign_keys = Vec::new();
@@ -428,7 +478,9 @@ impl DatabaseDriver for MySqlDriver {
 
         // Update columns with primary key and foreign key info
         for col in &mut columns {
-            col.is_primary_key = indexes.iter().any(|idx| idx.primary && idx.columns.contains(&col.name));
+            col.is_primary_key = indexes
+                .iter()
+                .any(|idx| idx.primary && idx.columns.contains(&col.name));
             col.is_foreign_key = foreign_keys.iter().any(|fk| fk.column == col.name);
         }
 
@@ -462,16 +514,21 @@ impl DatabaseDriver for MySqlDriver {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
 
-        let version: String = c.query_first("SELECT VERSION()").await
+        let version: String = c
+            .query_first("SELECT VERSION()")
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?
             .unwrap_or_else(|| "unknown".to_string());
 
-        let result: Vec<MysqlRow> = c.query(
-            "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) as size,
+        let result: Vec<MysqlRow> = c
+            .query(
+                "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) as size,
                     COUNT(*) as table_count
              FROM INFORMATION_SCHEMA.TABLES
-             WHERE TABLE_SCHEMA = DATABASE()"
-        ).await.map_err(|e| DatabaseError::QueryError(e.to_string()))?;
+             WHERE TABLE_SCHEMA = DATABASE()",
+            )
+            .await
+            .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let (size, table_count) = if let Some(row) = result.first() {
             let size: Option<i64> = row.get(0);
@@ -482,7 +539,9 @@ impl DatabaseDriver for MySqlDriver {
         };
 
         Ok(DatabaseStats {
-            name: self.info.as_ref()
+            name: self
+                .info
+                .as_ref()
                 .map(|i| i.database.clone())
                 .unwrap_or_else(|| "mysql".to_string()),
             size_bytes: size,
@@ -497,21 +556,24 @@ impl DatabaseDriver for MySqlDriver {
     async fn begin_transaction(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
-        c.query_drop("START TRANSACTION").await
+        c.query_drop("START TRANSACTION")
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     async fn commit(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
-        c.query_drop("COMMIT").await
+        c.query_drop("COMMIT")
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     async fn rollback(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
-        c.query_drop("ROLLBACK").await
+        c.query_drop("ROLLBACK")
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
@@ -520,7 +582,8 @@ impl DatabaseDriver for MySqlDriver {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
 
-        let status: Vec<(String, String)> = c.query("SHOW STATUS LIKE 'Threads_%'")
+        let status: Vec<(String, String)> = c
+            .query("SHOW STATUS LIKE 'Threads_%'")
             .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
@@ -551,13 +614,16 @@ impl DatabaseDriver for MySqlDriver {
 
     async fn cancel(&self) -> Result<(), DatabaseError> {
         // MySQL doesn't support query cancellation directly
-        Err(DatabaseError::Unknown("Query cancellation not supported for MySQL".to_string()))
+        Err(DatabaseError::Unknown(
+            "Query cancellation not supported for MySQL".to_string(),
+        ))
     }
 
     async fn ping(&self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
-        c.query_drop("SELECT 1").await
+        c.query_drop("SELECT 1")
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))
     }
 }

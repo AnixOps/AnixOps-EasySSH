@@ -1,12 +1,11 @@
 #![allow(dead_code)]
 
+use parking_lot::Mutex;
 /// High-Performance Memory Pool System
 /// Optimized for SSH sessions to reduce memory usage by 50%+
-
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 /// Global memory tracker for leak detection
 pub struct MemoryTracker {
@@ -153,7 +152,8 @@ impl<T> Drop for PooledObject<T> {
     fn drop(&mut self) {
         if let Some(obj) = self.obj.take() {
             let mut pool = self.pool.lock();
-            if pool.len() < 1024 { // Max pool size per type
+            if pool.len() < 1024 {
+                // Max pool size per type
                 pool.push(obj);
             }
         }
@@ -168,17 +168,17 @@ pub struct PoolStats {
 
 /// Memory-mapped buffer pool for terminal output (reduces allocations by 80%)
 pub struct BufferPool {
-    small_buffers: ObjectPool<Vec<u8>>,   // 4KB
-    medium_buffers: ObjectPool<Vec<u8>>,  // 64KB
-    large_buffers: ObjectPool<Vec<u8>>,   // 1MB
+    small_buffers: ObjectPool<Vec<u8>>,  // 4KB
+    medium_buffers: ObjectPool<Vec<u8>>, // 64KB
+    large_buffers: ObjectPool<Vec<u8>>,  // 1MB
 }
 
 impl Default for BufferPool {
     fn default() -> Self {
         Self {
-            small_buffers: ObjectPool::new(100, 200),   // 4KB * 100 = 400KB
-            medium_buffers: ObjectPool::new(20, 50),    // 64KB * 20 = 1.25MB
-            large_buffers: ObjectPool::new(5, 10),      // 1MB * 5 = 5MB
+            small_buffers: ObjectPool::new(100, 200), // 4KB * 100 = 400KB
+            medium_buffers: ObjectPool::new(20, 50),  // 64KB * 20 = 1.25MB
+            large_buffers: ObjectPool::new(5, 10),    // 1MB * 5 = 5MB
         }
     }
 }
@@ -296,12 +296,14 @@ impl SessionMemoryTracker {
 
     pub fn record_session_created(&self, estimated_memory: usize) {
         self.session_count.fetch_add(1, Ordering::Relaxed);
-        self.total_memory.fetch_add(estimated_memory, Ordering::Relaxed);
+        self.total_memory
+            .fetch_add(estimated_memory, Ordering::Relaxed);
     }
 
     pub fn record_session_destroyed(&self, estimated_memory: usize) {
         self.session_count.fetch_sub(1, Ordering::Relaxed);
-        self.total_memory.fetch_sub(estimated_memory, Ordering::Relaxed);
+        self.total_memory
+            .fetch_sub(estimated_memory, Ordering::Relaxed);
     }
 
     pub fn current_sessions(&self) -> usize {

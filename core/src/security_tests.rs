@@ -103,15 +103,18 @@ mod tests {
         let input_path = Path::new(input);
 
         // 检查是否包含 .. 组件
-        if input_path.components().any(|c| {
-            matches!(c, std::path::Component::ParentDir)
-        }) {
+        if input_path
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
             return false;
         }
 
         // 检查是否是绝对路径（Windows风格或Unix风格）
-        if input_path.is_absolute() || input.starts_with('/') ||
-           (input.len() > 1 && input.chars().nth(1) == Some(':')) {
+        if input_path.is_absolute()
+            || input.starts_with('/')
+            || (input.len() > 1 && input.chars().nth(1) == Some(':'))
+        {
             return false;
         }
 
@@ -130,7 +133,11 @@ mod tests {
 
         for (input, expected) in &test_cases {
             let normalized = normalize_path(input);
-            assert_eq!(&normalized, *expected, "路径 '{}' 规范化应为 '{}'", input, expected);
+            assert_eq!(
+                &normalized, *expected,
+                "路径 '{}' 规范化应为 '{}'",
+                input, expected
+            );
         }
     }
 
@@ -172,7 +179,7 @@ mod tests {
 
         let long_string = "a".repeat(256);
         let invalid_hosts = vec![
-            "192.168.1",           // 不完整的IP
+            "192.168.1",          // 不完整的IP
             "256.1.1.1",          // 无效的IP
             "example..com",       // 无效域名
             "-example.com",       // 以连字符开头
@@ -183,19 +190,11 @@ mod tests {
         ];
 
         for host in &valid_hosts {
-            assert!(
-                is_valid_hostname(host),
-                "主机名 '{}' 应被视为有效",
-                host
-            );
+            assert!(is_valid_hostname(host), "主机名 '{}' 应被视为有效", host);
         }
 
         for host in &invalid_hosts {
-            assert!(
-                !is_valid_hostname(host),
-                "主机名 '{}' 应被视为无效",
-                host
-            );
+            assert!(!is_valid_hostname(host), "主机名 '{}' 应被视为无效", host);
         }
     }
 
@@ -206,7 +205,10 @@ mod tests {
         }
 
         // 危险字符检查
-        if host.chars().any(|c| matches!(c, ';' | '&' | '|' | '`' | '$' | '(' | ')')) {
+        if host
+            .chars()
+            .any(|c| matches!(c, ';' | '&' | '|' | '`' | '$' | '(' | ')'))
+        {
             return false;
         }
 
@@ -238,9 +240,9 @@ mod tests {
 
     fn is_valid_domain(host: &str) -> bool {
         // 简单域名验证
-        let valid_chars = host.chars().all(|c| {
-            c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_'
-        });
+        let valid_chars = host
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_');
 
         if !valid_chars {
             return false;
@@ -262,13 +264,7 @@ mod tests {
     /// 测试用户名验证（简化版，不使用regex）
     #[test]
     fn test_username_validation() {
-        let valid_usernames = vec![
-            "root",
-            "admin",
-            "user123",
-            "myuser",
-            "my_user",
-        ];
+        let valid_usernames = vec!["root", "admin", "user123", "myuser", "my_user"];
 
         let invalid_usernames = vec![
             "root;rm -rf",
@@ -277,8 +273,8 @@ mod tests {
             "user|cat /etc/passwd",
             "user&&reboot",
             "user||reboot",
-            "-user",  // 以连字符开头
-            "",  // 空
+            "-user", // 以连字符开头
+            "",      // 空
         ];
 
         for username in &valid_usernames {
@@ -315,9 +311,9 @@ mod tests {
         }
 
         // 只允许字母、数字、下划线和连字符
-        username.chars().all(|c| {
-            c.is_ascii_alphanumeric() || c == '_' || c == '-'
-        })
+        username
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
     }
 
     // =========================================================================
@@ -425,7 +421,7 @@ mod tests {
     #[test]
     #[cfg(feature = "sso")]
     fn test_pkce_security() {
-        use crate::sso::{SsoManager, OidcConfig};
+        use crate::sso::{OidcConfig, SsoManager};
 
         let mut manager = SsoManager::new();
 
@@ -455,7 +451,7 @@ mod tests {
     #[test]
     #[cfg(feature = "sso")]
     fn test_sso_state_validation() {
-        use crate::sso::{SsoManager, OidcConfig};
+        use crate::sso::{OidcConfig, SsoManager};
 
         let mut manager = SsoManager::new();
 
@@ -539,7 +535,8 @@ mod tests {
             assert!(
                 !sanitized.to_lowercase().contains("password") || sanitized.contains("[REDACTED]"),
                 "错误信息应被脱敏: {} -> {}",
-                input, sanitized
+                input,
+                sanitized
             );
         }
     }
@@ -566,7 +563,7 @@ mod tests {
                 // Find last colon in the user_part
                 if let Some(colon_pos) = user_part.rfind(':') {
                     let username = &user_part[..colon_pos];
-                    let _password = &user_part[colon_pos+1..];
+                    let _password = &user_part[colon_pos + 1..];
                     // Don't change if password part is empty
                     if !_password.is_empty() {
                         result = format!("{}:[REDACTED]@{}", username, parts[1]);
@@ -678,10 +675,6 @@ mod integration_tests {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        assert!(
-            output.status.success(),
-            "cargo deny检查失败:\n{}",
-            stdout
-        );
+        assert!(output.status.success(), "cargo deny检查失败:\n{}", stdout);
     }
 }

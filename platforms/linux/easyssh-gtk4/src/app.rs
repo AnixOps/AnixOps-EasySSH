@@ -9,7 +9,9 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::models::{Server, ServerGroup};
-use crate::views::{EmptyView, MonitorPanel, MultiSessionTerminal, ServerDetailView, ServerListView};
+use crate::views::{
+    EmptyView, MonitorPanel, MultiSessionTerminal, ServerDetailView, ServerListView,
+};
 
 /// Re-export SFTP entry from core for use in views
 pub use easyssh_core::sftp::SftpEntry;
@@ -51,10 +53,14 @@ impl AppViewModel {
                 .thread_name("easyssh-runtime")
                 .enable_all()
                 .build()
-                .map_err(|e| anyhow::anyhow!("Failed to create Tokio runtime: {}", e))?
+                .map_err(|e| anyhow::anyhow!("Failed to create Tokio runtime: {}", e))?,
         );
         let ssh_manager = Arc::new(Mutex::new(easyssh_core::SshSessionManager::new()));
-        Ok(Self { core_state, runtime, ssh_manager })
+        Ok(Self {
+            core_state,
+            runtime,
+            ssh_manager,
+        })
     }
 
     pub fn init_database(&self) -> anyhow::Result<()> {
@@ -72,11 +78,17 @@ impl AppViewModel {
 
     pub fn get_groups(&self) -> anyhow::Result<Vec<easyssh_core::GroupRecord>> {
         let state = self.core_state.lock().unwrap();
-        easyssh_core::get_groups(&state)
-            .map_err(|e| anyhow::anyhow!("Failed to get groups: {}", e))
+        easyssh_core::get_groups(&state).map_err(|e| anyhow::anyhow!("Failed to get groups: {}", e))
     }
 
-    pub fn add_server(&self, name: &str, host: &str, port: i64, username: &str, auth_type: &str) -> anyhow::Result<()> {
+    pub fn add_server(
+        &self,
+        name: &str,
+        host: &str,
+        port: i64,
+        username: &str,
+        auth_type: &str,
+    ) -> anyhow::Result<()> {
         let state = self.core_state.lock().unwrap();
         let new_server = easyssh_core::NewServer {
             id: uuid::Uuid::new_v4().to_string(),
@@ -100,7 +112,9 @@ impl AppViewModel {
     }
 
     pub fn get_saved_password(&self, server_id: &str) -> Option<String> {
-        easyssh_core::keychain::get_password(server_id).ok().flatten()
+        easyssh_core::keychain::get_password(server_id)
+            .ok()
+            .flatten()
     }
 
     pub fn save_password(&self, server_id: &str, password: &str) -> anyhow::Result<()> {
@@ -108,7 +122,14 @@ impl AppViewModel {
             .map_err(|e| anyhow::anyhow!("Failed to save password: {}", e))
     }
 
-    pub fn connect(&self, session_id: &str, host: &str, port: i64, username: &str, password: Option<&str>) -> anyhow::Result<()> {
+    pub fn connect(
+        &self,
+        session_id: &str,
+        host: &str,
+        port: i64,
+        username: &str,
+        password: Option<&str>,
+    ) -> anyhow::Result<()> {
         let rt = self.runtime.clone();
         let manager = self.ssh_manager.clone();
         let sid = session_id.to_string();
@@ -117,19 +138,25 @@ impl AppViewModel {
         let p = password.map(|s| s.to_string());
         rt.block_on(async move {
             let mut mgr = manager.lock().unwrap();
-            mgr.connect(&sid, &h, port as u16, &u, p.as_deref()).await
+            mgr.connect(&sid, &h, port as u16, &u, p.as_deref())
+                .await
                 .map_err(|e| anyhow::anyhow!("SSH connection failed: {}", e))
         })
     }
 
-    pub fn execute_stream(&self, session_id: &str, command: &str) -> anyhow::Result<UnboundedReceiver<String>> {
+    pub fn execute_stream(
+        &self,
+        session_id: &str,
+        command: &str,
+    ) -> anyhow::Result<UnboundedReceiver<String>> {
         let rt = self.runtime.clone();
         let manager = self.ssh_manager.clone();
         let sid = session_id.to_string();
         let cmd = command.to_string();
         rt.block_on(async move {
             let mut mgr = manager.lock().unwrap();
-            mgr.execute_stream(&sid, &cmd).await
+            mgr.execute_stream(&sid, &cmd)
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to start stream: {}", e))
         })
     }
@@ -142,7 +169,8 @@ impl AppViewModel {
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
             // Use execute via SFTP through ssh_manager's execute method
-            mgr.execute(&sid, &cmd).await
+            mgr.execute(&sid, &cmd)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP command failed: {}", e))
         })
     }
@@ -155,7 +183,8 @@ impl AppViewModel {
         let data = input.to_vec();
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
-            mgr.write_shell_input(&sid, &data).await
+            mgr.write_shell_input(&sid, &data)
+                .await
                 .map_err(|e| anyhow::anyhow!("Write failed: {}", e))
         })
     }
@@ -167,7 +196,8 @@ impl AppViewModel {
         let sid = session_id.to_string();
         rt.block_on(async move {
             let mgr = manager.lock().unwrap();
-            mgr.interrupt_command(&sid).await
+            mgr.interrupt_command(&sid)
+                .await
                 .map_err(|e| anyhow::anyhow!("Interrupt failed: {}", e))
         })
     }
@@ -178,7 +208,8 @@ impl AppViewModel {
         let sid = session_id.to_string();
         rt.block_on(async move {
             let mut mgr = manager.lock().unwrap();
-            mgr.disconnect(&sid).await
+            mgr.disconnect(&sid)
+                .await
                 .map_err(|e| anyhow::anyhow!("Disconnect failed: {}", e))
         })
     }
@@ -200,7 +231,9 @@ impl AppViewModel {
         rt.block_on(async move {
             let state = state.lock().unwrap();
             let sftp_manager = state.sftp_manager.lock().await;
-            sftp_manager.list_dir(&sid, &p).await
+            sftp_manager
+                .list_dir(&sid, &p)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP list failed: {}", e))
         })
     }
@@ -213,7 +246,9 @@ impl AppViewModel {
         rt.block_on(async move {
             let state = state.lock().unwrap();
             let sftp_manager = state.sftp_manager.lock().await;
-            sftp_manager.mkdir(&sid, &p).await
+            sftp_manager
+                .mkdir(&sid, &p)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP mkdir failed: {}", e))
         })
     }
@@ -226,7 +261,9 @@ impl AppViewModel {
         rt.block_on(async move {
             let state = state.lock().unwrap();
             let sftp_manager = state.sftp_manager.lock().await;
-            sftp_manager.remove_file(&sid, &p).await
+            sftp_manager
+                .remove_file(&sid, &p)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP remove failed: {}", e))
         })
     }
@@ -239,12 +276,19 @@ impl AppViewModel {
         rt.block_on(async move {
             let state = state.lock().unwrap();
             let sftp_manager = state.sftp_manager.lock().await;
-            sftp_manager.rmdir(&sid, &p).await
+            sftp_manager
+                .rmdir(&sid, &p)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP rmdir failed: {}", e))
         })
     }
 
-    pub fn sftp_upload(&self, session_id: &str, remote_path: &str, contents: &[u8]) -> anyhow::Result<()> {
+    pub fn sftp_upload(
+        &self,
+        session_id: &str,
+        remote_path: &str,
+        contents: &[u8],
+    ) -> anyhow::Result<()> {
         let rt = self.runtime.clone();
         let state = self.core_state.clone();
         let sid = session_id.to_string();
@@ -253,7 +297,9 @@ impl AppViewModel {
         rt.block_on(async move {
             let state = state.lock().unwrap();
             let sftp_manager = state.sftp_manager.lock().await;
-            sftp_manager.upload(&sid, &p, &data).await
+            sftp_manager
+                .upload(&sid, &p, &data)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP upload failed: {}", e))
         })
     }
@@ -266,7 +312,9 @@ impl AppViewModel {
         rt.block_on(async move {
             let state = state.lock().unwrap();
             let sftp_manager = state.sftp_manager.lock().await;
-            sftp_manager.download(&sid, &p).await
+            sftp_manager
+                .download(&sid, &p)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP download failed: {}", e))
         })
     }
@@ -278,7 +326,9 @@ impl AppViewModel {
         rt.block_on(async move {
             let state = state.lock().unwrap();
             let mut sftp_manager = state.sftp_manager.lock().await;
-            sftp_manager.close_session(&sid).await
+            sftp_manager
+                .close_session(&sid)
+                .await
                 .map_err(|e| anyhow::anyhow!("SFTP close failed: {}", e))
         })
     }
@@ -308,7 +358,13 @@ pub struct ServerViewModel {
 
 impl From<easyssh_core::ServerRecord> for ServerViewModel {
     fn from(s: easyssh_core::ServerRecord) -> Self {
-        Self { id: s.id, name: s.name, host: s.host, port: s.port, username: s.username }
+        Self {
+            id: s.id,
+            name: s.name,
+            host: s.host,
+            port: s.port,
+            username: s.username,
+        }
     }
 }
 
@@ -384,10 +440,13 @@ impl EasySSHApp {
         stack.add_named(&monitor_panel.widget(), Some("monitor"));
 
         // Setup periodic monitor refresh
-        glib::timeout_add_local(Duration::from_millis(500), glib::clone!(@weak monitor_panel => move || {
-            monitor_panel.poll_result();
-            glib::ControlFlow::Continue
-        }));
+        glib::timeout_add_local(
+            Duration::from_millis(500),
+            glib::clone!(@weak monitor_panel => move || {
+                monitor_panel.poll_result();
+                glib::ControlFlow::Continue
+            }),
+        );
 
         let easy_app = Self {
             window,
@@ -410,7 +469,13 @@ impl EasySSHApp {
         easy_app
     }
 
-    fn setup_signals(&self, add_button: &gtk4::Button, _menu_button: &gtk4::MenuButton, search_entry: &gtk4::SearchEntry, monitor_button: &gtk4::ToggleButton) {
+    fn setup_signals(
+        &self,
+        add_button: &gtk4::Button,
+        _menu_button: &gtk4::MenuButton,
+        search_entry: &gtk4::SearchEntry,
+        monitor_button: &gtk4::ToggleButton,
+    ) {
         add_button.connect_clicked(glib::clone!(@weak self as app => move |_| {
             tracing::info!("Add server clicked");
         }));
@@ -420,37 +485,46 @@ impl EasySSHApp {
             app.filter_servers(&text);
         }));
 
-        self.server_list.connect_selection_changed(glib::clone!(@weak self as app => move |server| {
-            app.detail_view.set_server(server.clone());
-            app.stack.set_visible_child_name("detail");
-            // Uncheck monitor button when switching to detail
-            monitor_button.set_active(false);
-        }));
+        self.server_list.connect_selection_changed(
+            glib::clone!(@weak self as app => move |server| {
+                app.detail_view.set_server(server.clone());
+                app.stack.set_visible_child_name("detail");
+                // Uncheck monitor button when switching to detail
+                monitor_button.set_active(false);
+            }),
+        );
 
         // Monitor button toggle
-        monitor_button.connect_toggled(glib::clone!(@weak self as app, @weak monitor_button as btn => move |_| {
-            if btn.is_active() {
-                app.stack.set_visible_child_name("monitor");
-                app.monitor_panel.set_session_id(app.current_session_id.borrow().clone());
-                app.monitor_panel.refresh();
-            } else {
-                app.stack.set_visible_child_name("detail");
-            }
-        }));
+        monitor_button.connect_toggled(
+            glib::clone!(@weak self as app, @weak monitor_button as btn => move |_| {
+                if btn.is_active() {
+                    app.stack.set_visible_child_name("monitor");
+                    app.monitor_panel.set_session_id(app.current_session_id.borrow().clone());
+                    app.monitor_panel.refresh();
+                } else {
+                    app.stack.set_visible_child_name("detail");
+                }
+            }),
+        );
     }
 
     fn setup_multi_terminal_signals(&self) {
-        self.multi_terminal.connect_tab_selected(glib::clone!(@weak self as app => move |session_id| {
-            app.switch_to_session(session_id);
-        }));
+        self.multi_terminal.connect_tab_selected(
+            glib::clone!(@weak self as app => move |session_id| {
+                app.switch_to_session(session_id);
+            }),
+        );
 
-        self.multi_terminal.connect_tab_closed(glib::clone!(@weak self as app => move |session_id| {
-            app.close_session(session_id);
-        }));
+        self.multi_terminal.connect_tab_closed(
+            glib::clone!(@weak self as app => move |session_id| {
+                app.close_session(session_id);
+            }),
+        );
 
-        self.multi_terminal.connect_new_tab(glib::clone!(@weak self as app => move || {
-            tracing::info!("New tab requested");
-        }));
+        self.multi_terminal
+            .connect_new_tab(glib::clone!(@weak self as app => move || {
+                tracing::info!("New tab requested");
+            }));
     }
 
     fn setup_keyboard_shortcuts(&self) {
@@ -491,9 +565,11 @@ impl EasySSHApp {
 
     fn switch_to_session(&self, session_id: &str) {
         self.multi_terminal.switch_to_session(session_id);
-        self.current_session_id.replace(Some(session_id.to_string()));
+        self.current_session_id
+            .replace(Some(session_id.to_string()));
         // Update monitor panel session
-        self.monitor_panel.set_session_id(Some(session_id.to_string()));
+        self.monitor_panel
+            .set_session_id(Some(session_id.to_string()));
     }
 
     fn close_session(&self, session_id: &str) {
@@ -510,9 +586,19 @@ impl EasySSHApp {
         }
     }
 
-    pub fn create_session(&self, server: Server, password: Option<String>) -> anyhow::Result<String> {
+    pub fn create_session(
+        &self,
+        server: Server,
+        password: Option<String>,
+    ) -> anyhow::Result<String> {
         let session_id = uuid::Uuid::new_v4().to_string();
-        self.view_model.connect(&session_id, &server.host, server.port, &server.username, password.as_deref())?;
+        self.view_model.connect(
+            &session_id,
+            &server.host,
+            server.port,
+            &server.username,
+            password.as_deref(),
+        )?;
         let receiver = self.view_model.execute_stream(&session_id, "")?;
 
         let active_session = ActiveSession {
@@ -520,10 +606,15 @@ impl EasySSHApp {
             server: server.clone(),
             receiver: Some(receiver),
             start_time: Instant::now(),
-            terminal_content: format!("Connected to {} ({}@{}:{})\n\n", server.name, server.username, server.host, server.port),
+            terminal_content: format!(
+                "Connected to {} ({}@{}:{})\n\n",
+                server.name, server.username, server.host, server.port
+            ),
         };
 
-        self.active_sessions.borrow_mut().insert(session_id.clone(), active_session);
+        self.active_sessions
+            .borrow_mut()
+            .insert(session_id.clone(), active_session);
         let _ = self.multi_terminal.create_session(server.clone())?;
         self.stack.set_visible_child_name("terminal");
         self.current_session_id.replace(Some(session_id.clone()));
@@ -580,7 +671,8 @@ impl EasySSHApp {
 
     pub fn shutdown(&self) {
         tracing::info!("Shutting down EasySSH...");
-        let sessions_to_close: Vec<String> = self.active_sessions.borrow().keys().cloned().collect();
+        let sessions_to_close: Vec<String> =
+            self.active_sessions.borrow().keys().cloned().collect();
         for session_id in sessions_to_close {
             self.close_session(&session_id);
         }

@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, RwLock};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Backup engine configuration
 #[derive(Debug, Clone)]
@@ -39,8 +39,12 @@ impl Default for BackupEngineConfig {
     fn default() -> Self {
         Self {
             temp_dir: std::env::temp_dir().join("easyssh-backups"),
-            default_storage_path: dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp")).join("backups"),
-            index_dir: dirs::cache_dir().unwrap_or_else(|| PathBuf::from("/tmp")).join("easyssh-backup-indexes"),
+            default_storage_path: dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("/tmp"))
+                .join("backups"),
+            index_dir: dirs::cache_dir()
+                .unwrap_or_else(|| PathBuf::from("/tmp"))
+                .join("easyssh-backup-indexes"),
             max_parallel_jobs: 4,
             default_bandwidth_limit: 0,
             verify_by_default: true,
@@ -143,7 +147,12 @@ impl BackupJobBuilder {
     }
 
     /// Set compression
-    pub fn with_compression(mut self, enabled: bool, format: CompressionFormat, level: u32) -> Self {
+    pub fn with_compression(
+        mut self,
+        enabled: bool,
+        format: CompressionFormat,
+        level: u32,
+    ) -> Self {
         self.config.compression = CompressionSettings {
             enabled,
             format,
@@ -174,7 +183,7 @@ impl BackupJobBuilder {
     pub fn build(mut self) -> BackupResult<(BackupJob, BackupStorage)> {
         if self.config.targets.is_empty() {
             return Err(BackupError::InvalidConfiguration(
-                "No backup target specified".to_string()
+                "No backup target specified".to_string(),
             ));
         }
 
@@ -210,7 +219,7 @@ impl BackupJobBuilder {
                 Ok(Box::new(storage))
             }
             _ => Err(BackupError::Storage(
-                "Cloud storage requires feature flags".to_string()
+                "Cloud storage requires feature flags".to_string(),
             )),
         }
     }
@@ -224,7 +233,8 @@ pub struct BackupEngine {
     incremental_manager: IncrementalBackupManager,
     progress_tx: mpsc::Sender<BackupProgress>,
     progress_rx: Arc<Mutex<mpsc::Receiver<BackupProgress>>>,
-    active_jobs: Arc<Mutex<HashMap<BackupJobId, tokio::task::JoinHandle<BackupResult<BackupSnapshot>>>>>,
+    active_jobs:
+        Arc<Mutex<HashMap<BackupJobId, tokio::task::JoinHandle<BackupResult<BackupSnapshot>>>>>,
 }
 
 impl BackupEngine {
@@ -253,7 +263,9 @@ impl BackupEngine {
 
         // Register with scheduler if scheduled
         if let Some(schedule) = &job.config.schedule {
-            self.scheduler.add_job(job.id, job.config.clone(), schedule.clone()).await?;
+            self.scheduler
+                .add_job(job.id, job.config.clone(), schedule.clone())
+                .await?;
         }
 
         jobs.insert(job.id, job);
@@ -293,8 +305,14 @@ impl BackupEngine {
     }
 
     /// Run a backup job immediately
-    pub async fn run_job(&mut self, job_id: BackupJobId, force_full: bool) -> BackupResult<BackupSnapshot> {
-        let job = self.get_job(job_id).await
+    pub async fn run_job(
+        &mut self,
+        job_id: BackupJobId,
+        force_full: bool,
+    ) -> BackupResult<BackupSnapshot> {
+        let job = self
+            .get_job(job_id)
+            .await
             .ok_or(BackupError::JobNotFound(job_id))?;
 
         info!("Running backup job {}: {}", job_id.0, job.config.name);
@@ -335,8 +353,10 @@ impl BackupEngine {
             Ok(_) => {
                 snapshot.status = BackupStatus::Completed;
                 snapshot.completed_at = Some(Utc::now());
-                info!("Backup job {} completed: {} files, {} bytes",
-                    job_id.0, snapshot.file_count, snapshot.size_bytes);
+                info!(
+                    "Backup job {} completed: {} files, {} bytes",
+                    job_id.0, snapshot.file_count, snapshot.size_bytes
+                );
             }
             Err(e) => {
                 snapshot.status = BackupStatus::Failed;
@@ -346,9 +366,15 @@ impl BackupEngine {
         }
 
         // Store snapshot metadata
-        let meta_json = serde_json::to_string(&snapshot)
-            .map_err(|e| BackupError::Config(e.to_string()))?;
-        job.storage.store(&format!("snapshots/{}/metadata", snapshot_id.0), meta_json.as_bytes(), HashMap::new()).await?;
+        let meta_json =
+            serde_json::to_string(&snapshot).map_err(|e| BackupError::Config(e.to_string()))?;
+        job.storage
+            .store(
+                &format!("snapshots/{}/metadata", snapshot_id.0),
+                meta_json.as_bytes(),
+                HashMap::new(),
+            )
+            .await?;
 
         // Update job stats
         let mut jobs = self.jobs.write().await;
@@ -377,10 +403,16 @@ impl BackupEngine {
     }
 
     /// Execute the backup process
-    async fn execute_backup(&mut self, job: &BackupJob, snapshot: &mut BackupSnapshot) -> BackupResult<()> {
+    async fn execute_backup(
+        &mut self,
+        job: &BackupJob,
+        snapshot: &mut BackupSnapshot,
+    ) -> BackupResult<()> {
         let temp_dir = tempfile::TempDir::new().map_err(BackupError::Io)?;
         let work_dir = temp_dir.path().join("work");
-        tokio::fs::create_dir_all(&work_dir).await.map_err(BackupError::Io)?;
+        tokio::fs::create_dir_all(&work_dir)
+            .await
+            .map_err(BackupError::Io)?;
 
         // 1. Collect files
         info!("Collecting files from source...");
@@ -396,13 +428,23 @@ impl BackupEngine {
             snapshot.parent_snapshot = parent_id;
 
             if let Some(parent_id) = parent_id {
-                let (index, diff) = self.incremental_manager
-                    .build_incremental_index(&work_dir, snapshot.id, parent_id, &BackupFilter::default())
+                let (index, diff) = self
+                    .incremental_manager
+                    .build_incremental_index(
+                        &work_dir,
+                        snapshot.id,
+                        parent_id,
+                        &BackupFilter::default(),
+                    )
                     .await?;
 
                 let changed_count = diff.added.len() + diff.modified.len();
-                info!("Incremental backup: {} new, {} modified, {} deleted",
-                    diff.added.len(), diff.modified.len(), diff.deleted.len());
+                info!(
+                    "Incremental backup: {} new, {} modified, {} deleted",
+                    diff.added.len(),
+                    diff.modified.len(),
+                    diff.deleted.len()
+                );
 
                 if changed_count == 0 {
                     info!("No changes detected, skipping backup");
@@ -414,7 +456,8 @@ impl BackupEngine {
                 (Some(index), Some(diff))
             } else {
                 // No parent, do full backup
-                let index = self.incremental_manager
+                let index = self
+                    .incremental_manager
                     .build_index(&work_dir, snapshot.id, None, &BackupFilter::default())
                     .await?;
                 (Some(index), None)
@@ -436,7 +479,8 @@ impl BackupEngine {
             &archive_path,
             job.config.compression.format,
             job.config.compression.level,
-        ).await?;
+        )
+        .await?;
 
         // 4. Encrypt if needed
         let final_path = if job.config.encryption.enabled {
@@ -450,7 +494,8 @@ impl BackupEngine {
                 &encrypted_path,
                 password,
                 &job.config.encryption,
-            ).await?;
+            )
+            .await?;
 
             encrypted_path
         } else {
@@ -461,7 +506,9 @@ impl BackupEngine {
         info!("Uploading to storage...");
         snapshot.status = BackupStatus::Uploading;
 
-        let final_data = tokio::fs::read(&final_path).await.map_err(BackupError::Io)?;
+        let final_data = tokio::fs::read(&final_path)
+            .await
+            .map_err(BackupError::Io)?;
         snapshot.checksum = blake3::hash(&final_data).to_hex().to_string();
         snapshot.compressed_size_bytes = final_data.len() as u64;
 
@@ -470,8 +517,14 @@ impl BackupEngine {
             ("job_id".to_string(), job.id.0.to_string()),
             ("snapshot_id".to_string(), snapshot.id.0.to_string()),
             ("checksum".to_string(), snapshot.checksum.clone()),
-            ("compression".to_string(), job.config.compression.enabled.to_string()),
-            ("encryption".to_string(), job.config.encryption.enabled.to_string()),
+            (
+                "compression".to_string(),
+                job.config.compression.enabled.to_string(),
+            ),
+            (
+                "encryption".to_string(),
+                job.config.encryption.enabled.to_string(),
+            ),
         ]);
 
         job.storage.store(&key, &final_data, metadata).await?;
@@ -486,19 +539,26 @@ impl BackupEngine {
             info!("Verifying backup...");
             snapshot.status = BackupStatus::Verifying;
             let verifier = BackupVerifier::new(verification::VerificationOptions::default());
-            let result = verifier.verify_file(&final_path, Some(&snapshot.checksum)).await;
+            let result = verifier
+                .verify_file(&final_path, Some(&snapshot.checksum))
+                .await;
 
             if !result.success {
-                return Err(BackupError::Verification(
-                    format!("Verification failed: {} errors", result.errors.len())
-                ));
+                return Err(BackupError::Verification(format!(
+                    "Verification failed: {} errors",
+                    result.errors.len()
+                )));
             }
         }
 
         // 8. Cleanup old snapshots based on retention policy
-        self.apply_retention_policy(job, &job.config.retention).await?;
+        self.apply_retention_policy(job, &job.config.retention)
+            .await?;
 
-        info!("Backup completed successfully: {} bytes uploaded", final_data.len());
+        info!(
+            "Backup completed successfully: {} bytes uploaded",
+            final_data.len()
+        );
 
         Ok(())
     }
@@ -540,7 +600,12 @@ impl BackupEngine {
 
                 Ok((files, total_size))
             }
-            BackupSource::Remote { host, port, username, path } => {
+            BackupSource::Remote {
+                host,
+                port,
+                username,
+                path,
+            } => {
                 // Remote backup - use SFTP
                 let remote_config = RemoteBackupConfig {
                     host: host.clone(),
@@ -566,9 +631,14 @@ impl BackupEngine {
 
                 Ok((vec![], result.downloaded_size_bytes))
             }
-            BackupSource::Database { db_type, connection_string } => {
+            BackupSource::Database {
+                db_type,
+                connection_string,
+            } => {
                 // Database backup
-                use database::{DatabaseConfig, DatabaseBackupConfig, DatabaseBackupEngine, DatabaseType};
+                use database::{
+                    DatabaseBackupConfig, DatabaseBackupEngine, DatabaseConfig, DatabaseType,
+                };
 
                 // Convert the DatabaseType from mod.rs to database::DatabaseType
                 let db_type_converted = match db_type {
@@ -593,7 +663,8 @@ impl BackupEngine {
                     Ok((vec![result.output_path], result.size_bytes))
                 } else {
                     Err(BackupError::Database(format!(
-                        "Unsupported database type: {:?}", db_type
+                        "Unsupported database type: {:?}",
+                        db_type
                     )))
                 }
             }
@@ -608,7 +679,11 @@ impl BackupEngine {
     }
 
     /// Apply retention policy - cleanup old snapshots
-    async fn apply_retention_policy(&self, job: &BackupJob, policy: &RetentionPolicy) -> BackupResult<()> {
+    async fn apply_retention_policy(
+        &self,
+        job: &BackupJob,
+        policy: &RetentionPolicy,
+    ) -> BackupResult<()> {
         info!("Applying retention policy for job {}", job.id.0);
 
         // List all snapshots for this job
@@ -617,8 +692,14 @@ impl BackupEngine {
 
         // Filter to this job's snapshots and sort by date
         let job_id_str = job.id.0.to_string();
-        let mut snapshots: Vec<_> = objects.into_iter()
-            .filter(|obj| obj.metadata.get("job_id").map(|s| s == &job_id_str).unwrap_or(false))
+        let mut snapshots: Vec<_> = objects
+            .into_iter()
+            .filter(|obj| {
+                obj.metadata
+                    .get("job_id")
+                    .map(|s| s == &job_id_str)
+                    .unwrap_or(false)
+            })
             .collect();
 
         snapshots.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
@@ -695,7 +776,11 @@ impl BackupEngine {
             if let Some(schedule) = &job.config.schedule {
                 if schedule.enabled {
                     if let Some(next) = self.scheduler.get_next_execution(job.id).await {
-                        if stats.next_scheduled_backup.map(|s| next < s).unwrap_or(true) {
+                        if stats
+                            .next_scheduled_backup
+                            .map(|s| next < s)
+                            .unwrap_or(true)
+                        {
                             stats.next_scheduled_backup = Some(next);
                         }
                     }
@@ -762,7 +847,9 @@ mod tests {
         // Create test source
         let source_dir = temp_dir.path().join("source");
         tokio::fs::create_dir_all(&source_dir).await.unwrap();
-        tokio::fs::write(source_dir.join("test.txt"), b"Hello, World!").await.unwrap();
+        tokio::fs::write(source_dir.join("test.txt"), b"Hello, World!")
+            .await
+            .unwrap();
 
         // Create and add job
         let (job, _storage) = BackupJobBuilder::new("Test Job")

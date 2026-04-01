@@ -21,11 +21,19 @@ pub enum UpdateUiEvent {
     /// No update available
     NoUpdate,
     /// Update available, user needs to choose
-    UpdateAvailable { info: UpdateInfo, is_mandatory: bool },
+    UpdateAvailable {
+        info: UpdateInfo,
+        is_mandatory: bool,
+    },
     /// Download started
     DownloadStarted { version: String },
     /// Download progress
-    DownloadProgress { percentage: f32, bytes_downloaded: u64, total_bytes: u64, speed: String },
+    DownloadProgress {
+        percentage: f32,
+        bytes_downloaded: u64,
+        total_bytes: u64,
+        speed: String,
+    },
     /// Download completed
     DownloadCompleted { version: String, path: String },
     /// Installation started
@@ -35,13 +43,20 @@ pub enum UpdateUiEvent {
     /// Installation completed, ready to restart
     InstallationCompleted { version: String },
     /// Error occurred
-    Error { message: String, can_retry: bool, can_rollback: bool },
+    Error {
+        message: String,
+        can_retry: bool,
+        can_rollback: bool,
+    },
     /// Rollback completed
     RollbackCompleted { previous_version: String },
     /// Update skipped
     UpdateSkipped { version: String },
     /// Remind later set
-    RemindLaterSet { version: String, remind_time: String },
+    RemindLaterSet {
+        version: String,
+        remind_time: String,
+    },
 }
 
 impl UpdateController {
@@ -77,7 +92,8 @@ impl UpdateController {
         match result {
             UpdateResult::UpdateAvailable(info) => {
                 let is_mandatory = self.updater.is_mandatory_update(&info).await;
-                self.emit_event(UpdateUiEvent::UpdateAvailable { info, is_mandatory }).await;
+                self.emit_event(UpdateUiEvent::UpdateAvailable { info, is_mandatory })
+                    .await;
             }
             UpdateResult::NoUpdateAvailable => {
                 self.emit_event(UpdateUiEvent::NoUpdate).await;
@@ -108,7 +124,10 @@ impl UpdateController {
 
     /// Handle user choosing to install now
     pub async fn install_now(&self, info: UpdateInfo) -> anyhow::Result<()> {
-        self.emit_event(UpdateUiEvent::DownloadStarted { version: info.version.clone() }).await;
+        self.emit_event(UpdateUiEvent::DownloadStarted {
+            version: info.version.clone(),
+        })
+        .await;
 
         // Subscribe to progress
         let mut progress_rx = self.updater.subscribe_progress().await;
@@ -133,7 +152,8 @@ impl UpdateController {
                     message: format!("Download failed: {}", e),
                     can_retry: true,
                     can_rollback: false,
-                }).await;
+                })
+                .await;
                 return Err(e);
             }
         };
@@ -143,14 +163,21 @@ impl UpdateController {
         self.emit_event(UpdateUiEvent::DownloadCompleted {
             version: info.version.clone(),
             path: path.display().to_string(),
-        }).await;
+        })
+        .await;
 
         // Install
-        self.emit_event(UpdateUiEvent::InstallationStarted { version: info.version.clone() }).await;
+        self.emit_event(UpdateUiEvent::InstallationStarted {
+            version: info.version.clone(),
+        })
+        .await;
 
         match self.updater.install_update(&info, &path).await {
             Ok(_) => {
-                self.emit_event(UpdateUiEvent::InstallationCompleted { version: info.version }).await;
+                self.emit_event(UpdateUiEvent::InstallationCompleted {
+                    version: info.version,
+                })
+                .await;
                 Ok(())
             }
             Err(e) => {
@@ -159,7 +186,8 @@ impl UpdateController {
                     message: format!("Installation failed: {}", e),
                     can_retry: true,
                     can_rollback,
-                }).await;
+                })
+                .await;
                 Err(e)
             }
         }
@@ -167,17 +195,18 @@ impl UpdateController {
 
     /// Handle user choosing to install later
     pub async fn install_later(&self, info: UpdateInfo) -> anyhow::Result<()> {
-        let result = self.updater.handle_user_response(
-            super::UpdateResponse::InstallLater,
-            &info,
-        ).await?;
+        let result = self
+            .updater
+            .handle_user_response(super::UpdateResponse::InstallLater, &info)
+            .await?;
 
         if let UpdateResult::RemindLater { version } = result {
             let remind_time = chrono::Local::now() + chrono::Duration::hours(24);
             self.emit_event(UpdateUiEvent::RemindLaterSet {
                 version,
                 remind_time: remind_time.to_rfc3339(),
-            }).await;
+            })
+            .await;
         }
 
         Ok(())
@@ -185,13 +214,14 @@ impl UpdateController {
 
     /// Handle user choosing to skip version
     pub async fn skip_version(&self, info: UpdateInfo) -> anyhow::Result<()> {
-        let result = self.updater.handle_user_response(
-            super::UpdateResponse::SkipVersion,
-            &info,
-        ).await?;
+        let result = self
+            .updater
+            .handle_user_response(super::UpdateResponse::SkipVersion, &info)
+            .await?;
 
         if let UpdateResult::Skipped { version } = result {
-            self.emit_event(UpdateUiEvent::UpdateSkipped { version }).await;
+            self.emit_event(UpdateUiEvent::UpdateSkipped { version })
+                .await;
         }
 
         Ok(())
@@ -201,7 +231,8 @@ impl UpdateController {
     pub async fn rollback(&self) -> anyhow::Result<()> {
         match self.updater.rollback().await? {
             UpdateResult::RolledBack { previous_version } => {
-                self.emit_event(UpdateUiEvent::RollbackCompleted { previous_version }).await;
+                self.emit_event(UpdateUiEvent::RollbackCompleted { previous_version })
+                    .await;
                 Ok(())
             }
             _ => Err(anyhow::anyhow!("Rollback failed")),
@@ -243,13 +274,15 @@ impl UpdateController {
                     bytes_downloaded: progress.bytes_downloaded,
                     total_bytes: progress.total_bytes,
                     speed,
-                }).await;
+                })
+                .await;
             }
             UpdateStage::Installing => {
                 self.emit_event(UpdateUiEvent::InstallationProgress {
                     percentage: progress.percentage,
                     message: progress.message.clone(),
-                }).await;
+                })
+                .await;
             }
             _ => {}
         }
@@ -277,8 +310,8 @@ fn format_speed(bps: f64) -> String {
 
 /// Predefined configurations for different update strategies
 pub mod presets {
-    use crate::auto_update::UpdateConfig;
     use crate::auto_update::UpdateChannel;
+    use crate::auto_update::UpdateConfig;
 
     /// Aggressive auto-update: auto-download and install
     pub fn aggressive() -> UpdateConfig {
@@ -345,13 +378,17 @@ pub mod tauri_integration {
     use super::*;
 
     /// Setup auto-update for Tauri app
-    pub async fn setup_tauri_updater(app_handle: tauri::AppHandle) -> anyhow::Result<UpdateController> {
+    pub async fn setup_tauri_updater(
+        app_handle: tauri::AppHandle,
+    ) -> anyhow::Result<UpdateController> {
         let controller = init_auto_update().await?;
 
         let app_handle_clone = app_handle.clone();
-        controller.set_ui_callback(move |event| {
-            let _ = app_handle_clone.emit_all("update-event", event);
-        }).await;
+        controller
+            .set_ui_callback(move |event| {
+                let _ = app_handle_clone.emit_all("update-event", event);
+            })
+            .await;
 
         Ok(controller)
     }
@@ -366,12 +403,14 @@ pub mod gtk_integration {
     pub async fn setup_gtk_updater() -> anyhow::Result<UpdateController> {
         let controller = init_auto_update().await?;
 
-        controller.set_ui_callback(move |event| {
-            glib::idle_add_local_once(move || {
-                // Emit GTK signal or update UI
-                handle_gtk_update_event(event);
-            });
-        }).await;
+        controller
+            .set_ui_callback(move |event| {
+                glib::idle_add_local_once(move || {
+                    // Emit GTK signal or update UI
+                    handle_gtk_update_event(event);
+                });
+            })
+            .await;
 
         Ok(controller)
     }
@@ -389,10 +428,12 @@ pub mod windows_integration {
     pub async fn setup_winui_updater() -> anyhow::Result<UpdateController> {
         let controller = init_auto_update().await?;
 
-        controller.set_ui_callback(move |event| {
-            // Send message to WinUI dispatcher
-            // Implementation depends on WinRT interop
-        }).await;
+        controller
+            .set_ui_callback(move |event| {
+                // Send message to WinUI dispatcher
+                // Implementation depends on WinRT interop
+            })
+            .await;
 
         Ok(controller)
     }
@@ -406,10 +447,12 @@ pub mod swift_integration {
     pub async fn setup_swift_updater() -> anyhow::Result<UpdateController> {
         let controller = init_auto_update().await?;
 
-        controller.set_ui_callback(move |event| {
-            // Use Swift interop to send notification
-            // Implementation depends on FFI bridge
-        }).await;
+        controller
+            .set_ui_callback(move |event| {
+                // Use Swift interop to send notification
+                // Implementation depends on FFI bridge
+            })
+            .await;
 
         Ok(controller)
     }

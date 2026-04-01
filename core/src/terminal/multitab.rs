@@ -107,7 +107,10 @@ impl TabState {
     }
 
     pub fn is_connected(&self) -> bool {
-        matches!(self, TabState::Active | TabState::Connecting | TabState::Reconnecting)
+        matches!(
+            self,
+            TabState::Active | TabState::Connecting | TabState::Reconnecting
+        )
     }
 
     pub fn can_close(&self) -> bool {
@@ -200,7 +203,10 @@ pub enum TabEvent {
     /// 标签页顺序变更
     OrderChanged { order: Vec<String> },
     /// 标签页分组变更
-    GroupChanged { tab_id: String, group: Option<String> },
+    GroupChanged {
+        tab_id: String,
+        group: Option<String>,
+    },
     /// 所有标签页关闭
     AllClosed,
 }
@@ -242,7 +248,8 @@ impl TabManager {
         if let Some(g) = group {
             tab.group = Some(g.to_string());
             let mut groups = self.groups.write().await;
-            groups.entry(g.to_string())
+            groups
+                .entry(g.to_string())
                 .or_insert_with(Vec::new)
                 .push(tab.id.clone());
         }
@@ -262,7 +269,9 @@ impl TabManager {
         }
 
         // 发送事件
-        let _ = self.event_tx.send(TabEvent::Created { tab_id: tab_id.clone() });
+        let _ = self.event_tx.send(TabEvent::Created {
+            tab_id: tab_id.clone(),
+        });
 
         // 设置为活跃
         self.activate_tab(&tab_id).await?;
@@ -276,11 +285,15 @@ impl TabManager {
     pub async fn close_tab(&self, tab_id: &str) -> Result<(), LiteError> {
         let mut tabs = self.tabs.write().await;
 
-        let tab = tabs.get(tab_id)
+        let tab = tabs
+            .get(tab_id)
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
         if !tab.state.can_close() {
-            return Err(LiteError::Terminal(format!("Tab {} cannot be closed (state: {:?})", tab_id, tab.state)));
+            return Err(LiteError::Terminal(format!(
+                "Tab {} cannot be closed (state: {:?})",
+                tab_id, tab.state
+            )));
         }
 
         // 从分组中移除
@@ -314,7 +327,7 @@ impl TabManager {
 
                 if let Some(ref new_active) = *active {
                     let _ = self.event_tx.send(TabEvent::Activated {
-                        tab_id: new_active.clone()
+                        tab_id: new_active.clone(),
                     });
                 }
             }
@@ -327,7 +340,9 @@ impl TabManager {
         }
 
         // 发送事件
-        let _ = self.event_tx.send(TabEvent::Closed { tab_id: tab_id.to_string() });
+        let _ = self.event_tx.send(TabEvent::Closed {
+            tab_id: tab_id.to_string(),
+        });
 
         log::info!("Closed tab: {}", tab_id);
 
@@ -370,7 +385,9 @@ impl TabManager {
         }
 
         // 发送事件
-        let _ = self.event_tx.send(TabEvent::Activated { tab_id: tab_id.to_string() });
+        let _ = self.event_tx.send(TabEvent::Activated {
+            tab_id: tab_id.to_string(),
+        });
 
         Ok(())
     }
@@ -389,7 +406,8 @@ impl TabManager {
     pub async fn set_title(&self, tab_id: &str, title: &str) -> Result<(), LiteError> {
         let mut tabs = self.tabs.write().await;
 
-        let tab = tabs.get_mut(tab_id)
+        let tab = tabs
+            .get_mut(tab_id)
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
         tab.title = title.to_string();
@@ -407,7 +425,8 @@ impl TabManager {
     pub async fn set_state(&self, tab_id: &str, state: TabState) -> Result<(), LiteError> {
         let mut tabs = self.tabs.write().await;
 
-        let tab = tabs.get_mut(tab_id)
+        let tab = tabs
+            .get_mut(tab_id)
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
         tab.state = state;
@@ -425,7 +444,8 @@ impl TabManager {
     pub async fn attach_terminal(&self, tab_id: &str, terminal_id: &str) -> Result<(), LiteError> {
         let mut tabs = self.tabs.write().await;
 
-        let tab = tabs.get_mut(tab_id)
+        let tab = tabs
+            .get_mut(tab_id)
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
         tab.terminal_id = Some(terminal_id.to_string());
@@ -445,7 +465,8 @@ impl TabManager {
         let order = self.order.read().await;
         let tabs = self.tabs.read().await;
 
-        order.iter()
+        order
+            .iter()
             .filter_map(|id| tabs.get(id).cloned())
             .collect()
     }
@@ -482,7 +503,9 @@ impl TabManager {
         }
 
         // 发送事件
-        let _ = self.event_tx.send(TabEvent::OrderChanged { order: new_order });
+        let _ = self
+            .event_tx
+            .send(TabEvent::OrderChanged { order: new_order });
 
         Ok(())
     }
@@ -492,7 +515,8 @@ impl TabManager {
         let mut order = self.order.write().await;
 
         // 找到当前位置
-        let current_index = order.iter()
+        let current_index = order
+            .iter()
             .position(|id| id == tab_id)
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
@@ -505,7 +529,9 @@ impl TabManager {
 
         // 发送重新排序事件
         let new_order = self.order.read().await.clone();
-        let _ = self.event_tx.send(TabEvent::OrderChanged { order: new_order });
+        let _ = self
+            .event_tx
+            .send(TabEvent::OrderChanged { order: new_order });
 
         Ok(())
     }
@@ -514,7 +540,8 @@ impl TabManager {
     pub async fn set_group(&self, tab_id: &str, group: Option<&str>) -> Result<(), LiteError> {
         let mut tabs = self.tabs.write().await;
 
-        let tab = tabs.get_mut(tab_id)
+        let tab = tabs
+            .get_mut(tab_id)
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
         // 从旧分组移除
@@ -531,7 +558,8 @@ impl TabManager {
         // 添加到新分组
         if let Some(ref new_group) = tab.group {
             let mut groups = self.groups.write().await;
-            groups.entry(new_group.clone())
+            groups
+                .entry(new_group.clone())
                 .or_insert_with(Vec::new)
                 .push(tab_id.to_string());
         }
@@ -561,7 +589,8 @@ impl TabManager {
     pub async fn toggle_pin(&self, tab_id: &str) -> Result<bool, LiteError> {
         let mut tabs = self.tabs.write().await;
 
-        let tab = tabs.get_mut(tab_id)
+        let tab = tabs
+            .get_mut(tab_id)
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
         tab.is_pinned = !tab.is_pinned;
@@ -642,14 +671,18 @@ impl TabManager {
 
     /// 克隆标签页（在新标签页中打开相同的会话）
     pub async fn duplicate_tab(&self, tab_id: &str) -> Result<String, LiteError> {
-        let source = self.get_tab(tab_id).await
+        let source = self
+            .get_tab(tab_id)
+            .await
             .ok_or_else(|| LiteError::Terminal(format!("Tab {} not found", tab_id)))?;
 
-        let new_tab_id = self.create_tab(
-            &format!("{} (Copy)", source.title),
-            source.session_type,
-            source.group.as_deref(),
-        ).await?;
+        let new_tab_id = self
+            .create_tab(
+                &format!("{} (Copy)", source.title),
+                source.session_type,
+                source.group.as_deref(),
+            )
+            .await?;
 
         // 复制server_id
         if let Some(server_id) = source.server_id {
@@ -665,9 +698,7 @@ impl TabManager {
     /// 获取下一个可用标签页标题（用于自动命名）
     pub async fn next_tab_title(&self, base: &str) -> String {
         let tabs = self.tabs.read().await;
-        let count = tabs.values()
-            .filter(|t| t.title.starts_with(base))
-            .count();
+        let count = tabs.values().filter(|t| t.title.starts_with(base)).count();
 
         if count == 0 {
             base.to_string()
@@ -697,8 +728,14 @@ impl TabManager {
         let tabs = self.tabs.read().await;
 
         let total = tabs.len();
-        let active = tabs.values().filter(|t| t.state == TabState::Active).count();
-        let idle = tabs.values().filter(|t| t.is_idle(self.idle_timeout)).count();
+        let active = tabs
+            .values()
+            .filter(|t| t.state == TabState::Active)
+            .count();
+        let idle = tabs
+            .values()
+            .filter(|t| t.is_idle(self.idle_timeout))
+            .count();
         let pinned = tabs.values().filter(|t| t.is_pinned).count();
 
         let groups = self.groups.read().await;
@@ -777,7 +814,9 @@ impl SplitLayout {
 
     /// 为标签页创建分屏
     pub fn split(&mut self, tab_id: &str, direction: SplitDirection) -> Result<String, String> {
-        let container = self.tab_containers.entry(tab_id.to_string())
+        let container = self
+            .tab_containers
+            .entry(tab_id.to_string())
             .or_insert_with(|| SplitContainer {
                 tab_id: tab_id.to_string(),
                 panels: vec![SplitPanel {
@@ -813,7 +852,9 @@ impl SplitLayout {
     /// 关闭分屏面板
     pub fn close_panel(&mut self, tab_id: &str, panel_id: &str) -> Result<(), String> {
         if let Some(container) = self.tab_containers.get_mut(tab_id) {
-            let index = container.panels.iter()
+            let index = container
+                .panels
+                .iter()
                 .position(|p| p.id == panel_id)
                 .ok_or_else(|| format!("Panel {} not found", panel_id))?;
 

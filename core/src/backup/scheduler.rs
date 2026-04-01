@@ -1,6 +1,6 @@
 //! Backup scheduler with cron-style expression support
 
-use super::{BackupError, BackupJobId, BackupResult, BackupConfig};
+use super::{BackupConfig, BackupError, BackupJobId, BackupResult};
 use chrono::{DateTime, Duration, Utc};
 use cron_parser::parse as parse_cron;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Cron-style schedule expression
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,7 +81,10 @@ impl CronSchedule {
                 Some(next_utc)
             }
             Err(e) => {
-                warn!("Failed to parse cron expression '{}': {}", self.expression, e);
+                warn!(
+                    "Failed to parse cron expression '{}': {}",
+                    self.expression, e
+                );
                 None
             }
         }
@@ -259,7 +262,12 @@ impl BackupScheduler {
     }
 
     /// Add a scheduled job
-    pub async fn add_job(&self, job_id: BackupJobId, config: BackupConfig, schedule: ScheduleConfig) -> BackupResult<()> {
+    pub async fn add_job(
+        &self,
+        job_id: BackupJobId,
+        config: BackupConfig,
+        schedule: ScheduleConfig,
+    ) -> BackupResult<()> {
         if !schedule.cron.is_valid() {
             return Err(BackupError::Schedule(format!(
                 "Invalid cron expression: {}",
@@ -288,7 +296,10 @@ impl BackupScheduler {
         let mut jobs = self.jobs.write().await;
         jobs.insert(job_id, job);
 
-        info!("Added scheduled job {} with next run at {:?}", job_id.0, next_run);
+        info!(
+            "Added scheduled job {} with next run at {:?}",
+            job_id.0, next_run
+        );
 
         self.event_tx
             .send(SchedulerEvent::ScheduleUpdated(job_id))
@@ -326,7 +337,11 @@ impl BackupScheduler {
     }
 
     /// Update a job's schedule
-    pub async fn update_schedule(&self, job_id: BackupJobId, schedule: ScheduleConfig) -> BackupResult<()> {
+    pub async fn update_schedule(
+        &self,
+        job_id: BackupJobId,
+        schedule: ScheduleConfig,
+    ) -> BackupResult<()> {
         let mut jobs = self.jobs.write().await;
 
         if let Some(job) = jobs.get_mut(&job_id) {
@@ -344,7 +359,10 @@ impl BackupScheduler {
                 None
             };
 
-            info!("Updated schedule for job {}: next run at {:?}", job_id.0, job.next_run);
+            info!(
+                "Updated schedule for job {}: next run at {:?}",
+                job_id.0, job.next_run
+            );
 
             self.event_tx
                 .send(SchedulerEvent::ScheduleUpdated(job_id))
@@ -369,7 +387,11 @@ impl BackupScheduler {
                 None
             };
 
-            info!("Job {} {}", job_id.0, if enabled { "enabled" } else { "disabled" });
+            info!(
+                "Job {} {}",
+                job_id.0,
+                if enabled { "enabled" } else { "disabled" }
+            );
             Ok(())
         } else {
             Err(BackupError::JobNotFound(job_id))
@@ -419,7 +441,10 @@ impl BackupScheduler {
                 }
             }
 
-            info!("Job {} completed with success={}. Next run: {:?}", job_id.0, success, job.next_run);
+            info!(
+                "Job {} completed with success={}. Next run: {:?}",
+                job_id.0, success, job.next_run
+            );
 
             self.event_tx
                 .send(SchedulerEvent::JobCompleted(job_id, success))
@@ -493,7 +518,9 @@ impl BackupScheduler {
     /// Stop the scheduler
     pub async fn stop(&self) -> BackupResult<()> {
         let tx = self.shutdown_tx.lock().await;
-        tx.send(()).await.map_err(|e| BackupError::Schedule(e.to_string()))?;
+        tx.send(())
+            .await
+            .map_err(|e| BackupError::Schedule(e.to_string()))?;
         Ok(())
     }
 
@@ -514,7 +541,10 @@ impl BackupScheduler {
     }
 
     /// Handle missed executions based on policy
-    pub async fn handle_missed_executions(&self, job_id: BackupJobId) -> BackupResult<Vec<DateTime<Utc>>> {
+    pub async fn handle_missed_executions(
+        &self,
+        job_id: BackupJobId,
+    ) -> BackupResult<Vec<DateTime<Utc>>> {
         let jobs = self.jobs.read().await;
 
         if let Some(job) = jobs.get(&job_id) {
@@ -540,7 +570,10 @@ impl BackupScheduler {
                 MissedExecutionPolicy::RunImmediately => {
                     if !missed.is_empty() {
                         self.event_tx
-                            .send(SchedulerEvent::JobTriggered(job_id, JobTrigger::MissedExecution))
+                            .send(SchedulerEvent::JobTriggered(
+                                job_id,
+                                JobTrigger::MissedExecution,
+                            ))
                             .await
                             .map_err(|e| BackupError::Schedule(e.to_string()))?;
                     }
@@ -617,7 +650,12 @@ mod tests {
         let schedule = CronSchedule::new("0 2 * * *"); // Daily at 2 AM
 
         // Test from midnight
-        let midnight = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap().and_local_timezone(Utc).unwrap();
+        let midnight = Utc::now()
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_local_timezone(Utc)
+            .unwrap();
         let next = schedule.next_execution(midnight).unwrap();
 
         assert_eq!(next.hour(), 2);

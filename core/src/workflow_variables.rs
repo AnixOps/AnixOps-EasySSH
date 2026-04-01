@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// Workflow script variable types
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -11,7 +11,7 @@ pub enum VariableType {
     Boolean,
     Array,
     Object,
-    Server,  // Special type for server references
+    Server, // Special type for server references
 }
 
 /// Script variable with metadata
@@ -64,47 +64,56 @@ impl VariableTemplates {
                 "server.id",
                 serde_json::Value::String("{{server.id}}".to_string()),
                 VariableType::String,
-            ).with_description("Server unique identifier"),
+            )
+            .with_description("Server unique identifier"),
             ScriptVariable::new(
                 "server.name",
                 serde_json::Value::String("{{server.name}}".to_string()),
                 VariableType::String,
-            ).with_description("Server display name"),
+            )
+            .with_description("Server display name"),
             ScriptVariable::new(
                 "server.host",
                 serde_json::Value::String("{{server.host}}".to_string()),
                 VariableType::String,
-            ).with_description("Server hostname or IP"),
+            )
+            .with_description("Server hostname or IP"),
             ScriptVariable::new(
                 "server.port",
                 serde_json::Value::Number(22.into()),
                 VariableType::Number,
-            ).with_description("SSH port"),
+            )
+            .with_description("SSH port"),
             ScriptVariable::new(
                 "server.username",
                 serde_json::Value::String("{{server.username}}".to_string()),
                 VariableType::String,
-            ).with_description("SSH username"),
+            )
+            .with_description("SSH username"),
             ScriptVariable::new(
                 "server.password",
                 serde_json::Value::String("{{server.password}}".to_string()),
                 VariableType::String,
-            ).with_description("SSH password (encrypted)"),
+            )
+            .with_description("SSH password (encrypted)"),
             ScriptVariable::new(
                 "server.key_path",
                 serde_json::Value::String("{{server.key_path}}".to_string()),
                 VariableType::String,
-            ).with_description("SSH private key path"),
+            )
+            .with_description("SSH private key path"),
             ScriptVariable::new(
                 "server.group",
                 serde_json::Value::String("{{server.group}}".to_string()),
                 VariableType::String,
-            ).with_description("Server group name"),
+            )
+            .with_description("Server group name"),
             ScriptVariable::new(
                 "server.tags",
                 serde_json::Value::Array(vec![]),
                 VariableType::Array,
-            ).with_description("Server tags"),
+            )
+            .with_description("Server tags"),
         ]
     }
 
@@ -115,27 +124,32 @@ impl VariableTemplates {
                 "system.timestamp",
                 serde_json::Value::String("{{system.timestamp}}".to_string()),
                 VariableType::String,
-            ).with_description("Current timestamp ISO8601"),
+            )
+            .with_description("Current timestamp ISO8601"),
             ScriptVariable::new(
                 "system.date",
                 serde_json::Value::String("{{system.date}}".to_string()),
                 VariableType::String,
-            ).with_description("Current date YYYY-MM-DD"),
+            )
+            .with_description("Current date YYYY-MM-DD"),
             ScriptVariable::new(
                 "system.time",
                 serde_json::Value::String("{{system.time}}".to_string()),
                 VariableType::String,
-            ).with_description("Current time HH:MM:SS"),
+            )
+            .with_description("Current time HH:MM:SS"),
             ScriptVariable::new(
                 "system.random",
                 serde_json::Value::String("{{system.random}}".to_string()),
                 VariableType::String,
-            ).with_description("Random string"),
+            )
+            .with_description("Random string"),
             ScriptVariable::new(
                 "system.uuid",
                 serde_json::Value::String("{{system.uuid}}".to_string()),
                 VariableType::String,
-            ).with_description("Unique identifier"),
+            )
+            .with_description("Unique identifier"),
         ]
     }
 
@@ -146,32 +160,38 @@ impl VariableTemplates {
                 "execution.id",
                 serde_json::Value::String("{{execution.id}}".to_string()),
                 VariableType::String,
-            ).with_description("Execution run ID"),
+            )
+            .with_description("Execution run ID"),
             ScriptVariable::new(
                 "execution.start_time",
                 serde_json::Value::String("{{execution.start_time}}".to_string()),
                 VariableType::String,
-            ).with_description("Execution start time"),
+            )
+            .with_description("Execution start time"),
             ScriptVariable::new(
                 "execution.parallel_index",
                 serde_json::Value::Number(0.into()),
                 VariableType::Number,
-            ).with_description("Index in parallel execution"),
+            )
+            .with_description("Index in parallel execution"),
             ScriptVariable::new(
                 "execution.total_servers",
                 serde_json::Value::Number(1.into()),
                 VariableType::Number,
-            ).with_description("Total servers in batch"),
+            )
+            .with_description("Total servers in batch"),
             ScriptVariable::new(
                 "execution.previous_result",
                 serde_json::Value::String("{{execution.previous_result}}".to_string()),
                 VariableType::String,
-            ).with_description("Previous step output"),
+            )
+            .with_description("Previous step output"),
             ScriptVariable::new(
                 "execution.exit_code",
                 serde_json::Value::Number(0.into()),
                 VariableType::Number,
-            ).with_description("Last command exit code"),
+            )
+            .with_description("Last command exit code"),
         ]
     }
 }
@@ -205,24 +225,42 @@ impl VariableResolver {
 
     pub fn with_server(mut self, server: ServerContext) -> Self {
         // Add server variables
-        self.variables.insert("server.id".to_string(), server.id.clone().into());
-        self.variables.insert("server.name".to_string(), server.name.clone().into());
-        self.variables.insert("server.host".to_string(), server.host.clone().into());
-        self.variables.insert("server.port".to_string(), (server.port as i64).into());
-        self.variables.insert("server.username".to_string(), server.username.clone().into());
+        self.variables
+            .insert("server.id".to_string(), server.id.clone().into());
+        self.variables
+            .insert("server.name".to_string(), server.name.clone().into());
+        self.variables
+            .insert("server.host".to_string(), server.host.clone().into());
+        self.variables
+            .insert("server.port".to_string(), (server.port as i64).into());
+        self.variables.insert(
+            "server.username".to_string(),
+            server.username.clone().into(),
+        );
 
         if let Some(ref pwd) = server.password {
-            self.variables.insert("server.password".to_string(), pwd.clone().into());
+            self.variables
+                .insert("server.password".to_string(), pwd.clone().into());
         }
         if let Some(ref key) = server.key_path {
-            self.variables.insert("server.key_path".to_string(), key.clone().into());
+            self.variables
+                .insert("server.key_path".to_string(), key.clone().into());
         }
         if let Some(ref group) = server.group {
-            self.variables.insert("server.group".to_string(), group.clone().into());
+            self.variables
+                .insert("server.group".to_string(), group.clone().into());
         }
 
-        self.variables.insert("server.tags".to_string(),
-            server.tags.clone().into_iter().map(|t: String| t.into()).collect::<Vec<serde_json::Value>>().into());
+        self.variables.insert(
+            "server.tags".to_string(),
+            server
+                .tags
+                .clone()
+                .into_iter()
+                .map(|t: String| t.into())
+                .collect::<Vec<serde_json::Value>>()
+                .into(),
+        );
 
         self.server_context = Some(server);
         self
@@ -231,34 +269,50 @@ impl VariableResolver {
     pub fn with_system_variables(mut self) -> Self {
         let now = Utc::now();
 
-        self.variables.insert("system.timestamp".to_string(),
-            now.to_rfc3339().into());
-        self.variables.insert("system.date".to_string(),
-            now.format("%Y-%m-%d").to_string().into());
-        self.variables.insert("system.time".to_string(),
-            now.format("%H:%M:%S").to_string().into());
-        self.variables.insert("system.random".to_string(),
-            Uuid::new_v4().to_string().into());
-        self.variables.insert("system.uuid".to_string(),
-            Uuid::new_v4().to_string().into());
+        self.variables
+            .insert("system.timestamp".to_string(), now.to_rfc3339().into());
+        self.variables.insert(
+            "system.date".to_string(),
+            now.format("%Y-%m-%d").to_string().into(),
+        );
+        self.variables.insert(
+            "system.time".to_string(),
+            now.format("%H:%M:%S").to_string().into(),
+        );
+        self.variables.insert(
+            "system.random".to_string(),
+            Uuid::new_v4().to_string().into(),
+        );
+        self.variables
+            .insert("system.uuid".to_string(), Uuid::new_v4().to_string().into());
 
         self
     }
 
     pub fn with_execution_context(mut self, context: ExecutionContext) -> Self {
-        self.variables.insert("execution.id".to_string(), context.execution_id.into());
-        self.variables.insert("execution.start_time".to_string(),
-            context.start_time.to_rfc3339().into());
-        self.variables.insert("execution.parallel_index".to_string(),
-            (context.parallel_index as i64).into());
-        self.variables.insert("execution.total_servers".to_string(),
-            (context.total_servers as i64).into());
+        self.variables
+            .insert("execution.id".to_string(), context.execution_id.into());
+        self.variables.insert(
+            "execution.start_time".to_string(),
+            context.start_time.to_rfc3339().into(),
+        );
+        self.variables.insert(
+            "execution.parallel_index".to_string(),
+            (context.parallel_index as i64).into(),
+        );
+        self.variables.insert(
+            "execution.total_servers".to_string(),
+            (context.total_servers as i64).into(),
+        );
 
         if let Some(prev) = context.previous_result {
-            self.variables.insert("execution.previous_result".to_string(), prev.into());
+            self.variables
+                .insert("execution.previous_result".to_string(), prev.into());
         }
-        self.variables.insert("execution.exit_code".to_string(),
-            (context.exit_code as i64).into());
+        self.variables.insert(
+            "execution.exit_code".to_string(),
+            (context.exit_code as i64).into(),
+        );
 
         self
     }
@@ -278,9 +332,11 @@ impl VariableResolver {
                 serde_json::Value::String(s) => s.clone(),
                 serde_json::Value::Number(n) => n.to_string(),
                 serde_json::Value::Bool(b) => b.to_string(),
-                serde_json::Value::Array(arr) => {
-                    arr.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ")
-                }
+                serde_json::Value::Array(arr) => arr
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
                 serde_json::Value::Object(_) => value.to_string(),
                 serde_json::Value::Null => String::new(),
             };
@@ -293,13 +349,9 @@ impl VariableResolver {
     /// Resolve variables in a JSON value
     pub fn resolve_json(&self, value: &serde_json::Value) -> serde_json::Value {
         match value {
-            serde_json::Value::String(s) => {
-                serde_json::Value::String(self.resolve(s))
-            }
+            serde_json::Value::String(s) => serde_json::Value::String(self.resolve(s)),
             serde_json::Value::Array(arr) => {
-                serde_json::Value::Array(
-                    arr.iter().map(|v| self.resolve_json(v)).collect()
-                )
+                serde_json::Value::Array(arr.iter().map(|v| self.resolve_json(v)).collect())
             }
             serde_json::Value::Object(obj) => {
                 let mut new_obj = serde_json::Map::new();

@@ -4,8 +4,8 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use easyssh_core::sftp::{
-    SftpEntry, TransferDirection, TransferItem, TransferOptions, TransferProgress,
-    TransferQueue, TransferStatus,
+    SftpEntry, TransferDirection, TransferItem, TransferOptions, TransferProgress, TransferQueue,
+    TransferStatus,
 };
 use std::time::Duration;
 
@@ -67,7 +67,7 @@ fn bench_transfer_options(c: &mut Criterion) {
                     .with_resume(true)
                     .with_max_concurrent(5)
                     .with_speed_limit(1024 * 1024)
-                    .with_overwrite(false)
+                    .with_overwrite(false),
             );
         });
     });
@@ -196,15 +196,11 @@ fn bench_format_functions(c: &mut Criterion) {
     let mut group = c.benchmark_group("sftp_format");
 
     for size in [0u64, 512, 1024, 10240, 1048576, 1073741824] {
-        group.bench_with_input(
-            BenchmarkId::new("format_size", size),
-            &size,
-            |b, &size| {
-                b.iter(|| {
-                    let _ = black_box(format_size(size));
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("format_size", size), &size, |b, &size| {
+            b.iter(|| {
+                let _ = black_box(format_size(size));
+            });
+        });
     }
 
     group.finish();

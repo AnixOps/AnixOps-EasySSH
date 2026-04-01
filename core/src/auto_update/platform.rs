@@ -5,9 +5,9 @@ use std::fmt::Debug;
 use std::path::Path;
 use std::process::Command;
 
-pub mod windows;
-pub mod macos;
 pub mod linux;
+pub mod macos;
+pub mod windows;
 
 #[async_trait]
 pub trait PlatformUpdater: Send + Sync + Debug {
@@ -55,7 +55,10 @@ pub async fn create_platform_updater() -> anyhow::Result<Box<dyn PlatformUpdater
 
 /// Helper function to run command with elevated privileges on Windows
 #[cfg(target_os = "windows")]
-pub async fn run_elevated_windows(command: &str, args: &[&str]) -> anyhow::Result<std::process::Output> {
+pub async fn run_elevated_windows(
+    command: &str,
+    args: &[&str],
+) -> anyhow::Result<std::process::Output> {
     use std::os::windows::process::CommandExt;
     const SW_HIDE: u32 = 0;
 

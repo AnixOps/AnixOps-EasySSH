@@ -3,32 +3,20 @@
 //! Provides 60fps WebGL-accelerated terminal rendering using xterm.js
 //! with egui integration for the Windows native UI.
 
-pub mod webgl_terminal;
+pub mod clipboard;
 pub mod egui_integration;
+pub mod manager;
 pub mod renderer;
 pub mod streaming;
-pub mod manager;
-pub mod clipboard;
+pub mod webgl_terminal;
 
-pub use webgl_terminal::{
-    TerminalConfig,
-    ColorSupport,
-    RenderStats,
-};
+pub use webgl_terminal::{ColorSupport, RenderStats, TerminalConfig};
 
-pub use egui_integration::{
-    EguiWebGlTerminal,
-    WebGlTerminalBuilder,
-    TerminalMessage,
-};
-
+pub use egui_integration::{EguiWebGlTerminal, TerminalMessage, WebGlTerminalBuilder};
 
 pub use streaming::StreamingProcessor;
 
-pub use manager::{
-    WebGlTerminalManager,
-};
-
+pub use manager::WebGlTerminalManager;
 
 /// Terminal module version
 pub const VERSION: &str = "0.1.0";
@@ -67,7 +55,10 @@ pub fn calculate_terminal_size(
 
 /// Initialize terminal subsystem with performance optimizations
 pub fn init_terminal() {
-    tracing::info!("Initializing WebGL terminal subsystem ({}fps target)", TARGET_FPS);
+    tracing::info!(
+        "Initializing WebGL terminal subsystem ({}fps target)",
+        TARGET_FPS
+    );
 }
 
 #[cfg(test)]

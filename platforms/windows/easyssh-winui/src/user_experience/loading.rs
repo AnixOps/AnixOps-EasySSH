@@ -3,25 +3,25 @@
 //! Provides comprehensive loading state tracking and visual feedback
 //! for all async operations.
 
+use egui::{Frame, ProgressBar as EguiProgressBar, RichText, Rounding, Stroke, Ui, Vec2};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use egui::{Vec2, Ui, RichText, ProgressBar as EguiProgressBar, Frame, Stroke, Rounding};
 
 /// Unique identifier for a loading operation
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum LoadingOperation {
-    Connect(String),           // server_id
-    Disconnect(String),        // session_id
-    SFTPRefresh(String),       // session_id
-    SFTPUpload(String),        // session_id + file
-    SFTPDownload(String),      // session_id + file
-    MonitorRefresh(String),    // session_id
+    Connect(String),        // server_id
+    Disconnect(String),     // session_id
+    SFTPRefresh(String),    // session_id
+    SFTPUpload(String),     // session_id + file
+    SFTPDownload(String),   // session_id + file
+    MonitorRefresh(String), // session_id
     ServerListRefresh,
     ConfigImport,
     ConfigExport,
-    FileEdit(String),          // file path
+    FileEdit(String), // file path
     Search,
-    Custom(String),            // any custom operation
+    Custom(String), // any custom operation
 }
 
 impl LoadingOperation {
@@ -197,8 +197,14 @@ impl LoadingStateManager {
 
     /// Get all active loading operations
     pub fn get_active(&self) -> Vec<&LoadingState> {
-        self.states.values()
-            .filter(|s| matches!(s.stage, LoadingStage::Starting | LoadingStage::InProgress | LoadingStage::Cancelling))
+        self.states
+            .values()
+            .filter(|s| {
+                matches!(
+                    s.stage,
+                    LoadingStage::Starting | LoadingStage::InProgress | LoadingStage::Cancelling
+                )
+            })
             .collect()
     }
 
@@ -215,7 +221,9 @@ impl LoadingStateManager {
     /// Update animation frame
     pub fn update(&mut self, _frame: u64) {
         // Clean up completed operations after a delay
-        let to_remove: Vec<_> = self.states.iter()
+        let to_remove: Vec<_> = self
+            .states
+            .iter()
             .filter(|(_, s)| matches!(s.stage, LoadingStage::Completed | LoadingStage::Failed(_)))
             .filter(|(_, s)| s.elapsed() > Duration::from_secs(2))
             .map(|(k, _)| k.clone())
@@ -227,7 +235,13 @@ impl LoadingStateManager {
     }
 
     /// Render loading overlay for a specific operation
-    pub fn render_overlay(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, operation: &LoadingOperation, frame: u64) {
+    pub fn render_overlay(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        operation: &LoadingOperation,
+        frame: u64,
+    ) {
         if let Some(state) = self.states.get(operation) {
             self.render_state(ui, theme, state, frame);
         }
@@ -263,7 +277,7 @@ impl LoadingStateManager {
                         RichText::new(header_text)
                             .size(14.0)
                             .strong()
-                            .color(theme.text_primary)
+                            .color(theme.text_primary),
                     );
                 });
 
@@ -277,7 +291,13 @@ impl LoadingStateManager {
     }
 
     /// Render a full loading state
-    fn render_state(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, state: &LoadingState, frame: u64) {
+    fn render_state(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        state: &LoadingState,
+        frame: u64,
+    ) {
         ui.vertical_centered(|ui| {
             ui.add_space(48.0);
 
@@ -293,13 +313,13 @@ impl LoadingStateManager {
                 ui.label(
                     RichText::new(state.operation.icon())
                         .size(24.0)
-                        .color(theme.interactive_primary)
+                        .color(theme.interactive_primary),
                 );
                 ui.label(
                     RichText::new(state.operation.display_name())
                         .size(18.0)
                         .strong()
-                        .color(theme.text_primary)
+                        .color(theme.text_primary),
                 );
             });
 
@@ -317,7 +337,7 @@ impl LoadingStateManager {
             ui.label(
                 RichText::new(stage_text)
                     .size(14.0)
-                    .color(theme.text_secondary)
+                    .color(theme.text_secondary),
             );
 
             ui.add_space(16.0);
@@ -327,7 +347,7 @@ impl LoadingStateManager {
                 let progress_bar = ui.add(
                     EguiProgressBar::new(progress)
                         .desired_width(300.0)
-                        .text(format!("{:.0}%", progress * 100.0))
+                        .text(format!("{:.0}%", progress * 100.0)),
                 );
 
                 // Color based on progress
@@ -340,7 +360,7 @@ impl LoadingStateManager {
                 ui.add(
                     EguiProgressBar::new(progress)
                         .desired_width(300.0)
-                        .text("加载中...")
+                        .text("加载中..."),
                 );
             }
 
@@ -349,9 +369,12 @@ impl LoadingStateManager {
             // Elapsed time
             let elapsed = state.elapsed();
             ui.label(
-                RichText::new(format!("已用时: {}", crate::user_experience::format_duration(elapsed)))
-                    .size(12.0)
-                    .color(theme.text_tertiary)
+                RichText::new(format!(
+                    "已用时: {}",
+                    crate::user_experience::format_duration(elapsed)
+                ))
+                .size(12.0)
+                .color(theme.text_tertiary),
             );
 
             // Warning for long-running operations
@@ -360,23 +383,33 @@ impl LoadingStateManager {
                 ui.label(
                     RichText::new("⚠ 操作时间过长，可能需要重试")
                         .size(12.0)
-                        .color(crate::design::SemanticColors::WARNING)
+                        .color(crate::design::SemanticColors::WARNING),
                 );
             }
 
             ui.add_space(24.0);
 
             // Cancel button
-            if state.cancellable && matches!(state.stage, LoadingStage::Starting | LoadingStage::InProgress) {
-                if ui.button("取消操作").clicked() {
-                    // Cancel logic handled by caller
-                }
+            if state.cancellable
+                && matches!(
+                    state.stage,
+                    LoadingStage::Starting | LoadingStage::InProgress
+                )
+                && ui.button("取消操作").clicked()
+            {
+                // Cancel logic handled by caller
             }
         });
     }
 
     /// Render a compact loading state for the panel
-    fn render_compact_state(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, state: &LoadingState, frame: u64) {
+    fn render_compact_state(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        state: &LoadingState,
+        frame: u64,
+    ) {
         ui.horizontal(|ui| {
             // Small spinner or icon
             let spinner = crate::user_experience::LoadingSpinner::new(16.0);
@@ -388,7 +421,7 @@ impl LoadingStateManager {
                     RichText::new(state.operation.display_name())
                         .size(13.0)
                         .strong()
-                        .color(theme.text_primary)
+                        .color(theme.text_primary),
                 );
 
                 // Progress or message
@@ -396,29 +429,33 @@ impl LoadingStateManager {
                     ui.add(
                         EguiProgressBar::new(progress)
                             .desired_width(200.0)
-                            .show_percentage()
+                            .show_percentage(),
                     );
                 } else if let Some(message) = &state.message {
                     ui.label(
                         RichText::new(message)
                             .size(11.0)
-                            .color(theme.text_secondary)
+                            .color(theme.text_secondary),
                     );
                 }
             });
 
             // Time and cancel button
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if state.cancellable && matches!(state.stage, LoadingStage::Starting | LoadingStage::InProgress) {
-                    if ui.small_button("×").on_hover_text("取消").clicked() {
-                        // Cancel logic handled by caller
-                    }
+                if state.cancellable
+                    && matches!(
+                        state.stage,
+                        LoadingStage::Starting | LoadingStage::InProgress
+                    )
+                    && ui.small_button("×").on_hover_text("取消").clicked()
+                {
+                    // Cancel logic handled by caller
                 }
 
                 ui.label(
                     RichText::new(crate::user_experience::format_duration(state.elapsed()))
                         .size(11.0)
-                        .color(theme.text_tertiary)
+                        .color(theme.text_tertiary),
                 );
             });
         });
@@ -460,9 +497,16 @@ impl LoadingButton {
         self
     }
 
-    pub fn render(&self, ui: &mut Ui, theme: &crate::design::DesignTheme, frame: u64) -> egui::Response {
+    pub fn render(
+        &self,
+        ui: &mut Ui,
+        theme: &crate::design::DesignTheme,
+        frame: u64,
+    ) -> egui::Response {
         let button_text = if self.is_loading {
-            self.loading_text.clone().unwrap_or_else(|| format!("{}...", self.label))
+            self.loading_text
+                .clone()
+                .unwrap_or_else(|| format!("{}...", self.label))
         } else {
             self.label.clone()
         };
@@ -472,14 +516,14 @@ impl LoadingButton {
                 Vec2::new(120.0, 36.0),
                 egui::Button::new(button_text)
                     .fill(theme.bg_tertiary)
-                    .sense(egui::Sense::hover()) // Non-interactive while loading
+                    .sense(egui::Sense::hover()), // Non-interactive while loading
             )
         } else {
             ui.add_sized(
                 Vec2::new(120.0, 36.0),
                 crate::design::AccessibleButton::new(theme, button_text)
                     .style(crate::design::AccessibleButtonStyle::Primary)
-                    .build()
+                    .build(),
             )
         };
 
@@ -493,7 +537,7 @@ impl LoadingButton {
                 egui::Rect::from_center_size(spinner_pos, Vec2::splat(16.0)),
                 |ui| {
                     spinner.render(ui, frame);
-                }
+                },
             );
         }
 
@@ -526,7 +570,7 @@ impl InlineLoading {
             ui.label(
                 RichText::new(&self.message)
                     .size(13.0)
-                    .color(theme.text_secondary)
+                    .color(theme.text_secondary),
             );
         });
     }

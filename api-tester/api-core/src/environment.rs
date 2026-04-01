@@ -1,6 +1,6 @@
 use crate::types::*;
-use std::collections::HashMap;
 use regex::Regex;
+use std::collections::HashMap;
 
 pub struct EnvironmentManager {
     environments: HashMap<String, Environment>,
@@ -71,18 +71,22 @@ impl EnvironmentManager {
         let env = self.get_active();
 
         if let Some(env) = env {
-            let var_map: HashMap<_, _> = env.variables
+            let var_map: HashMap<_, _> = env
+                .variables
                 .iter()
                 .filter(|v| v.enabled)
                 .map(|v| (v.key.clone(), v.value.clone()))
                 .collect();
 
-            pattern.replace_all(input, |caps: &regex::Captures| {
-                let var_name = &caps[1];
-                var_map.get(var_name)
-                    .cloned()
-                    .unwrap_or_else(|| caps[0].to_string())
-            }).to_string()
+            pattern
+                .replace_all(input, |caps: &regex::Captures| {
+                    let var_name = &caps[1];
+                    var_map
+                        .get(var_name)
+                        .cloned()
+                        .unwrap_or_else(|| caps[0].to_string())
+                })
+                .to_string()
         } else {
             input.to_string()
         }
@@ -130,7 +134,10 @@ impl EnvironmentManager {
                 *key = self.replace_variables(key);
                 *value = self.replace_variables(value);
             }
-            Auth::Oauth2 { access_token, refresh_token } => {
+            Auth::Oauth2 {
+                access_token,
+                refresh_token,
+            } => {
                 *access_token = self.replace_variables(access_token);
                 if let Some(rt) = refresh_token {
                     *rt = self.replace_variables(rt);
@@ -191,14 +198,12 @@ mod tests {
         let env = Environment {
             id: "env1".to_string(),
             name: "Development".to_string(),
-            variables: vec![
-                EnvironmentVariable {
-                    key: "host".to_string(),
-                    value: "api.dev.com".to_string(),
-                    enabled: true,
-                    description: None,
-                },
-            ],
+            variables: vec![EnvironmentVariable {
+                key: "host".to_string(),
+                value: "api.dev.com".to_string(),
+                enabled: true,
+                description: None,
+            }],
             is_default: true,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),

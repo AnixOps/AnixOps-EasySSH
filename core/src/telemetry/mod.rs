@@ -113,9 +113,11 @@ impl PlatformInfo {
             std::fs::read_to_string("/etc/os-release")
                 .ok()
                 .and_then(|s| {
-                    s.lines()
-                        .find(|l| l.starts_with("VERSION_ID="))
-                        .map(|l| l.trim_start_matches("VERSION_ID=").trim_matches('"').to_string())
+                    s.lines().find(|l| l.starts_with("VERSION_ID=")).map(|l| {
+                        l.trim_start_matches("VERSION_ID=")
+                            .trim_matches('"')
+                            .to_string()
+                    })
                 })
                 .unwrap_or_else(|| "unknown".to_string())
         }
@@ -317,10 +319,7 @@ impl TelemetryManager {
         let feature_flags = Arc::new(FeatureFlagManager::new()?);
         let feedback = Arc::new(FeedbackCollector::new(Arc::clone(&collector))?);
         let health_monitor = Arc::new(HealthMonitor::new()?);
-        let reporter = Arc::new(AnalyticsReporter::new(
-            &config,
-            Arc::clone(&storage),
-        )?);
+        let reporter = Arc::new(AnalyticsReporter::new(&config, Arc::clone(&storage))?);
 
         Ok(Self {
             config,
@@ -350,14 +349,18 @@ impl TelemetryManager {
         self.shutdown_tx = Some(shutdown_tx);
 
         self.reporter
-            .start(shutdown_rx, Duration::from_secs(self.config.flush_interval_secs))
+            .start(
+                shutdown_rx,
+                Duration::from_secs(self.config.flush_interval_secs),
+            )
             .await?;
 
         // Track app start
         self.track_event(TelemetryEvent::AppStarted {
             startup_time_ms: 0, // Updated by caller
             cold_start: true,
-        }).await;
+        })
+        .await;
 
         // Start health monitoring
         self.health_monitor.start().await?;
@@ -391,7 +394,8 @@ impl TelemetryManager {
         self.track_event(TelemetryEvent::FeatureUsed {
             feature: feature.to_string(),
             context,
-        }).await;
+        })
+        .await;
     }
 
     /// Track screen view
@@ -399,7 +403,8 @@ impl TelemetryManager {
         self.track_event(TelemetryEvent::ScreenViewed {
             screen: screen.to_string(),
             time_spent_ms,
-        }).await;
+        })
+        .await;
     }
 
     /// Track SSH connection (anonymized)
@@ -407,7 +412,8 @@ impl TelemetryManager {
         self.track_event(TelemetryEvent::SshConnected {
             auth_method: auth_method.to_string(),
             connection_time_ms,
-        }).await;
+        })
+        .await;
     }
 
     /// Track SSH disconnect
@@ -415,7 +421,8 @@ impl TelemetryManager {
         self.track_event(TelemetryEvent::SshDisconnected {
             session_duration_ms,
             bytes_transferred: None, // Optional metric
-        }).await;
+        })
+        .await;
     }
 
     /// Get metrics registry
@@ -456,14 +463,18 @@ impl TelemetryManager {
     /// Record a performance metric
     pub async fn record_performance(&self, metric_name: &str, value: f64, unit: &str) {
         let mut context = HashMap::new();
-        context.insert("unit".to_string(), serde_json::Value::String(unit.to_string()));
+        context.insert(
+            "unit".to_string(),
+            serde_json::Value::String(unit.to_string()),
+        );
 
         self.track_event(TelemetryEvent::PerformanceMetric {
             metric_name: metric_name.to_string(),
             value,
             unit: unit.to_string(),
             context,
-        }).await;
+        })
+        .await;
     }
 
     /// Shutdown telemetry
@@ -471,7 +482,8 @@ impl TelemetryManager {
         // Track app close
         self.track_event(TelemetryEvent::AppClosed {
             session_duration_ms: 0, // Would be calculated from actual session start
-        }).await;
+        })
+        .await;
 
         // Flush remaining events
         self.collector.flush().await?;
@@ -506,7 +518,8 @@ impl TelemetryManager {
 
     /// Get feature variant for user
     pub fn get_feature_variant(&self, flag_name: &str) -> Option<Variant> {
-        self.feature_flags.get_variant(flag_name, &self.anonymous_id)
+        self.feature_flags
+            .get_variant(flag_name, &self.anonymous_id)
     }
 }
 
@@ -536,17 +549,15 @@ static TELEMETRY_INIT: std::sync::Once = std::sync::Once::new();
 /// Initialize global telemetry
 pub fn init_global(config: TelemetryConfig) -> Result<Arc<TelemetryManager>, TelemetryError> {
     let mut result = None;
-    TELEMETRY_INIT.call_once(|| {
-        match TelemetryManager::new(config) {
-            Ok(manager) => {
-                unsafe {
-                    TELEMETRY = Some(Arc::new(manager));
-                }
-                result = unsafe { TELEMETRY.clone() };
+    TELEMETRY_INIT.call_once(|| match TelemetryManager::new(config) {
+        Ok(manager) => {
+            unsafe {
+                TELEMETRY = Some(Arc::new(manager));
             }
-            Err(e) => {
-                eprintln!("Failed to initialize telemetry: {}", e);
-            }
+            result = unsafe { TELEMETRY.clone() };
+        }
+        Err(e) => {
+            eprintln!("Failed to initialize telemetry: {}", e);
         }
     });
     result.ok_or_else(|| TelemetryError::Config("Telemetry already initialized".to_string()))
@@ -575,7 +586,8 @@ macro_rules! track_feature {
     ($feature:expr) => {
         if let Some(t) = $crate::telemetry::global() {
             tokio::spawn(async move {
-                t.track_feature($feature, std::collections::HashMap::new()).await;
+                t.track_feature($feature, std::collections::HashMap::new())
+                    .await;
             });
         }
     };

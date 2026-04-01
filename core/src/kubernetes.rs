@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{Mutex, RwLock};
 
@@ -121,9 +121,18 @@ pub struct K8sContainer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ContainerState {
-    Running { started_at: Option<DateTime<Utc>> },
-    Waiting { reason: String, message: String },
-    Terminated { exit_code: i32, reason: String, finished_at: Option<DateTime<Utc>> },
+    Running {
+        started_at: Option<DateTime<Utc>>,
+    },
+    Waiting {
+        reason: String,
+        message: String,
+    },
+    Terminated {
+        exit_code: i32,
+        reason: String,
+        finished_at: Option<DateTime<Utc>>,
+    },
     Unknown,
 }
 
@@ -495,7 +504,9 @@ impl K8sManager {
                     .find(|c| c.get("name").and_then(|n| n.as_str()) == Some(context_name))
             })
             .and_then(|c| c.get("context"))
-            .ok_or_else(|| K8sError::InvalidKubeconfig(format!("Context not found: {}", context_name)))?;
+            .ok_or_else(|| {
+                K8sError::InvalidKubeconfig(format!("Context not found: {}", context_name))
+            })?;
 
         let cluster_name = context
             .get("cluster")
@@ -516,7 +527,9 @@ impl K8sManager {
                     .find(|c| c.get("name").and_then(|n| n.as_str()) == Some(cluster_name))
             })
             .and_then(|c| c.get("cluster"))
-            .ok_or_else(|| K8sError::InvalidKubeconfig(format!("Cluster not found: {}", cluster_name)))?;
+            .ok_or_else(|| {
+                K8sError::InvalidKubeconfig(format!("Cluster not found: {}", cluster_name))
+            })?;
 
         let server_url = cluster_info
             .get("server")
@@ -624,7 +637,12 @@ impl K8sManager {
     }
 
     /// Get pod details
-    pub async fn get_pod(&self, _cluster_id: &str, _namespace: &str, _name: &str) -> Result<K8sPod> {
+    pub async fn get_pod(
+        &self,
+        _cluster_id: &str,
+        _namespace: &str,
+        _name: &str,
+    ) -> Result<K8sPod> {
         // Placeholder
         Err(K8sError::NotSupported("Not yet implemented".to_string()))
     }
@@ -636,7 +654,12 @@ impl K8sManager {
     }
 
     /// Restart pod (delete and let deployment recreate)
-    pub async fn restart_pod(&self, _cluster_id: &str, _namespace: &str, _name: &str) -> Result<()> {
+    pub async fn restart_pod(
+        &self,
+        _cluster_id: &str,
+        _namespace: &str,
+        _name: &str,
+    ) -> Result<()> {
         // Placeholder
         Err(K8sError::NotSupported("Not yet implemented".to_string()))
     }
@@ -747,11 +770,7 @@ impl K8sManager {
     }
 
     /// Get Secrets
-    pub async fn get_secrets(
-        &self,
-        _cluster_id: &str,
-        _namespace: &str,
-    ) -> Result<Vec<K8sSecret>> {
+    pub async fn get_secrets(&self, _cluster_id: &str, _namespace: &str) -> Result<Vec<K8sSecret>> {
         // Placeholder
         Ok(Vec::new())
     }
@@ -1022,7 +1041,11 @@ impl K8sManager {
     }
 
     /// Get node metrics
-    pub async fn get_node_metrics(&self, _cluster_id: &str, _node_name: &str) -> Result<K8sNodeResourceUsage> {
+    pub async fn get_node_metrics(
+        &self,
+        _cluster_id: &str,
+        _node_name: &str,
+    ) -> Result<K8sNodeResourceUsage> {
         // Placeholder
         Err(K8sError::NotSupported("Not yet implemented".to_string()))
     }

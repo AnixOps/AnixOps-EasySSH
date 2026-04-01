@@ -74,17 +74,15 @@ impl AppSettings {
             Some(path) => {
                 if path.exists() {
                     match std::fs::read_to_string(&path) {
-                        Ok(content) => {
-                            match serde_json::from_str::<AppSettings>(&content) {
-                                Ok(settings) => {
-                                    info!("Loaded settings from {:?}", path);
-                                    return settings;
-                                }
-                                Err(e) => {
-                                    warn!("Failed to parse settings file: {}, using defaults", e);
-                                }
+                        Ok(content) => match serde_json::from_str::<AppSettings>(&content) {
+                            Ok(settings) => {
+                                info!("Loaded settings from {:?}", path);
+                                return settings;
                             }
-                        }
+                            Err(e) => {
+                                warn!("Failed to parse settings file: {}, using defaults", e);
+                            }
+                        },
                         Err(e) => {
                             warn!("Failed to read settings file: {}, using defaults", e);
                         }

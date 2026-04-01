@@ -188,7 +188,7 @@ impl TabBar {
             .tab-indicator.disconnected {
                 color: @error_color;
             }
-            "#
+            "#,
         );
 
         gtk4::style_context_add_provider_for_display(
@@ -200,11 +200,12 @@ impl TabBar {
 
     fn setup_signals(&self) {
         // New tab button
-        self.new_tab_button.connect_clicked(glib::clone!(@weak self as bar => move |_| {
-            if let Some(ref callback) = *bar.on_new_tab.borrow() {
-                callback();
-            }
-        }));
+        self.new_tab_button
+            .connect_clicked(glib::clone!(@weak self as bar => move |_| {
+                if let Some(ref callback) = *bar.on_new_tab.borrow() {
+                    callback();
+                }
+            }));
     }
 
     /// Add a new tab
@@ -216,7 +217,9 @@ impl TabBar {
 
         // Create tab button
         let tab_button = self.create_tab_button(&tab);
-        self.tab_buttons.borrow_mut().insert(session_id.clone(), tab_button.clone());
+        self.tab_buttons
+            .borrow_mut()
+            .insert(session_id.clone(), tab_button.clone());
         self.tab_box.append(&tab_button);
 
         // Set as active
@@ -270,12 +273,14 @@ impl TabBar {
         // Left click to select
         let gesture = gtk4::GestureClick::new();
         gesture.set_button(gtk4::gdk::BUTTON_PRIMARY);
-        gesture.connect_released(glib::clone!(@weak self as bar, @weak button => move |_, _, _, _| {
-            bar.set_active_tab(&session_id);
-            if let Some(ref callback) = *bar.on_tab_selected.borrow() {
-                callback(&session_id);
-            }
-        }));
+        gesture.connect_released(
+            glib::clone!(@weak self as bar, @weak button => move |_, _, _, _| {
+                bar.set_active_tab(&session_id);
+                if let Some(ref callback) = *bar.on_tab_selected.borrow() {
+                    callback(&session_id);
+                }
+            }),
+        );
         button.add_controller(gesture);
 
         // Middle click to close
@@ -289,12 +294,14 @@ impl TabBar {
         // Close button - use GestureClick to avoid signal propagation issues
         let close_gesture = gtk4::GestureClick::new();
         close_gesture.set_button(gtk4::gdk::BUTTON_PRIMARY);
-        close_gesture.connect_released(glib::clone!(@weak self as bar, @weak button => move |_, _, _, _| {
-            // Don't select the tab when closing
-            bar.close_tab(&session_id_for_close);
-            // Prevent further handling
-            glib::signal::signal_stop_emission_by_name(button.as_ref(), "clicked");
-        }));
+        close_gesture.connect_released(
+            glib::clone!(@weak self as bar, @weak button => move |_, _, _, _| {
+                // Don't select the tab when closing
+                bar.close_tab(&session_id_for_close);
+                // Prevent further handling
+                glib::signal::signal_stop_emission_by_name(button.as_ref(), "clicked");
+            }),
+        );
         close_btn.add_controller(close_gesture);
 
         // Drag and drop for reordering
@@ -308,7 +315,8 @@ impl TabBar {
         let session_id_drop = session_id.to_string();
 
         // Drag source - using string content
-        let drag_content = gtk4::gdk::ContentProvider::from_value(glib::Value::from(&session_id_drag));
+        let drag_content =
+            gtk4::gdk::ContentProvider::from_value(glib::Value::from(&session_id_drag));
         let drag_source = gtk4::DragSource::builder()
             .content(&drag_content)
             .actions(gtk4::gdk::DragAction::MOVE)
@@ -325,10 +333,7 @@ impl TabBar {
         button.add_controller(drag_source);
 
         // Drop target
-        let drop_target = gtk4::DropTarget::new(
-            glib::Type::STRING,
-            gtk4::gdk::DragAction::MOVE,
-        );
+        let drop_target = gtk4::DropTarget::new(glib::Type::STRING, gtk4::gdk::DragAction::MOVE);
 
         drop_target.connect_enter(glib::clone!(@weak button => move |_, _, _| {
             button.add_css_class("tab-drag-target");
@@ -339,19 +344,21 @@ impl TabBar {
             button.remove_css_class("tab-drag-target");
         }));
 
-        drop_target.connect_drop(glib::clone!(@weak self as bar, @weak button => move |_, value, _, _| {
-            button.remove_css_class("tab-drag-target");
+        drop_target.connect_drop(
+            glib::clone!(@weak self as bar, @weak button => move |_, value, _, _| {
+                button.remove_css_class("tab-drag-target");
 
-            if let Ok(dragged_id) = value.get::<String>() {
-                let target_id = session_id_drop.clone();
-                if dragged_id != target_id {
-                    bar.reorder_tabs(&dragged_id, &target_id);
+                if let Ok(dragged_id) = value.get::<String>() {
+                    let target_id = session_id_drop.clone();
+                    if dragged_id != target_id {
+                        bar.reorder_tabs(&dragged_id, &target_id);
+                    }
+                    true
+                } else {
+                    false
                 }
-                true
-            } else {
-                false
-            }
-        }));
+            }),
+        );
 
         button.add_controller(drop_target);
     }
@@ -375,7 +382,12 @@ impl TabBar {
 
             // Notify callback
             if let Some(ref callback) = *self.on_tab_reordered.borrow() {
-                let order: Vec<String> = self.tabs.borrow().iter().map(|t| t.session_id.clone()).collect();
+                let order: Vec<String> = self
+                    .tabs
+                    .borrow()
+                    .iter()
+                    .map(|t| t.session_id.clone())
+                    .collect();
                 callback(order);
             }
         }
@@ -455,7 +467,11 @@ impl TabBar {
 
     /// Get tab by session ID
     pub fn get_tab(&self, session_id: &str) -> Option<SessionTab> {
-        self.tabs.borrow().iter().find(|t| t.session_id == session_id).cloned()
+        self.tabs
+            .borrow()
+            .iter()
+            .find(|t| t.session_id == session_id)
+            .cloned()
     }
 
     /// Get all tabs
@@ -688,24 +704,27 @@ impl TerminalSession {
         }));
 
         // Enter key
-        self.command_entry.connect_activate(glib::clone!(@weak self as session => move |_| {
-            session.execute_command(view_model.clone());
-        }));
+        self.command_entry
+            .connect_activate(glib::clone!(@weak self as session => move |_| {
+                session.execute_command(view_model.clone());
+            }));
 
         // History navigation
-        self.command_entry.connect_key_pressed(glib::clone!(@weak self as session => move |_, key, _, _| {
-            match key {
-                gtk4::gdk::Key::Up => {
-                    session.navigate_history(true);
-                    glib::Propagation::Stop
+        self.command_entry.connect_key_pressed(
+            glib::clone!(@weak self as session => move |_, key, _, _| {
+                match key {
+                    gtk4::gdk::Key::Up => {
+                        session.navigate_history(true);
+                        glib::Propagation::Stop
+                    }
+                    gtk4::gdk::Key::Down => {
+                        session.navigate_history(false);
+                        glib::Propagation::Stop
+                    }
+                    _ => glib::Propagation::Proceed,
                 }
-                gtk4::gdk::Key::Down => {
-                    session.navigate_history(false);
-                    glib::Propagation::Stop
-                }
-                _ => glib::Propagation::Proceed,
-            }
-        }));
+            }),
+        );
     }
 
     pub fn start_stream(&self, receiver: UnboundedReceiver<String>) {
@@ -761,7 +780,8 @@ impl TerminalSession {
 
         // Display command
         let end_iter = self.text_buffer.end_iter();
-        self.text_buffer.insert(&end_iter, &format!("$ {}\n", command));
+        self.text_buffer
+            .insert(&end_iter, &format!("$ {}\n", command));
 
         // Send command
         let line = format!("{}\n", command);
@@ -769,7 +789,8 @@ impl TerminalSession {
         let vm = view_model.lock().unwrap();
         if let Err(e) = vm.write_shell_input(&sid, line.as_bytes()) {
             let end_iter = self.text_buffer.end_iter();
-            self.text_buffer.insert(&end_iter, &format!("Error: {}\n", e));
+            self.text_buffer
+                .insert(&end_iter, &format!("Error: {}\n", e));
         }
 
         self.command_entry.set_text("");
@@ -874,10 +895,13 @@ impl MultiSessionTerminal {
         let terminal = TerminalSession::new(&session_id, self.view_model.clone());
 
         // Add to stack
-        self.terminal_stack.add_named(terminal.widget(), &session_id);
+        self.terminal_stack
+            .add_named(terminal.widget(), &session_id);
 
         // Store
-        self.terminals.borrow_mut().insert(session_id.clone(), terminal);
+        self.terminals
+            .borrow_mut()
+            .insert(session_id.clone(), terminal);
 
         // Show this session
         self.terminal_stack.set_visible_child_name(&session_id);
@@ -952,7 +976,11 @@ impl MultiSessionTerminal {
 
     /// Get all tab session IDs in order
     pub fn get_all_tab_ids(&self) -> Vec<String> {
-        self.tab_bar.get_all_tabs().iter().map(|t| t.session_id.clone()).collect()
+        self.tab_bar
+            .get_all_tabs()
+            .iter()
+            .map(|t| t.session_id.clone())
+            .collect()
     }
 }
 

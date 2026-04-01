@@ -30,13 +30,13 @@ pub mod scheduler;
 pub mod storage;
 pub mod verification;
 
-pub use compression::{compress_backup, decompress_backup, encrypt_backup, decrypt_backup};
+pub use compression::{compress_backup, decompress_backup, decrypt_backup, encrypt_backup};
 // CompressionFormat is defined and exported from this module directly
 pub use database::{backup_mysql, backup_postgresql, DatabaseBackupConfig};
 pub use engine::{BackupEngine, BackupEngineConfig, BackupJob, BackupJobBuilder};
-pub use incremental::{IncrementalBackupManager, FileHash, IncrementalIndex};
-pub use remote::{RemoteFileBackup, RemoteBackupConfig, RemoteBackupSource};
-pub use report::{BackupReport, BackupReportGenerator, BackupMetrics, NotificationChannel};
+pub use incremental::{FileHash, IncrementalBackupManager, IncrementalIndex};
+pub use remote::{RemoteBackupConfig, RemoteBackupSource, RemoteFileBackup};
+pub use report::{BackupMetrics, BackupReport, BackupReportGenerator, NotificationChannel};
 pub use restore::{RestoreManager, RestoreOptions, RestorePoint};
 pub use scheduler::{BackupScheduler, CronSchedule, ScheduleConfig};
 pub use storage::{BackupStorage, LocalStorage, StorageBackend, StorageCredentials};
@@ -141,10 +141,7 @@ pub enum BackupTarget {
         region: String,
     },
     /// Google Cloud Storage
-    Gcs {
-        bucket: String,
-        prefix: String,
-    },
+    Gcs { bucket: String, prefix: String },
     /// Azure Blob Storage
     Azure {
         account: String,
@@ -347,8 +344,12 @@ impl Default for BackupConfig {
         Self {
             name: "Untitled Backup".to_string(),
             description: None,
-            source: BackupSource::Local { path: PathBuf::from("/") },
-            targets: vec![BackupTarget::Local { path: PathBuf::from("/backups") }],
+            source: BackupSource::Local {
+                path: PathBuf::from("/"),
+            },
+            targets: vec![BackupTarget::Local {
+                path: PathBuf::from("/backups"),
+            }],
             backup_type: BackupType::Incremental,
             schedule: None,
             retention: RetentionPolicy::default(),
@@ -572,7 +573,12 @@ impl BackupFilter {
         if let Ok(regex) = regex::Regex::new(&pattern) {
             regex.is_match(path)
         } else {
-            path.contains(&pattern.replace(".*", "").replace("[^/]*", "").replace("[^/]", ""))
+            path.contains(
+                &pattern
+                    .replace(".*", "")
+                    .replace("[^/]*", "")
+                    .replace("[^/]", ""),
+            )
         }
     }
 }

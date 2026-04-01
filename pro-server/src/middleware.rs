@@ -6,15 +6,10 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::{
-    auth::decode_token,
-    models::ErrorResponse,
-    redis_cache::RedisCache,
-    AppState,
-};
+use crate::{auth::decode_token, models::ErrorResponse, redis_cache::RedisCache, AppState};
 
-pub mod rate_limit;
 pub mod auth;
+pub mod rate_limit;
 
 // Authentication middleware
 pub async fn auth_middleware(
@@ -36,17 +31,15 @@ pub async fn auth_middleware(
             }),
         ))?;
 
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or((
-            StatusCode::UNAUTHORIZED,
-            axum::Json(ErrorResponse {
-                error: "invalid_token_format".to_string(),
-                message: "Authorization header must start with 'Bearer '".to_string(),
-                code: Some("invalid_token_format".to_string()),
-                details: None,
-            }),
-        ))?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or((
+        StatusCode::UNAUTHORIZED,
+        axum::Json(ErrorResponse {
+            error: "invalid_token_format".to_string(),
+            message: "Authorization header must start with 'Bearer '".to_string(),
+            code: Some("invalid_token_format".to_string()),
+            details: None,
+        }),
+    ))?;
 
     // Try JWT authentication first
     match decode_token(token, &state.config.jwt_secret) {
@@ -102,7 +95,10 @@ pub async fn auth_middleware(
 use sha256;
 
 // RBAC middleware factory
-pub fn require_permission(resource_type: &'static str, action: &'static str) -> impl axum::middleware::Layer {
+pub fn require_permission(
+    resource_type: &'static str,
+    action: &'static str,
+) -> impl axum::middleware::Layer {
     // This would check permissions based on the user's role
     // Implementation depends on your RBAC service
     axum::middleware::from_fn(move |req: Request, next: Next| async move {
@@ -112,10 +108,7 @@ pub fn require_permission(resource_type: &'static str, action: &'static str) -> 
 }
 
 // Error handling middleware
-pub async fn error_handling_middleware(
-    req: Request,
-    next: Next,
-) -> Response {
+pub async fn error_handling_middleware(req: Request, next: Next) -> Response {
     let response = next.run(req).await;
 
     // Log errors and transform if needed

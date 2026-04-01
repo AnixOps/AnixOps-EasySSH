@@ -307,7 +307,8 @@ impl WebGlRenderer {
         let cells = std::mem::take(&mut self.cell_buffer);
         self.cell_buffer.reserve(self.config.batch_threshold);
 
-        self.render_queue.push_back(RenderCommand::RenderCells { cells });
+        self.render_queue
+            .push_back(RenderCommand::RenderCells { cells });
     }
 
     /// 提交清屏命令
@@ -317,7 +318,8 @@ impl WebGlRenderer {
 
     /// 提交光标渲染命令
     pub fn render_cursor(&mut self, x: u16, y: u16, style: CursorStyle) {
-        self.render_queue.push_back(RenderCommand::RenderCursor { x, y, style });
+        self.render_queue
+            .push_back(RenderCommand::RenderCursor { x, y, style });
     }
 
     /// 执行渲染帧
@@ -345,7 +347,8 @@ impl WebGlRenderer {
         }
 
         let avg_frame_time: Duration = self.frame_times.iter().sum();
-        let avg_frame_time_ms = avg_frame_time.as_secs_f32() * 1000.0 / self.frame_times.len() as f32;
+        let avg_frame_time_ms =
+            avg_frame_time.as_secs_f32() * 1000.0 / self.frame_times.len() as f32;
 
         let fps = 1000.0 / avg_frame_time_ms;
 
@@ -387,8 +390,8 @@ impl WebGlRenderer {
             }
             RenderCommand::RenderCells { cells } => {
                 // 批量渲染单元格
-                let batch_count = (cells.len() + self.config.batch_threshold - 1)
-                    / self.config.batch_threshold;
+                let batch_count =
+                    (cells.len() + self.config.batch_threshold - 1) / self.config.batch_threshold;
 
                 {
                     let mut stats = self.stats.write().await;
@@ -397,7 +400,11 @@ impl WebGlRenderer {
                     stats.cells_rendered += cells.len() as u64;
                 }
 
-                log::debug!("WebGL Render {} cells in {} batches", cells.len(), batch_count);
+                log::debug!(
+                    "WebGL Render {} cells in {} batches",
+                    cells.len(),
+                    batch_count
+                );
             }
             RenderCommand::RenderCursor { x, y, style } => {
                 log::debug!("WebGL Render cursor at ({}, {}), style={:?}", x, y, style);
@@ -405,7 +412,11 @@ impl WebGlRenderer {
             RenderCommand::Scroll { y_offset, region } => {
                 log::debug!(
                     "WebGL Scroll: offset={}, region=[{}, {}, {}, {}]",
-                    y_offset, region.top, region.bottom, region.left, region.right
+                    y_offset,
+                    region.top,
+                    region.bottom,
+                    region.left,
+                    region.right
                 );
             }
             RenderCommand::UpdateAtlas { chars } => {
@@ -559,7 +570,10 @@ pub struct RenderOptimizer;
 
 impl RenderOptimizer {
     /// 根据当前状态优化配置
-    pub fn optimize_config(current_stats: &RenderStats, current_config: &WebGlConfig) -> WebGlConfig {
+    pub fn optimize_config(
+        current_stats: &RenderStats,
+        current_config: &WebGlConfig,
+    ) -> WebGlConfig {
         let mut new_config = current_config.clone();
 
         // 如果FPS持续低于目标，降低质量

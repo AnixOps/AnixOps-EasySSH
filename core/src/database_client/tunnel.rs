@@ -1,13 +1,13 @@
 //! SSH tunnel support for database connections
 
+use crate::database_client::DatabaseError;
+use crate::ssh::SshSessionManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
 use tokio::net::{TcpListener, TcpStream};
-use crate::database_client::DatabaseError;
-use crate::ssh::SshSessionManager;
+use tokio::sync::{Mutex, RwLock};
 
 /// SSH tunnel configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,10 +99,7 @@ impl TunnelManager {
     }
 
     /// Create and start a tunnel
-    pub async fn create_tunnel(
-        &self,
-        config: TunnelConfig,
-    ) -> Result<SocketAddr, DatabaseError> {
+    pub async fn create_tunnel(&self, config: TunnelConfig) -> Result<SocketAddr, DatabaseError> {
         // Check if already exists
         {
             let tunnels = self.tunnels.read().await;
@@ -120,10 +117,12 @@ impl TunnelManager {
             config.local_address()
         };
 
-        let listener = TcpListener::bind(&bind_addr).await
+        let listener = TcpListener::bind(&bind_addr)
+            .await
             .map_err(|e| DatabaseError::TunnelError(format!("Failed to bind: {}", e)))?;
 
-        let local_addr = listener.local_addr()
+        let local_addr = listener
+            .local_addr()
             .map_err(|e| DatabaseError::TunnelError(e.to_string()))?;
 
         // Store listener
@@ -167,13 +166,11 @@ impl TunnelManager {
                 Ok(local_addr)
             } else {
                 Err(DatabaseError::TunnelError(
-                    "Failed to establish tunnel".to_string()
+                    "Failed to establish tunnel".to_string(),
                 ))
             }
         } else {
-            Err(DatabaseError::TunnelError(
-                "Tunnel not found".to_string()
-            ))
+            Err(DatabaseError::TunnelError("Tunnel not found".to_string()))
         }
     }
 
@@ -197,12 +194,16 @@ impl TunnelManager {
 
         // Keep tunnel alive
         loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(config.keep_alive_interval_secs)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(
+                config.keep_alive_interval_secs,
+            ))
+            .await;
 
             // Check if should continue
             let should_continue = {
                 let tunnels = tunnels.read().await;
-                tunnels.get(&config.id)
+                tunnels
+                    .get(&config.id)
                     .map(|t| t.state == TunnelState::Connected)
                     .unwrap_or(false)
             };
@@ -266,8 +267,10 @@ impl TunnelManager {
             // Try to connect to local port
             match tokio::time::timeout(
                 tokio::time::Duration::from_secs(5),
-                TcpStream::connect(tunnel.local_addr)
-            ).await {
+                TcpStream::connect(tunnel.local_addr),
+            )
+            .await
+            {
                 Ok(Ok(_)) => Ok(true),
                 _ => Ok(false),
             }
@@ -281,9 +284,14 @@ impl TunnelManager {
         let tunnels = self.tunnels.read().await;
 
         tunnels.get(tunnel_id).map(|t| {
-            let uptime_secs = t.connected_at.map(|start| {
-                chrono::Utc::now().signed_duration_since(start).num_seconds() as u64
-            }).unwrap_or(0);
+            let uptime_secs = t
+                .connected_at
+                .map(|start| {
+                    chrono::Utc::now()
+                        .signed_duration_since(start)
+                        .num_seconds() as u64
+                })
+                .unwrap_or(0);
 
             TunnelStatistics {
                 uptime_secs,
@@ -315,10 +323,13 @@ impl TunnelManager {
         config.remote_port = db_port;
 
         // Find an available local port
-        let test_listener = TcpListener::bind("127.0.0.1:0").await
+        let test_listener = TcpListener::bind("127.0.0.1:0")
+            .await
             .map_err(|e| DatabaseError::TunnelError(e.to_string()))?;
-        let local_port = test_listener.local_addr()
-            .map_err(|e| DatabaseError::TunnelError(e.to_string()))?.port();
+        let local_port = test_listener
+            .local_addr()
+            .map_err(|e| DatabaseError::TunnelError(e.to_string()))?
+            .port();
         drop(test_listener);
 
         config.local_bind_port = local_port;

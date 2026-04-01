@@ -27,14 +27,14 @@
 use crate::crypto::CryptoState;
 use crate::db::Database;
 use crate::error::LiteError;
-use serde::{Serialize, Deserialize};
+use chrono;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock, Mutex};
+use tokio::sync::{mpsc, Mutex, RwLock};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-use chrono;
-use tracing::{info, warn, error, debug};
 
 // ============ 数据模型 ============
 
@@ -57,11 +57,11 @@ impl SyncDocumentType {
     /// 获取该类型的优先级（用于冲突解决排序）
     pub fn priority(&self) -> u8 {
         match self {
-            SyncDocumentType::Setting => 0,      // 设置最先处理
-            SyncDocumentType::Group => 1,        // 分组次之
+            SyncDocumentType::Setting => 0, // 设置最先处理
+            SyncDocumentType::Group => 1,   // 分组次之
             SyncDocumentType::Tag => 2,
             SyncDocumentType::Identity => 3,
-            SyncDocumentType::Host => 4,         // 主机依赖分组和身份
+            SyncDocumentType::Host => 4, // 主机依赖分组和身份
             SyncDocumentType::Snippet => 5,
             SyncDocumentType::Layout => 6,
             SyncDocumentType::KnownHost => 7,
@@ -71,11 +71,12 @@ impl SyncDocumentType {
 
     /// 是否支持字段级合并
     pub fn supports_field_merge(&self) -> bool {
-        matches!(self,
-            SyncDocumentType::Host |
-            SyncDocumentType::Group |
-            SyncDocumentType::Identity |
-            SyncDocumentType::Snippet
+        matches!(
+            self,
+            SyncDocumentType::Host
+                | SyncDocumentType::Group
+                | SyncDocumentType::Identity
+                | SyncDocumentType::Snippet
         )
     }
 }
@@ -96,14 +97,14 @@ pub struct SyncDocument {
     pub doc_type: SyncDocumentType,
     pub device_id: String,
     pub operation: SyncOperation,
-    pub timestamp: i64,  // Unix timestamp in milliseconds
-    pub vector_clock: HashMap<String, u64>,  // 用于冲突解决 (CRDT)
-    pub encrypted_data: Vec<u8>,  // AES-256-GCM 加密的数据
-    pub content_hash: String,  // SHA-256 of original content for integrity
-    pub parent_hashes: Vec<String>,  // 父版本哈希，支持分支历史
+    pub timestamp: i64,                     // Unix timestamp in milliseconds
+    pub vector_clock: HashMap<String, u64>, // 用于冲突解决 (CRDT)
+    pub encrypted_data: Vec<u8>,            // AES-256-GCM 加密的数据
+    pub content_hash: String,               // SHA-256 of original content for integrity
+    pub parent_hashes: Vec<String>,         // 父版本哈希，支持分支历史
     pub deleted: bool,
-    pub group_id: Option<String>,  // 用于选择性同步
-    pub schema_version: u32,  // 数据模式版本，用于迁移
+    pub group_id: Option<String>, // 用于选择性同步
+    pub schema_version: u32,      // 数据模式版本，用于迁移
 }
 
 impl SyncDocument {
@@ -158,7 +159,7 @@ impl SyncDocument {
     pub fn is_ancestor_of(&self, other: &SyncDocument) -> bool {
         // 如果内容哈希相同，视为同一版本，无祖先关系
         if self.content_hash == other.content_hash {
-            return true;  // 相同内容，视为有祖先关系（无冲突）
+            return true; // 相同内容，视为有祖先关系（无冲突）
         }
 
         let mut all_lte = true;
@@ -193,7 +194,7 @@ pub struct SyncBundle {
     pub device_id: String,
     pub timestamp: i64,
     pub documents: Vec<SyncDocument>,
-    pub checkpoint: String,  // 最后同步检查点
+    pub checkpoint: String, // 最后同步检查点
     pub compressed: bool,
     pub schema_version: u32,
 }
@@ -214,9 +215,7 @@ impl SyncBundle {
 
     /// 计算Bundle的大小（用于统计）
     pub fn size_bytes(&self) -> usize {
-        self.documents.iter()
-            .map(|d| d.encrypted_data.len())
-            .sum()
+        self.documents.iter().map(|d| d.encrypted_data.len()).sum()
     }
 }
 
@@ -226,7 +225,7 @@ pub struct SyncMetadata {
     pub version: String,
     pub device_count: u32,
     pub last_modified: i64,
-    pub encryption_key_hash: String,  // 用于验证密钥一致性 (BLAKE3)
+    pub encryption_key_hash: String, // 用于验证密钥一致性 (BLAKE3)
     pub total_documents: u64,
     pub schema_version: u32,
 }
@@ -249,10 +248,10 @@ impl Default for SyncMetadata {
 pub struct DeviceInfo {
     pub device_id: String,
     pub device_name: String,
-    pub device_type: String,  // desktop, mobile, tablet
-    pub platform: String,  // windows, macos, linux, ios, android
+    pub device_type: String, // desktop, mobile, tablet
+    pub platform: String,    // windows, macos, linux, ios, android
     pub last_seen: i64,
-    pub capabilities: Vec<String>,  // 支持的功能
+    pub capabilities: Vec<String>, // 支持的功能
     pub app_version: String,
 }
 
@@ -265,7 +264,7 @@ pub struct SyncVersion {
     pub description: Option<String>,
     pub document_count: u32,
     pub size_bytes: u64,
-    pub tags: Vec<String>,  // 可标记版本（如"v1.0 release"）
+    pub tags: Vec<String>, // 可标记版本（如"v1.0 release"）
 }
 
 /// 冲突信息
@@ -277,7 +276,7 @@ pub struct SyncConflict {
     pub remote_version: SyncDocument,
     pub resolution: Option<SyncConflictResolution>,
     pub detected_at: i64,
-    pub field_conflicts: Vec<FieldConflict>,  // 字段级冲突详情
+    pub field_conflicts: Vec<FieldConflict>, // 字段级冲突详情
 }
 
 /// 字段级冲突
@@ -286,23 +285,24 @@ pub struct FieldConflict {
     pub field_name: String,
     pub local_value: serde_json::Value,
     pub remote_value: serde_json::Value,
-    pub resolution: Option<serde_json::Value>,  // 合并后的值
+    pub resolution: Option<serde_json::Value>, // 合并后的值
 }
 
 /// 冲突解决策略
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncConflictResolution {
-    UseLocal,           // 保留本地版本
-    UseRemote,          // 使用远程版本
-    Merge,              // 尝试智能字段级合并
-    KeepBoth,           // 保留两个版本（重命名远程）
-    Interactive,        // 提示用户选择（桌面端）
-    TimestampWins,      // 较晚时间戳获胜
-    DevicePriority {    // 基于设备优先级
+    UseLocal,      // 保留本地版本
+    UseRemote,     // 使用远程版本
+    Merge,         // 尝试智能字段级合并
+    KeepBoth,      // 保留两个版本（重命名远程）
+    Interactive,   // 提示用户选择（桌面端）
+    TimestampWins, // 较晚时间戳获胜
+    DevicePriority {
+        // 基于设备优先级
         device_order: Vec<String>,
     },
-    Skip,               // 跳过此冲突
+    Skip, // 跳过此冲突
 }
 
 impl Default for SyncConflictResolution {
@@ -347,7 +347,7 @@ pub struct SyncConfig {
     pub enabled: bool,
     pub device_id: String,
     pub device_name: String,
-    pub encryption_key: Option<String>,  // 用于端到端加密的密钥
+    pub encryption_key: Option<String>, // 用于端到端加密的密钥
     pub provider: SyncProvider,
     pub scope: SyncScope,
     pub auto_sync: bool,
@@ -356,8 +356,8 @@ pub struct SyncConfig {
     pub local_sync_enabled: bool,
     pub max_history_versions: u32,
     pub last_sync_at: Option<i64>,
-    pub deduplication_enabled: bool,  // 启用去重
-    pub compression_enabled: bool,    // 启用压缩
+    pub deduplication_enabled: bool, // 启用去重
+    pub compression_enabled: bool,   // 启用压缩
 }
 
 impl Default for SyncConfig {
@@ -386,16 +386,13 @@ impl Default for SyncConfig {
 #[serde(rename_all = "snake_case")]
 pub enum SyncProvider {
     Disabled,
-    ICloud,           // Apple iCloud
-    GoogleDrive,      // Google Drive
-    OneDrive,         // Microsoft OneDrive
-    DropBox,          // Dropbox
-    SelfHosted {
-        url: String,
-        token: String,
-    },
-    LocalNetwork,     // 本地WiFi同步
-    CustomPath(PathBuf),  // 本地自定义路径（用于测试或nas）
+    ICloud,      // Apple iCloud
+    GoogleDrive, // Google Drive
+    OneDrive,    // Microsoft OneDrive
+    DropBox,     // Dropbox
+    SelfHosted { url: String, token: String },
+    LocalNetwork,        // 本地WiFi同步
+    CustomPath(PathBuf), // 本地自定义路径（用于测试或nas）
 }
 
 /// 同步状态
@@ -429,8 +426,8 @@ pub struct SyncStats {
     pub bytes_uploaded: u64,
     pub bytes_downloaded: u64,
     pub sync_duration_ms: u64,
-    pub deduplicated_count: u32,  // 去重节省的文档数
-    pub compression_ratio: f64,   // 压缩比例
+    pub deduplicated_count: u32, // 去重节省的文档数
+    pub compression_ratio: f64,  // 压缩比例
 }
 
 /// 本地网络同步发现消息
@@ -441,8 +438,8 @@ pub struct LocalSyncBeacon {
     pub port: u16,
     pub protocol_version: u32,
     pub timestamp: i64,
-    pub signature: Vec<u8>,  // 防止伪造
-    pub public_key_fingerprint: String,  // 用于TLS验证
+    pub signature: Vec<u8>,             // 防止伪造
+    pub public_key_fingerprint: String, // 用于TLS验证
 }
 
 /// 原始配置数据（加密前的结构）
@@ -470,7 +467,7 @@ pub struct SyncManager {
     event_rx: Arc<Mutex<mpsc::UnboundedReceiver<SyncEvent>>>,
     vector_clock: Arc<RwLock<HashMap<String, u64>>>,
     history: Arc<RwLock<Vec<SyncVersion>>>,
-    content_hashes: Arc<RwLock<HashMap<String, String>>>,  // id -> hash 映射，用于去重
+    content_hashes: Arc<RwLock<HashMap<String, String>>>, // id -> hash 映射，用于去重
 }
 
 /// 同步事件
@@ -478,15 +475,38 @@ pub struct SyncManager {
 pub enum SyncEvent {
     Started,
     Initializing,
-    Progress { current: u32, total: u32, message: String },
-    DocumentSynced { id: String, doc_type: SyncDocumentType, operation: SyncOperation },
-    ConflictDetected { conflict: SyncConflict },
-    ConflictResolved { document_id: String, resolution: SyncConflictResolution },
-    VersionCreated { version: SyncVersion },
-    Completed { stats: SyncStats },
-    Error { error: String },
-    DeviceDiscovered { device: DeviceInfo },
-    ConnectivityChanged { online: bool },
+    Progress {
+        current: u32,
+        total: u32,
+        message: String,
+    },
+    DocumentSynced {
+        id: String,
+        doc_type: SyncDocumentType,
+        operation: SyncOperation,
+    },
+    ConflictDetected {
+        conflict: SyncConflict,
+    },
+    ConflictResolved {
+        document_id: String,
+        resolution: SyncConflictResolution,
+    },
+    VersionCreated {
+        version: SyncVersion,
+    },
+    Completed {
+        stats: SyncStats,
+    },
+    Error {
+        error: String,
+    },
+    DeviceDiscovered {
+        device: DeviceInfo,
+    },
+    ConnectivityChanged {
+        online: bool,
+    },
 }
 
 #[async_trait::async_trait]
@@ -535,7 +555,8 @@ impl LocalSyncHandler {
     }
 
     pub fn add_discovered_device(&mut self, device: DeviceInfo) {
-        self.discovered_devices.insert(device.device_id.clone(), device);
+        self.discovered_devices
+            .insert(device.device_id.clone(), device);
     }
 
     pub fn remove_device(&mut self, device_id: &str) {
@@ -551,10 +572,7 @@ impl LocalSyncHandler {
 
 impl SyncManager {
     /// 创建新的同步管理器
-    pub fn new(
-        db: Database,
-        config: SyncConfig,
-    ) -> Result<Self, LiteError> {
+    pub fn new(db: Database, config: SyncConfig) -> Result<Self, LiteError> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
         // 初始化加密状态
@@ -647,29 +665,37 @@ impl SyncManager {
 
         if !is_online {
             *self.status.write().await = SyncStatus::Offline;
-            self.event_tx.send(SyncEvent::ConnectivityChanged { online: false }).ok();
+            self.event_tx
+                .send(SyncEvent::ConnectivityChanged { online: false })
+                .ok();
             return Err(LiteError::Config("No network connection".to_string()));
         }
 
-        self.event_tx.send(SyncEvent::ConnectivityChanged { online: true }).ok();
+        self.event_tx
+            .send(SyncEvent::ConnectivityChanged { online: true })
+            .ok();
 
         // 2. 从数据库获取本地变更
         *self.status.write().await = SyncStatus::FetchingRemote;
-        self.event_tx.send(SyncEvent::Progress {
-            current: 10,
-            total: 100,
-            message: "Fetching local changes...".to_string(),
-        }).ok();
+        self.event_tx
+            .send(SyncEvent::Progress {
+                current: 10,
+                total: 100,
+                message: "Fetching local changes...".to_string(),
+            })
+            .ok();
 
         let local_docs = self.get_local_changes().await?;
         let local_doc_count = local_docs.len() as u32;
 
         // 3. 从云端获取远程变更
-        self.event_tx.send(SyncEvent::Progress {
-            current: 20,
-            total: 100,
-            message: "Fetching remote changes...".to_string(),
-        }).ok();
+        self.event_tx
+            .send(SyncEvent::Progress {
+                current: 20,
+                total: 100,
+                message: "Fetching remote changes...".to_string(),
+            })
+            .ok();
 
         let last_sync = config.last_sync_at.unwrap_or(0);
         let provider = self.provider.lock().await;
@@ -684,24 +710,30 @@ impl SyncManager {
 
         // 4. 去重检测（基于内容哈希）
         if config.deduplication_enabled {
-            self.event_tx.send(SyncEvent::Progress {
-                current: 30,
-                total: 100,
-                message: "Deduplicating...".to_string(),
-            }).ok();
+            self.event_tx
+                .send(SyncEvent::Progress {
+                    current: 30,
+                    total: 100,
+                    message: "Deduplicating...".to_string(),
+                })
+                .ok();
 
             remote_docs = self.deduplicate_documents(remote_docs).await;
         }
 
         // 5. 解决冲突
         *self.status.write().await = SyncStatus::ResolvingConflicts;
-        self.event_tx.send(SyncEvent::Progress {
-            current: 40,
-            total: 100,
-            message: "Resolving conflicts...".to_string(),
-        }).ok();
+        self.event_tx
+            .send(SyncEvent::Progress {
+                current: 40,
+                total: 100,
+                message: "Resolving conflicts...".to_string(),
+            })
+            .ok();
 
-        let conflicts = self.detect_conflicts_advanced(&local_docs, &remote_docs).await?;
+        let conflicts = self
+            .detect_conflicts_advanced(&local_docs, &remote_docs)
+            .await?;
         let mut resolved_conflicts = 0;
         let mut pending_conflicts: Vec<SyncConflict> = Vec::new();
 
@@ -711,10 +743,12 @@ impl SyncManager {
             for conflict in conflicts {
                 match self.resolve_conflict_advanced(&conflict, &strategy).await {
                     Ok(resolution) => {
-                        self.event_tx.send(SyncEvent::ConflictResolved {
-                            document_id: conflict.document_id.clone(),
-                            resolution: resolution.clone(),
-                        }).ok();
+                        self.event_tx
+                            .send(SyncEvent::ConflictResolved {
+                                document_id: conflict.document_id.clone(),
+                                resolution: resolution.clone(),
+                            })
+                            .ok();
 
                         if resolution != SyncConflictResolution::Skip {
                             resolved_conflicts += 1;
@@ -728,7 +762,10 @@ impl SyncManager {
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to resolve conflict for {}: {}", conflict.document_id, e);
+                        warn!(
+                            "Failed to resolve conflict for {}: {}",
+                            conflict.document_id, e
+                        );
                     }
                 }
             }
@@ -736,11 +773,13 @@ impl SyncManager {
 
         // 6. 应用远程变更到本地
         *self.status.write().await = SyncStatus::ApplyingChanges;
-        self.event_tx.send(SyncEvent::Progress {
-            current: 60,
-            total: 100,
-            message: "Applying remote changes...".to_string(),
-        }).ok();
+        self.event_tx
+            .send(SyncEvent::Progress {
+                current: 60,
+                total: 100,
+                message: "Applying remote changes...".to_string(),
+            })
+            .ok();
 
         let mut applied_count = 0;
         let mut downloaded_bytes = 0u64;
@@ -751,11 +790,13 @@ impl SyncManager {
                     Ok(_) => {
                         applied_count += 1;
                         downloaded_bytes += doc.encrypted_data.len() as u64;
-                        self.event_tx.send(SyncEvent::DocumentSynced {
-                            id: doc.id.clone(),
-                            doc_type: doc.doc_type.clone(),
-                            operation: doc.operation.clone(),
-                        }).ok();
+                        self.event_tx
+                            .send(SyncEvent::DocumentSynced {
+                                id: doc.id.clone(),
+                                doc_type: doc.doc_type.clone(),
+                                operation: doc.operation.clone(),
+                            })
+                            .ok();
                     }
                     Err(e) => {
                         error!("Failed to apply document {}: {}", doc.id, e);
@@ -766,11 +807,13 @@ impl SyncManager {
 
         // 7. 上传本地变更
         *self.status.write().await = SyncStatus::Uploading;
-        self.event_tx.send(SyncEvent::Progress {
-            current: 80,
-            total: 100,
-            message: "Uploading local changes...".to_string(),
-        }).ok();
+        self.event_tx
+            .send(SyncEvent::Progress {
+                current: 80,
+                total: 100,
+                message: "Uploading local changes...".to_string(),
+            })
+            .ok();
 
         let mut uploaded_bytes = 0u64;
         let uploaded_count = local_docs.len() as u64;
@@ -815,13 +858,19 @@ impl SyncManager {
         }
 
         // 发送完成事件
-        self.event_tx.send(SyncEvent::Progress {
-            current: 100,
-            total: 100,
-            message: "Sync completed".to_string(),
-        }).ok();
+        self.event_tx
+            .send(SyncEvent::Progress {
+                current: 100,
+                total: 100,
+                message: "Sync completed".to_string(),
+            })
+            .ok();
 
-        self.event_tx.send(SyncEvent::Completed { stats: result.clone() }).ok();
+        self.event_tx
+            .send(SyncEvent::Completed {
+                stats: result.clone(),
+            })
+            .ok();
 
         Ok(result)
     }
@@ -833,7 +882,11 @@ impl SyncManager {
     }
 
     /// 创建同步历史版本（快照）
-    pub async fn create_version(&self, description: Option<String>, tags: Vec<String>) -> Result<SyncVersion, LiteError> {
+    pub async fn create_version(
+        &self,
+        description: Option<String>,
+        tags: Vec<String>,
+    ) -> Result<SyncVersion, LiteError> {
         *self.status.write().await = SyncStatus::CreatingVersion;
 
         let all_docs = self.get_all_local_documents().await?;
@@ -858,7 +911,11 @@ impl SyncManager {
         self.history.write().await.push(version.clone());
 
         // 发送事件
-        self.event_tx.send(SyncEvent::VersionCreated { version: version.clone() }).ok();
+        self.event_tx
+            .send(SyncEvent::VersionCreated {
+                version: version.clone(),
+            })
+            .ok();
 
         *self.status.write().await = SyncStatus::Idle;
 
@@ -986,7 +1043,8 @@ impl SyncManager {
         for conflict in pending {
             if conflict.document_id == document_id {
                 // 应用解决
-                self.apply_conflict_resolution(&conflict, &resolution).await?;
+                self.apply_conflict_resolution(&conflict, &resolution)
+                    .await?;
             } else {
                 remaining.push(conflict);
             }
@@ -1088,7 +1146,10 @@ impl SyncManager {
     }
 
     /// 创建同步Bundle
-    async fn create_sync_bundle(&self, raw_docs: Vec<RawConfigData>) -> Result<SyncBundle, LiteError> {
+    async fn create_sync_bundle(
+        &self,
+        raw_docs: Vec<RawConfigData>,
+    ) -> Result<SyncBundle, LiteError> {
         let config = self.config.read().await;
         let device_id = config.device_id.clone();
         let scope = config.scope.clone();
@@ -1120,7 +1181,10 @@ impl SyncManager {
             drop(hashes);
 
             // 更新内容哈希映射
-            self.content_hashes.write().await.insert(raw.id.clone(), content_hash.clone());
+            self.content_hashes
+                .write()
+                .await
+                .insert(raw.id.clone(), content_hash.clone());
 
             // 加密数据
             let encrypted_data = crypto.encrypt(&json_data)?;
@@ -1139,7 +1203,10 @@ impl SyncManager {
             );
             doc.doc_type = raw.doc_type;
             doc.vector_clock = vector_clock.clone();
-            doc.group_id = raw.data.get("group_id").and_then(|v| v.as_str().map(|s| s.to_string()));
+            doc.group_id = raw
+                .data
+                .get("group_id")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
 
             if raw.deleted {
                 doc.operation = SyncOperation::Delete;
@@ -1161,10 +1228,8 @@ impl SyncManager {
         remote_docs: &[SyncDocument],
     ) -> Result<Vec<SyncConflict>, LiteError> {
         let mut conflicts = Vec::new();
-        let local_map: HashMap<String, &RawConfigData> = local_docs
-            .iter()
-            .map(|d| (d.id.clone(), d))
-            .collect();
+        let local_map: HashMap<String, &RawConfigData> =
+            local_docs.iter().map(|d| (d.id.clone(), d)).collect();
 
         // 解密远程文档用于比较（需要解密才能比较内容）
         let crypto = self.crypto.lock().await;
@@ -1213,11 +1278,9 @@ impl SyncManager {
                 // 使用向量时钟判断是否是真正的冲突（并发修改）
                 if local_as_doc.has_conflict_with(remote_doc) {
                     // 检测字段级冲突
-                    let field_conflicts = self.detect_field_conflicts(
-                        &local_json,
-                        &remote_decrypted,
-                        &local_raw.doc_type,
-                    ).await?;
+                    let field_conflicts = self
+                        .detect_field_conflicts(&local_json, &remote_decrypted, &local_raw.doc_type)
+                        .await?;
 
                     conflicts.push(SyncConflict {
                         document_id: remote_doc.id.clone(),
@@ -1284,7 +1347,8 @@ impl SyncManager {
             }
             SyncConflictResolution::UseRemote => {
                 // 应用远程版本到本地
-                self.apply_document_to_local(&conflict.remote_version).await?;
+                self.apply_document_to_local(&conflict.remote_version)
+                    .await?;
                 SyncConflictResolution::UseRemote
             }
             SyncConflictResolution::Merge => {
@@ -1300,7 +1364,8 @@ impl SyncManager {
             SyncConflictResolution::KeepBoth => {
                 // 保留两个版本：重命名远程为副本
                 let mut remote_copy = conflict.remote_version.clone();
-                remote_copy.id = format!("{}_copy_{}",
+                remote_copy.id = format!(
+                    "{}_copy_{}",
                     conflict.remote_version.id,
                     chrono::Utc::now().timestamp_millis()
                 );
@@ -1318,29 +1383,31 @@ impl SyncManager {
                     SyncConflictResolution::UseLocal
                 } else {
                     // 远程较新或相同，应用远程
-                    self.apply_document_to_local(&conflict.remote_version).await?;
+                    self.apply_document_to_local(&conflict.remote_version)
+                        .await?;
                     SyncConflictResolution::UseRemote
                 }
             }
             SyncConflictResolution::DevicePriority { device_order } => {
                 // 根据设备优先级
-                let local_priority = device_order.iter()
+                let local_priority = device_order
+                    .iter()
                     .position(|d| d == &conflict.local_version.device_id)
                     .unwrap_or(usize::MAX);
-                let remote_priority = device_order.iter()
+                let remote_priority = device_order
+                    .iter()
                     .position(|d| d == &conflict.remote_version.device_id)
                     .unwrap_or(usize::MAX);
 
                 if local_priority <= remote_priority {
                     SyncConflictResolution::UseLocal
                 } else {
-                    self.apply_document_to_local(&conflict.remote_version).await?;
+                    self.apply_document_to_local(&conflict.remote_version)
+                        .await?;
                     SyncConflictResolution::UseRemote
                 }
             }
-            SyncConflictResolution::Skip => {
-                SyncConflictResolution::Skip
-            }
+            SyncConflictResolution::Skip => SyncConflictResolution::Skip,
         };
 
         Ok(resolution)
@@ -1354,7 +1421,8 @@ impl SyncManager {
     ) -> Result<(), LiteError> {
         match resolution {
             SyncConflictResolution::UseRemote => {
-                self.apply_document_to_local(&conflict.remote_version).await?;
+                self.apply_document_to_local(&conflict.remote_version)
+                    .await?;
             }
             SyncConflictResolution::Merge => {
                 if let Some(merged) = self.try_merge_conflict_advanced(conflict).await? {
@@ -1373,7 +1441,10 @@ impl SyncManager {
     }
 
     /// 尝试智能合并冲突（高级版）
-    async fn try_merge_conflict_advanced(&self, conflict: &SyncConflict) -> Result<Option<SyncDocument>, LiteError> {
+    async fn try_merge_conflict_advanced(
+        &self,
+        conflict: &SyncConflict,
+    ) -> Result<Option<SyncDocument>, LiteError> {
         // 如果没有字段级冲突信息，无法合并
         if conflict.field_conflicts.is_empty() {
             return Ok(None);
@@ -1393,12 +1464,14 @@ impl SyncManager {
         let mut merge_count = 0;
 
         for field_conflict in &conflict.field_conflicts {
-            let merged_value = self.merge_field_value(
-                &field_conflict.field_name,
-                &field_conflict.local_value,
-                &field_conflict.remote_value,
-                &conflict.doc_type,
-            ).await?;
+            let merged_value = self
+                .merge_field_value(
+                    &field_conflict.field_name,
+                    &field_conflict.local_value,
+                    &field_conflict.remote_value,
+                    &conflict.doc_type,
+                )
+                .await?;
 
             if let Some(value) = merged_value {
                 merged_fields.insert(field_conflict.field_name.clone(), value);
@@ -1448,7 +1521,9 @@ impl SyncManager {
                     // 某些字段可以合并（如标签、别名）
                     "tags" | "aliases" => {
                         // 合并数组
-                        if let (Some(local_arr), Some(remote_arr)) = (local.as_array(), remote.as_array()) {
+                        if let (Some(local_arr), Some(remote_arr)) =
+                            (local.as_array(), remote.as_array())
+                        {
                             let mut merged = local_arr.clone();
                             for item in remote_arr {
                                 if !merged.contains(item) {
@@ -1460,7 +1535,9 @@ impl SyncManager {
                     }
                     // 注释字段可以连接
                     "notes" | "description" => {
-                        if let (Some(local_str), Some(remote_str)) = (local.as_str(), remote.as_str()) {
+                        if let (Some(local_str), Some(remote_str)) =
+                            (local.as_str(), remote.as_str())
+                        {
                             let merged = format!("{}\n---\n{}", local_str, remote_str);
                             return Ok(Some(serde_json::Value::String(merged)));
                         }
@@ -1489,7 +1566,9 @@ impl SyncManager {
             SyncDocumentType::Snippet => {
                 // 代码片段可以合并标签
                 if field_name == "tags" {
-                    if let (Some(local_arr), Some(remote_arr)) = (local.as_array(), remote.as_array()) {
+                    if let (Some(local_arr), Some(remote_arr)) =
+                        (local.as_array(), remote.as_array())
+                    {
                         let mut merged = local_arr.clone();
                         for item in remote_arr {
                             if !merged.contains(item) {
@@ -1580,22 +1659,25 @@ impl SyncManager {
         match doc.doc_type {
             SyncDocumentType::Host => {
                 // 解析JSON数据
-                let host_data = data.as_object()
+                let host_data = data
+                    .as_object()
                     .ok_or_else(|| LiteError::Config("Invalid host data format".to_string()))?;
 
-                let host = host_data.get("host")
+                let host = host_data
+                    .get("host")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| LiteError::Config("Missing host field".to_string()))?;
-                let port = host_data.get("port")
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(22);
-                let username = host_data.get("username")
+                let port = host_data.get("port").and_then(|v| v.as_i64()).unwrap_or(22);
+                let username = host_data
+                    .get("username")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| LiteError::Config("Missing username field".to_string()))?;
-                let auth_type = host_data.get("auth_type")
+                let auth_type = host_data
+                    .get("auth_type")
                     .and_then(|v| v.as_str())
                     .unwrap_or("password");
-                let name = host_data.get("name")
+                let name = host_data
+                    .get("name")
                     .and_then(|v| v.as_str())
                     .unwrap_or(host);
 
@@ -1610,15 +1692,40 @@ impl SyncManager {
                             port,
                             username: username.to_string(),
                             auth_type: auth_type.to_string(),
-                            identity_file: host_data.get("identity_file").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            identity_id: host_data.get("identity_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            group_id: host_data.get("group_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            notes: host_data.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            color: host_data.get("color").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            environment: host_data.get("environment").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            region: host_data.get("region").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            purpose: host_data.get("purpose").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            status: host_data.get("status")
+                            identity_file: host_data
+                                .get("identity_file")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            identity_id: host_data
+                                .get("identity_id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            group_id: host_data
+                                .get("group_id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            notes: host_data
+                                .get("notes")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            color: host_data
+                                .get("color")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            environment: host_data
+                                .get("environment")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            region: host_data
+                                .get("region")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            purpose: host_data
+                                .get("purpose")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            status: host_data
+                                .get("status")
                                 .and_then(|v| v.as_str())
                                 .map(|s| s.to_string())
                                 .unwrap_or_else(|| "active".to_string()),
@@ -1634,15 +1741,40 @@ impl SyncManager {
                             port,
                             username: username.to_string(),
                             auth_type: auth_type.to_string(),
-                            identity_file: host_data.get("identity_file").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            identity_id: host_data.get("identity_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            group_id: host_data.get("group_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            notes: host_data.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            color: host_data.get("color").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            environment: host_data.get("environment").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            region: host_data.get("region").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            purpose: host_data.get("purpose").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            status: host_data.get("status")
+                            identity_file: host_data
+                                .get("identity_file")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            identity_id: host_data
+                                .get("identity_id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            group_id: host_data
+                                .get("group_id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            notes: host_data
+                                .get("notes")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            color: host_data
+                                .get("color")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            environment: host_data
+                                .get("environment")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            region: host_data
+                                .get("region")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            purpose: host_data
+                                .get("purpose")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            status: host_data
+                                .get("status")
                                 .and_then(|v| v.as_str())
                                 .map(|s| s.to_string())
                                 .unwrap_or_else(|| "active".to_string()),
@@ -1652,10 +1784,12 @@ impl SyncManager {
                 }
             }
             SyncDocumentType::Group => {
-                let group_data = data.as_object()
+                let group_data = data
+                    .as_object()
                     .ok_or_else(|| LiteError::Config("Invalid group data format".to_string()))?;
 
-                let name = group_data.get("name")
+                let name = group_data
+                    .get("name")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| LiteError::Config("Missing group name field".to_string()))?;
 
@@ -1678,13 +1812,16 @@ impl SyncManager {
                 }
             }
             SyncDocumentType::Identity => {
-                let identity_data = data.as_object()
+                let identity_data = data
+                    .as_object()
                     .ok_or_else(|| LiteError::Config("Invalid identity data format".to_string()))?;
 
-                let name = identity_data.get("name")
+                let name = identity_data
+                    .get("name")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| LiteError::Config("Missing identity name field".to_string()))?;
-                let auth_type = identity_data.get("auth_type")
+                let auth_type = identity_data
+                    .get("auth_type")
                     .and_then(|v| v.as_str())
                     .unwrap_or("key");
 
@@ -1694,8 +1831,14 @@ impl SyncManager {
                         let update = crate::db::UpdateIdentity {
                             id: doc.id.clone(),
                             name: name.to_string(),
-                            private_key_path: identity_data.get("private_key_path").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            passphrase_secret_id: identity_data.get("passphrase_secret_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            private_key_path: identity_data
+                                .get("private_key_path")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            passphrase_secret_id: identity_data
+                                .get("passphrase_secret_id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
                             auth_type: auth_type.to_string(),
                         };
                         db.update_identity(&update)?;
@@ -1704,8 +1847,14 @@ impl SyncManager {
                         let new_identity = crate::db::NewIdentity {
                             id: doc.id.clone(),
                             name: name.to_string(),
-                            private_key_path: identity_data.get("private_key_path").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            passphrase_secret_id: identity_data.get("passphrase_secret_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            private_key_path: identity_data
+                                .get("private_key_path")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            passphrase_secret_id: identity_data
+                                .get("passphrase_secret_id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
                             auth_type: auth_type.to_string(),
                         };
                         db.add_identity(&new_identity)?;
@@ -1713,10 +1862,12 @@ impl SyncManager {
                 }
             }
             SyncDocumentType::Tag => {
-                let tag_data = data.as_object()
+                let tag_data = data
+                    .as_object()
                     .ok_or_else(|| LiteError::Config("Invalid tag data format".to_string()))?;
 
-                let name = tag_data.get("name")
+                let name = tag_data
+                    .get("name")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| LiteError::Config("Missing tag name field".to_string()))?;
 
@@ -1725,8 +1876,14 @@ impl SyncManager {
                         let update = crate::db::UpdateTag {
                             id: doc.id.clone(),
                             name: name.to_string(),
-                            color: tag_data.get("color").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            description: tag_data.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            color: tag_data
+                                .get("color")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            description: tag_data
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
                         };
                         db.update_tag(&update)?;
                     }
@@ -1734,8 +1891,14 @@ impl SyncManager {
                         let new_tag = crate::db::NewTag {
                             id: doc.id.clone(),
                             name: name.to_string(),
-                            color: tag_data.get("color").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            description: tag_data.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            color: tag_data
+                                .get("color")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            description: tag_data
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
                         };
                         db.add_tag(&new_tag)?;
                     }
@@ -1751,7 +1914,11 @@ impl SyncManager {
     }
 
     /// 判断是否应该包含文档（选择性同步）
-    async fn should_include_document(&self, raw: &RawConfigData, scope: &SyncScope) -> Result<bool, LiteError> {
+    async fn should_include_document(
+        &self,
+        raw: &RawConfigData,
+        scope: &SyncScope,
+    ) -> Result<bool, LiteError> {
         // 首先检查类型
         match raw.doc_type {
             SyncDocumentType::Identity if !scope.include_identities => return Ok(false),
@@ -1770,7 +1937,9 @@ impl SyncManager {
         // 检查文档的分组
         if let Some(group_id) = raw.data.get("group_id").and_then(|v| v.as_str()) {
             let group_id_string = group_id.to_string();
-            if !scope.included_groups.is_empty() && !scope.included_groups.contains(&group_id_string) {
+            if !scope.included_groups.is_empty()
+                && !scope.included_groups.contains(&group_id_string)
+            {
                 return Ok(false);
             }
             if scope.excluded_groups.contains(&group_id_string) {
@@ -1792,7 +1961,10 @@ impl SyncManager {
                 // 重复内容，保留时间戳较新的
                 if doc.timestamp > existing.timestamp {
                     // 替换为较新的版本
-                    if let Some(pos) = result.iter().position(|d| d.content_hash == doc.content_hash) {
+                    if let Some(pos) = result
+                        .iter()
+                        .position(|d| d.content_hash == doc.content_hash)
+                    {
                         result[pos] = doc.clone();
                         seen_hashes.insert(doc.content_hash.clone(), doc);
                     }
@@ -1820,7 +1992,7 @@ fn blake3_hash(data: &[u8]) -> String {
 
 /// 计算SHA-256哈希（用于兼容性）
 fn sha256_hash(data: &[u8]) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(data);
     hex::encode(hasher.finalize())
@@ -2026,9 +2198,7 @@ pub struct OneDriveProvider {
 
 impl OneDriveProvider {
     pub fn new() -> Self {
-        Self {
-            access_token: None,
-        }
+        Self { access_token: None }
     }
 }
 
@@ -2079,25 +2249,43 @@ impl SyncProviderImpl for OneDriveProvider {
 pub struct DropBoxProvider;
 
 impl DropBoxProvider {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[async_trait::async_trait]
 impl SyncProviderImpl for DropBoxProvider {
-    async fn initialize(&mut self, _config: &SyncConfig) -> Result<(), LiteError> { Ok(()) }
-    async fn upload_bundle(&self, _bundle: &SyncBundle) -> Result<(), LiteError> { Ok(()) }
-    async fn download_bundles(&self, _since: i64) -> Result<Vec<SyncBundle>, LiteError> { Ok(Vec::new()) }
+    async fn initialize(&mut self, _config: &SyncConfig) -> Result<(), LiteError> {
+        Ok(())
+    }
+    async fn upload_bundle(&self, _bundle: &SyncBundle) -> Result<(), LiteError> {
+        Ok(())
+    }
+    async fn download_bundles(&self, _since: i64) -> Result<Vec<SyncBundle>, LiteError> {
+        Ok(Vec::new())
+    }
     async fn get_metadata(&self) -> Result<SyncMetadata, LiteError> {
         Ok(SyncMetadata::default())
     }
-    async fn update_metadata(&self, _metadata: &SyncMetadata) -> Result<(), LiteError> { Ok(()) }
-    async fn list_devices(&self) -> Result<Vec<DeviceInfo>, LiteError> { Ok(Vec::new()) }
-    async fn delete_device(&self, _device_id: &str) -> Result<(), LiteError> { Ok(()) }
-    async fn list_versions(&self) -> Result<Vec<SyncVersion>, LiteError> { Ok(Vec::new()) }
+    async fn update_metadata(&self, _metadata: &SyncMetadata) -> Result<(), LiteError> {
+        Ok(())
+    }
+    async fn list_devices(&self) -> Result<Vec<DeviceInfo>, LiteError> {
+        Ok(Vec::new())
+    }
+    async fn delete_device(&self, _device_id: &str) -> Result<(), LiteError> {
+        Ok(())
+    }
+    async fn list_versions(&self) -> Result<Vec<SyncVersion>, LiteError> {
+        Ok(Vec::new())
+    }
     async fn restore_version(&self, _version_id: &str) -> Result<SyncBundle, LiteError> {
         Err(LiteError::Config("Not implemented".to_string()))
     }
-    async fn check_connectivity(&self) -> Result<bool, LiteError> { Ok(true) }
+    async fn check_connectivity(&self) -> Result<bool, LiteError> {
+        Ok(true)
+    }
 }
 
 /// 自建服务器同步提供者
@@ -2127,7 +2315,8 @@ impl SyncProviderImpl for SelfHostedProvider {
 
     async fn upload_bundle(&self, bundle: &SyncBundle) -> Result<(), LiteError> {
         let url = format!("{}/api/v1/sync/bundle", self.url);
-        let _response = self.client
+        let _response = self
+            .client
             .post(&url)
             .bearer_auth(&self.token)
             .json(bundle)
@@ -2139,35 +2328,42 @@ impl SyncProviderImpl for SelfHostedProvider {
 
     async fn download_bundles(&self, since: i64) -> Result<Vec<SyncBundle>, LiteError> {
         let url = format!("{}/api/v1/sync/bundles?since={}", self.url, since);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .bearer_auth(&self.token)
             .send()
             .await
             .map_err(|e| LiteError::Config(e.to_string()))?;
 
-        let bundles: Vec<SyncBundle> = response.json().await
+        let bundles: Vec<SyncBundle> = response
+            .json()
+            .await
             .map_err(|e| LiteError::Json(e.to_string()))?;
         Ok(bundles)
     }
 
     async fn get_metadata(&self) -> Result<SyncMetadata, LiteError> {
         let url = format!("{}/api/v1/sync/metadata", self.url);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .bearer_auth(&self.token)
             .send()
             .await
             .map_err(|e| LiteError::Config(e.to_string()))?;
 
-        let metadata: SyncMetadata = response.json().await
+        let metadata: SyncMetadata = response
+            .json()
+            .await
             .map_err(|e| LiteError::Json(e.to_string()))?;
         Ok(metadata)
     }
 
     async fn update_metadata(&self, metadata: &SyncMetadata) -> Result<(), LiteError> {
         let url = format!("{}/api/v1/sync/metadata", self.url);
-        let _response = self.client
+        let _response = self
+            .client
             .post(&url)
             .bearer_auth(&self.token)
             .json(metadata)
@@ -2179,21 +2375,25 @@ impl SyncProviderImpl for SelfHostedProvider {
 
     async fn list_devices(&self) -> Result<Vec<DeviceInfo>, LiteError> {
         let url = format!("{}/api/v1/sync/devices", self.url);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .bearer_auth(&self.token)
             .send()
             .await
             .map_err(|e| LiteError::Config(e.to_string()))?;
 
-        let devices: Vec<DeviceInfo> = response.json().await
+        let devices: Vec<DeviceInfo> = response
+            .json()
+            .await
             .map_err(|e| LiteError::Json(e.to_string()))?;
         Ok(devices)
     }
 
     async fn delete_device(&self, device_id: &str) -> Result<(), LiteError> {
         let url = format!("{}/api/v1/sync/devices/{}", self.url, device_id);
-        let _response = self.client
+        let _response = self
+            .client
             .delete(&url)
             .bearer_auth(&self.token)
             .send()
@@ -2204,28 +2404,34 @@ impl SyncProviderImpl for SelfHostedProvider {
 
     async fn list_versions(&self) -> Result<Vec<SyncVersion>, LiteError> {
         let url = format!("{}/api/v1/sync/versions", self.url);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .bearer_auth(&self.token)
             .send()
             .await
             .map_err(|e| LiteError::Config(e.to_string()))?;
 
-        let versions: Vec<SyncVersion> = response.json().await
+        let versions: Vec<SyncVersion> = response
+            .json()
+            .await
             .map_err(|e| LiteError::Json(e.to_string()))?;
         Ok(versions)
     }
 
     async fn restore_version(&self, version_id: &str) -> Result<SyncBundle, LiteError> {
         let url = format!("{}/api/v1/sync/versions/{}/restore", self.url, version_id);
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .bearer_auth(&self.token)
             .send()
             .await
             .map_err(|e| LiteError::Config(e.to_string()))?;
 
-        let bundle: SyncBundle = response.json().await
+        let bundle: SyncBundle = response
+            .json()
+            .await
             .map_err(|e| LiteError::Json(e.to_string()))?;
         Ok(bundle)
     }
@@ -2243,7 +2449,9 @@ impl SyncProviderImpl for SelfHostedProvider {
 pub struct LocalNetworkProvider;
 
 impl LocalNetworkProvider {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[async_trait::async_trait]
@@ -2268,19 +2476,27 @@ impl SyncProviderImpl for LocalNetworkProvider {
         Ok(SyncMetadata::default())
     }
 
-    async fn update_metadata(&self, _metadata: &SyncMetadata) -> Result<(), LiteError> { Ok(()) }
+    async fn update_metadata(&self, _metadata: &SyncMetadata) -> Result<(), LiteError> {
+        Ok(())
+    }
 
     async fn list_devices(&self) -> Result<Vec<DeviceInfo>, LiteError> {
         // 返回mDNS发现的设备
         Ok(Vec::new())
     }
 
-    async fn delete_device(&self, _device_id: &str) -> Result<(), LiteError> { Ok(()) }
+    async fn delete_device(&self, _device_id: &str) -> Result<(), LiteError> {
+        Ok(())
+    }
 
-    async fn list_versions(&self) -> Result<Vec<SyncVersion>, LiteError> { Ok(Vec::new()) }
+    async fn list_versions(&self) -> Result<Vec<SyncVersion>, LiteError> {
+        Ok(Vec::new())
+    }
 
     async fn restore_version(&self, _version_id: &str) -> Result<SyncBundle, LiteError> {
-        Err(LiteError::Config("Local sync doesn't support versions".to_string()))
+        Err(LiteError::Config(
+            "Local sync doesn't support versions".to_string(),
+        ))
     }
 
     async fn check_connectivity(&self) -> Result<bool, LiteError> {
@@ -2311,7 +2527,8 @@ impl LocalFileProvider {
 #[async_trait::async_trait]
 impl SyncProviderImpl for LocalFileProvider {
     async fn initialize(&mut self, _config: &SyncConfig) -> Result<(), LiteError> {
-        tokio::fs::create_dir_all(&self.base_path).await
+        tokio::fs::create_dir_all(&self.base_path)
+            .await
             .map_err(|e| LiteError::Io(e.to_string()))?;
         Ok(())
     }
@@ -2319,27 +2536,34 @@ impl SyncProviderImpl for LocalFileProvider {
     async fn upload_bundle(&self, bundle: &SyncBundle) -> Result<(), LiteError> {
         let path = self.get_bundle_path(&bundle.bundle_id);
         let data = serde_json::to_vec_pretty(bundle)?;
-        tokio::fs::write(path, data).await
+        tokio::fs::write(path, data)
+            .await
             .map_err(|e| LiteError::Io(e.to_string()))?;
         Ok(())
     }
 
     async fn download_bundles(&self, since: i64) -> Result<Vec<SyncBundle>, LiteError> {
         let mut bundles = Vec::new();
-        let mut entries = tokio::fs::read_dir(&self.base_path).await
+        let mut entries = tokio::fs::read_dir(&self.base_path)
+            .await
             .map_err(|e| LiteError::Io(e.to_string()))?;
 
-        while let Some(entry) = entries.next_entry().await.map_err(|e| LiteError::Io(e.to_string()))? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| LiteError::Io(e.to_string()))?
+        {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
                 if path.file_name().and_then(|s| s.to_str()) == Some("metadata.json") {
                     continue;
                 }
 
-                let data = tokio::fs::read(&path).await
+                let data = tokio::fs::read(&path)
+                    .await
                     .map_err(|e| LiteError::Io(e.to_string()))?;
-                let bundle: SyncBundle = serde_json::from_slice(&data)
-                    .map_err(|e| LiteError::Json(e.to_string()))?;
+                let bundle: SyncBundle =
+                    serde_json::from_slice(&data).map_err(|e| LiteError::Json(e.to_string()))?;
 
                 if bundle.timestamp > since {
                     bundles.push(bundle);
@@ -2356,17 +2580,19 @@ impl SyncProviderImpl for LocalFileProvider {
             return Ok(SyncMetadata::default());
         }
 
-        let data = tokio::fs::read(&path).await
+        let data = tokio::fs::read(&path)
+            .await
             .map_err(|e| LiteError::Io(e.to_string()))?;
-        let metadata: SyncMetadata = serde_json::from_slice(&data)
-            .map_err(|e| LiteError::Json(e.to_string()))?;
+        let metadata: SyncMetadata =
+            serde_json::from_slice(&data).map_err(|e| LiteError::Json(e.to_string()))?;
         Ok(metadata)
     }
 
     async fn update_metadata(&self, metadata: &SyncMetadata) -> Result<(), LiteError> {
         let path = self.get_metadata_path();
         let data = serde_json::to_vec_pretty(metadata)?;
-        tokio::fs::write(path, data).await
+        tokio::fs::write(path, data)
+            .await
             .map_err(|e| LiteError::Io(e.to_string()))?;
         Ok(())
     }
@@ -2383,10 +2609,15 @@ impl SyncProviderImpl for LocalFileProvider {
     async fn list_versions(&self) -> Result<Vec<SyncVersion>, LiteError> {
         // 扫描所有bundle作为版本
         let mut versions = Vec::new();
-        let mut entries = tokio::fs::read_dir(&self.base_path).await
+        let mut entries = tokio::fs::read_dir(&self.base_path)
+            .await
             .map_err(|e| LiteError::Io(e.to_string()))?;
 
-        while let Some(entry) = entries.next_entry().await.map_err(|e| LiteError::Io(e.to_string()))? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| LiteError::Io(e.to_string()))?
+        {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
                 if path.file_name().and_then(|s| s.to_str()) == Some("metadata.json") {
@@ -2417,10 +2648,11 @@ impl SyncProviderImpl for LocalFileProvider {
 
     async fn restore_version(&self, version_id: &str) -> Result<SyncBundle, LiteError> {
         let path = self.get_bundle_path(version_id);
-        let data = tokio::fs::read(&path).await
+        let data = tokio::fs::read(&path)
+            .await
             .map_err(|e| LiteError::Io(e.to_string()))?;
-        let bundle: SyncBundle = serde_json::from_slice(&data)
-            .map_err(|e| LiteError::Json(e.to_string()))?;
+        let bundle: SyncBundle =
+            serde_json::from_slice(&data).map_err(|e| LiteError::Json(e.to_string()))?;
         Ok(bundle)
     }
 
@@ -2561,10 +2793,7 @@ mod tests {
         assert!(provider.check_connectivity().await.unwrap());
 
         // 创建并上传bundle
-        let bundle = SyncBundle::new(
-            "test-device".to_string(),
-            vec![],
-        );
+        let bundle = SyncBundle::new("test-device".to_string(), vec![]);
 
         provider.upload_bundle(&bundle).await.unwrap();
 
@@ -2613,10 +2842,7 @@ mod tests {
             "hash2".to_string(),
         );
 
-        let bundle = SyncBundle::new(
-            "test-device".to_string(),
-            vec![doc1, doc2],
-        );
+        let bundle = SyncBundle::new("test-device".to_string(), vec![doc1, doc2]);
 
         assert_eq!(bundle.size_bytes(), 1500);
     }
@@ -2649,10 +2875,7 @@ mod tests {
         let provider = LocalFileProvider::new(temp_dir.path().to_path_buf());
 
         // 创建版本
-        let bundle = SyncBundle::new(
-            "test-device".to_string(),
-            vec![],
-        );
+        let bundle = SyncBundle::new("test-device".to_string(), vec![]);
 
         let version_id = bundle.bundle_id.clone();
 
@@ -2742,10 +2965,9 @@ mod tests {
 
         assert!(!provider.check_connectivity().await.unwrap());
 
-        let result = provider.upload_bundle(&SyncBundle::new(
-            "test".to_string(),
-            vec![],
-        )).await;
+        let result = provider
+            .upload_bundle(&SyncBundle::new("test".to_string(), vec![]))
+            .await;
 
         assert!(result.is_err());
     }

@@ -5,11 +5,12 @@ use std::sync::Arc;
 
 use crate::monitoring::alerts::{Alert, AlertRule};
 use crate::monitoring::metrics::{
-    CapacityForecast, MetricPoint, MetricQuery, MetricQueryResult,
-    MetricSeries, MetricSummary, MetricType, PerformanceComparison, ResourceType,
-    ServerMetrics, SlaStats,
+    CapacityForecast, MetricPoint, MetricQuery, MetricQueryResult, MetricSeries, MetricSummary,
+    MetricType, PerformanceComparison, ResourceType, ServerMetrics, SlaStats,
 };
-use crate::monitoring::{CustomDashboard, MonitoringConfig, MonitoringError, ServerOverview, TimeRange};
+use crate::monitoring::{
+    CustomDashboard, MonitoringConfig, MonitoringError, ServerOverview, TimeRange,
+};
 
 /// Time-series metrics storage using SQLite with rollups
 pub struct MetricsStorage {
@@ -282,35 +283,40 @@ impl MetricsStorage {
     }
 
     /// Get latest metrics for a server
-    pub async fn get_latest_metrics(&self, server_id: &str) -> Result<ServerMetrics, MonitoringError> {
+    pub async fn get_latest_metrics(
+        &self,
+        server_id: &str,
+    ) -> Result<ServerMetrics, MonitoringError> {
         let conn = self.conn.lock().await;
 
         // Get from server health snapshot and raw metrics
-        let health: Option<(i64, i64, f64, f64, f64, f64, f64)> = conn.query_row(
-            "SELECT last_seen, uptime_seconds, cpu_percent, memory_percent, disk_percent,
+        let health: Option<(i64, i64, f64, f64, f64, f64, f64)> = conn
+            .query_row(
+                "SELECT last_seen, uptime_seconds, cpu_percent, memory_percent, disk_percent,
                     network_rx_mbps, network_tx_mbps
              FROM server_health WHERE server_id = ?1",
-            [server_id],
-            |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                    row.get(5)?,
-                    row.get(6)?,
-                ))
-            },
-        ).ok();
+                [server_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                    ))
+                },
+            )
+            .ok();
 
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
-        let (last_seen, uptime, cpu, _memory, _disk, _net_rx, _net_tx) = health
-            .unwrap_or((0, 0, 0.0, 0.0, 0.0, 0.0, 0.0));
+        let (last_seen, uptime, cpu, _memory, _disk, _net_rx, _net_tx) =
+            health.unwrap_or((0, 0, 0.0, 0.0, 0.0, 0.0, 0.0));
 
         // Construct ServerMetrics from snapshot data
         // In production, we'd query actual raw metrics
@@ -385,7 +391,7 @@ impl MetricsStorage {
         let mut stmt = conn.prepare(
             "SELECT timestamp, value FROM metrics_raw
              WHERE server_id = ?1 AND metric_type = ?2 AND timestamp >= ?3 AND timestamp <= ?4
-             ORDER BY timestamp"
+             ORDER BY timestamp",
         )?;
 
         let rows = stmt.query_map(
@@ -420,7 +426,7 @@ impl MetricsStorage {
         let mut stmt = conn.prepare(
             "SELECT server_id, last_seen, uptime_seconds, cpu_percent, memory_percent,
                     disk_percent, network_rx_mbps, network_tx_mbps, status, os_info, location
-             FROM server_health"
+             FROM server_health",
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -469,11 +475,13 @@ impl MetricsStorage {
             servers.push(server);
         }
 
-        let total_alerts = conn.query_row(
-            "SELECT COUNT(*) FROM alerts WHERE status = 'active'",
-            [],
-            |row| row.get::<_, i64>(0),
-        ).unwrap_or(0) as usize;
+        let total_alerts = conn
+            .query_row(
+                "SELECT COUNT(*) FROM alerts WHERE status = 'active'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap_or(0) as usize;
 
         Ok(super::HealthSummary {
             total_servers: servers.len(),
@@ -559,13 +567,11 @@ impl MetricsStorage {
             "SELECT id, rule_id, rule_name, server_id, server_name, severity, status,
                     title, message, metric_type, metric_value, threshold, started_at,
                     acknowledged_at, acknowledged_by, resolved_at, tags, runbook_url, dashboard_url
-             FROM alerts WHERE started_at >= ?1 AND started_at <= ?2"
+             FROM alerts WHERE started_at >= ?1 AND started_at <= ?2",
         );
 
-        let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![
-            Box::new(start_time as i64),
-            Box::new(end_time as i64),
-        ];
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> =
+            vec![Box::new(start_time as i64), Box::new(end_time as i64)];
 
         if server_id.is_some() {
             query.push_str(" AND server_id = ?3");
@@ -581,10 +587,7 @@ impl MetricsStorage {
 
         let mut stmt = conn.prepare(&query)?;
 
-        let param_refs: Vec<&dyn rusqlite::ToSql> = params
-            .iter()
-            .map(|p| p.as_ref())
-            .collect();
+        let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
 
         let rows = stmt.query_map(param_refs.as_slice(), |row| {
             let severity_str: String = row.get(5)?;
@@ -696,7 +699,7 @@ impl MetricsStorage {
                     duration_secs, cooldown_secs, server_ids, server_groups, tags,
                     notification_channels, auto_resolve, resolve_after_secs, runbook_url,
                     dashboard_url, created_at, updated_at
-             FROM alert_rules"
+             FROM alert_rules",
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -715,10 +718,13 @@ impl MetricsStorage {
                 threshold: row.get(7)?,
                 duration_secs: row.get::<_, i64>(8)? as u64,
                 cooldown_secs: row.get::<_, i64>(9)? as u64,
-                server_ids: serde_json::from_str(row.get::<_, String>(10)?.as_str()).unwrap_or_default(),
-                server_groups: serde_json::from_str(row.get::<_, String>(11)?.as_str()).unwrap_or_default(),
+                server_ids: serde_json::from_str(row.get::<_, String>(10)?.as_str())
+                    .unwrap_or_default(),
+                server_groups: serde_json::from_str(row.get::<_, String>(11)?.as_str())
+                    .unwrap_or_default(),
                 tags: serde_json::from_str(row.get::<_, String>(12)?.as_str()).unwrap_or_default(),
-                notification_channels: serde_json::from_str(row.get::<_, String>(13)?.as_str()).unwrap_or_default(),
+                notification_channels: serde_json::from_str(row.get::<_, String>(13)?.as_str())
+                    .unwrap_or_default(),
                 auto_resolve: row.get::<_, i32>(14)? != 0,
                 resolve_after_secs: row.get::<_, i64>(15)? as u64,
                 runbook_url: row.get(16)?,
@@ -796,7 +802,7 @@ impl MetricsStorage {
             let mut stmt = conn.prepare(
                 "SELECT value FROM metrics_raw
                  WHERE server_id = ?1 AND metric_type = ?2 AND timestamp >= ?3 AND timestamp <= ?4
-                 ORDER BY timestamp"
+                 ORDER BY timestamp",
             )?;
 
             let rows = stmt.query_map(
@@ -822,7 +828,11 @@ impl MetricsStorage {
                     p95: 0.0, // Would calculate
                     p99: 0.0, // Would calculate
                     trend: crate::TrendDirection::Stable,
-                    sparkline: values.iter().step_by(values.len() / 20 + 1).copied().collect(),
+                    sparkline: values
+                        .iter()
+                        .step_by(values.len() / 20 + 1)
+                        .copied()
+                        .collect(),
                 });
 
                 all_values.extend(values);
@@ -879,7 +889,9 @@ impl MetricsStorage {
             ResourceType::Network => MetricType::NetworkRxMbps,
         };
 
-        let history = self.get_metrics_history(server_id, metric_type, time_range).await?;
+        let history = self
+            .get_metrics_history(server_id, metric_type, time_range)
+            .await?;
 
         if history.len() < 2 {
             return Ok(CapacityForecast {
@@ -900,7 +912,11 @@ impl MetricsStorage {
         let n = history.len() as f64;
         let sum_x: f64 = (0..history.len()).map(|i| i as f64).sum();
         let sum_y: f64 = history.iter().map(|p| p.value).sum();
-        let sum_xy: f64 = history.iter().enumerate().map(|(i, p)| i as f64 * p.value).sum();
+        let sum_xy: f64 = history
+            .iter()
+            .enumerate()
+            .map(|(i, p)| i as f64 * p.value)
+            .sum();
         let sum_x2: f64 = (0..history.len()).map(|i| (i as f64).powi(2)).sum();
 
         let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x.powi(2));
@@ -951,14 +967,22 @@ impl MetricsStorage {
             if days < 7.0 {
                 recommendations.push(super::metrics::CapacityRecommendation {
                     priority: super::metrics::Priority::Critical,
-                    message: format!("{} will be critically full within {} days", format!("{:?}", resource_type), days as u32),
+                    message: format!(
+                        "{} will be critically full within {} days",
+                        format!("{:?}", resource_type),
+                        days as u32
+                    ),
                     action: "Scale up immediately or add more capacity".to_string(),
                     estimated_cost: None,
                 });
             } else if days < 30.0 {
                 recommendations.push(super::metrics::CapacityRecommendation {
                     priority: super::metrics::Priority::High,
-                    message: format!("{} approaching capacity in {} days", format!("{:?}", resource_type), days as u32),
+                    message: format!(
+                        "{} approaching capacity in {} days",
+                        format!("{:?}", resource_type),
+                        days as u32
+                    ),
                     action: "Plan capacity expansion within this month".to_string(),
                     estimated_cost: None,
                 });
@@ -1000,7 +1024,7 @@ impl MetricsStorage {
             "SELECT started_at, resolved_at, severity
              FROM alerts
              WHERE server_id = ?1 AND severity IN ('critical', 'emergency')
-               AND started_at >= ?2 AND started_at <= ?3"
+               AND started_at >= ?2 AND started_at <= ?3",
         )?;
 
         let rows = stmt.query_map(
@@ -1040,9 +1064,13 @@ impl MetricsStorage {
         };
 
         // Calculate MTTR
-        let resolved_incidents: Vec<_> = incidents.iter().filter(|i| i.end_time.is_some()).collect();
+        let resolved_incidents: Vec<_> =
+            incidents.iter().filter(|i| i.end_time.is_some()).collect();
         let mttr = if !resolved_incidents.is_empty() {
-            resolved_incidents.iter().map(|i| i.duration_minutes as f64).sum::<f64>()
+            resolved_incidents
+                .iter()
+                .map(|i| i.duration_minutes as f64)
+                .sum::<f64>()
                 / resolved_incidents.len() as f64
         } else {
             0.0
@@ -1070,7 +1098,10 @@ impl MetricsStorage {
     }
 
     /// Execute flexible metric query
-    pub async fn query_metrics(&self, query: MetricQuery) -> Result<MetricQueryResult, MonitoringError> {
+    pub async fn query_metrics(
+        &self,
+        query: MetricQuery,
+    ) -> Result<MetricQueryResult, MonitoringError> {
         let conn = self.conn.lock().await;
 
         let metric_type_strs: Vec<String> = query
@@ -1079,14 +1110,23 @@ impl MetricsStorage {
             .map(|m| format!("{:?}", m))
             .collect();
 
-        let placeholders = metric_type_strs.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let placeholders = metric_type_strs
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(",");
         let sql = format!(
             "SELECT server_id, metric_type, timestamp, value FROM metrics_raw
              WHERE server_id IN ({})
                AND metric_type IN ({})
                AND timestamp >= ? AND timestamp <= ?
              ORDER BY server_id, metric_type, timestamp",
-            query.server_ids.iter().map(|_| "?").collect::<Vec<_>>().join(","),
+            query
+                .server_ids
+                .iter()
+                .map(|_| "?")
+                .collect::<Vec<_>>()
+                .join(","),
             placeholders
         );
 
@@ -1180,10 +1220,8 @@ impl MetricsStorage {
 
         // Delete old raw data
         let raw_cutoff = now - (raw_retention * 86400);
-        let raw_deleted = conn.execute(
-            "DELETE FROM metrics_raw WHERE timestamp < ?1",
-            [raw_cutoff],
-        )?;
+        let raw_deleted =
+            conn.execute("DELETE FROM metrics_raw WHERE timestamp < ?1", [raw_cutoff])?;
 
         // Delete old hourly rollups
         let hourly_cutoff = now - (hourly_retention * 86400);

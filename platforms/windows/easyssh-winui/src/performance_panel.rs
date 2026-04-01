@@ -1,10 +1,9 @@
 #![allow(dead_code)]
 
+use crate::performance::{global_monitor, PerformanceReport, GLOBAL_TRACKER};
 /// Performance Monitoring Panel UI
 /// Displays real-time FPS, memory usage, and optimization stats
-
 use egui::*;
-use crate::performance::{global_monitor, PerformanceReport, GLOBAL_TRACKER};
 
 pub struct PerformancePanel {
     visible: bool,
@@ -85,25 +84,28 @@ impl PerformancePanel {
         ui.separator();
 
         // Main stats grid
-        Grid::new("perf_stats").num_columns(2).spacing([20.0, 8.0]).show(ui, |ui| {
-            ui.label("Current FPS:");
-            ui.label(format!("{:.1}", report.current_fps));
+        Grid::new("perf_stats")
+            .num_columns(2)
+            .spacing([20.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("Current FPS:");
+                ui.label(format!("{:.1}", report.current_fps));
 
-            ui.label("Avg FPS:");
-            ui.label(format!("{:.1}", report.avg_fps));
+                ui.label("Avg FPS:");
+                ui.label(format!("{:.1}", report.avg_fps));
 
-            ui.label("Min FPS:");
-            ui.label(format!("{:.1}", report.min_fps));
+                ui.label("Min FPS:");
+                ui.label(format!("{:.1}", report.min_fps));
 
-            ui.label("Max Frame Time:");
-            ui.label(format!("{:.2} ms", report.max_frame_time_ms));
+                ui.label("Max Frame Time:");
+                ui.label(format!("{:.2} ms", report.max_frame_time_ms));
 
-            ui.label("Memory Usage:");
-            ui.label(format!("{:.1} MB", report.memory_usage_mb));
+                ui.label("Memory Usage:");
+                ui.label(format!("{:.1} MB", report.memory_usage_mb));
 
-            ui.label("Peak Memory:");
-            ui.label(format!("{:.1} MB", report.memory_peak_mb));
-        });
+                ui.label("Peak Memory:");
+                ui.label(format!("{:.1} MB", report.memory_peak_mb));
+            });
 
         ui.separator();
 
@@ -129,10 +131,8 @@ impl PerformancePanel {
             let graph_height = 80.0;
             let graph_width = ui.available_width();
 
-            let (response, painter) = ui.allocate_painter(
-                vec2(graph_width, graph_height),
-                Sense::hover(),
-            );
+            let (response, painter) =
+                ui.allocate_painter(vec2(graph_width, graph_height), Sense::hover());
 
             let rect = response.rect;
 
@@ -151,11 +151,16 @@ impl PerformancePanel {
             // FPS line
             if self.history.len() > 1 {
                 let max_fps = 60.0;
-                let points: Vec<Pos2> = self.history.iter().enumerate().map(|(i, s)| {
-                    let x = rect.min.x + (i as f32 / self.max_history as f32) * rect.width();
-                    let y = rect.max.y - ((s.fps / max_fps) as f32) * rect.height();
-                    pos2(x, y.clamp(rect.min.y, rect.max.y))
-                }).collect();
+                let points: Vec<Pos2> = self
+                    .history
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| {
+                        let x = rect.min.x + (i as f32 / self.max_history as f32) * rect.width();
+                        let y = rect.max.y - ((s.fps / max_fps) as f32) * rect.height();
+                        pos2(x, y.clamp(rect.min.y, rect.max.y))
+                    })
+                    .collect();
 
                 painter.add(Shape::line(points, Stroke::new(2.0, Color32::GREEN)));
             }
@@ -214,7 +219,10 @@ pub fn render_performance_overlay(ctx: &Context, fps: f64, frame_time_ms: f64) {
     let screen_rect = ctx.screen_rect();
     let overlay_width = 150.0;
     let overlay_height = 60.0;
-    let pos = pos2(screen_rect.max.x - overlay_width - 10.0, screen_rect.min.y + 10.0);
+    let pos = pos2(
+        screen_rect.max.x - overlay_width - 10.0,
+        screen_rect.min.y + 10.0,
+    );
 
     let overlay_rect = Rect::from_min_size(pos, vec2(overlay_width, overlay_height));
 

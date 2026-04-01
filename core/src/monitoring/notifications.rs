@@ -52,14 +52,23 @@ impl NotificationChannelType {
 
     pub fn required_config_fields(&self) -> Vec<&'static str> {
         match self {
-            NotificationChannelType::Email => vec!["smtp_host", "smtp_port", "username", "password", "from_address", "to_addresses"],
+            NotificationChannelType::Email => vec![
+                "smtp_host",
+                "smtp_port",
+                "username",
+                "password",
+                "from_address",
+                "to_addresses",
+            ],
             NotificationChannelType::Slack => vec!["webhook_url"],
             NotificationChannelType::Discord => vec!["webhook_url"],
             NotificationChannelType::Webhook => vec!["url", "method"],
             NotificationChannelType::PagerDuty => vec!["integration_key", "api_url"],
             NotificationChannelType::Opsgenie => vec!["api_key", "api_url"],
             NotificationChannelType::Telegram => vec!["bot_token", "chat_id"],
-            NotificationChannelType::Sms => vec!["provider", "api_key", "from_number", "to_numbers"],
+            NotificationChannelType::Sms => {
+                vec!["provider", "api_key", "from_number", "to_numbers"]
+            }
             NotificationChannelType::PushNotification => vec!["provider", "api_key"],
             NotificationChannelType::DesktopNotification => vec![],
         }
@@ -110,7 +119,10 @@ impl NotificationPayload {
 pub trait NotificationSender: Send + Sync {
     async fn send(&self, payload: &NotificationPayload) -> Result<(), NotificationError>;
     fn channel_type(&self) -> NotificationChannelType;
-    fn validate_config(&self, config: &HashMap<String, String>) -> Result<(), ConfigValidationError>;
+    fn validate_config(
+        &self,
+        config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError>;
 }
 
 /// Notification error types
@@ -193,8 +205,18 @@ impl NotificationSender for EmailSender {
         NotificationChannelType::Email
     }
 
-    fn validate_config(&self, config: &HashMap<String, String>) -> Result<(), ConfigValidationError> {
-        let required = vec!["smtp_host", "smtp_port", "username", "password", "from_address", "to_addresses"];
+    fn validate_config(
+        &self,
+        config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError> {
+        let required = vec![
+            "smtp_host",
+            "smtp_port",
+            "username",
+            "password",
+            "from_address",
+            "to_addresses",
+        ];
         for field in required {
             if !config.contains_key(field) {
                 return Err(ConfigValidationError {
@@ -234,10 +256,14 @@ impl EmailSender {
                 .map(|dt| dt.to_string())
                 .unwrap_or_else(|| payload.timestamp.to_string()),
             payload.severity,
-            payload.runbook_url.as_ref()
+            payload
+                .runbook_url
+                .as_ref()
                 .map(|url| format!("<p><a href=\"{}\">Runbook</a></p>", url))
                 .unwrap_or_default(),
-            payload.dashboard_url.as_ref()
+            payload
+                .dashboard_url
+                .as_ref()
                 .map(|url| format!("<p><a href=\"{}\">Dashboard</a></p>", url))
                 .unwrap_or_default(),
             payload.alert_id,
@@ -263,7 +289,9 @@ impl SlackSender {
 #[async_trait::async_trait]
 impl NotificationSender for SlackSender {
     async fn send(&self, payload: &NotificationPayload) -> Result<(), NotificationError> {
-        let webhook_url = self.config.get("webhook_url")
+        let webhook_url = self
+            .config
+            .get("webhook_url")
             .ok_or_else(|| NotificationError::Config("Missing webhook_url".to_string()))?;
 
         let color = match payload.severity {
@@ -305,7 +333,8 @@ impl NotificationSender for SlackSender {
             }]
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(webhook_url)
             .json(&slack_payload)
             .send()
@@ -314,9 +343,10 @@ impl NotificationSender for SlackSender {
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            return Err(NotificationError::Other(
-                format!("Slack API error: {} - {}", status, text)
-            ));
+            return Err(NotificationError::Other(format!(
+                "Slack API error: {} - {}",
+                status, text
+            )));
         }
 
         log::info!("[SLACK] Notification sent successfully to {}", webhook_url);
@@ -327,7 +357,10 @@ impl NotificationSender for SlackSender {
         NotificationChannelType::Slack
     }
 
-    fn validate_config(&self, config: &HashMap<String, String>) -> Result<(), ConfigValidationError> {
+    fn validate_config(
+        &self,
+        config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError> {
         if !config.contains_key("webhook_url") {
             return Err(ConfigValidationError {
                 field: "webhook_url".to_string(),
@@ -356,7 +389,9 @@ impl DiscordSender {
 #[async_trait::async_trait]
 impl NotificationSender for DiscordSender {
     async fn send(&self, payload: &NotificationPayload) -> Result<(), NotificationError> {
-        let webhook_url = self.config.get("webhook_url")
+        let webhook_url = self
+            .config
+            .get("webhook_url")
             .ok_or_else(|| NotificationError::Config("Missing webhook_url".to_string()))?;
 
         let color = match payload.severity {
@@ -397,16 +432,18 @@ impl NotificationSender for DiscordSender {
             }]
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(webhook_url)
             .json(&discord_payload)
             .send()
             .await?;
 
         if !response.status().is_success() {
-            return Err(NotificationError::Other(
-                format!("Discord API error: {}", response.status())
-            ));
+            return Err(NotificationError::Other(format!(
+                "Discord API error: {}",
+                response.status()
+            )));
         }
 
         log::info!("[DISCORD] Notification sent successfully");
@@ -417,7 +454,10 @@ impl NotificationSender for DiscordSender {
         NotificationChannelType::Discord
     }
 
-    fn validate_config(&self, config: &HashMap<String, String>) -> Result<(), ConfigValidationError> {
+    fn validate_config(
+        &self,
+        config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError> {
         if !config.contains_key("webhook_url") {
             return Err(ConfigValidationError {
                 field: "webhook_url".to_string(),
@@ -446,11 +486,19 @@ impl WebhookSender {
 #[async_trait::async_trait]
 impl NotificationSender for WebhookSender {
     async fn send(&self, payload: &NotificationPayload) -> Result<(), NotificationError> {
-        let url = self.config.get("url")
+        let url = self
+            .config
+            .get("url")
             .ok_or_else(|| NotificationError::Config("Missing url".to_string()))?;
-        let method = self.config.get("method").map(|m| m.to_uppercase()).unwrap_or_else(|| "POST".to_string());
+        let method = self
+            .config
+            .get("method")
+            .map(|m| m.to_uppercase())
+            .unwrap_or_else(|| "POST".to_string());
 
-        let custom_headers = self.config.get("headers")
+        let custom_headers = self
+            .config
+            .get("headers")
             .and_then(|h| serde_json::from_str::<HashMap<String, String>>(h).ok())
             .unwrap_or_default();
 
@@ -483,15 +531,14 @@ impl NotificationSender for WebhookSender {
             request = request.header(&key, &value);
         }
 
-        let response = request
-            .body(body)
-            .send()
-            .await?;
+        let response = request.body(body).send().await?;
 
         if !response.status().is_success() {
-            return Err(NotificationError::Other(
-                format!("Webhook error: {} - {}", response.status(), response.text().await.unwrap_or_default())
-            ));
+            return Err(NotificationError::Other(format!(
+                "Webhook error: {} - {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            )));
         }
 
         log::info!("[WEBHOOK] Notification sent to {}", url);
@@ -502,7 +549,10 @@ impl NotificationSender for WebhookSender {
         NotificationChannelType::Webhook
     }
 
-    fn validate_config(&self, config: &HashMap<String, String>) -> Result<(), ConfigValidationError> {
+    fn validate_config(
+        &self,
+        config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError> {
         if !config.contains_key("url") {
             return Err(ConfigValidationError {
                 field: "url".to_string(),
@@ -531,9 +581,13 @@ impl TelegramSender {
 #[async_trait::async_trait]
 impl NotificationSender for TelegramSender {
     async fn send(&self, payload: &NotificationPayload) -> Result<(), NotificationError> {
-        let bot_token = self.config.get("bot_token")
+        let bot_token = self
+            .config
+            .get("bot_token")
             .ok_or_else(|| NotificationError::Config("Missing bot_token".to_string()))?;
-        let chat_id = self.config.get("chat_id")
+        let chat_id = self
+            .config
+            .get("chat_id")
             .ok_or_else(|| NotificationError::Config("Missing chat_id".to_string()))?;
 
         let emoji = match payload.severity {
@@ -569,16 +623,18 @@ impl NotificationSender for TelegramSender {
             "disable_web_page_preview": true
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(&api_url)
             .json(&telegram_payload)
             .send()
             .await?;
 
         if !response.status().is_success() {
-            return Err(NotificationError::Other(
-                format!("Telegram API error: {}", response.status())
-            ));
+            return Err(NotificationError::Other(format!(
+                "Telegram API error: {}",
+                response.status()
+            )));
         }
 
         log::info!("[TELEGRAM] Notification sent successfully");
@@ -589,7 +645,10 @@ impl NotificationSender for TelegramSender {
         NotificationChannelType::Telegram
     }
 
-    fn validate_config(&self, config: &HashMap<String, String>) -> Result<(), ConfigValidationError> {
+    fn validate_config(
+        &self,
+        config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError> {
         if !config.contains_key("bot_token") {
             return Err(ConfigValidationError {
                 field: "bot_token".to_string(),
@@ -646,9 +705,13 @@ impl PagerDutySender {
 #[async_trait::async_trait]
 impl NotificationSender for PagerDutySender {
     async fn send(&self, payload: &NotificationPayload) -> Result<(), NotificationError> {
-        let integration_key = self.config.get("integration_key")
+        let integration_key = self
+            .config
+            .get("integration_key")
             .ok_or_else(|| NotificationError::Config("Missing integration_key".to_string()))?;
-        let api_url = self.config.get("api_url")
+        let api_url = self
+            .config
+            .get("api_url")
             .unwrap_or(&"https://events.pagerduty.com/v2/enqueue".to_string())
             .clone();
 
@@ -688,16 +751,18 @@ impl NotificationSender for PagerDutySender {
             "links": links
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(&api_url)
             .json(&pagerduty_payload)
             .send()
             .await?;
 
         if !response.status().is_success() {
-            return Err(NotificationError::Other(
-                format!("PagerDuty API error: {}", response.status())
-            ));
+            return Err(NotificationError::Other(format!(
+                "PagerDuty API error: {}",
+                response.status()
+            )));
         }
 
         log::info!("[PAGERDUTY] Incident triggered successfully");
@@ -708,7 +773,10 @@ impl NotificationSender for PagerDutySender {
         NotificationChannelType::PagerDuty
     }
 
-    fn validate_config(&self, config: &HashMap<String, String>) -> Result<(), ConfigValidationError> {
+    fn validate_config(
+        &self,
+        config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError> {
         if !config.contains_key("integration_key") {
             return Err(ConfigValidationError {
                 field: "integration_key".to_string(),
@@ -734,19 +802,31 @@ impl NotificationSender for DesktopNotificationSender {
         #[cfg(target_os = "windows")]
         {
             // Windows notification would use winrt or winapi
-            log::info!("[DESKTOP NOTIFICATION - Windows] {}: {}", payload.title, payload.message);
+            log::info!(
+                "[DESKTOP NOTIFICATION - Windows] {}: {}",
+                payload.title,
+                payload.message
+            );
         }
 
         #[cfg(target_os = "macos")]
         {
             // macOS notification would use mac-notification-sys
-            log::info!("[DESKTOP NOTIFICATION - macOS] {}: {}", payload.title, payload.message);
+            log::info!(
+                "[DESKTOP NOTIFICATION - macOS] {}: {}",
+                payload.title,
+                payload.message
+            );
         }
 
         #[cfg(target_os = "linux")]
         {
             // Linux notification would use notify-rust
-            log::info!("[DESKTOP NOTIFICATION - Linux] {}: {}", payload.title, payload.message);
+            log::info!(
+                "[DESKTOP NOTIFICATION - Linux] {}: {}",
+                payload.title,
+                payload.message
+            );
         }
 
         Ok(())
@@ -756,7 +836,10 @@ impl NotificationSender for DesktopNotificationSender {
         NotificationChannelType::DesktopNotification
     }
 
-    fn validate_config(&self, _config: &HashMap<String, String>) -> Result<(), ConfigValidationError> {
+    fn validate_config(
+        &self,
+        _config: &HashMap<String, String>,
+    ) -> Result<(), ConfigValidationError> {
         Ok(())
     }
 }
@@ -781,29 +864,48 @@ impl NotificationManager {
     }
 
     /// Add a notification channel
-    pub fn add_channel(&mut self, channel: &NotificationChannel) -> Result<(), ConfigValidationError> {
+    pub fn add_channel(
+        &mut self,
+        channel: &NotificationChannel,
+    ) -> Result<(), ConfigValidationError> {
         let sender: Box<dyn NotificationSender> = match channel.channel_type {
             NotificationChannelType::Email => Box::new(EmailSender::new(channel.config.clone())),
             NotificationChannelType::Slack => Box::new(SlackSender::new(channel.config.clone())),
-            NotificationChannelType::Discord => Box::new(DiscordSender::new(channel.config.clone())),
-            NotificationChannelType::Webhook => Box::new(WebhookSender::new(channel.config.clone())),
-            NotificationChannelType::Telegram => Box::new(TelegramSender::new(channel.config.clone())),
-            NotificationChannelType::PagerDuty => Box::new(PagerDutySender::new(channel.config.clone())),
-            NotificationChannelType::DesktopNotification => Box::new(DesktopNotificationSender::new()),
+            NotificationChannelType::Discord => {
+                Box::new(DiscordSender::new(channel.config.clone()))
+            }
+            NotificationChannelType::Webhook => {
+                Box::new(WebhookSender::new(channel.config.clone()))
+            }
+            NotificationChannelType::Telegram => {
+                Box::new(TelegramSender::new(channel.config.clone()))
+            }
+            NotificationChannelType::PagerDuty => {
+                Box::new(PagerDutySender::new(channel.config.clone()))
+            }
+            NotificationChannelType::DesktopNotification => {
+                Box::new(DesktopNotificationSender::new())
+            }
             _ => {
                 return Err(ConfigValidationError {
                     field: "channel_type".to_string(),
-                    message: format!("Channel type {:?} not yet implemented", channel.channel_type),
+                    message: format!(
+                        "Channel type {:?} not yet implemented",
+                        channel.channel_type
+                    ),
                 });
             }
         };
 
         sender.validate_config(&channel.config)?;
         self.channels.insert(channel.id.clone(), sender);
-        self.rate_limits.insert(channel.id.clone(), tokio::sync::Mutex::new(RateLimitState {
-            last_sent: std::time::Instant::now(),
-            count: 0,
-        }));
+        self.rate_limits.insert(
+            channel.id.clone(),
+            tokio::sync::Mutex::new(RateLimitState {
+                last_sent: std::time::Instant::now(),
+                count: 0,
+            }),
+        );
 
         Ok(())
     }
@@ -815,13 +917,22 @@ impl NotificationManager {
         payload: &NotificationPayload,
         rate_limit: u32,
     ) -> Result<(), NotificationError> {
-        let sender = self.channels.get(channel_id)
-            .ok_or_else(|| NotificationError::Config(format!("Channel {} not found", channel_id)))?;
+        let sender = self.channels.get(channel_id).ok_or_else(|| {
+            NotificationError::Config(format!("Channel {} not found", channel_id))
+        })?;
 
         // Check rate limit
-        let mut rate_limit_state = self.rate_limits.get(channel_id)
-            .ok_or_else(|| NotificationError::Config(format!("Rate limit state not found for channel {}", channel_id)))?
-            .lock().await;
+        let mut rate_limit_state = self
+            .rate_limits
+            .get(channel_id)
+            .ok_or_else(|| {
+                NotificationError::Config(format!(
+                    "Rate limit state not found for channel {}",
+                    channel_id
+                ))
+            })?
+            .lock()
+            .await;
 
         let elapsed = rate_limit_state.last_sent.elapsed();
         if elapsed.as_secs() < 60 && rate_limit_state.count >= rate_limit {

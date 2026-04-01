@@ -514,35 +514,102 @@ impl TerminalTheme {
     pub fn to_css_variables(&self) -> HashMap<String, String> {
         let mut vars = HashMap::new();
 
-        vars.insert("--terminal-bg".to_string(),
-            Self::get_css_color_with_alpha(self.palette.background, self.background_opacity));
-        vars.insert("--terminal-fg".to_string(), Self::get_css_color(self.palette.foreground));
+        vars.insert(
+            "--terminal-bg".to_string(),
+            Self::get_css_color_with_alpha(self.palette.background, self.background_opacity),
+        );
+        vars.insert(
+            "--terminal-fg".to_string(),
+            Self::get_css_color(self.palette.foreground),
+        );
 
-        vars.insert("--terminal-black".to_string(), Self::get_css_color(self.palette.black));
-        vars.insert("--terminal-red".to_string(), Self::get_css_color(self.palette.red));
-        vars.insert("--terminal-green".to_string(), Self::get_css_color(self.palette.green));
-        vars.insert("--terminal-yellow".to_string(), Self::get_css_color(self.palette.yellow));
-        vars.insert("--terminal-blue".to_string(), Self::get_css_color(self.palette.blue));
-        vars.insert("--terminal-magenta".to_string(), Self::get_css_color(self.palette.magenta));
-        vars.insert("--terminal-cyan".to_string(), Self::get_css_color(self.palette.cyan));
-        vars.insert("--terminal-white".to_string(), Self::get_css_color(self.palette.white));
+        vars.insert(
+            "--terminal-black".to_string(),
+            Self::get_css_color(self.palette.black),
+        );
+        vars.insert(
+            "--terminal-red".to_string(),
+            Self::get_css_color(self.palette.red),
+        );
+        vars.insert(
+            "--terminal-green".to_string(),
+            Self::get_css_color(self.palette.green),
+        );
+        vars.insert(
+            "--terminal-yellow".to_string(),
+            Self::get_css_color(self.palette.yellow),
+        );
+        vars.insert(
+            "--terminal-blue".to_string(),
+            Self::get_css_color(self.palette.blue),
+        );
+        vars.insert(
+            "--terminal-magenta".to_string(),
+            Self::get_css_color(self.palette.magenta),
+        );
+        vars.insert(
+            "--terminal-cyan".to_string(),
+            Self::get_css_color(self.palette.cyan),
+        );
+        vars.insert(
+            "--terminal-white".to_string(),
+            Self::get_css_color(self.palette.white),
+        );
 
-        vars.insert("--terminal-bright-black".to_string(), Self::get_css_color(self.palette.bright_black));
-        vars.insert("--terminal-bright-red".to_string(), Self::get_css_color(self.palette.bright_red));
-        vars.insert("--terminal-bright-green".to_string(), Self::get_css_color(self.palette.bright_green));
-        vars.insert("--terminal-bright-yellow".to_string(), Self::get_css_color(self.palette.bright_yellow));
-        vars.insert("--terminal-bright-blue".to_string(), Self::get_css_color(self.palette.bright_blue));
-        vars.insert("--terminal-bright-magenta".to_string(), Self::get_css_color(self.palette.bright_magenta));
-        vars.insert("--terminal-bright-cyan".to_string(), Self::get_css_color(self.palette.bright_cyan));
-        vars.insert("--terminal-bright-white".to_string(), Self::get_css_color(self.palette.bright_white));
+        vars.insert(
+            "--terminal-bright-black".to_string(),
+            Self::get_css_color(self.palette.bright_black),
+        );
+        vars.insert(
+            "--terminal-bright-red".to_string(),
+            Self::get_css_color(self.palette.bright_red),
+        );
+        vars.insert(
+            "--terminal-bright-green".to_string(),
+            Self::get_css_color(self.palette.bright_green),
+        );
+        vars.insert(
+            "--terminal-bright-yellow".to_string(),
+            Self::get_css_color(self.palette.bright_yellow),
+        );
+        vars.insert(
+            "--terminal-bright-blue".to_string(),
+            Self::get_css_color(self.palette.bright_blue),
+        );
+        vars.insert(
+            "--terminal-bright-magenta".to_string(),
+            Self::get_css_color(self.palette.bright_magenta),
+        );
+        vars.insert(
+            "--terminal-bright-cyan".to_string(),
+            Self::get_css_color(self.palette.bright_cyan),
+        );
+        vars.insert(
+            "--terminal-bright-white".to_string(),
+            Self::get_css_color(self.palette.bright_white),
+        );
 
-        vars.insert("--terminal-selection-bg".to_string(), Self::get_css_color(self.selection_bg));
-        vars.insert("--terminal-selection-fg".to_string(), Self::get_css_color(self.selection_fg));
+        vars.insert(
+            "--terminal-selection-bg".to_string(),
+            Self::get_css_color(self.selection_bg),
+        );
+        vars.insert(
+            "--terminal-selection-fg".to_string(),
+            Self::get_css_color(self.selection_fg),
+        );
 
-        vars.insert("--terminal-cursor".to_string(),
-            Self::get_css_color(self.cursor.color.unwrap_or(self.palette.foreground)));
-        vars.insert("--terminal-font-family".to_string(), self.font.family.clone());
-        vars.insert("--terminal-font-size".to_string(), format!("{}px", self.font.size));
+        vars.insert(
+            "--terminal-cursor".to_string(),
+            Self::get_css_color(self.cursor.color.unwrap_or(self.palette.foreground)),
+        );
+        vars.insert(
+            "--terminal-font-family".to_string(),
+            self.font.family.clone(),
+        );
+        vars.insert(
+            "--terminal-font-size".to_string(),
+            format!("{}px", self.font.size),
+        );
 
         vars
     }
@@ -707,7 +774,9 @@ impl ThemeManager {
 
     /// 导出主题到JSON
     pub async fn export_theme(&self, name: &str) -> Result<String, String> {
-        let theme = self.get_theme(name).await
+        let theme = self
+            .get_theme(name)
+            .await
             .ok_or_else(|| format!("Theme '{}' not found", name))?;
 
         serde_json::to_string_pretty(&theme)
@@ -716,8 +785,8 @@ impl ThemeManager {
 
     /// 从JSON导入主题
     pub async fn import_theme(&self, json: &str) -> Result<TerminalTheme, String> {
-        let theme: TerminalTheme = serde_json::from_str(json)
-            .map_err(|e| format!("Failed to parse theme: {}", e))?;
+        let theme: TerminalTheme =
+            serde_json::from_str(json).map_err(|e| format!("Failed to parse theme: {}", e))?;
 
         self.add_custom_theme(theme.clone()).await;
         Ok(theme)
@@ -725,7 +794,11 @@ impl ThemeManager {
 
     /// 根据系统偏好自动选择主题
     pub async fn auto_select_theme(&self, prefers_dark: bool) {
-        let name = if prefers_dark { "Dracula" } else { "Solarized Light" };
+        let name = if prefers_dark {
+            "Dracula"
+        } else {
+            "Solarized Light"
+        };
         let _ = self.set_theme(name).await;
     }
 }

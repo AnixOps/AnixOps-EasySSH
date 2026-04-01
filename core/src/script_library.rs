@@ -1,10 +1,10 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use chrono::{DateTime, Utc};
 
-use crate::workflow_engine::Workflow;
 use crate::macro_recorder::Macro;
+use crate::workflow_engine::Workflow;
 
 /// Script library manager - stores and manages reusable workflows and macros
 #[derive(Debug, Clone)]
@@ -306,7 +306,12 @@ impl ScriptLibrary {
         results
     }
 
-    fn matches_search(&self, name: &str, entry: &impl HasMetadata, options: &ScriptSearchOptions) -> bool {
+    fn matches_search(
+        &self,
+        name: &str,
+        entry: &impl HasMetadata,
+        options: &ScriptSearchOptions,
+    ) -> bool {
         let metadata = entry.metadata();
 
         // Text search
@@ -325,8 +330,7 @@ impl ScriptLibrary {
 
         // Tags filter
         if !options.tags.is_empty() {
-            let has_tag = options.tags.iter()
-                .any(|t| metadata.tags.contains(t));
+            let has_tag = options.tags.iter().any(|t| metadata.tags.contains(t));
             if !has_tag {
                 return false;
             }
@@ -417,10 +421,15 @@ impl ScriptLibrary {
 
     /// Get recently used scripts
     pub fn get_recently_used(&self, limit: usize) -> Vec<ScriptSearchResult<'_>> {
-        let mut all: Vec<_> = self.list_workflows().into_iter()
+        let mut all: Vec<_> = self
+            .list_workflows()
+            .into_iter()
             .map(|e| (e.metadata.last_used, ScriptSearchResult::Workflow(e)))
-            .chain(self.list_macros().into_iter()
-                .map(|e| (e.metadata.last_used, ScriptSearchResult::Macro(e))))
+            .chain(
+                self.list_macros()
+                    .into_iter()
+                    .map(|e| (e.metadata.last_used, ScriptSearchResult::Macro(e))),
+            )
             .filter(|(date, _)| date.is_some())
             .collect();
 
@@ -435,10 +444,15 @@ impl ScriptLibrary {
 
     /// Get most used scripts
     pub fn get_most_used(&self, limit: usize) -> Vec<ScriptSearchResult<'_>> {
-        let mut all: Vec<_> = self.list_workflows().into_iter()
+        let mut all: Vec<_> = self
+            .list_workflows()
+            .into_iter()
             .map(|e| (e.metadata.usage_count, ScriptSearchResult::Workflow(e)))
-            .chain(self.list_macros().into_iter()
-                .map(|e| (e.metadata.usage_count, ScriptSearchResult::Macro(e))))
+            .chain(
+                self.list_macros()
+                    .into_iter()
+                    .map(|e| (e.metadata.usage_count, ScriptSearchResult::Macro(e))),
+            )
             .collect();
 
         // Sort by usage count (highest first)
@@ -451,16 +465,24 @@ impl ScriptLibrary {
     }
 
     /// Export script to JSON
-    pub fn export_to_json(&self, script_id: &str, script_type: ScriptType) -> Result<String, String> {
+    pub fn export_to_json(
+        &self,
+        script_id: &str,
+        script_type: ScriptType,
+    ) -> Result<String, String> {
         match script_type {
             ScriptType::Workflow => {
-                let entry = self.workflows.get(script_id)
+                let entry = self
+                    .workflows
+                    .get(script_id)
                     .ok_or_else(|| format!("Workflow {} not found", script_id))?;
                 serde_json::to_string_pretty(entry)
                     .map_err(|e| format!("Serialization error: {}", e))
             }
             ScriptType::Macro => {
-                let entry = self.macros.get(script_id)
+                let entry = self
+                    .macros
+                    .get(script_id)
                     .ok_or_else(|| format!("Macro {} not found", script_id))?;
                 serde_json::to_string_pretty(entry)
                     .map_err(|e| format!("Serialization error: {}", e))
@@ -470,19 +492,23 @@ impl ScriptLibrary {
     }
 
     /// Import script from JSON
-    pub fn import_from_json(&mut self, json: &str, script_type: ScriptType) -> Result<String, String> {
+    pub fn import_from_json(
+        &mut self,
+        json: &str,
+        script_type: ScriptType,
+    ) -> Result<String, String> {
         match script_type {
             ScriptType::Workflow => {
-                let entry: WorkflowEntry = serde_json::from_str(json)
-                    .map_err(|e| format!("Parse error: {}", e))?;
+                let entry: WorkflowEntry =
+                    serde_json::from_str(json).map_err(|e| format!("Parse error: {}", e))?;
                 let id = entry.id.clone();
                 self.workflows.insert(id.clone(), entry);
                 self.save_to_disk();
                 Ok(id)
             }
             ScriptType::Macro => {
-                let entry: MacroEntry = serde_json::from_str(json)
-                    .map_err(|e| format!("Parse error: {}", e))?;
+                let entry: MacroEntry =
+                    serde_json::from_str(json).map_err(|e| format!("Parse error: {}", e))?;
                 let id = entry.id.clone();
                 self.macros.insert(id.clone(), entry);
                 self.save_to_disk();
@@ -610,11 +636,13 @@ pub struct ScriptBundle {
 impl ScriptLibrary {
     /// Create a bundle of multiple scripts
     pub fn create_bundle(&self, workflow_ids: &[String], macro_ids: &[String]) -> ScriptBundle {
-        let workflows: Vec<_> = workflow_ids.iter()
+        let workflows: Vec<_> = workflow_ids
+            .iter()
             .filter_map(|id| self.workflows.get(id).cloned())
             .collect();
 
-        let macros: Vec<_> = macro_ids.iter()
+        let macros: Vec<_> = macro_ids
+            .iter()
             .filter_map(|id| self.macros.get(id).cloned())
             .collect();
 

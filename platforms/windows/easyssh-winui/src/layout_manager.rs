@@ -3,20 +3,13 @@
 //! Split Panel Layout Manager for EasySSH
 //! Integrates the split_layout module with the main application
 
-use crate::split_layout::{PanelContent, PanelId, PanelType, SplitLayout, LayoutNode};
+use crate::split_layout::{LayoutNode, PanelContent, PanelId, PanelType, SplitLayout};
 use eframe::egui;
 
 /// Manages the split layout integration
+#[derive(Default)]
 pub struct SplitLayoutManager {
     pub layout: SplitLayout,
-}
-
-impl Default for SplitLayoutManager {
-    fn default() -> Self {
-        Self {
-            layout: SplitLayout::default(),
-        }
-    }
 }
 
 impl SplitLayoutManager {
@@ -29,8 +22,9 @@ impl SplitLayoutManager {
 
     /// Create with terminal + server list layout
     pub fn with_terminal_layout(server_name: &str, session_id: &str) -> Self {
-        let terminal_content = PanelContent::new(PanelType::Terminal, format!("Terminal - {}", server_name))
-            .with_session(session_id.to_string());
+        let terminal_content =
+            PanelContent::new(PanelType::Terminal, format!("Terminal - {}", server_name))
+                .with_session(session_id.to_string());
 
         let server_list_content = PanelContent::new(PanelType::ServerList, "Servers");
 
@@ -57,8 +51,8 @@ impl SplitLayoutManager {
 
     /// Add a terminal panel
     pub fn add_terminal(&mut self, title: &str, session_id: &str) -> PanelId {
-        let content = PanelContent::new(PanelType::Terminal, title)
-            .with_session(session_id.to_string());
+        let content =
+            PanelContent::new(PanelType::Terminal, title).with_session(session_id.to_string());
         self.layout.add_panel(content)
     }
 
@@ -77,13 +71,23 @@ impl SplitLayoutManager {
     }
 
     /// Split a panel horizontally
-    pub fn split_horizontal(&mut self, target_id: PanelId, panel_type: PanelType, title: &str) -> Option<PanelId> {
+    pub fn split_horizontal(
+        &mut self,
+        target_id: PanelId,
+        panel_type: PanelType,
+        title: &str,
+    ) -> Option<PanelId> {
         let content = PanelContent::new(panel_type, title);
         self.layout.split_panel_horizontal(target_id, content)
     }
 
     /// Split a panel vertically
-    pub fn split_vertical(&mut self, target_id: PanelId, panel_type: PanelType, title: &str) -> Option<PanelId> {
+    pub fn split_vertical(
+        &mut self,
+        target_id: PanelId,
+        panel_type: PanelType,
+        title: &str,
+    ) -> Option<PanelId> {
         let content = PanelContent::new(panel_type, title);
         self.layout.split_panel_vertical(target_id, content)
     }

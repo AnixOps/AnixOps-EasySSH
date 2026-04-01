@@ -4,9 +4,9 @@
 
 #![allow(dead_code)]
 
+use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use anyhow::Result;
 
 use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::providers::{ChatRequest, Message, Role};
@@ -21,7 +21,7 @@ pub struct SecurityAuditRequest {
 
 /// 用户权限
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UserPermissions {
     pub is_root: bool,
     pub is_sudoer: bool,
@@ -29,15 +29,6 @@ pub struct UserPermissions {
 }
 
 #[allow(dead_code)]
-impl Default for UserPermissions {
-    fn default() -> Self {
-        Self {
-            is_root: false,
-            is_sudoer: false,
-            groups: vec![],
-        }
-    }
-}
 
 /// 安全审计结果
 #[derive(Debug, Clone)]
@@ -57,11 +48,11 @@ pub struct SecurityAuditResult {
 /// 风险等级
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RiskLevel {
-    Safe,       // 无风险
-    Low,        // 低风险
-    Medium,     // 中等风险
-    High,       // 高风险
-    Critical,   // 严重风险
+    Safe,     // 无风险
+    Low,      // 低风险
+    Medium,   // 中等风险
+    High,     // 高风险
+    Critical, // 严重风险
 }
 
 #[allow(dead_code)]
@@ -116,13 +107,13 @@ pub struct SecurityThreat {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThreatCategory {
-    DataLoss,       // 数据丢失
-    DataExposure,   // 数据泄露
-    PrivilegeEscalation, // 权限提升
-    SystemModification,  // 系统修改
-    NetworkExposure,     // 网络暴露
-    MaliciousCode,       // 恶意代码
-    ResourceExhaustion,  // 资源耗尽
+    DataLoss,              // 数据丢失
+    DataExposure,          // 数据泄露
+    PrivilegeEscalation,   // 权限提升
+    SystemModification,    // 系统修改
+    NetworkExposure,       // 网络暴露
+    MaliciousCode,         // 恶意代码
+    ResourceExhaustion,    // 资源耗尽
     InformationDisclosure, // 信息泄露
 }
 
@@ -171,56 +162,138 @@ impl SecurityAuditor {
         // 定义危险模式
         dangerous_patterns.insert(
             "rm -rf /".to_string(),
-            (RiskLevel::Critical, ThreatCategory::DataLoss, "Will recursively delete entire filesystem")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::DataLoss,
+                "Will recursively delete entire filesystem",
+            ),
         );
         dangerous_patterns.insert(
             "rm -rf /*".to_string(),
-            (RiskLevel::Critical, ThreatCategory::DataLoss, "Will recursively delete all files")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::DataLoss,
+                "Will recursively delete all files",
+            ),
         );
         dangerous_patterns.insert(
             ":(){ :|:& };:".to_string(),
-            (RiskLevel::Critical, ThreatCategory::ResourceExhaustion, "Fork bomb - will crash system")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::ResourceExhaustion,
+                "Fork bomb - will crash system",
+            ),
         );
         dangerous_patterns.insert(
             "dd if=/dev/zero of=/dev/sda".to_string(),
-            (RiskLevel::Critical, ThreatCategory::DataLoss, "Will overwrite disk with zeros")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::DataLoss,
+                "Will overwrite disk with zeros",
+            ),
         );
         dangerous_patterns.insert(
             "dd if=/dev/random of=/dev/sda".to_string(),
-            (RiskLevel::Critical, ThreatCategory::DataLoss, "Will overwrite disk with random data")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::DataLoss,
+                "Will overwrite disk with random data",
+            ),
         );
         dangerous_patterns.insert(
             "mkfs.ext4 /dev/sda".to_string(),
-            (RiskLevel::Critical, ThreatCategory::DataLoss, "Will format disk")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::DataLoss,
+                "Will format disk",
+            ),
         );
         dangerous_patterns.insert(
             "mv / /dev/null".to_string(),
-            (RiskLevel::Critical, ThreatCategory::DataLoss, "Will attempt to move root to null")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::DataLoss,
+                "Will attempt to move root to null",
+            ),
         );
         dangerous_patterns.insert(
             "wget.*|.*sh".to_string(),
-            (RiskLevel::High, ThreatCategory::MaliciousCode, "Piping downloaded content directly to shell")
+            (
+                RiskLevel::High,
+                ThreatCategory::MaliciousCode,
+                "Piping downloaded content directly to shell",
+            ),
         );
         dangerous_patterns.insert(
             "curl.*|.*sh".to_string(),
-            (RiskLevel::High, ThreatCategory::MaliciousCode, "Piping downloaded content directly to shell")
+            (
+                RiskLevel::High,
+                ThreatCategory::MaliciousCode,
+                "Piping downloaded content directly to shell",
+            ),
         );
         dangerous_patterns.insert(
             "> /etc/passwd".to_string(),
-            (RiskLevel::Critical, ThreatCategory::SystemModification, "Will overwrite passwd file")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::SystemModification,
+                "Will overwrite passwd file",
+            ),
         );
         dangerous_patterns.insert(
             "> /etc/shadow".to_string(),
-            (RiskLevel::Critical, ThreatCategory::SystemModification, "Will overwrite shadow file")
+            (
+                RiskLevel::Critical,
+                ThreatCategory::SystemModification,
+                "Will overwrite shadow file",
+            ),
         );
 
         let readonly_commands = [
-            "ls", "cat", "less", "more", "head", "tail", "grep", "find",
-            "pwd", "echo", "date", "whoami", "who", "w", "ps", "top", "htop",
-            "df", "du", "free", "uname", "hostname", "uptime", "env",
-            "which", "whereis", "file", "stat", "lsblk", "lscpu", "lsusb",
-            "lspci", "lsmod", "ifconfig", "ip", "netstat", "ss", "ping",
-            "traceroute", "dig", "nslookup", "man", "info", "help",
+            "ls",
+            "cat",
+            "less",
+            "more",
+            "head",
+            "tail",
+            "grep",
+            "find",
+            "pwd",
+            "echo",
+            "date",
+            "whoami",
+            "who",
+            "w",
+            "ps",
+            "top",
+            "htop",
+            "df",
+            "du",
+            "free",
+            "uname",
+            "hostname",
+            "uptime",
+            "env",
+            "which",
+            "whereis",
+            "file",
+            "stat",
+            "lsblk",
+            "lscpu",
+            "lsusb",
+            "lspci",
+            "lsmod",
+            "ifconfig",
+            "ip",
+            "netstat",
+            "ss",
+            "ping",
+            "traceroute",
+            "dig",
+            "nslookup",
+            "man",
+            "info",
+            "help",
         ]
         .iter()
         .map(|&s| s.to_string())
@@ -277,9 +350,9 @@ impl SecurityAuditor {
         }
 
         // 检查是否使用sudo/root
-        let uses_elevation = command.starts_with("sudo ") ||
-                           command.contains(" sudo ") ||
-                           request.user_permissions.is_root;
+        let uses_elevation = command.starts_with("sudo ")
+            || command.contains(" sudo ")
+            || request.user_permissions.is_root;
 
         if uses_elevation {
             warnings.push("Command uses elevated privileges".to_string());
@@ -292,7 +365,8 @@ impl SecurityAuditor {
                 if command.contains(" /") || command.contains("*") {
                     threats.push(SecurityThreat {
                         category: ThreatCategory::DataLoss,
-                        description: "Recursive force delete may remove important files".to_string(),
+                        description: "Recursive force delete may remove important files"
+                            .to_string(),
                         severity: RiskLevel::High,
                         affected_resources: vec!["files".to_string()],
                         mitigation: Some("Verify target path carefully".to_string()),
@@ -329,8 +403,11 @@ impl SecurityAuditor {
         }
 
         // 检查管道到shell
-        if (command.contains("wget") || command.contains("curl")) &&
-           (command.contains("| sh") || command.contains("| bash") || command.contains("|/bin/sh")) {
+        if (command.contains("wget") || command.contains("curl"))
+            && (command.contains("| sh")
+                || command.contains("| bash")
+                || command.contains("|/bin/sh"))
+        {
             threats.push(SecurityThreat {
                 category: ThreatCategory::MaliciousCode,
                 description: "Downloading and executing remote code".to_string(),
@@ -354,7 +431,9 @@ impl SecurityAuditor {
                     description: "Setting overly permissive permissions (777/666)".to_string(),
                     severity: RiskLevel::Medium,
                     affected_resources: vec!["file permissions".to_string()],
-                    mitigation: Some("Use more restrictive permissions (e.g., 755, 644)".to_string()),
+                    mitigation: Some(
+                        "Use more restrictive permissions (e.g., 755, 644)".to_string(),
+                    ),
                 });
                 risk_level = risk_level.max(RiskLevel::Medium);
                 risk_score += 0.4;
@@ -362,7 +441,8 @@ impl SecurityAuditor {
         }
 
         // 检查数据库操作
-        if command.contains("DROP ") || command.contains("DELETE ") || command.contains("TRUNCATE ") {
+        if command.contains("DROP ") || command.contains("DELETE ") || command.contains("TRUNCATE ")
+        {
             threats.push(SecurityThreat {
                 category: ThreatCategory::DataLoss,
                 description: "Database destructive operation".to_string(),
@@ -377,7 +457,8 @@ impl SecurityAuditor {
         // 检查docker命令
         if command.starts_with("docker ") {
             if command.contains(" rm") || command.contains(" rmi") || command.contains(" prune") {
-                warnings.push("Docker cleanup operation - may remove containers/images".to_string());
+                warnings
+                    .push("Docker cleanup operation - may remove containers/images".to_string());
                 risk_score += 0.2;
             }
             if command.contains(" -v ") || command.contains(" --volumes ") {
@@ -397,7 +478,8 @@ impl SecurityAuditor {
         }
 
         // 检查网络暴露
-        if command.contains("nc -l") || command.contains("ncat -l") || command.contains("netcat -l") {
+        if command.contains("nc -l") || command.contains("ncat -l") || command.contains("netcat -l")
+        {
             warnings.push("Network listener detected".to_string());
             if command.contains(" -p ") || command.contains(" -e ") {
                 threats.push(SecurityThreat {
@@ -414,10 +496,10 @@ impl SecurityAuditor {
 
         // 检查是否只读命令
         let base_cmd = command.split_whitespace().next().unwrap_or("");
-        let is_readonly = self.readonly_commands.contains(base_cmd) &&
-                          !command.contains(">") &&
-                          !command.contains("| sh") &&
-                          !command.contains("| bash");
+        let is_readonly = self.readonly_commands.contains(base_cmd)
+            && !command.contains(">")
+            && !command.contains("| sh")
+            && !command.contains("| bash");
 
         if is_readonly && threats.is_empty() && risk_level == RiskLevel::Safe {
             risk_score = 0.0;
@@ -449,12 +531,20 @@ impl SecurityAuditor {
             safe_alternatives,
             requires_confirmation: risk_level.requires_confirmation(),
             confirmation_message,
-            explanation: format!("Risk level: {} (score: {:.2})", risk_level.description(), risk_score),
+            explanation: format!(
+                "Risk level: {} (score: {:.2})",
+                risk_level.description(),
+                risk_score
+            ),
         }
     }
 
     /// AI深度审计
-    async fn ai_audit(&self, request: &SecurityAuditRequest, rule_result: SecurityAuditResult) -> Result<SecurityAuditResult> {
+    async fn ai_audit(
+        &self,
+        request: &SecurityAuditRequest,
+        rule_result: SecurityAuditResult,
+    ) -> Result<SecurityAuditResult> {
         // 如果规则分析已经很明确，不需要AI分析
         if rule_result.risk_level != RiskLevel::Low && rule_result.risk_level != RiskLevel::Safe {
             return Ok(rule_result);
@@ -480,7 +570,11 @@ EXPLANATION: <brief security analysis>"#;
         let user_prompt = format!(
             "Command: {}\nUser: {}\n\nSecurity analysis:",
             request.command,
-            if request.user_permissions.is_root { "root" } else { "normal user" }
+            if request.user_permissions.is_root {
+                "root"
+            } else {
+                "normal user"
+            }
         );
 
         let _chat_request = ChatRequest {
@@ -505,7 +599,11 @@ EXPLANATION: <brief security analysis>"#;
     }
 
     /// 生成安全替代方案
-    fn generate_safe_alternatives(&self, command: &str, _threats: &[SecurityThreat]) -> Vec<String> {
+    fn generate_safe_alternatives(
+        &self,
+        command: &str,
+        _threats: &[SecurityThreat],
+    ) -> Vec<String> {
         let mut alternatives = Vec::new();
 
         // 针对rm命令
@@ -515,15 +613,24 @@ EXPLANATION: <brief security analysis>"#;
 
         // 针对递归删除
         if command.contains("rm -rf ") || command.contains("rm -fr ") {
-            alternatives.push(command.replace("rm -rf ", "rm -ri ").replace("rm -fr ", "rm -ri "));
+            alternatives.push(
+                command
+                    .replace("rm -rf ", "rm -ri ")
+                    .replace("rm -fr ", "rm -ri "),
+            );
             alternatives.push("# Use 'find' with -delete for more control".to_string());
         }
 
         // 针对wget/curl管道
-        if (command.contains("wget") || command.contains("curl")) &&
-           (command.contains("| sh") || command.contains("| bash")) {
+        if (command.contains("wget") || command.contains("curl"))
+            && (command.contains("| sh") || command.contains("| bash"))
+        {
             alternatives.push("# Download first, review, then execute".to_string());
-            alternatives.push(command.replace("| sh", " > script.sh && cat script.sh").replace("| bash", " > script.sh && cat script.sh"));
+            alternatives.push(
+                command
+                    .replace("| sh", " > script.sh && cat script.sh")
+                    .replace("| bash", " > script.sh && cat script.sh"),
+            );
         }
 
         // 针对chmod 777

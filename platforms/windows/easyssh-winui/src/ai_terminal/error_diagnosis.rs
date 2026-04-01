@@ -4,11 +4,11 @@
 //!
 //! 自动分析命令错误输出并给出解决方案
 
-use std::sync::Arc;
 use anyhow::Result;
+use std::sync::Arc;
 
-use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::context::TerminalContext;
+use crate::ai_terminal::providers::AiProvider;
 use crate::ai_terminal::providers::{ChatRequest, Message, Role};
 
 /// 错误诊断请求
@@ -214,7 +214,8 @@ impl ErrorDiagnoser {
                     Solution {
                         description: "Use a different port".to_string(),
                         command: None,
-                        explanation: "Configure your application to use an available port".to_string(),
+                        explanation: "Configure your application to use an available port"
+                            .to_string(),
                         estimated_success_rate: 1.0,
                     },
                 ],
@@ -328,7 +329,10 @@ impl ErrorDiagnoser {
                     },
                     Solution {
                         description: "Remove old logs".to_string(),
-                        command: Some("sudo find /var/log -type f -name '*.log' -mtime +7 -delete".to_string()),
+                        command: Some(
+                            "sudo find /var/log -type f -name '*.log' -mtime +7 -delete"
+                                .to_string(),
+                        ),
                         explanation: "Delete log files older than 7 days".to_string(),
                         estimated_success_rate: 0.8,
                     },
@@ -344,7 +348,9 @@ impl ErrorDiagnoser {
         }
 
         // SSH密钥错误
-        if error.contains("permission denied (publickey)") || error.contains("too many authentication failures") {
+        if error.contains("permission denied (publickey)")
+            || error.contains("too many authentication failures")
+        {
             return Some(DiagnosisResult {
                 error_summary: "SSH authentication failed".to_string(),
                 root_cause: "SSH key authentication failed or rejected".to_string(),
@@ -408,7 +414,10 @@ PREVENTION:
         let user_prompt = format!(
             "Command: {}\nExit code: {}\nError output:\n{}\n\nProvide diagnosis:",
             request.command,
-            request.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "unknown".to_string()),
+            request
+                .exit_code
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
             request.error_output
         );
 
@@ -488,7 +497,10 @@ PREVENTION:
                 let mut success_rate = 0.8;
 
                 i += 1;
-                while i < lines.len() && !lines[i].trim().starts_with("SOLUTION") && !lines[i].trim().starts_with("PREVENTION") {
+                while i < lines.len()
+                    && !lines[i].trim().starts_with("SOLUTION")
+                    && !lines[i].trim().starts_with("PREVENTION")
+                {
                     let inner = lines[i].trim();
                     if inner.starts_with("Description:") {
                         desc = inner[12..].trim().to_string();

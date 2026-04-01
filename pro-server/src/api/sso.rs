@@ -6,12 +6,7 @@ use axum::{
 };
 use std::collections::HashMap;
 
-use crate::{
-    auth::Claims,
-    models::*,
-    services::sso_service::SsoService,
-    AppState,
-};
+use crate::{auth::Claims, models::*, services::sso_service::SsoService, AppState};
 
 pub fn sso_routes() -> Router<AppState> {
     Router::new()
@@ -37,17 +32,15 @@ async fn create_sso_config(
 ) -> Result<Json<SuccessResponse<SsoConfig>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let sso_service = SsoService::new(state.db.pool().clone(), state.config.clone());
 
-    let team_id = req.get("team_id")
-        .and_then(|v| v.as_str())
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_field".to_string(),
-                message: "team_id is required".to_string(),
-                code: Some("missing_team_id".to_string()),
-                details: None,
-            })
-        ))?;
+    let team_id = req.get("team_id").and_then(|v| v.as_str()).ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_field".to_string(),
+            message: "team_id is required".to_string(),
+            code: Some("missing_team_id".to_string()),
+            details: None,
+        }),
+    ))?;
 
     // Check if user is team admin
     let is_admin = check_team_admin(&state, &claims.sub, team_id).await?;
@@ -59,72 +52,70 @@ async fn create_sso_config(
                 message: "Only team admins can configure SSO".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
-    let provider_type_str = req.get("provider_type")
-        .and_then(|v| v.as_str())
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_field".to_string(),
-                message: "provider_type is required".to_string(),
-                code: Some("missing_provider_type".to_string()),
-                details: None,
-            })
-        ))?;
+    let provider_type_str = req.get("provider_type").and_then(|v| v.as_str()).ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_field".to_string(),
+            message: "provider_type is required".to_string(),
+            code: Some("missing_provider_type".to_string()),
+            details: None,
+        }),
+    ))?;
 
     let provider_type = match provider_type_str {
         "saml" => SsoProviderType::Saml,
         "oidc" => SsoProviderType::Oidc,
-        _ => return Err((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "invalid_provider".to_string(),
-                message: format!("Invalid provider_type: {}", provider_type_str),
-                code: Some("invalid_value".to_string()),
-                details: None,
-            })
-        ))
+        _ => {
+            return Err((
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "invalid_provider".to_string(),
+                    message: format!("Invalid provider_type: {}", provider_type_str),
+                    code: Some("invalid_value".to_string()),
+                    details: None,
+                }),
+            ))
+        }
     };
 
-    let provider_name = req.get("provider_name")
-        .and_then(|v| v.as_str())
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_field".to_string(),
-                message: "provider_name is required".to_string(),
-                code: Some("missing_provider_name".to_string()),
-                details: None,
-            })
-        ))?;
+    let provider_name = req.get("provider_name").and_then(|v| v.as_str()).ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_field".to_string(),
+            message: "provider_name is required".to_string(),
+            code: Some("missing_provider_name".to_string()),
+            details: None,
+        }),
+    ))?;
 
-    let config = req.get("config")
-        .cloned()
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_field".to_string(),
-                message: "config is required".to_string(),
-                code: Some("missing_config".to_string()),
-                details: None,
-            })
-        ))?;
+    let config = req.get("config").cloned().ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_field".to_string(),
+            message: "config is required".to_string(),
+            code: Some("missing_config".to_string()),
+            details: None,
+        }),
+    ))?;
 
     let sso_config = sso_service
         .create_sso_config(team_id, provider_type, provider_name, config)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "sso_config_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "sso_config_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -147,7 +138,7 @@ async fn list_sso_configs(
             message: "team_id query parameter is required".to_string(),
             code: Some("missing_team_id".to_string()),
             details: None,
-        })
+        }),
     ))?;
 
     // Check if user is team admin
@@ -160,22 +151,24 @@ async fn list_sso_configs(
                 message: "Only team admins can view SSO configurations".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
     let configs = sso_service
         .list_team_sso_configs(team_id)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "list_configs_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "list_configs_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -191,18 +184,17 @@ async fn get_sso_config(
 ) -> Result<Json<SuccessResponse<SsoConfig>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let sso_service = SsoService::new(state.db.pool().clone(), state.config.clone());
 
-    let config = sso_service
-        .get_sso_config(&id)
-        .await
-        .map_err(|e| (
+    let config = sso_service.get_sso_config(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::NOT_FOUND,
             Json(ErrorResponse {
                 error: "config_not_found".to_string(),
                 message: e.to_string(),
                 code: Some("not_found".to_string()),
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     // Check if user is team admin
     let is_admin = check_team_admin(&state, &claims.sub, &config.team_id).await?;
@@ -214,7 +206,7 @@ async fn get_sso_config(
                 message: "Only team admins can view SSO configurations".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
@@ -234,18 +226,17 @@ async fn update_sso_config(
     let sso_service = SsoService::new(state.db.pool().clone(), state.config.clone());
 
     // Get existing config
-    let existing = sso_service
-        .get_sso_config(&id)
-        .await
-        .map_err(|e| (
+    let existing = sso_service.get_sso_config(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::NOT_FOUND,
             Json(ErrorResponse {
                 error: "config_not_found".to_string(),
                 message: e.to_string(),
                 code: Some("not_found".to_string()),
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     // Check if user is team admin
     let is_admin = check_team_admin(&state, &claims.sub, &existing.team_id).await?;
@@ -257,7 +248,7 @@ async fn update_sso_config(
                 message: "Only team admins can update SSO configurations".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
@@ -267,15 +258,17 @@ async fn update_sso_config(
     let config = sso_service
         .update_sso_config(&id, updates, is_enabled)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "update_config_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "update_config_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -292,18 +285,17 @@ async fn delete_sso_config(
     let sso_service = SsoService::new(state.db.pool().clone(), state.config.clone());
 
     // Get existing config
-    let existing = sso_service
-        .get_sso_config(&id)
-        .await
-        .map_err(|e| (
+    let existing = sso_service.get_sso_config(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::NOT_FOUND,
             Json(ErrorResponse {
                 error: "config_not_found".to_string(),
                 message: e.to_string(),
                 code: Some("not_found".to_string()),
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     // Check if user is team admin
     let is_admin = check_team_admin(&state, &claims.sub, &existing.team_id).await?;
@@ -315,22 +307,21 @@ async fn delete_sso_config(
                 message: "Only team admins can delete SSO configurations".to_string(),
                 code: Some("insufficient_permissions".to_string()),
                 details: None,
-            })
+            }),
         ));
     }
 
-    sso_service
-        .delete_sso_config(&id)
-        .await
-        .map_err(|e| (
+    sso_service.delete_sso_config(&id).await.map_err(|e| {
+        (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "delete_config_failed".to_string(),
                 message: e.to_string(),
                 code: None,
                 details: None,
-            })
-        ))?;
+            }),
+        )
+    })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -349,15 +340,17 @@ async fn saml_login(
     let login_url = sso_service
         .generate_saml_login_url(&team_id)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "saml_login_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "saml_login_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Redirect::temporary(&login_url.url))
 }
@@ -369,31 +362,32 @@ async fn saml_acs(
 ) -> Result<Json<SuccessResponse<LoginResponse>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let sso_service = SsoService::new(state.db.pool().clone(), state.config.clone());
 
-    let saml_response = body.get("SAMLResponse")
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_saml_response".to_string(),
-                message: "SAMLResponse is required".to_string(),
-                code: Some("missing_saml_response".to_string()),
-                details: None,
-            })
-        ))?;
+    let saml_response = body.get("SAMLResponse").ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_saml_response".to_string(),
+            message: "SAMLResponse is required".to_string(),
+            code: Some("missing_saml_response".to_string()),
+            details: None,
+        }),
+    ))?;
 
     let relay_state = body.get("RelayState").cloned();
 
     let login_result = sso_service
         .process_saml_response(&team_id, saml_response, relay_state.as_deref())
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse {
-                error: "saml_authentication_failed".to_string(),
-                message: e.to_string(),
-                code: Some("sso_auth_failed".to_string()),
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    error: "saml_authentication_failed".to_string(),
+                    message: e.to_string(),
+                    code: Some("sso_auth_failed".to_string()),
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -411,29 +405,33 @@ async fn saml_metadata(
     let metadata = sso_service
         .generate_saml_metadata(&team_id)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "metadata_generation_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "metadata_generation_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     let response = axum::response::Response::builder()
         .status(axum::http::StatusCode::OK)
         .header("Content-Type", "application/xml")
         .body(metadata)
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "response_build_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "response_build_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(response)
 }
@@ -448,15 +446,17 @@ async fn oidc_login(
     let login_url = sso_service
         .generate_oidc_login_url(&team_id)
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "oidc_login_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "oidc_login_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Redirect::temporary(&login_url.url))
 }
@@ -468,31 +468,32 @@ async fn oidc_callback(
 ) -> Result<Json<SuccessResponse<LoginResponse>>, (axum::http::StatusCode, Json<ErrorResponse>)> {
     let sso_service = SsoService::new(state.db.pool().clone(), state.config.clone());
 
-    let code = params.get("code")
-        .ok_or((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_code".to_string(),
-                message: "Authorization code is required".to_string(),
-                code: Some("missing_code".to_string()),
-                details: None,
-            })
-        ))?;
+    let code = params.get("code").ok_or((
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "missing_code".to_string(),
+            message: "Authorization code is required".to_string(),
+            code: Some("missing_code".to_string()),
+            details: None,
+        }),
+    ))?;
 
     let state_param = params.get("state").cloned();
 
     let login_result = sso_service
         .process_oidc_callback(&team_id, code, state_param.as_deref())
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse {
-                error: "oidc_authentication_failed".to_string(),
-                message: e.to_string(),
-                code: Some("sso_auth_failed".to_string()),
-                details: None,
-            })
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    error: "oidc_authentication_failed".to_string(),
+                    message: e.to_string(),
+                    code: Some("sso_auth_failed".to_string()),
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -512,21 +513,23 @@ async fn check_team_admin(
             SELECT 1 FROM team_members
             WHERE team_id = ? AND user_id = ? AND is_active = TRUE
             AND (role = 'owner' OR role = 'admin')
-        )"
+        )",
     )
     .bind(team_id)
     .bind(user_id)
     .fetch_one(state.db.pool())
     .await
-    .map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-            error: "admin_check_failed".to_string(),
-            message: e.to_string(),
-            code: None,
-            details: None,
-        })
-    ))?;
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "admin_check_failed".to_string(),
+                message: e.to_string(),
+                code: None,
+                details: None,
+            }),
+        )
+    })?;
 
     Ok(result)
 }

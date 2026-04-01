@@ -1,13 +1,18 @@
 //! Redis database driver
 
 use async_trait::async_trait;
+use redis::{aio::MultiplexedConnection, Client as RedisClient};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use redis::{Client as RedisClient, aio::MultiplexedConnection};
 
-use crate::database_client::{DatabaseDriver, DatabaseType, DatabaseError};
-use crate::database_client::drivers::{ConnectionInfo, TableInfo, TableType, TableDetail, ColumnInfo, IndexInfo, ForeignKeyInfo, DatabaseStats};
-use crate::database_client::{DatabaseSchema, SchemaTable, QueryResult, QueryRow, QueryCell, PerformanceMetrics};
+use crate::database_client::drivers::{
+    ColumnInfo, ConnectionInfo, DatabaseStats, ForeignKeyInfo, IndexInfo, TableDetail, TableInfo,
+    TableType,
+};
+use crate::database_client::{DatabaseDriver, DatabaseError, DatabaseType};
+use crate::database_client::{
+    DatabaseSchema, PerformanceMetrics, QueryCell, QueryResult, QueryRow, SchemaTable,
+};
 
 /// Redis driver
 pub struct RedisDriver {
@@ -36,15 +41,14 @@ impl RedisDriver {
         match value {
             redis::Value::Nil => QueryCell::Null,
             redis::Value::Int(i) => QueryCell::Integer(*i),
-            redis::Value::Data(data) => {
-                match String::from_utf8(data.clone()) {
-                    Ok(s) => QueryCell::String(s),
-                    Err(_) => QueryCell::Blob(data.clone()),
-                }
-            }
-            redis::Value::Bulk(items) => {
-                QueryCell::Json(serde_json::json!(items.iter().map(|v| format!("{:?}", v)).collect::<Vec<_>>()))
-            }
+            redis::Value::Data(data) => match String::from_utf8(data.clone()) {
+                Ok(s) => QueryCell::String(s),
+                Err(_) => QueryCell::Blob(data.clone()),
+            },
+            redis::Value::Bulk(items) => QueryCell::Json(serde_json::json!(items
+                .iter()
+                .map(|v| format!("{:?}", v))
+                .collect::<Vec<_>>())),
             redis::Value::Status(s) => QueryCell::String(s.clone()),
             redis::Value::Okay => QueryCell::String("OK".to_string()),
             _ => QueryCell::String(format!("{:?}", value)),
@@ -68,7 +72,9 @@ impl DatabaseDriver for RedisDriver {
         let client = RedisClient::open(connection_string)
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
-        let conn = client.get_multiplexed_async_connection().await
+        let conn = client
+            .get_multiplexed_async_connection()
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
         self.connection = Some(Arc::new(Mutex::new(conn)));
@@ -118,7 +124,9 @@ impl DatabaseDriver for RedisDriver {
 
         Ok(QueryResult {
             columns: vec!["result".to_string()],
-            rows: vec![QueryRow { cells: vec![self.redis_value_to_cell(&result)] }],
+            rows: vec![QueryRow {
+                cells: vec![self.redis_value_to_cell(&result)],
+            }],
             execution_time_ms,
             affected_rows: None,
             warning_count: 0,
@@ -150,7 +158,11 @@ impl DatabaseDriver for RedisDriver {
     async fn get_schema(&self) -> Result<DatabaseSchema, DatabaseError> {
         // Redis doesn't have traditional schema
         Ok(DatabaseSchema {
-            database_name: self.info.as_ref().map(|i| i.database.clone()).unwrap_or_default(),
+            database_name: self
+                .info
+                .as_ref()
+                .map(|i| i.database.clone())
+                .unwrap_or_default(),
             tables: Vec::new(),
             views: Vec::new(),
             procedures: Vec::new(),
@@ -172,11 +184,15 @@ impl DatabaseDriver for RedisDriver {
     }
 
     async fn get_table(&self, _table_name: &str) -> Result<TableInfo, DatabaseError> {
-        Err(DatabaseError::SchemaError("Redis doesn't have tables".to_string()))
+        Err(DatabaseError::SchemaError(
+            "Redis doesn't have tables".to_string(),
+        ))
     }
 
     async fn get_table_info(&self, _table_name: &str) -> Result<TableDetail, DatabaseError> {
-        Err(DatabaseError::SchemaError("Redis doesn't have tables".to_string()))
+        Err(DatabaseError::SchemaError(
+            "Redis doesn't have tables".to_string(),
+        ))
     }
 
     async fn get_stats(&self) -> Result<DatabaseStats, DatabaseError> {
@@ -184,7 +200,9 @@ impl DatabaseDriver for RedisDriver {
         let mut c = conn.lock().await;
 
         // Get INFO output
-        let info_value: redis::Value = redis::cmd("INFO").query_async(&mut *c).await
+        let info_value: redis::Value = redis::cmd("INFO")
+            .query_async(&mut *c)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let info_str = match info_value {
@@ -193,14 +211,17 @@ impl DatabaseDriver for RedisDriver {
             _ => String::new(),
         };
 
-        let version = info_str.lines()
+        let version = info_str
+            .lines()
             .find(|l| l.starts_with("redis_version:"))
             .and_then(|l| l.split(':').nth(1))
             .unwrap_or("unknown")
             .to_string();
 
         // Get DBSIZE
-        let dbsize_value: redis::Value = redis::cmd("DBSIZE").query_async(&mut *c).await
+        let dbsize_value: redis::Value = redis::cmd("DBSIZE")
+            .query_async(&mut *c)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let dbsize = match dbsize_value {
@@ -210,7 +231,11 @@ impl DatabaseDriver for RedisDriver {
         };
 
         Ok(DatabaseStats {
-            name: self.info.as_ref().map(|i| i.database.clone()).unwrap_or_else(|| "redis".to_string()),
+            name: self
+                .info
+                .as_ref()
+                .map(|i| i.database.clone())
+                .unwrap_or_else(|| "redis".to_string()),
             size_bytes: 0,
             table_count: dbsize as usize,
             index_count: 0,
@@ -223,21 +248,27 @@ impl DatabaseDriver for RedisDriver {
     async fn begin_transaction(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
-        redis::cmd("MULTI").query_async(&mut *c).await
+        redis::cmd("MULTI")
+            .query_async(&mut *c)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     async fn commit(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
-        redis::cmd("EXEC").query_async(&mut *c).await
+        redis::cmd("EXEC")
+            .query_async(&mut *c)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
     async fn rollback(&mut self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
-        redis::cmd("DISCARD").query_async(&mut *c).await
+        redis::cmd("DISCARD")
+            .query_async(&mut *c)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))
     }
 
@@ -246,7 +277,10 @@ impl DatabaseDriver for RedisDriver {
         let mut c = conn.lock().await;
 
         // Get INFO stats output
-        let info_value: redis::Value = redis::cmd("INFO").arg("stats").query_async(&mut *c).await
+        let info_value: redis::Value = redis::cmd("INFO")
+            .arg("stats")
+            .query_async(&mut *c)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let info_str = match info_value {
@@ -259,7 +293,11 @@ impl DatabaseDriver for RedisDriver {
 
         for line in info_str.lines() {
             if line.starts_with("instantaneous_ops_per_sec:") {
-                ops_per_sec = line.split(':').nth(1).and_then(|v| v.parse().ok()).unwrap_or(0.0);
+                ops_per_sec = line
+                    .split(':')
+                    .nth(1)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0.0);
             }
         }
 
@@ -278,14 +316,18 @@ impl DatabaseDriver for RedisDriver {
     }
 
     async fn cancel(&self) -> Result<(), DatabaseError> {
-        Err(DatabaseError::Unknown("Query cancellation not supported for Redis".to_string()))
+        Err(DatabaseError::Unknown(
+            "Query cancellation not supported for Redis".to_string(),
+        ))
     }
 
     async fn ping(&self) -> Result<(), DatabaseError> {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
 
-        let _: redis::Value = redis::cmd("PING").query_async(&mut *c).await
+        let _: redis::Value = redis::cmd("PING")
+            .query_async(&mut *c)
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
         Ok(())

@@ -1,11 +1,13 @@
 #![allow(dead_code)]
 
 use eframe::egui;
-use egui::{Color32, DragValue, Frame, Margin, Pos2, Rect, Response, Rounding, Sense, Stroke, Ui, Vec2};
+use egui::{
+    Color32, DragValue, Frame, Margin, Pos2, Rect, Response, Rounding, Sense, Stroke, Ui, Vec2,
+};
 use uuid::Uuid;
 
-use easyssh_core::workflow_engine::*;
 use easyssh_core::script_library::ScriptLibrary;
+use easyssh_core::workflow_engine::*;
 
 /// Visual workflow editor component
 pub struct WorkflowEditor {
@@ -162,7 +164,12 @@ impl WorkflowEditor {
         });
     }
 
-    fn render_canvas(&mut self, ui: &mut Ui, rect: Rect, _response: &mut WorkflowEditorResponse) -> Response {
+    fn render_canvas(
+        &mut self,
+        ui: &mut Ui,
+        rect: Rect,
+        _response: &mut WorkflowEditorResponse,
+    ) -> Response {
         let canvas = ui.allocate_rect(rect, Sense::click_and_drag());
 
         // Background
@@ -242,9 +249,11 @@ impl WorkflowEditor {
                     // Draw temporary connection line
                     if let (Some(from_step), Some(to_step)) = (
                         self.workflow.get_step(from_id),
-                        self.workflow.get_step(hover_id)
+                        self.workflow.get_step(hover_id),
                     ) {
-                        if let (Some((x1, y1)), Some((_x2, _y2))) = (from_step.position, to_step.position) {
+                        if let (Some((x1, y1)), Some((_x2, _y2))) =
+                            (from_step.position, to_step.position)
+                        {
                             let p1 = self.canvas_to_screen(Pos2::new(x1, y1), rect);
                             let p2 = ui.ctx().input(|i| i.pointer.hover_pos().unwrap_or(p1));
                             painter.line_segment([p1, p2], Stroke::new(2.0, Color32::YELLOW));
@@ -255,8 +264,9 @@ impl WorkflowEditor {
         }
 
         // Canvas pan
-        if canvas.dragged_by(egui::PointerButton::Middle) ||
-           (canvas.dragged() && self.selected_step.is_none() && self.dragging_step.is_none()) {
+        if canvas.dragged_by(egui::PointerButton::Middle)
+            || (canvas.dragged() && self.selected_step.is_none() && self.dragging_step.is_none())
+        {
             self.view_offset += canvas.drag_delta();
         }
 
@@ -320,7 +330,13 @@ impl WorkflowEditor {
                         if let Some(false_step) = self.workflow.get_step(false_id) {
                             if let Some((x2, y2)) = false_step.position {
                                 let end_pos = self.canvas_to_screen(Pos2::new(x2, y2), rect);
-                                self.draw_connection_line(painter, start_pos, end_pos, Color32::RED, false);
+                                self.draw_connection_line(
+                                    painter,
+                                    start_pos,
+                                    end_pos,
+                                    Color32::RED,
+                                    false,
+                                );
                             }
                         }
                     }
@@ -329,7 +345,14 @@ impl WorkflowEditor {
         }
     }
 
-    fn draw_connection_line(&self, painter: &egui::Painter, start: Pos2, end: Pos2, color: Color32, is_true_branch: bool) {
+    fn draw_connection_line(
+        &self,
+        painter: &egui::Painter,
+        start: Pos2,
+        end: Pos2,
+        color: Color32,
+        is_true_branch: bool,
+    ) {
         // Draw curved connection
         let mid_x = (start.x + end.x) / 2.0;
         let cp1 = Pos2::new(mid_x, start.y);
@@ -343,13 +366,13 @@ impl WorkflowEditor {
             })
             .collect();
 
-        for i in 0..points.len()-1 {
-            painter.line_segment([points[i], points[i+1]], Stroke::new(2.0, color));
+        for i in 0..points.len() - 1 {
+            painter.line_segment([points[i], points[i + 1]], Stroke::new(2.0, color));
         }
 
         // Arrow head
         let arrow_size = 10.0;
-        let angle = (end.y - points[points.len()-2].y).atan2(end.x - points[points.len()-2].x);
+        let angle = (end.y - points[points.len() - 2].y).atan2(end.x - points[points.len() - 2].x);
         let arrow_p1 = Pos2::new(
             end.x - arrow_size * (angle + 0.5).cos(),
             end.y - arrow_size * (angle + 0.5).sin(),
@@ -388,7 +411,13 @@ impl WorkflowEditor {
         )
     }
 
-    fn draw_step(&self, ui: &mut Ui, rect: Rect, step: &WorkflowStep, painter: &egui::Painter) -> Option<(Response, Rect)> {
+    fn draw_step(
+        &self,
+        ui: &mut Ui,
+        rect: Rect,
+        step: &WorkflowStep,
+        painter: &egui::Painter,
+    ) -> Option<(Response, Rect)> {
         let pos = step.position?;
         let screen_pos = self.canvas_to_screen(Pos2::new(pos.0, pos.1), rect);
 
@@ -426,20 +455,16 @@ impl WorkflowEditor {
         );
 
         // Preview mode highlighting
-        if self.preview_mode {
-            if self.preview_current_step.as_ref() == Some(&step.id) {
-                // Pulsing highlight
-                let pulse = (ui.ctx().input(|i| i.time) * 4.0).sin() * 0.5 + 0.5;
-                let highlight_color = Color32::from_rgba_premultiplied(
-                    100, 200, 255,
-                    (128.0 + 127.0 * pulse) as u8,
-                );
-                painter.rect_stroke(
-                    step_rect.expand(4.0 + 4.0 * pulse as f32),
-                    rounding,
-                    Stroke::new(3.0, highlight_color),
-                );
-            }
+        if self.preview_mode && self.preview_current_step.as_ref() == Some(&step.id) {
+            // Pulsing highlight
+            let pulse = (ui.ctx().input(|i| i.time) * 4.0).sin() * 0.5 + 0.5;
+            let highlight_color =
+                Color32::from_rgba_premultiplied(100, 200, 255, (128.0 + 127.0 * pulse) as u8);
+            painter.rect_stroke(
+                step_rect.expand(4.0 + 4.0 * pulse as f32),
+                rounding,
+                Stroke::new(3.0, highlight_color),
+            );
         }
 
         // Selected highlight
@@ -468,21 +493,81 @@ impl WorkflowEditor {
         }
 
         match step.step_type {
-            StepType::SshCommand => (Color32::from_rgb(45, 55, 72), Color32::from_rgb(100, 150, 255), "$"),
-            StepType::SftpUpload => (Color32::from_rgb(45, 72, 55), Color32::from_rgb(100, 255, 150), "↑"),
-            StepType::SftpDownload => (Color32::from_rgb(55, 45, 72), Color32::from_rgb(150, 100, 255), "↓"),
-            StepType::LocalCommand => (Color32::from_rgb(72, 55, 45), Color32::from_rgb(255, 150, 100), "⌘"),
-            StepType::Condition => (Color32::from_rgb(72, 72, 45), Color32::from_rgb(255, 255, 100), "?"),
-            StepType::Loop => (Color32::from_rgb(55, 72, 72), Color32::from_rgb(100, 255, 255), "↻"),
-            StepType::Wait => (Color32::from_rgb(72, 72, 72), Color32::from_rgb(200, 200, 200), "◷"),
-            StepType::SetVariable => (Color32::from_rgb(55, 55, 72), Color32::from_rgb(150, 150, 255), "="),
-            StepType::Notification => (Color32::from_rgb(72, 72, 55), Color32::from_rgb(255, 255, 150), "🔔"),
-            StepType::Parallel => (Color32::from_rgb(45, 72, 72), Color32::from_rgb(100, 255, 255), "∥"),
-            StepType::SubWorkflow => (Color32::from_rgb(55, 55, 55), Color32::from_rgb(200, 200, 200), "⊃"),
-            StepType::ErrorHandler => (Color32::from_rgb(72, 45, 45), Color32::from_rgb(255, 100, 100), "⚠"),
-            StepType::Break => (Color32::from_rgb(72, 55, 72), Color32::from_rgb(255, 150, 255), "■"),
-            StepType::Continue => (Color32::from_rgb(55, 72, 55), Color32::from_rgb(150, 255, 150), "→"),
-            StepType::Return => (Color32::from_rgb(72, 72, 72), Color32::from_rgb(255, 255, 255), "↩"),
+            StepType::SshCommand => (
+                Color32::from_rgb(45, 55, 72),
+                Color32::from_rgb(100, 150, 255),
+                "$",
+            ),
+            StepType::SftpUpload => (
+                Color32::from_rgb(45, 72, 55),
+                Color32::from_rgb(100, 255, 150),
+                "↑",
+            ),
+            StepType::SftpDownload => (
+                Color32::from_rgb(55, 45, 72),
+                Color32::from_rgb(150, 100, 255),
+                "↓",
+            ),
+            StepType::LocalCommand => (
+                Color32::from_rgb(72, 55, 45),
+                Color32::from_rgb(255, 150, 100),
+                "⌘",
+            ),
+            StepType::Condition => (
+                Color32::from_rgb(72, 72, 45),
+                Color32::from_rgb(255, 255, 100),
+                "?",
+            ),
+            StepType::Loop => (
+                Color32::from_rgb(55, 72, 72),
+                Color32::from_rgb(100, 255, 255),
+                "↻",
+            ),
+            StepType::Wait => (
+                Color32::from_rgb(72, 72, 72),
+                Color32::from_rgb(200, 200, 200),
+                "◷",
+            ),
+            StepType::SetVariable => (
+                Color32::from_rgb(55, 55, 72),
+                Color32::from_rgb(150, 150, 255),
+                "=",
+            ),
+            StepType::Notification => (
+                Color32::from_rgb(72, 72, 55),
+                Color32::from_rgb(255, 255, 150),
+                "🔔",
+            ),
+            StepType::Parallel => (
+                Color32::from_rgb(45, 72, 72),
+                Color32::from_rgb(100, 255, 255),
+                "∥",
+            ),
+            StepType::SubWorkflow => (
+                Color32::from_rgb(55, 55, 55),
+                Color32::from_rgb(200, 200, 200),
+                "⊃",
+            ),
+            StepType::ErrorHandler => (
+                Color32::from_rgb(72, 45, 45),
+                Color32::from_rgb(255, 100, 100),
+                "⚠",
+            ),
+            StepType::Break => (
+                Color32::from_rgb(72, 55, 72),
+                Color32::from_rgb(255, 150, 255),
+                "■",
+            ),
+            StepType::Continue => (
+                Color32::from_rgb(55, 72, 55),
+                Color32::from_rgb(150, 255, 150),
+                "→",
+            ),
+            StepType::Return => (
+                Color32::from_rgb(72, 72, 72),
+                Color32::from_rgb(255, 255, 255),
+                "↩",
+            ),
         }
     }
 
@@ -523,7 +608,12 @@ impl WorkflowEditor {
         });
     }
 
-    fn render_step_properties(&mut self, ui: &mut Ui, step: &WorkflowStep, response: &mut WorkflowEditorResponse) {
+    fn render_step_properties(
+        &mut self,
+        ui: &mut Ui,
+        step: &WorkflowStep,
+        response: &mut WorkflowEditorResponse,
+    ) {
         ui.heading("Step Properties");
         ui.separator();
 
@@ -561,7 +651,11 @@ impl WorkflowEditor {
         // Step-specific configuration
         let step_id = step.id.clone();
         match &step.config {
-            StepConfig::SshCommand { command, fail_on_error, .. } => {
+            StepConfig::SshCommand {
+                command,
+                fail_on_error,
+                ..
+            } => {
                 ui.label("Command:");
                 let mut cmd = command.clone();
                 if ui.text_edit_multiline(&mut cmd).changed() {
@@ -581,7 +675,12 @@ impl WorkflowEditor {
                     }
                 }
             }
-            StepConfig::Condition { operator, left_operand, right_operand, .. } => {
+            StepConfig::Condition {
+                operator,
+                left_operand,
+                right_operand,
+                ..
+            } => {
                 ui.label("Condition:");
                 ui.label("Left operand:");
                 let mut left = left_operand.clone();
@@ -644,10 +743,10 @@ impl WorkflowEditor {
         if ui.button("Connect to...").clicked() {
             self.connecting_from = Some((step.id.clone(), true));
         }
-        if step.step_type == StepType::Condition {
-            if ui.button("Connect false branch to...").clicked() {
-                self.connecting_from = Some((step.id.clone(), false));
-            }
+        if step.step_type == StepType::Condition
+            && ui.button("Connect false branch to...").clicked()
+        {
+            self.connecting_from = Some((step.id.clone(), false));
         }
     }
 
@@ -676,7 +775,10 @@ impl WorkflowEditor {
 
         // Variables
         ui.heading("Variables");
-        ui.label(format!("{} variables defined", self.workflow.variables.len()));
+        ui.label(format!(
+            "{} variables defined",
+            self.workflow.variables.len()
+        ));
 
         ui.separator();
 
@@ -693,10 +795,18 @@ impl WorkflowEditor {
         // Stats
         ui.label(format!("Steps: {}", self.workflow.steps.len()));
         ui.label(format!("Version: {}", self.workflow.version));
-        ui.label(format!("Created: {}", self.workflow.created_at.format("%Y-%m-%d %H:%M")));
+        ui.label(format!(
+            "Created: {}",
+            self.workflow.created_at.format("%Y-%m-%d %H:%M")
+        ));
     }
 
-    fn render_step_type_selector(&mut self, ui: &mut Ui, pos: Pos2, _response: &mut WorkflowEditorResponse) {
+    fn render_step_type_selector(
+        &mut self,
+        ui: &mut Ui,
+        pos: Pos2,
+        _response: &mut WorkflowEditorResponse,
+    ) {
         let id = ui.make_persistent_id("step_type_selector");
         let area = egui::Area::new(id)
             .fixed_pos(pos)
@@ -710,22 +820,43 @@ impl WorkflowEditor {
                 ui.separator();
 
                 let step_types = vec![
-                    (StepType::SshCommand, "$ SSH Command", "Execute command on remote server"),
-                    (StepType::SftpUpload, "↑ Upload File", "Upload file via SFTP"),
-                    (StepType::SftpDownload, "↓ Download File", "Download file via SFTP"),
+                    (
+                        StepType::SshCommand,
+                        "$ SSH Command",
+                        "Execute command on remote server",
+                    ),
+                    (
+                        StepType::SftpUpload,
+                        "↑ Upload File",
+                        "Upload file via SFTP",
+                    ),
+                    (
+                        StepType::SftpDownload,
+                        "↓ Download File",
+                        "Download file via SFTP",
+                    ),
                     (StepType::Condition, "? Condition", "If/then/else branching"),
                     (StepType::Loop, "↻ Loop", "Repeat actions"),
                     (StepType::Wait, "◷ Wait", "Pause execution"),
-                    (StepType::SetVariable, "= Set Variable", "Create or update variable"),
+                    (
+                        StepType::SetVariable,
+                        "= Set Variable",
+                        "Create or update variable",
+                    ),
                     (StepType::Notification, "🔔 Notify", "Send notification"),
                     (StepType::Parallel, "∥ Parallel", "Run steps in parallel"),
-                    (StepType::SubWorkflow, "⊃ Sub-workflow", "Call another workflow"),
+                    (
+                        StepType::SubWorkflow,
+                        "⊃ Sub-workflow",
+                        "Call another workflow",
+                    ),
                 ];
 
                 for (step_type, label, desc) in step_types {
                     if ui.button(format!("{} - {}", label, desc)).clicked() {
-                        let new_step = WorkflowStep::new(step_type.clone(), &format!("{:?}", step_type))
-                            .with_position(pos.x, pos.y);
+                        let new_step =
+                            WorkflowStep::new(step_type.clone(), &format!("{:?}", step_type))
+                                .with_position(pos.x, pos.y);
                         let step_id = self.workflow.add_step(new_step);
                         self.selected_step = Some(step_id);
                         self.step_type_selector_open = false;
@@ -838,7 +969,10 @@ impl ScriptLibraryBrowser {
 
         // Category filter
         ui.horizontal_wrapped(|ui| {
-            if ui.selectable_label(self.selected_category.is_none(), "All").clicked() {
+            if ui
+                .selectable_label(self.selected_category.is_none(), "All")
+                .clicked()
+            {
                 self.selected_category = None;
             }
             for cat in library.get_categories() {
@@ -853,28 +987,30 @@ impl ScriptLibraryBrowser {
 
         // Script grid/list
         let scripts = library.search(easyssh_core::script_library::ScriptSearchOptions {
-            query: if self.search_query.is_empty() { None } else { Some(self.search_query.clone()) },
+            query: if self.search_query.is_empty() {
+                None
+            } else {
+                Some(self.search_query.clone())
+            },
             category: self.selected_category.clone(),
             script_type: Some(easyssh_core::script_library::ScriptType::All),
             ..Default::default()
         });
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            match self.view_mode {
-                LibraryViewMode::Grid => {
-                    ui.horizontal_wrapped(|ui| {
-                        for script in scripts {
-                            if let Some(sel) = self.render_script_card(ui, &script) {
-                                selection = Some(sel);
-                            }
-                        }
-                    });
-                }
-                LibraryViewMode::List => {
+        egui::ScrollArea::vertical().show(ui, |ui| match self.view_mode {
+            LibraryViewMode::Grid => {
+                ui.horizontal_wrapped(|ui| {
                     for script in scripts {
-                        if let Some(sel) = self.render_script_list_item(ui, &script) {
+                        if let Some(sel) = self.render_script_card(ui, &script) {
                             selection = Some(sel);
                         }
+                    }
+                });
+            }
+            LibraryViewMode::List => {
+                for script in scripts {
+                    if let Some(sel) = self.render_script_list_item(ui, &script) {
+                        selection = Some(sel);
                     }
                 }
             }
@@ -883,7 +1019,11 @@ impl ScriptLibraryBrowser {
         selection
     }
 
-    fn render_script_card(&self, ui: &mut Ui, script: &easyssh_core::script_library::ScriptSearchResult) -> Option<ScriptSelection> {
+    fn render_script_card(
+        &self,
+        ui: &mut Ui,
+        script: &easyssh_core::script_library::ScriptSearchResult,
+    ) -> Option<ScriptSelection> {
         let size = Vec2::new(200.0, 120.0);
         let (rect, response) = ui.allocate_exact_size(size, Sense::click());
 
@@ -954,9 +1094,14 @@ impl ScriptLibraryBrowser {
         }
     }
 
-    fn render_script_list_item(&self, ui: &mut Ui, script: &easyssh_core::script_library::ScriptSearchResult) -> Option<ScriptSelection> {
+    fn render_script_list_item(
+        &self,
+        ui: &mut Ui,
+        script: &easyssh_core::script_library::ScriptSearchResult,
+    ) -> Option<ScriptSelection> {
         let height = 60.0;
-        let (rect, response) = ui.allocate_exact_size(Vec2::new(ui.available_width(), height), Sense::click());
+        let (rect, response) =
+            ui.allocate_exact_size(Vec2::new(ui.available_width(), height), Sense::click());
 
         let painter = ui.painter_at(rect);
 

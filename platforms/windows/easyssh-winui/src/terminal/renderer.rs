@@ -74,7 +74,11 @@ impl FrameScheduler {
         // Check for dropped frame
         if frame_time > self.target_frame_time * 2 {
             self.dropped_frames += 1;
-            trace!("Dropped frame: {:?} (target: {:?})", frame_time, self.target_frame_time);
+            trace!(
+                "Dropped frame: {:?} (target: {:?})",
+                frame_time,
+                self.target_frame_time
+            );
         }
     }
 

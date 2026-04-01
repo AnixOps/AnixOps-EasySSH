@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use crate::db::{
-    Database, GroupRecord, NewGroup, NewIdentity,
-    ServerRecord,
-};
-use crate::error::LiteError;
 use crate::crypto::CryptoState;
+use crate::db::{Database, GroupRecord, NewGroup, NewIdentity, ServerRecord};
+use crate::error::LiteError;
 use serde::{Deserialize, Serialize};
 
 /// Export format types
@@ -66,8 +63,11 @@ impl ImportResult {
     }
 
     pub fn total_imported(&self) -> usize {
-        self.servers_imported + self.groups_imported + self.identities_imported +
-        self.snippets_imported + self.tags_imported
+        self.servers_imported
+            + self.groups_imported
+            + self.identities_imported
+            + self.snippets_imported
+            + self.tags_imported
     }
 }
 
@@ -171,8 +171,12 @@ pub struct ServerCsvRecord {
     pub tags: Option<String>,
 }
 
-fn default_port() -> i64 { 22 }
-fn default_auth() -> String { "password".to_string() }
+fn default_port() -> i64 {
+    22
+}
+fn default_auth() -> String {
+    "password".to_string()
+}
 
 /// Configuration import/export manager
 pub struct ConfigManager;
@@ -216,7 +220,8 @@ impl ConfigManager {
     /// Export servers to CSV format
     pub fn export_csv(db: &Database) -> Result<String, LiteError> {
         let servers = db.get_servers()?;
-        let groups: HashMap<String, String> = db.get_groups()?
+        let groups: HashMap<String, String> = db
+            .get_groups()?
             .into_iter()
             .map(|g| (g.id, g.name))
             .collect();
@@ -231,22 +236,30 @@ impl ConfigManager {
                 username: server.username,
                 auth_type: server.auth_type,
                 identity_file: server.identity_file,
-                group: server.group_id.as_ref().and_then(|id| groups.get(id).cloned()),
+                group: server
+                    .group_id
+                    .as_ref()
+                    .and_then(|id| groups.get(id).cloned()),
                 tags: None,
             };
-            csv_writer.serialize(record)
+            csv_writer
+                .serialize(record)
                 .map_err(|e| LiteError::Config(format!("CSV serialization failed: {}", e)))?;
         }
 
-        String::from_utf8(csv_writer.into_inner()
-            .map_err(|e| LiteError::Config(format!("CSV write failed: {}", e)))?)
-            .map_err(|e| LiteError::Config(format!("Invalid UTF-8 in CSV: {}", e)))
+        String::from_utf8(
+            csv_writer
+                .into_inner()
+                .map_err(|e| LiteError::Config(format!("CSV write failed: {}", e)))?,
+        )
+        .map_err(|e| LiteError::Config(format!("Invalid UTF-8 in CSV: {}", e)))
     }
 
     /// Export to SSH config format (~/.ssh/config style)
     pub fn export_ssh_config(db: &Database) -> Result<String, LiteError> {
         let servers = db.get_servers()?;
-        let groups: HashMap<String, String> = db.get_groups()?
+        let groups: HashMap<String, String> = db
+            .get_groups()?
             .into_iter()
             .map(|g| (g.id, g.name))
             .collect();
@@ -259,7 +272,10 @@ impl ConfigManager {
         // Group servers by group
         let mut grouped_servers: HashMap<Option<String>, Vec<&ServerRecord>> = HashMap::new();
         for server in &servers {
-            grouped_servers.entry(server.group_id.clone()).or_default().push(server);
+            grouped_servers
+                .entry(server.group_id.clone())
+                .or_default()
+                .push(server);
         }
 
         // Export grouped servers first
@@ -314,7 +330,8 @@ impl ConfigManager {
         // Decode salt
         let salt = hex_decode(&container.salt)
             .map_err(|e| LiteError::Config(format!("Invalid salt: {}", e)))?;
-        let salt_array: [u8; 32] = salt.try_into()
+        let salt_array: [u8; 32] = salt
+            .try_into()
             .map_err(|_| LiteError::Config("Invalid salt length".to_string()))?;
 
         // Initialize crypto and unlock
@@ -386,12 +403,16 @@ impl ConfigManager {
                             username: record.username.clone(),
                             auth_type: record.auth_type.clone(),
                             identity_file: record.identity_file.clone(),
-                            group_id: record.group.as_ref()
+                            group_id: record
+                                .group
+                                .as_ref()
                                 .and_then(|g| group_name_to_id.get(g).cloned()),
                             status: "active".to_string(),
                         };
                         if let Err(e) = db.update_server(&update) {
-                            result.errors.push(format!("Failed to update server: {}", e));
+                            result
+                                .errors
+                                .push(format!("Failed to update server: {}", e));
                         } else {
                             result.servers_imported += 1;
                         }
@@ -490,12 +511,16 @@ impl ConfigManager {
                             username: host.username.clone(),
                             auth_type: host.auth_type.clone(),
                             identity_file: host.identity_file.clone(),
-                            group_id: host.group_name.as_ref()
+                            group_id: host
+                                .group_name
+                                .as_ref()
                                 .and_then(|g| group_name_to_id.get(g).cloned()),
                             status: "active".to_string(),
                         };
                         if let Err(e) = db.update_server(&update) {
-                            result.errors.push(format!("Failed to update server: {}", e));
+                            result
+                                .errors
+                                .push(format!("Failed to update server: {}", e));
                         } else {
                             result.servers_imported += 1;
                         }
@@ -583,7 +608,11 @@ impl ConfigManager {
                 auth_type: s.auth_type,
                 identity_file: s.identity_file,
                 group_id: s.group_id.clone(),
-                group_name: s.group_id.as_ref().and_then(|id| group_map.get(id)).cloned(),
+                group_name: s
+                    .group_id
+                    .as_ref()
+                    .and_then(|id| group_map.get(id))
+                    .cloned(),
                 status: s.status,
                 tags: vec![], // TODO: Get actual tags
             })
@@ -610,9 +639,17 @@ impl ConfigManager {
                 username: h.username,
                 auth_type: h.auth_type,
                 identity_file: h.identity_file,
-                identity_name: h.identity_id.as_ref().and_then(|id| identity_map.get(id)).cloned(),
+                identity_name: h
+                    .identity_id
+                    .as_ref()
+                    .and_then(|id| identity_map.get(id))
+                    .cloned(),
                 group_id: h.group_id.clone(),
-                group_name: h.group_id.as_ref().and_then(|id| group_map.get(id)).cloned(),
+                group_name: h
+                    .group_id
+                    .as_ref()
+                    .and_then(|id| group_map.get(id))
+                    .cloned(),
                 notes: h.notes,
                 color: h.color,
                 environment: h.environment,
@@ -683,10 +720,8 @@ impl ConfigManager {
         let existing_groups = db.get_groups()?;
 
         // Build lookup maps
-        let existing_by_id: HashMap<String, &ServerRecord> = existing_servers
-            .iter()
-            .map(|s| (s.id.clone(), s))
-            .collect();
+        let existing_by_id: HashMap<String, &ServerRecord> =
+            existing_servers.iter().map(|s| (s.id.clone(), s)).collect();
 
         let existing_by_host_user: HashMap<(String, String), &ServerRecord> = existing_servers
             .iter()
@@ -724,7 +759,9 @@ impl ConfigManager {
             let host_user_key = (server.host.clone(), server.username.clone());
 
             // Check for conflicts
-            if existing_by_id.contains_key(&server.id) || existing_by_host_user.contains_key(&host_user_key) {
+            if existing_by_id.contains_key(&server.id)
+                || existing_by_host_user.contains_key(&host_user_key)
+            {
                 match conflict_resolution {
                     ConflictResolution::Skip => {
                         result.servers_skipped += 1;
@@ -732,8 +769,10 @@ impl ConfigManager {
                     }
                     ConflictResolution::Overwrite => {
                         // Find existing to update
-                        if let Some(existing) = existing_by_id.get(&server.id)
-                            .or_else(|| existing_by_host_user.get(&host_user_key)) {
+                        if let Some(existing) = existing_by_id
+                            .get(&server.id)
+                            .or_else(|| existing_by_host_user.get(&host_user_key))
+                        {
                             let update = crate::db::UpdateServer {
                                 id: existing.id.clone(),
                                 name: server.name,
@@ -742,12 +781,16 @@ impl ConfigManager {
                                 username: server.username,
                                 auth_type: server.auth_type,
                                 identity_file: server.identity_file,
-                                group_id: server.group_id.as_ref()
+                                group_id: server
+                                    .group_id
+                                    .as_ref()
                                     .and_then(|id| group_id_mapping.get(id).cloned()),
                                 status: server.status,
                             };
                             if let Err(e) = db.update_server(&update) {
-                                result.errors.push(format!("Failed to update server: {}", e));
+                                result
+                                    .errors
+                                    .push(format!("Failed to update server: {}", e));
                             } else {
                                 result.servers_imported += 1;
                             }
@@ -770,7 +813,9 @@ impl ConfigManager {
                 username: server.username,
                 auth_type: server.auth_type,
                 identity_file: server.identity_file,
-                group_id: server.group_id.as_ref()
+                group_id: server
+                    .group_id
+                    .as_ref()
                     .and_then(|id| group_id_mapping.get(id).cloned()),
                 status: server.status,
             };
@@ -886,7 +931,8 @@ impl ConfigManager {
                 "host" => {
                     // Save previous host if exists
                     if let Some(host) = current_host.take() {
-                        if !host.name.starts_with('*') { // Skip wildcard patterns
+                        if !host.name.starts_with('*') {
+                            // Skip wildcard patterns
                             hosts.push(host);
                         }
                     }
@@ -919,7 +965,8 @@ impl ConfigManager {
                 }
                 "identityfile" => {
                     if let Some(ref mut host) = current_host {
-                        host.identity_file = Some(value.replace("~", &std::env::var("HOME").unwrap_or_default()));
+                        host.identity_file =
+                            Some(value.replace("~", &std::env::var("HOME").unwrap_or_default()));
                         host.auth_type = String::from("key");
                     }
                 }
@@ -970,14 +1017,15 @@ fn chrono_now() -> String {
 }
 
 // Base64 encoding/decoding helpers using the base64 crate
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 
 fn base64_encode(data: &[u8]) -> String {
     general_purpose::STANDARD.encode(data)
 }
 
 fn base64_decode(s: &str) -> Result<Vec<u8>, LiteError> {
-    general_purpose::STANDARD.decode(s)
+    general_purpose::STANDARD
+        .decode(s)
         .map_err(|e| LiteError::Config(format!("Base64 decode failed: {}", e)))
 }
 
@@ -996,7 +1044,7 @@ fn hex_decode(s: &str) -> Result<Vec<u8>, LiteError> {
         if i + 1 >= s.len() {
             return Err(LiteError::Config("Invalid hex string length".to_string()));
         }
-        let hex_byte = &s[i..i+2];
+        let hex_byte = &s[i..i + 2];
         let byte = u8::from_str_radix(hex_byte, 16)
             .map_err(|e| LiteError::Config(format!("Invalid hex: {}", e)))?;
         result.push(byte);

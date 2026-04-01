@@ -1,7 +1,9 @@
 //! ER Diagram generation
 
+use crate::database_client::schema::{
+    DatabaseSchema, RelationshipType, SchemaAnalyzer, TableRelationship,
+};
 use serde::{Deserialize, Serialize};
-use crate::database_client::schema::{DatabaseSchema, TableRelationship, RelationshipType, SchemaAnalyzer};
 
 /// ER Diagram node (table)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,7 +86,8 @@ impl ErDiagram {
         );
 
         // Add styles
-        svg.push_str(r##"
+        svg.push_str(
+            r##"
   <defs>
     <style>
       .table { fill: #f5f5f5; stroke: #333; stroke-width: 2; }
@@ -98,7 +101,8 @@ impl ErDiagram {
       <path d="M0,0 L0,6 L9,3 z" fill="#666666" />
     </marker>
   </defs>
-"##);
+"##,
+        );
 
         // Draw edges
         for edge in &self.edges {
@@ -149,8 +153,16 @@ impl ErDiagram {
 
                 svg.push_str(&format!(
                     r#"  <text x="{}" y="{}" class="{}">{} {}</text>"#,
-                    node.x + 10.0, node.y + y_offset, class,
-                    if col.is_primary_key { "🔑" } else if col.is_foreign_key { "🔗" } else { "  " },
+                    node.x + 10.0,
+                    node.y + y_offset,
+                    class,
+                    if col.is_primary_key {
+                        "🔑"
+                    } else if col.is_foreign_key {
+                        "🔗"
+                    } else {
+                        "  "
+                    },
                     col.name
                 ));
 
@@ -216,7 +228,9 @@ impl ErDiagram {
                     t if t.contains("CHAR") || t.contains("TEXT") => "string",
                     t if t.contains("DATE") || t.contains("TIME") => "datetime",
                     t if t.contains("BOOL") => "bool",
-                    t if t.contains("DECIMAL") || t.contains("NUMERIC") || t.contains("FLOAT") => "float",
+                    t if t.contains("DECIMAL") || t.contains("NUMERIC") || t.contains("FLOAT") => {
+                        "float"
+                    }
                     _ => "string",
                 };
 
@@ -224,10 +238,7 @@ impl ErDiagram {
                 let fk_marker = if col.is_foreign_key { "FK" } else { "" };
                 let markers = format!("{}{}", pk_marker, fk_marker);
 
-                mmd.push_str(&format!(
-                    "        {} {} {}\n",
-                    dtype, col.name, markers
-                ));
+                mmd.push_str(&format!("        {} {} {}\n", dtype, col.name, markers));
             }
 
             mmd.push_str("    }\n");
@@ -293,7 +304,9 @@ impl ErDiagramGenerator {
 
         // Create nodes
         for table in &schema.tables {
-            let columns: Vec<ErColumn> = table.columns.iter()
+            let columns: Vec<ErColumn> = table
+                .columns
+                .iter()
                 .map(|c| ErColumn {
                     name: c.name.clone(),
                     data_type: c.data_type.clone(),
@@ -322,7 +335,10 @@ impl ErDiagramGenerator {
         // Create edges
         for rel in &relationships {
             let edge = ErEdge {
-                id: format!("{}_{}_{}_{}", rel.from_table, rel.from_column, rel.to_table, rel.to_column),
+                id: format!(
+                    "{}_{}_{}_{}",
+                    rel.from_table, rel.from_column, rel.to_table, rel.to_column
+                ),
                 source: rel.from_table.clone(),
                 target: rel.to_table.clone(),
                 source_column: rel.from_column.clone(),
@@ -343,8 +359,7 @@ impl ErDiagramGenerator {
 
     fn generate_color(&self, name: &str) -> String {
         let colors = vec![
-            "#4a90d9", "#7ed321", "#f5a623", "#d0021b",
-            "#9013fe", "#50e3c2", "#b8e986", "#bd10e0",
+            "#4a90d9", "#7ed321", "#f5a623", "#d0021b", "#9013fe", "#50e3c2", "#b8e986", "#bd10e0",
             "#417505", "#9b9b9b", "#4a4a4a", "#9c27b0",
         ];
 
@@ -358,7 +373,8 @@ impl ErDiagramGenerator {
             RelationshipType::OneToMany => "1:N",
             RelationshipType::ManyToOne => "N:1",
             RelationshipType::ManyToMany => "N:M",
-        }.to_string()
+        }
+        .to_string()
     }
 
     fn apply_layout(&self, diagram: &mut ErDiagram) {
@@ -383,8 +399,8 @@ impl ErDiagramGenerator {
         }
 
         diagram.width = 100.0 + cols as f64 * (self.node_width + self.horizontal_spacing);
-        diagram.height = 100.0 + ((diagram.nodes.len() as f64 / cols as f64).ceil()) *
-                         (200.0 + self.vertical_spacing);
+        diagram.height = 100.0
+            + ((diagram.nodes.len() as f64 / cols as f64).ceil()) * (200.0 + self.vertical_spacing);
     }
 
     fn apply_force_layout(&self, diagram: &mut ErDiagram) {
@@ -428,7 +444,7 @@ impl ErDiagramGenerator {
             for edge in &diagram.edges {
                 if let (Some(src_idx), Some(tgt_idx)) = (
                     diagram.nodes.iter().position(|n| n.id == edge.source),
-                    diagram.nodes.iter().position(|n| n.id == edge.target)
+                    diagram.nodes.iter().position(|n| n.id == edge.target),
                 ) {
                     let dx = diagram.nodes[tgt_idx].x - diagram.nodes[src_idx].x;
                     let dy = diagram.nodes[tgt_idx].y - diagram.nodes[src_idx].y;
@@ -555,9 +571,7 @@ impl DbmlGenerator {
 
             dbml.push_str(&format!(
                 "Ref: {}.{} {} {}.{}\n",
-                rel.from_table, rel.from_column,
-                cardinality,
-                rel.to_table, rel.to_column
+                rel.from_table, rel.from_column, cardinality, rel.to_table, rel.to_column
             ));
         }
 

@@ -1,15 +1,23 @@
 //! MongoDB database driver
 
 use async_trait::async_trait;
+use futures::stream::TryStreamExt;
+use mongodb::options::ClientOptions;
+use mongodb::{
+    bson::{Bson, Document},
+    Client as MongoClient, Database as MongoDatabase,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use mongodb::{Client as MongoClient, Database as MongoDatabase, bson::{Document, Bson}};
-use mongodb::options::ClientOptions;
-use futures::stream::TryStreamExt;
 
-use crate::database_client::{DatabaseDriver, DatabaseType, DatabaseError};
-use crate::database_client::drivers::{ConnectionInfo, TableInfo, TableType, TableDetail, ColumnInfo, IndexInfo, ForeignKeyInfo, DatabaseStats};
-use crate::database_client::{DatabaseSchema, SchemaTable, SchemaColumn, QueryResult, QueryRow, QueryCell, PerformanceMetrics};
+use crate::database_client::drivers::{
+    ColumnInfo, ConnectionInfo, DatabaseStats, ForeignKeyInfo, IndexInfo, TableDetail, TableInfo,
+    TableType,
+};
+use crate::database_client::{DatabaseDriver, DatabaseError, DatabaseType};
+use crate::database_client::{
+    DatabaseSchema, PerformanceMetrics, QueryCell, QueryResult, QueryRow, SchemaColumn, SchemaTable,
+};
 
 /// MongoDB driver
 pub struct MongoDbDriver {
@@ -46,12 +54,8 @@ impl MongoDbDriver {
             Bson::Boolean(b) => QueryCell::Boolean(*b),
             Bson::Binary(b) => QueryCell::Blob(b.bytes.to_vec()),
             Bson::DateTime(dt) => QueryCell::DateTime(dt.to_string()),
-            Bson::Array(arr) => {
-                QueryCell::Json(serde_json::json!(arr))
-            }
-            Bson::Document(doc) => {
-                QueryCell::Json(serde_json::json!(doc))
-            }
+            Bson::Array(arr) => QueryCell::Json(serde_json::json!(arr)),
+            Bson::Document(doc) => QueryCell::Json(serde_json::json!(doc)),
             _ => QueryCell::String(value.to_string()),
         }
     }
@@ -77,7 +81,8 @@ impl DatabaseDriver for MongoDbDriver {
             )
         };
 
-        let client_options = ClientOptions::parse(&connection_string).await
+        let client_options = ClientOptions::parse(&connection_string)
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
         let client = MongoClient::with_options(client_options)
@@ -87,7 +92,9 @@ impl DatabaseDriver for MongoDbDriver {
 
         // Test connection
         let ping_doc = Document::new();
-        database.run_command(ping_doc).await
+        database
+            .run_command(ping_doc)
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
         self.client = Some(Arc::new(Mutex::new(client)));
@@ -123,10 +130,14 @@ impl DatabaseDriver for MongoDbDriver {
         let db_lock = db.lock().await;
         let collection = db_lock.collection::<Document>(collection_name);
 
-        let cursor = collection.find(Document::new()).await
+        let cursor = collection
+            .find(Document::new())
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
-        let docs: Vec<Document> = cursor.try_collect().await
+        let docs: Vec<Document> = cursor
+            .try_collect()
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let mut columns = vec!["_id".to_string()];
@@ -167,7 +178,9 @@ impl DatabaseDriver for MongoDbDriver {
     }
 
     async fn execute(&self, _query: &str) -> Result<u64, DatabaseError> {
-        Err(DatabaseError::QueryError("MongoDB uses BSON commands, not SQL".to_string()))
+        Err(DatabaseError::QueryError(
+            "MongoDB uses BSON commands, not SQL".to_string(),
+        ))
     }
 
     async fn get_schema(&self) -> Result<DatabaseSchema, DatabaseError> {
@@ -199,12 +212,16 @@ impl DatabaseDriver for MongoDbDriver {
     }
 
     async fn list_databases(&self) -> Result<Vec<String>, DatabaseError> {
-        let client = self.client
+        let client = self
+            .client
             .as_ref()
             .ok_or_else(|| DatabaseError::ConnectionError("Not connected".to_string()))?
-            .lock().await;
+            .lock()
+            .await;
 
-        let databases = client.list_database_names().await
+        let databases = client
+            .list_database_names()
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         Ok(databases)
@@ -214,15 +231,20 @@ impl DatabaseDriver for MongoDbDriver {
         let db = self.get_db()?;
         let db_lock = db.lock().await;
 
-        let collections = db_lock.list_collection_names().await
+        let collections = db_lock
+            .list_collection_names()
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let mut tables = Vec::new();
         for name in collections {
             let collection = db_lock.collection::<Document>(&name);
 
-            let row_count = collection.estimated_document_count().await
-                .ok().map(|c| c as u64);
+            let row_count = collection
+                .estimated_document_count()
+                .await
+                .ok()
+                .map(|c| c as u64);
 
             tables.push(TableInfo {
                 name,
@@ -244,9 +266,12 @@ impl DatabaseDriver for MongoDbDriver {
 
     async fn get_table(&self, table_name: &str) -> Result<TableInfo, DatabaseError> {
         let tables = self.get_tables().await?;
-        tables.into_iter()
+        tables
+            .into_iter()
             .find(|t| t.name == table_name)
-            .ok_or_else(|| DatabaseError::SchemaError(format!("Collection not found: {}", table_name)))
+            .ok_or_else(|| {
+                DatabaseError::SchemaError(format!("Collection not found: {}", table_name))
+            })
     }
 
     async fn get_table_info(&self, table_name: &str) -> Result<TableDetail, DatabaseError> {
@@ -255,12 +280,19 @@ impl DatabaseDriver for MongoDbDriver {
 
         // Get indexes
         let collection = db_lock.collection::<Document>(table_name);
-        let mut indexes = collection.list_indexes().await
+        let mut indexes = collection
+            .list_indexes()
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
         let mut index_infos = Vec::new();
         while let Ok(Some(index)) = indexes.try_next().await {
-            let name = index.keys.keys().next().cloned().unwrap_or_else(|| "unknown".to_string());
+            let name = index
+                .keys
+                .keys()
+                .next()
+                .cloned()
+                .unwrap_or_else(|| "unknown".to_string());
             let keys: Vec<String> = index.keys.keys().cloned().collect();
 
             index_infos.push(IndexInfo {
@@ -274,7 +306,9 @@ impl DatabaseDriver for MongoDbDriver {
         }
 
         // Get a sample document to infer schema
-        let sample = collection.find_one(Document::new()).await
+        let sample = collection
+            .find_one(Document::new())
+            .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
         let mut columns = Vec::new();
@@ -341,14 +375,21 @@ impl DatabaseDriver for MongoDbDriver {
         let db = self.get_db()?;
         let db_lock = db.lock().await;
 
-        let collections = db_lock.list_collection_names().await
+        let collections = db_lock
+            .list_collection_names()
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let ping_doc = Document::new();
-        let build_info = db_lock.run_command(ping_doc).await
+        let build_info = db_lock
+            .run_command(ping_doc)
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
-        let version = build_info.get_str("version").unwrap_or("unknown").to_string();
+        let version = build_info
+            .get_str("version")
+            .unwrap_or("unknown")
+            .to_string();
 
         Ok(DatabaseStats {
             name: self.db_name.clone(),
@@ -377,7 +418,9 @@ impl DatabaseDriver for MongoDbDriver {
         let db = self.get_db()?;
         let db_lock = db.lock().await;
 
-        let server_status = db_lock.run_command(Document::new()).await
+        let server_status = db_lock
+            .run_command(Document::new())
+            .await
             .map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
         let connections = 0u32;
@@ -397,7 +440,9 @@ impl DatabaseDriver for MongoDbDriver {
     }
 
     async fn cancel(&self) -> Result<(), DatabaseError> {
-        Err(DatabaseError::Unknown("Query cancellation not supported for MongoDB".to_string()))
+        Err(DatabaseError::Unknown(
+            "Query cancellation not supported for MongoDB".to_string(),
+        ))
     }
 
     async fn ping(&self) -> Result<(), DatabaseError> {
@@ -405,7 +450,9 @@ impl DatabaseDriver for MongoDbDriver {
         let db_lock = db.lock().await;
 
         let ping_cmd = Document::new();
-        db_lock.run_command(ping_cmd).await
+        db_lock
+            .run_command(ping_cmd)
+            .await
             .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
 
         Ok(())

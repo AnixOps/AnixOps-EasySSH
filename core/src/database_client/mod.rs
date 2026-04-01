@@ -11,43 +11,43 @@
 //! - Performance analysis
 //! - Backup and restore
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
 use thiserror::Error;
-use chrono::{DateTime, Utc};
+use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
-pub mod connection;
-pub mod query;
-pub mod schema;
-pub mod erdiagram;
-pub mod import_export;
-pub mod history;
-pub mod tunnel;
-pub mod performance;
 pub mod backup;
+pub mod batch;
+pub mod cache;
+pub mod connection;
 pub mod drivers;
 pub mod editor;
+pub mod erdiagram;
+pub mod history;
+pub mod import_export;
+pub mod performance;
 pub mod pool;
-pub mod cache;
-pub mod batch;
+pub mod query;
+pub mod schema;
+pub mod tunnel;
 
-pub use connection::*;
-pub use query::*;
-pub use schema::*;
-pub use erdiagram::*;
-pub use import_export::*;
-pub use history::*;
-pub use tunnel::*;
-pub use performance::*;
 pub use backup::*;
+pub use batch::*;
+pub use cache::*;
+pub use connection::*;
 pub use drivers::*;
 pub use editor::*;
+pub use erdiagram::*;
+pub use history::*;
+pub use import_export::*;
+pub use performance::*;
 pub use pool::*;
-pub use cache::*;
-pub use batch::*;
+pub use query::*;
+pub use schema::*;
+pub use tunnel::*;
 
 /// Database client error types
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
@@ -120,7 +120,10 @@ impl DatabaseType {
     }
 
     pub fn supports_sql(&self) -> bool {
-        matches!(self, DatabaseType::MySQL | DatabaseType::PostgreSQL | DatabaseType::SQLite)
+        matches!(
+            self,
+            DatabaseType::MySQL | DatabaseType::PostgreSQL | DatabaseType::SQLite
+        )
     }
 
     pub fn supports_nosql(&self) -> bool {
@@ -456,10 +459,7 @@ impl DatabaseClientManager {
 
         // Update cache
         let mut cache = self.schema_cache.write().await;
-        cache.insert(
-            connection_id.to_string(),
-            SchemaCache::new(schema.clone()),
-        );
+        cache.insert(connection_id.to_string(), SchemaCache::new(schema.clone()));
 
         Ok(schema)
     }
@@ -492,10 +492,7 @@ impl DatabaseClientManager {
         let schema = entry.driver.lock().await.get_schema().await?;
 
         let mut cache = self.schema_cache.write().await;
-        cache.insert(
-            connection_id.to_string(),
-            SchemaCache::new(schema),
-        );
+        cache.insert(connection_id.to_string(), SchemaCache::new(schema));
 
         Ok(())
     }
@@ -517,9 +514,9 @@ impl DatabaseClientManager {
     ) -> Result<PerformanceMetrics, DatabaseError> {
         let driver = {
             let connections = self.connections.read().await;
-            let entry = connections
-                .get(connection_id)
-                .ok_or_else(|| DatabaseError::ConnectionError("Connection not found".to_string()))?;
+            let entry = connections.get(connection_id).ok_or_else(|| {
+                DatabaseError::ConnectionError("Connection not found".to_string())
+            })?;
             entry.driver.clone()
         };
 
@@ -563,12 +560,17 @@ impl SchemaCache {
     }
 
     fn is_fresh(&self) -> bool {
-        Utc::now().signed_duration_since(self.cached_at).num_minutes() < 5
+        Utc::now()
+            .signed_duration_since(self.cached_at)
+            .num_minutes()
+            < 5
     }
 }
 
 /// Create appropriate driver for database type
-async fn create_driver(db_type: &DatabaseType) -> Result<Arc<Mutex<Box<dyn DatabaseDriver>>>, DatabaseError> {
+async fn create_driver(
+    db_type: &DatabaseType,
+) -> Result<Arc<Mutex<Box<dyn DatabaseDriver>>>, DatabaseError> {
     match db_type {
         DatabaseType::MySQL => {
             #[cfg(feature = "mysql-driver")]
@@ -578,7 +580,9 @@ async fn create_driver(db_type: &DatabaseType) -> Result<Arc<Mutex<Box<dyn Datab
                 ))))
             }
             #[cfg(not(feature = "mysql-driver"))]
-            Err(DatabaseError::DriverNotFound("MySQL driver not enabled".to_string()))
+            Err(DatabaseError::DriverNotFound(
+                "MySQL driver not enabled".to_string(),
+            ))
         }
         DatabaseType::PostgreSQL => {
             #[cfg(feature = "postgres-driver")]
@@ -588,7 +592,9 @@ async fn create_driver(db_type: &DatabaseType) -> Result<Arc<Mutex<Box<dyn Datab
                 ))))
             }
             #[cfg(not(feature = "postgres-driver"))]
-            Err(DatabaseError::DriverNotFound("PostgreSQL driver not enabled".to_string()))
+            Err(DatabaseError::DriverNotFound(
+                "PostgreSQL driver not enabled".to_string(),
+            ))
         }
         DatabaseType::MongoDB => {
             #[cfg(feature = "mongodb-driver")]
@@ -598,7 +604,9 @@ async fn create_driver(db_type: &DatabaseType) -> Result<Arc<Mutex<Box<dyn Datab
                 ))))
             }
             #[cfg(not(feature = "mongodb-driver"))]
-            Err(DatabaseError::DriverNotFound("MongoDB driver not enabled".to_string()))
+            Err(DatabaseError::DriverNotFound(
+                "MongoDB driver not enabled".to_string(),
+            ))
         }
         DatabaseType::Redis => {
             #[cfg(feature = "redis-driver")]
@@ -608,12 +616,12 @@ async fn create_driver(db_type: &DatabaseType) -> Result<Arc<Mutex<Box<dyn Datab
                 ))))
             }
             #[cfg(not(feature = "redis-driver"))]
-            Err(DatabaseError::DriverNotFound("Redis driver not enabled".to_string()))
+            Err(DatabaseError::DriverNotFound(
+                "Redis driver not enabled".to_string(),
+            ))
         }
-        DatabaseType::SQLite => {
-            Ok(Arc::new(Mutex::new(Box::new(
-                drivers::sqlite::SqliteDriver::new(),
-            ))))
-        }
+        DatabaseType::SQLite => Ok(Arc::new(Mutex::new(Box::new(
+            drivers::sqlite::SqliteDriver::new(),
+        )))),
     }
 }

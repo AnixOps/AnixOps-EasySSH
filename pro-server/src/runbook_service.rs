@@ -2,9 +2,9 @@
 //!
 //! 提供运行手册的创建、执行、管理和自动化功能
 
-use crate::incident_models::*;
 use crate::db::Database;
-use anyhow::{Result, anyhow};
+use crate::incident_models::*;
+use anyhow::{anyhow, Result};
 use chrono::Utc;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
@@ -21,7 +21,11 @@ impl RunbookService {
     // ============= 运行手册CRUD =============
 
     /// 创建运行手册
-    pub async fn create_runbook(&self, req: CreateRunbookRequest, user_id: &str) -> Result<Runbook> {
+    pub async fn create_runbook(
+        &self,
+        req: CreateRunbookRequest,
+        user_id: &str,
+    ) -> Result<Runbook> {
         let runbook_id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now();
 
@@ -31,20 +35,23 @@ impl RunbookService {
         });
 
         let severity_levels = req.severity_levels.map(|levels| {
-            let level_strings: Vec<String> = levels.iter().map(|s| s.as_str().to_string()).collect();
+            let level_strings: Vec<String> =
+                levels.iter().map(|s| s.as_str().to_string()).collect();
             serde_json::json!(level_strings)
         });
 
         let steps = req.steps.map(|s| serde_json::json!(s));
         let tags = req.tags.map(|t| serde_json::json!(t));
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO runbooks (
                 id, title, description, incident_types, severity_levels, team_id, is_global,
                 content, steps, automation_script, estimated_duration_minutes,
                 success_rate, usage_count, created_by, created_at, updated_at, is_active, tags
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&runbook_id)
         .bind(&req.title)
         .bind(&req.description)
@@ -56,8 +63,8 @@ impl RunbookService {
         .bind(steps)
         .bind(&req.automation_script)
         .bind(req.estimated_duration_minutes)
-        .bind(1.0f64)  // 初始成功率100%
-        .bind(0i32)    // 初始使用次数0
+        .bind(1.0f64) // 初始成功率100%
+        .bind(0i32) // 初始使用次数0
         .bind(user_id)
         .bind(now)
         .bind(now)
@@ -95,7 +102,8 @@ impl RunbookService {
 
         let current = self.get_runbook_by_id(runbook_id).await?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE runbooks SET
                 title = ?,
                 description = ?,
@@ -104,7 +112,8 @@ impl RunbookService {
                 updated_at = ?,
                 is_active = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(title.unwrap_or(&current.title))
         .bind(description.unwrap_or(&current.description))
         .bind(content.unwrap_or(&current.content))
@@ -131,7 +140,8 @@ impl RunbookService {
             SELECT * FROM runbooks
             WHERE (team_id = ? OR is_global = TRUE)
             AND is_active = TRUE
-        "#.to_string();
+        "#
+        .to_string();
 
         let mut params: Vec<Box<dyn sqlx::Type<sqlx::Any> + Send + Sync>> = vec![];
 
@@ -157,13 +167,15 @@ impl RunbookService {
     pub async fn search_runbooks(&self, team_id: &str, query: &str) -> Result<Vec<Runbook>> {
         let search_pattern = format!("%{}%", query);
 
-        let runbooks = sqlx::query_as::<_, Runbook>(r#"
+        let runbooks = sqlx::query_as::<_, Runbook>(
+            r#"
             SELECT * FROM runbooks
             WHERE (team_id = ? OR is_global = TRUE)
             AND is_active = TRUE
             AND (title LIKE ? OR description LIKE ? OR content LIKE ? OR tags LIKE ?)
             ORDER BY usage_count DESC
-        "#)
+        "#,
+        )
         .bind(team_id)
         .bind(&search_pattern)
         .bind(&search_pattern)
@@ -209,12 +221,14 @@ impl RunbookService {
 
         let total_steps = steps.len() as i32;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO runbook_executions (
                 id, runbook_id, incident_id, executed_by, status, started_at,
                 current_step, total_steps, results, output_log
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#)
+        "#,
+        )
         .bind(&execution_id)
         .bind(runbook_id)
         .bind(incident_id)
@@ -234,12 +248,18 @@ impl RunbookService {
             .execute(self.db.pool())
             .await?;
 
-        info!("Started runbook execution {} for incident {}", execution_id, incident_id);
+        info!(
+            "Started runbook execution {} for incident {}",
+            execution_id, incident_id
+        );
 
         // 如果有自动化脚本，启动异步执行
         if runbook.automation_script.is_some() {
             // 在实际实现中，这里会启动一个后台任务来执行脚本
-            info!("Runbook {} has automation script, will execute steps", runbook_id);
+            info!(
+                "Runbook {} has automation script, will execute steps",
+                runbook_id
+            );
         }
 
         self.get_execution_by_id(&execution_id).await
@@ -276,11 +296,13 @@ impl RunbookService {
             "running"
         };
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE runbook_executions
             SET current_step = ?, results = ?, status = ?, output_log = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(new_step)
         .bind(serde_json::json!(results))
         .bind(status)
@@ -289,22 +311,31 @@ impl RunbookService {
         .execute(self.db.pool())
         .await?;
 
-        debug!("Executed step {} of runbook execution {}", step_number, execution_id);
+        debug!(
+            "Executed step {} of runbook execution {}",
+            step_number, execution_id
+        );
 
         self.get_execution_by_id(execution_id).await
     }
 
     /// 完成运行手册执行
-    pub async fn complete_execution(&self, execution_id: &str, success: bool) -> Result<RunbookExecution> {
+    pub async fn complete_execution(
+        &self,
+        execution_id: &str,
+        success: bool,
+    ) -> Result<RunbookExecution> {
         let now = Utc::now();
 
         let status = if success { "completed" } else { "failed" };
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             UPDATE runbook_executions
             SET status = ?, completed_at = ?
             WHERE id = ?
-        "#)
+        "#,
+        )
         .bind(status)
         .bind(now)
         .bind(execution_id)
@@ -313,22 +344,28 @@ impl RunbookService {
 
         // 更新运行手册成功率统计
         let execution = self.get_execution_by_id(execution_id).await?;
-        self.update_runbook_success_rate(&execution.runbook_id).await?;
+        self.update_runbook_success_rate(&execution.runbook_id)
+            .await?;
 
-        info!("Completed runbook execution {} with status {}", execution_id, status);
+        info!(
+            "Completed runbook execution {} with status {}",
+            execution_id, status
+        );
 
         self.get_execution_by_id(execution_id).await
     }
 
     /// 更新运行手册成功率
     async fn update_runbook_success_rate(&self, runbook_id: &str) -> Result<()> {
-        let stats: (i64, i64) = sqlx::query_as(r#"
+        let stats: (i64, i64) = sqlx::query_as(
+            r#"
             SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as success
             FROM runbook_executions
             WHERE runbook_id = ?
-        "#)
+        "#,
+        )
         .bind(runbook_id)
         .fetch_one(self.db.pool())
         .await?;
@@ -351,21 +388,24 @@ impl RunbookService {
 
     /// 获取执行详情
     pub async fn get_execution_by_id(&self, execution_id: &str) -> Result<RunbookExecution> {
-        let execution = sqlx::query_as::<_, RunbookExecution>("SELECT * FROM runbook_executions WHERE id = ?")
-            .bind(execution_id)
-            .fetch_optional(self.db.pool())
-            .await?;
+        let execution =
+            sqlx::query_as::<_, RunbookExecution>("SELECT * FROM runbook_executions WHERE id = ?")
+                .bind(execution_id)
+                .fetch_optional(self.db.pool())
+                .await?;
 
         execution.ok_or_else(|| anyhow!("Runbook execution not found: {}", execution_id))
     }
 
     /// 获取运行手册的执行历史
     pub async fn get_runbook_executions(&self, runbook_id: &str) -> Result<Vec<RunbookExecution>> {
-        let executions = sqlx::query_as::<_, RunbookExecution>(r#"
+        let executions = sqlx::query_as::<_, RunbookExecution>(
+            r#"
             SELECT * FROM runbook_executions
             WHERE runbook_id = ?
             ORDER BY started_at DESC
-        "#)
+        "#,
+        )
         .bind(runbook_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -374,12 +414,17 @@ impl RunbookService {
     }
 
     /// 获取事件的运行手册执行记录
-    pub async fn get_incident_executions(&self, incident_id: &str) -> Result<Vec<RunbookExecution>> {
-        let executions = sqlx::query_as::<_, RunbookExecution>(r#"
+    pub async fn get_incident_executions(
+        &self,
+        incident_id: &str,
+    ) -> Result<Vec<RunbookExecution>> {
+        let executions = sqlx::query_as::<_, RunbookExecution>(
+            r#"
             SELECT * FROM runbook_executions
             WHERE incident_id = ?
             ORDER BY started_at DESC
-        "#)
+        "#,
+        )
         .bind(incident_id)
         .fetch_all(self.db.pool())
         .await?;
@@ -392,20 +437,20 @@ impl RunbookService {
     /// 为事件推荐运行手册
     pub async fn suggest_runbooks_for_incident(&self, incident: &Incident) -> Result<Vec<Runbook>> {
         // 1. 基于事件类型匹配
-        let by_type = self.list_runbooks(
-            &incident.team_id,
-            Some(&incident.incident_type),
-            None,
-        ).await?;
+        let by_type = self
+            .list_runbooks(&incident.team_id, Some(&incident.incident_type), None)
+            .await?;
 
         // 2. 基于严重程度匹配
-        let by_severity: Vec<Runbook> = sqlx::query_as::<_, Runbook>(r#"
+        let by_severity: Vec<Runbook> = sqlx::query_as::<_, Runbook>(
+            r#"
             SELECT * FROM runbooks
             WHERE (team_id = ? OR is_global = TRUE)
             AND is_active = TRUE
             AND severity_levels LIKE ?
             ORDER BY success_rate DESC, usage_count DESC
-        "#)
+        "#,
+        )
         .bind(&incident.team_id)
         .bind(format!("%{}%", incident.severity.as_str()))
         .fetch_all(self.db.pool())
@@ -423,7 +468,9 @@ impl RunbookService {
         all_runbooks.sort_by(|a, b| {
             let a_rate = a.success_rate.unwrap_or(0.0);
             let b_rate = b.success_rate.unwrap_or(0.0);
-            b_rate.partial_cmp(&a_rate).unwrap_or(std::cmp::Ordering::Equal)
+            b_rate
+                .partial_cmp(&a_rate)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // 返回前10个
@@ -432,13 +479,15 @@ impl RunbookService {
 
     /// 获取热门运行手册
     pub async fn get_popular_runbooks(&self, team_id: &str, limit: i64) -> Result<Vec<Runbook>> {
-        let runbooks = sqlx::query_as::<_, Runbook>(r#"
+        let runbooks = sqlx::query_as::<_, Runbook>(
+            r#"
             SELECT * FROM runbooks
             WHERE (team_id = ? OR is_global = TRUE)
             AND is_active = TRUE
             ORDER BY usage_count DESC, success_rate DESC
             LIMIT ?
-        "#)
+        "#,
+        )
         .bind(team_id)
         .bind(limit)
         .fetch_all(self.db.pool())
