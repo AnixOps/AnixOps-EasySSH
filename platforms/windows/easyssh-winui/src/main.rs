@@ -40,6 +40,9 @@ mod startup;
 mod terminal;
 mod theme_system;
 mod transfer_queue;
+
+#[cfg(feature = "team")]
+mod team_ui;
 mod user_experience;
 mod viewmodels;
 mod ws_server;
@@ -96,6 +99,9 @@ use theme_system::{ThemeEditor, ThemeGallery, ThemeManager};
 use user_experience::{
     LoadingOperation, OnboardingAction, OnboardingWizard, QuickTip, ToastNotification, UXManager,
 };
+
+#[cfg(feature = "team")]
+use team_ui::{render_team_panel, TeamManagerUI};
 
 fn main() -> eframe::Result {
     // Start global startup profiler
@@ -436,6 +442,15 @@ struct EasySSHApp {
     /// AI assistant toggle state
     #[cfg(feature = "ai-terminal")]
     ai_assistant_enabled: bool,
+
+    // === Team Collaboration (Pro Feature) ===
+    /// Team collaboration manager
+    #[cfg(feature = "team")]
+    team_manager: TeamManagerUI,
+    /// Show team collaboration panel
+    #[cfg(feature = "team")]
+    show_team_panel: bool,
+
     // Note: runtime is declared below in the Shared Runtime section
 
     // === Professional Code Editor ===
@@ -889,6 +904,12 @@ impl EasySSHApp {
             show_ai_assistant: false,
             #[cfg(feature = "ai-terminal")]
             ai_assistant_enabled: true,
+
+            // Team Collaboration (Pro Feature)
+            #[cfg(feature = "team")]
+            team_manager: TeamManagerUI::new(),
+            #[cfg(feature = "team")]
+            show_team_panel: false,
 
             // Code Editor (may be expensive)
             #[cfg(feature = "code-editor")]
@@ -3229,6 +3250,24 @@ impl eframe::App for EasySSHApp {
                         ui.add_space(8.0);
                     }
 
+                    #[cfg(feature = "team")]
+                    {
+                        // Team Collaboration button
+                        let team_btn_fill = if self.show_team_panel {
+                            egui::Color32::from_rgb(100, 80, 200) // Active state
+                        } else {
+                            egui::Color32::from_rgb(60, 70, 85)
+                        };
+                        let team_btn = egui::Button::new("👥")  // People emoji
+                            .fill(team_btn_fill)
+                            .rounding(4.0)
+                            .min_size([44.0, 44.0].into());
+                        if ui.add(team_btn).on_hover_text("Team Collaboration - Manage teams, members, and shared resources").clicked() {
+                            self.show_team_panel = !self.show_team_panel;
+                        }
+                        ui.add_space(8.0);
+                    }
+
                     #[cfg(feature = "code-editor")]
                     {
                         // Code Editor button
@@ -4445,6 +4484,12 @@ impl eframe::App for EasySSHApp {
             if let Some(ref mut ai) = self.ai_terminal {
                 ai.show(ctx, &self.command_input, &self.terminal_output);
             }
+        }
+
+        // ==================== Team Collaboration Panel ====================
+        #[cfg(feature = "team")]
+        if self.show_team_panel {
+            render_team_panel(ctx, &mut self.show_team_panel, &mut self.team_manager);
         }
 
         // ==================== Shortcut Cheatsheet ====================

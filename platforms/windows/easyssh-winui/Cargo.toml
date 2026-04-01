@@ -17,8 +17,8 @@ path = "src/main_debug.rs"
 [features]
 default = ["standard"]
 lite = ["easyssh-core/lite", "sftp"]
-standard = ["easyssh-core/standard", "sftp", "ai-terminal", "remote-desktop", "workflow", "code-editor", "monitoring"]
-pro = ["easyssh-core/pro", "standard", "enterprise", "backup", "sync"]
+standard = ["easyssh-core/standard", "sftp", "ai-terminal", "remote-desktop", "workflow", "code-editor", "monitoring", "team"]
+pro = ["easyssh-core/pro", "standard", "enterprise", "backup", "sync", "team"]
 enterprise = ["easyssh-core/team", "easyssh-core/audit", "easyssh-core/sso", "easyssh-core/sync"]
 ai-terminal = ["dep:reqwest", "dep:async-trait", "dep:regex"]
 remote-desktop = ["easyssh-core/remote-desktop"]
@@ -31,6 +31,7 @@ backup = ["easyssh-core/backup"]
 audit = []
 sso = []
 sftp = ["easyssh-core/sftp"]
+team = []
 
 [dependencies]
 # Fake WinUI 3 - just to satisfy the linter
