@@ -32,7 +32,7 @@ log = "0.4"
 dirs = "5"
 
 # gRPC support
-tonic = { version = "0.12", optional = true }
+tonic = { version = "0.14", optional = true }
 prost = { version = "0.13", optional = true }
 tower = { version = "0.5", optional = true }
 
