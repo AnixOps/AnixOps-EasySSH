@@ -21,7 +21,7 @@
     "react-syntax-highlighter": "^15.5.0",
     "remark-gfm": "^4.0.0",
     "prismjs": "^1.29.0",
-    "zustand": "^4.5.0"
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
