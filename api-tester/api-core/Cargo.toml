@@ -29,7 +29,7 @@ sha2 = "0.10"
 hmac = "0.12"
 tracing = "0.1"
 log = "0.4"
-dirs = "5"
+dirs = "6"
 
 # gRPC support
 tonic = { version = "0.12", optional = true }
