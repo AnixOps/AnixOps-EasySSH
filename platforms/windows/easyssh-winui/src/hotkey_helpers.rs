@@ -442,7 +442,7 @@ impl EasySSHApp {
         ui: &mut egui::Ui,
         panel_id: crate::split_layout::PanelId,
         content: &crate::split_layout::PanelContent,
-        is_active: bool,
+        _is_active: bool,
     ) {
         use crate::split_layout::PanelType;
 

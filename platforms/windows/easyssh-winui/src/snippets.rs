@@ -567,6 +567,122 @@ impl SnippetManager {
             .iter()
             .find(|s| s.shortcut.as_deref() == Some(shortcut))
     }
+
+    /// Save all snippets to database
+    #[cfg(feature = "standard")]
+    pub fn save_to_db(&self, db: &easyssh_core::db::Database) -> anyhow::Result<usize> {
+        use easyssh_core::db::{NewSnippet, UpdateSnippet};
+
+        let mut saved_count = 0;
+        for snippet in &self.snippets {
+            // Convert category to folder_id
+            let folder_id = match snippet.category {
+                SnippetCategory::FrequentlyUsed => Some("frequent".to_string()),
+                SnippetCategory::Custom => Some("custom".to_string()),
+                SnippetCategory::Team => Some("team".to_string()),
+                SnippetCategory::System => Some("system".to_string()),
+            };
+
+            // Serialize tags and variables to JSON
+            let vars_json = if !snippet.tags.is_empty() {
+                Some(serde_json::to_string(&snippet.tags)?)
+            } else {
+                None
+            };
+
+            // Check if snippet exists in DB
+            match db.get_snippet(&snippet.id) {
+                Ok(_) => {
+                    // Update existing
+                    let update = UpdateSnippet {
+                        id: snippet.id.clone(),
+                        name: snippet.name.clone(),
+                        command: snippet.content.clone(),
+                        description: snippet.description.clone(),
+                        folder_id,
+                        variables_json: vars_json,
+                        scope: if snippet.is_shared { "team".to_string() } else { "local".to_string() },
+                    };
+                    db.update_snippet(&update)?;
+                }
+                Err(_) => {
+                    // Insert new
+                    let new = NewSnippet {
+                        id: snippet.id.clone(),
+                        name: snippet.name.clone(),
+                        command: snippet.content.clone(),
+                        description: snippet.description.clone(),
+                        folder_id,
+                        variables_json: vars_json,
+                        scope: if snippet.is_shared { "team".to_string() } else { "local".to_string() },
+                    };
+                    db.add_snippet(&new)?;
+                }
+            }
+            saved_count += 1;
+        }
+        Ok(saved_count)
+    }
+
+    /// Load snippets from database
+    #[cfg(feature = "standard")]
+    pub fn load_from_db(&mut self, db: &easyssh_core::db::Database) -> anyhow::Result<usize> {
+        let records = db.get_snippets()?;
+        let mut loaded_count = 0;
+
+        for record in records {
+            // Parse category from folder_id
+            let category = match record.folder_id.as_deref() {
+                Some("frequent") => SnippetCategory::FrequentlyUsed,
+                Some("team") => SnippetCategory::Team,
+                Some("system") => SnippetCategory::System,
+                _ => SnippetCategory::Custom,
+            };
+
+            // Parse tags from variables_json
+            let tags = record.variables_json
+                .and_then(|json| serde_json::from_str::<Vec<String>>(&json).ok())
+                .unwrap_or_default();
+
+            let snippet = Snippet {
+                id: record.id,
+                name: record.name,
+                description: record.description,
+                content: record.command,
+                category,
+                tags,
+                shortcut: None, // Not stored in DB yet
+                created_at: record.created_at,
+                updated_at: record.updated_at,
+                is_shared: record.scope == "team",
+                author: None,
+                usage_count: 0,
+            };
+
+            self.snippets.push(snippet);
+            loaded_count += 1;
+        }
+
+        Ok(loaded_count)
+    }
+
+    /// Initialize with database (load if available, otherwise defaults)
+    #[cfg(feature = "standard")]
+    pub fn init_with_db(&mut self, db: &easyssh_core::db::Database) {
+        // Try to load from DB first
+        match self.load_from_db(db) {
+            Ok(count) if count > 0 => {
+                println!("Loaded {} snippets from database", count);
+            }
+            _ => {
+                // Fall back to defaults and save them
+                self.load_default_snippets();
+                if let Err(e) = self.save_to_db(db) {
+                    eprintln!("Failed to save default snippets: {}", e);
+                }
+            }
+        }
+    }
 }
 
 /// UI state for snippet variable input dialog

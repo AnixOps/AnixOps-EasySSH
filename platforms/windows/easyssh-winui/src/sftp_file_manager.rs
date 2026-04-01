@@ -174,7 +174,7 @@ impl SftpFileManager {
         let sid = session_id.to_string();
         let file_name = file_name.to_string();
         let vm = view_model.clone();
-        let transfer_id_clone = transfer_id.clone();
+        let _transfer_id_clone = transfer_id.clone();
 
         // Execute in background thread
         thread::spawn(move || {
@@ -218,7 +218,7 @@ impl SftpFileManager {
         let sid = session_id.to_string();
         let file_name = file_name.to_string();
         let vm = view_model.clone();
-        let transfer_id_clone = transfer_id.clone();
+        let _transfer_id_clone = transfer_id.clone();
 
         // Execute in background thread
         thread::spawn(move || {
@@ -852,7 +852,7 @@ impl SftpFileManager {
                         );
 
                         // Refresh local after download completes (with delay)
-                        let local_path_clone = self.local_path.clone();
+                        let _local_path_clone = self.local_path.clone();
                         std::thread::spawn(move || {
                             std::thread::sleep(std::time::Duration::from_secs(1));
                             // Note: Can't directly refresh UI from here, would need signal

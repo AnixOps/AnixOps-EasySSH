@@ -4584,7 +4584,7 @@ impl EasySSHApp {
     }
 
     /// Notify connection success
-    fn notify_connection_success(&mut self, server_name: &str, session_id: &str) {
+    fn notify_connection_success(&mut self, server_name: &str, _session_id: &str) {
         self.notify_with_toast(
             notifications::NotificationType::ConnectionSuccess,
             "连接成功",
