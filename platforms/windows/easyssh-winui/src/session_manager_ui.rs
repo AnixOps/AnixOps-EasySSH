@@ -19,7 +19,9 @@ pub struct SessionInfo {
     pub server_name: String,
     pub host: String,
     pub username: String,
+    #[serde(skip)]
     pub created_at: Instant,
+    #[serde(skip)]
     pub last_accessed: Instant,
     pub is_active: bool,
     pub tab_index: usize,

@@ -12,6 +12,7 @@ use easyssh_core::workflow_scheduler::*;
 use easyssh_core::workflow_variables::ServerContext;
 
 use crate::batch_results_ui::BatchExecutionResultsPanel;
+#[cfg(feature = "macro-recorder")]
 use crate::macro_recorder_ui::MacroRecorderPanel;
 use crate::scheduled_tasks_ui::ScheduledTasksPanel;
 use crate::workflow_editor::{ScriptLibraryBrowser, WorkflowEditor};
@@ -31,6 +32,7 @@ pub struct WorkflowPanel {
     /// Script library browser
     library_browser: ScriptLibraryBrowser,
     /// Macro recorder panel
+    #[cfg(feature = "macro-recorder")]
     macro_recorder: MacroRecorderPanel,
     /// Scheduled tasks panel
     scheduled_tasks: ScheduledTasksPanel,
@@ -92,6 +94,7 @@ impl WorkflowPanel {
             executor: Arc::new(Mutex::new(WorkflowExecutor::new())),
             workflow_editor: None,
             library_browser: ScriptLibraryBrowser::new(),
+            #[cfg(feature = "macro-recorder")]
             macro_recorder: MacroRecorderPanel::new(),
             scheduled_tasks: ScheduledTasksPanel::new(),
             batch_results: None,
@@ -189,6 +192,7 @@ impl WorkflowPanel {
                             }
                         }
                         ScriptType::Macro => {
+                            #[cfg(feature = "macro-recorder")]
                             if let Some(macr) = lib.get_macro(&selection.id) {
                                 // Clone macro data for later use
                                 let macro_clone = macr.clone();
@@ -196,6 +200,10 @@ impl WorkflowPanel {
                                 self.macro_recorder.load_macro(macro_clone);
                                 navigate_to_recorder = true;
                                 return; // Exit early since we've dropped lib
+                            }
+                            #[cfg(not(feature = "macro-recorder"))]
+                            {
+                                // Macro feature not available
                             }
                         }
                         _ => {}
@@ -300,6 +308,7 @@ impl WorkflowPanel {
         }
     }
 
+    #[cfg(feature = "macro-recorder")]
     fn render_recorder_tab(
         &mut self,
         ui: &mut Ui,

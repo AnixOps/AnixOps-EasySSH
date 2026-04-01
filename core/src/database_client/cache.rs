@@ -278,8 +278,9 @@ impl QueryCache {
     pub fn get(&self, query: &str, params: Option<&[String]>) -> Option<QueryResult> {
         let key = Self::generate_key(query, params);
 
-        {
-            let cache = self.cache.read();
+        // Check cache for entry
+        let result = {
+            let cache = self.cache.read().unwrap();
             if let Some(entry) = cache.get(&key) {
                 if entry.is_expired() {
                     drop(cache);
@@ -287,27 +288,30 @@ impl QueryCache {
                     self.stats.misses.fetch_add(1, Ordering::SeqCst);
                     return None;
                 }
-
-                drop(cache);
-                self.update_lru(&key);
-
-                {
-                    let mut cache = self.cache.write();
-                    if let Some(entry) = cache.get_mut(&key) {
-                        entry.record_access();
-                    }
-                }
-
-                self.stats.hits.fetch_add(1, Ordering::SeqCst);
-                trace!("Cache hit for query: {}", query);
-
-                return Some(entry.result.clone());
+                Some(entry.result.clone())
+            } else {
+                None
             }
+        };
+
+        if let Some(ref result) = result {
+            // Cache hit - update LRU and record access
+            self.update_lru(&key);
+            {
+                let mut cache = self.cache.write().unwrap();
+                if let Some(entry) = cache.get_mut(&key) {
+                    entry.record_access();
+                }
+            }
+
+            self.stats.hits.fetch_add(1, Ordering::SeqCst);
+            trace!("Cache hit for query: {}", query);
+        } else {
+            self.stats.misses.fetch_add(1, Ordering::SeqCst);
+            trace!("Cache miss for query: {}", query);
         }
 
-        self.stats.misses.fetch_add(1, Ordering::SeqCst);
-        trace!("Cache miss for query: {}", query);
-        None
+        result
     }
 
     /// Store result in cache
@@ -340,7 +344,7 @@ impl QueryCache {
         }
 
         {
-            let cache = self.cache.read();
+            let cache = self.cache.read().unwrap();
             if cache.len() >= self.config.max_entries {
                 drop(cache);
                 self.evict_lru();
@@ -349,17 +353,17 @@ impl QueryCache {
 
         let entry = CacheEntry::new(result, ttl, tables.clone());
         {
-            let mut cache = self.cache.write();
+            let mut cache = self.cache.write().unwrap();
             cache.insert(key.clone(), entry);
         }
 
         {
-            let mut lru = self.lru_queue.write();
+            let mut lru = self.lru_queue.write().unwrap();
             lru.push_back(key.clone());
         }
 
         if !tables.is_empty() {
-            let mut table_index = self.table_index.write();
+            let mut table_index = self.table_index.write().unwrap();
             for table in tables {
                 table_index
                     .entry(table)
@@ -380,7 +384,7 @@ impl QueryCache {
 
         let table_name_lower = table_name.to_lowercase();
         let keys_to_remove: Vec<String> = {
-            let table_index = self.table_index.read();
+            let table_index = self.table_index.read().unwrap();
             table_index
                 .get(&table_name_lower)
                 .map(|keys| keys.iter().cloned().collect())
@@ -402,7 +406,7 @@ impl QueryCache {
     pub fn invalidate_pattern(&self, pattern: &str) {
         let pattern_lower = pattern.to_lowercase();
         let keys_to_remove: Vec<String> = {
-            let cache = self.cache.read();
+            let cache = self.cache.read().unwrap();
             cache
                 .keys()
                 .filter(|k| k.to_lowercase().contains(&pattern_lower))
@@ -423,16 +427,16 @@ impl QueryCache {
 
     /// Clear all cached entries
     pub fn clear(&self) {
-        let mut cache = self.cache.write();
+        let mut cache = self.cache.write().unwrap();
         let count = cache.len();
         cache.clear();
         drop(cache);
 
-        let mut lru = self.lru_queue.write();
+        let mut lru = self.lru_queue.write().unwrap();
         lru.clear();
         drop(lru);
 
-        let mut table_index = self.table_index.write();
+        let mut table_index = self.table_index.write().unwrap();
         table_index.clear();
 
         self.current_size.store(0, Ordering::SeqCst);
@@ -443,7 +447,7 @@ impl QueryCache {
     /// Remove a specific entry
     fn remove_entry(&self, key: &str) {
         let entry_size = {
-            let mut cache = self.cache.write();
+            let mut cache = self.cache.write().unwrap();
             if let Some(entry) = cache.remove(key) {
                 entry.size_bytes
             } else {
@@ -453,12 +457,12 @@ impl QueryCache {
 
         if entry_size > 0 {
             {
-                let mut lru = self.lru_queue.write();
+                let mut lru = self.lru_queue.write().unwrap();
                 lru.retain(|k| k != key);
             }
 
             {
-                let mut table_index = self.table_index.write();
+                let mut table_index = self.table_index.write().unwrap();
                 for (_, keys) in table_index.iter_mut() {
                     keys.remove(key);
                 }
@@ -470,7 +474,7 @@ impl QueryCache {
 
     /// Update LRU queue for accessed entry
     fn update_lru(&self, key: &str) {
-        let mut lru = self.lru_queue.write();
+        let mut lru = self.lru_queue.write().unwrap();
         lru.retain(|k| k != key);
         lru.push_back(key.to_string());
     }
@@ -478,7 +482,7 @@ impl QueryCache {
     /// Evict least recently used entry
     fn evict_lru(&self) {
         let key_to_remove = {
-            let mut lru = self.lru_queue.write();
+            let mut lru = self.lru_queue.write().unwrap();
             lru.pop_front()
         };
 
@@ -498,13 +502,13 @@ impl QueryCache {
             }
 
             let key_to_remove = {
-                let mut lru = self.lru_queue.write();
+                let mut lru = self.lru_queue.write().unwrap();
                 lru.pop_front()
             };
 
             if let Some(ref key) = key_to_remove {
                 let entry_size = {
-                    let mut cache = self.cache.write();
+                    let mut cache = self.cache.write().unwrap();
                     if let Some(entry) = cache.remove(key) {
                         entry.size_bytes
                     } else {
@@ -517,7 +521,7 @@ impl QueryCache {
                     self.current_size.fetch_sub(entry_size, Ordering::SeqCst);
                     self.stats.evictions_size.fetch_add(1, Ordering::SeqCst);
 
-                    let mut table_index = self.table_index.write();
+                    let mut table_index = self.table_index.write().unwrap();
                     for (_, keys) in table_index.iter_mut() {
                         keys.remove(key);
                     }
@@ -537,7 +541,7 @@ impl QueryCache {
     /// Run maintenance: remove expired and idle entries
     pub fn maintenance(&self) {
         let keys_to_remove: Vec<String> = {
-            let cache = self.cache.read();
+            let cache = self.cache.read().unwrap();
             cache
                 .iter()
                 .filter(|(_, entry)| entry.should_evict(self.config.max_idle_time))
@@ -557,7 +561,7 @@ impl QueryCache {
 
     /// Get cache statistics
     pub fn get_statistics(&self) -> CacheStatistics {
-        let cache = self.cache.read();
+        let cache = self.cache.read().unwrap();
         let entries: Vec<_> = cache.values().cloned().collect();
         drop(cache);
 
@@ -599,7 +603,7 @@ impl QueryCache {
 
     /// Get current entry count
     pub fn entry_count(&self) -> usize {
-        self.cache.read().len()
+        self.cache.read().unwrap().len()
     }
 
     /// Get current size in bytes
@@ -703,22 +707,22 @@ impl CacheManager {
 
     /// Register a cache
     pub fn register(&self, name: &str, cache: SharedQueryCache) {
-        self.caches.write().insert(name.to_string(), cache);
+        self.caches.write().unwrap().insert(name.to_string(), cache);
     }
 
     /// Get registered cache
     pub fn get(&self, name: &str) -> Option<SharedQueryCache> {
-        self.caches.read().get(name).cloned()
+        self.caches.read().unwrap().get(name).cloned()
     }
 
     /// Unregister a cache
     pub fn unregister(&self, name: &str) {
-        self.caches.write().remove(name);
+        self.caches.write().unwrap().remove(name);
     }
 
     /// Run maintenance on all caches
     pub fn maintenance_all(&self) {
-        let caches = self.caches.read();
+        let caches = self.caches.read().unwrap();
         for (name, cache) in caches.iter() {
             cache.maintenance();
             trace!("Ran maintenance on cache: {}", name);
@@ -727,7 +731,7 @@ impl CacheManager {
 
     /// Get all statistics
     pub fn get_all_statistics(&self) -> HashMap<String, CacheStatistics> {
-        let caches = self.caches.read();
+        let caches = self.caches.read().unwrap();
         caches
             .iter()
             .map(|(name, cache)| (name.clone(), cache.get_statistics()))

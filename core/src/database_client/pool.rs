@@ -13,8 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
-use std::sync::Mutex;
-use tokio::sync::{Notify, RwLock, Semaphore};
+use tokio::sync::{Mutex, Notify, RwLock, Semaphore};
 use tokio::time::{interval, timeout};
 use tracing::{debug, error, info, trace, warn};
 
@@ -204,12 +203,12 @@ impl PooledConnectionInner {
 
     /// Get cached statement or cache new one
     fn get_cached_statement(&self, sql: &str) -> Option<String> {
-        let cache = self.statement_cache.read();
+        let cache = self.statement_cache.blocking_read();
         cache.get(sql).cloned()
     }
 
     fn cache_statement(&self, sql: &str, prepared: &str) {
-        let mut cache = self.statement_cache.write();
+        let mut cache = self.statement_cache.blocking_write();
         if cache.len() >= 100 {
             // Max cache size
             // Remove oldest entry (simple FIFO)
@@ -347,7 +346,7 @@ impl OptimizedConnectionPool {
         for _ in 0..config.min_size {
             match pool.create_connection().await {
                 Ok(conn) => {
-                    pool.idle_connections.lock().push_back(conn);
+                    pool.idle_connections.lock().await.push_back(conn);
                     pool.total_connections.fetch_add(1, Ordering::SeqCst);
                     pool.statistics.total_created.fetch_add(1, Ordering::SeqCst);
                 }
@@ -385,7 +384,7 @@ impl OptimizedConnectionPool {
 
             // Try to get from idle pool
             {
-                let mut idle = self.idle_connections.lock();
+                let mut idle = self.idle_connections.lock().await;
                 if let Some(conn) = idle.pop_front() {
                     drop(idle); // Release lock before health check
 
@@ -401,7 +400,7 @@ impl OptimizedConnectionPool {
 
                     // Mark as checked out
                     {
-                        let mut conn_lock = conn.write();
+                        let mut conn_lock = conn.write().await;
                         conn_lock.is_checked_out = true;
                         conn_lock.use_count += 1;
                     }
@@ -433,7 +432,7 @@ impl OptimizedConnectionPool {
                         self.total_connections.fetch_add(1, Ordering::SeqCst);
                         self.statistics.total_created.fetch_add(1, Ordering::SeqCst);
 
-                        let mut conn_lock = conn.write();
+                        let mut conn_lock = conn.write().await;
                         conn_lock.is_checked_out = true;
                         conn_lock.use_count += 1;
                         drop(conn_lock);
@@ -572,7 +571,7 @@ impl OptimizedConnectionPool {
     /// Check connection health
     async fn check_connection_health(&self, conn: &Arc<RwLock<PooledConnectionInner>>) -> bool {
         let health_check = async {
-            let conn_lock = conn.read();
+            let conn_lock = conn.read().await;
             conn_lock.driver.ping().await
         };
 
@@ -596,7 +595,7 @@ impl OptimizedConnectionPool {
 
     /// Close a connection
     async fn close_connection(&self, conn: Arc<RwLock<PooledConnectionInner>>) {
-        let mut conn_lock = conn.write();
+        let mut conn_lock = conn.write().await;
         let _ = conn_lock.driver.disconnect().await;
         drop(conn_lock);
 
@@ -606,12 +605,12 @@ impl OptimizedConnectionPool {
 
     /// Return a connection to the pool
     async fn release_connection(&self, conn: Arc<RwLock<PooledConnectionInner>>) {
-        let mut conn_lock = conn.write();
+        let mut conn_lock = conn.write().await;
         conn_lock.is_checked_out = false;
         conn_lock.last_used_at = Instant::now();
         drop(conn_lock);
 
-        self.idle_connections.lock().push_back(conn);
+        self.idle_connections.lock().await.push_back(conn);
         self.statistics
             .total_released
             .fetch_add(1, Ordering::SeqCst);
@@ -664,7 +663,7 @@ impl OptimizedConnectionPool {
             }
         });
 
-        *self.maintenance_handle.lock() = Some(handle);
+        *self.maintenance_handle.blocking_lock() = Some(handle);
     }
 
     /// Maintenance cleanup: remove expired and idle connections
@@ -674,12 +673,12 @@ impl OptimizedConnectionPool {
         config: &OptimizedPoolConfig,
         statistics: &Arc<PoolStatisticsInternal>,
     ) {
-        let mut idle = idle_connections.lock();
+        let mut idle = idle_connections.lock().await;
         let initial_count = idle.len();
 
         // Remove expired and idle connections
         idle.retain(|conn| {
-            let conn_lock = conn.read();
+            let conn_lock = conn.blocking_read();
             let should_keep = !conn_lock.is_expired(config.max_lifetime)
                 && !conn_lock.is_idle(config.idle_timeout);
             drop(conn_lock);
@@ -709,7 +708,7 @@ impl OptimizedConnectionPool {
     ) {
         // Check cooldown
         {
-            let last_scale = last_scale_operation.lock();
+            let last_scale = last_scale_operation.lock().await;
             if last_scale.elapsed() < config.scale_cooldown {
                 return;
             }
@@ -717,7 +716,7 @@ impl OptimizedConnectionPool {
 
         let current_total = total_connections.load(Ordering::SeqCst);
         let current_max = current_max_size.load(Ordering::SeqCst);
-        let idle_count = idle_connections.lock().len();
+        let idle_count = idle_connections.lock().await.len();
         let active_count = current_total - idle_count;
 
         let utilization = if current_max > 0 {
@@ -731,7 +730,7 @@ impl OptimizedConnectionPool {
             let new_max = (current_max + 5).min(config.max_size * 2);
             current_max_size.store(new_max, Ordering::SeqCst);
             statistics.scale_up_events.fetch_add(1, Ordering::SeqCst);
-            *last_scale_operation.lock() = Instant::now();
+            *last_scale_operation.lock().await = Instant::now();
             info!(
                 "Pool scaled up: {} -> {} connections (utilization: {:.2}%)",
                 current_max,
@@ -745,7 +744,7 @@ impl OptimizedConnectionPool {
             let new_max = (current_max - 2).max(config.max_size);
             current_max_size.store(new_max, Ordering::SeqCst);
             statistics.scale_down_events.fetch_add(1, Ordering::SeqCst);
-            *last_scale_operation.lock() = Instant::now();
+            *last_scale_operation.lock().await = Instant::now();
             info!(
                 "Pool scaled down: {} -> {} connections (utilization: {:.2}%)",
                 current_max,
@@ -757,7 +756,7 @@ impl OptimizedConnectionPool {
 
     /// Get pool statistics
     pub fn get_statistics(&self) -> PoolStatistics {
-        let idle_count = self.idle_connections.lock().len();
+        let idle_count = self.idle_connections.blocking_lock().len();
         let total_count = self.total_connections.load(Ordering::SeqCst);
 
         let total_acquired = self.statistics.total_acquired.load(Ordering::SeqCst);
@@ -810,7 +809,7 @@ impl OptimizedConnectionPool {
 
     /// Get current idle connection count
     pub fn idle_count(&self) -> usize {
-        self.idle_connections.lock().len()
+        self.idle_connections.blocking_lock().len()
     }
 
     /// Record query execution time (called from guard)
@@ -829,12 +828,12 @@ impl OptimizedConnectionPool {
         self.shutdown.notify_waiters();
 
         // Wait for maintenance task to finish
-        if let Some(handle) = self.maintenance_handle.lock().take() {
+        if let Some(handle) = self.maintenance_handle.lock().await.take() {
             let _ = handle.await;
         }
 
         // Close all connections
-        let idle = std::mem::take(&mut *self.idle_connections.lock());
+        let idle = std::mem::take(&mut *self.idle_connections.lock().await);
         for conn in idle {
             self.close_connection(conn).await;
         }
@@ -881,7 +880,7 @@ impl PooledConnectionGuard {
         F: FnOnce(&dyn DatabaseDriver) -> R,
     {
         if let Some(ref conn) = self.connection {
-            let conn_lock = conn.read();
+            let conn_lock = conn.read().await;
             f(&*conn_lock.driver)
         } else {
             panic!("Connection already released");
@@ -894,7 +893,7 @@ impl PooledConnectionGuard {
         F: FnOnce(&mut Box<dyn DatabaseDriver>) -> R,
     {
         if let Some(ref conn) = self.connection {
-            let mut conn_lock = conn.write();
+            let mut conn_lock = conn.write().await;
             f(&mut conn_lock.driver)
         } else {
             panic!("Connection already released");
@@ -909,7 +908,7 @@ impl PooledConnectionGuard {
         let start = Instant::now();
 
         let result = if let Some(ref conn) = self.connection {
-            let conn_lock = conn.read();
+            let conn_lock = conn.read().await;
             conn_lock.driver.query(sql).await
         } else {
             return Err(DatabaseError::ConnectionError(
@@ -920,7 +919,7 @@ impl PooledConnectionGuard {
         // Record latency
         let latency = start.elapsed();
         if let Some(ref conn) = self.connection {
-            let mut conn_lock = conn.write();
+            let mut conn_lock = conn.write().await;
             conn_lock.record_latency(latency);
             conn_lock.total_query_time_ms += latency.as_millis() as u64;
         }
@@ -934,7 +933,7 @@ impl PooledConnectionGuard {
         let start = Instant::now();
 
         let result = if let Some(ref conn) = self.connection {
-            let conn_lock = conn.read();
+            let conn_lock = conn.read().await;
             conn_lock.driver.execute(sql).await
         } else {
             return Err(DatabaseError::ConnectionError(
@@ -945,7 +944,7 @@ impl PooledConnectionGuard {
         // Record latency
         let latency = start.elapsed();
         if let Some(ref conn) = self.connection {
-            let mut conn_lock = conn.write();
+            let mut conn_lock = conn.write().await;
             conn_lock.record_latency(latency);
         }
         self.pool.record_query_time(latency);
@@ -956,7 +955,7 @@ impl PooledConnectionGuard {
     /// Check if connection is healthy
     pub async fn is_healthy(&self) -> bool {
         if let Some(ref conn) = self.connection {
-            let conn_lock = conn.read();
+            let conn_lock = conn.read().await;
             conn_lock.is_healthy && conn_lock.driver.is_connected()
         } else {
             false
@@ -966,7 +965,7 @@ impl PooledConnectionGuard {
     /// Get connection latency statistics
     pub fn average_latency(&self) -> Duration {
         if let Some(ref conn) = self.connection {
-            let conn_lock = conn.read();
+            let conn_lock = conn.blocking_read();
             conn_lock.average_latency()
         } else {
             Duration::from_millis(0)
@@ -1015,7 +1014,7 @@ impl ConnectionPoolManager {
     ) -> Result<Arc<OptimizedConnectionPool>, DatabaseError> {
         let pool = Arc::new(OptimizedConnectionPool::new(config, db_config).await?);
 
-        let mut pools = self.pools.write();
+        let mut pools = self.pools.blocking_write();
         pools.insert(name.to_string(), pool.clone());
 
         info!("Created pool '{}' for {:?}", name, db_config.db_type);
@@ -1024,13 +1023,13 @@ impl ConnectionPoolManager {
 
     /// Get an existing pool
     pub fn get_pool(&self, name: &str) -> Option<Arc<OptimizedConnectionPool>> {
-        self.pools.read().get(name).cloned()
+        self.pools.blocking_read().get(name).cloned()
     }
 
     /// Remove and shutdown a pool
     pub async fn remove_pool(&self, name: &str) {
         let pool = {
-            let mut pools = self.pools.write();
+            let mut pools = self.pools.write().await;
             pools.remove(name)
         };
 
@@ -1042,7 +1041,7 @@ impl ConnectionPoolManager {
 
     /// Get all pool statistics
     pub fn get_all_statistics(&self) -> HashMap<String, PoolStatistics> {
-        let pools = self.pools.read();
+        let pools = self.pools.blocking_read();
         pools
             .iter()
             .map(|(name, pool)| (name.clone(), pool.get_statistics()))
@@ -1052,7 +1051,7 @@ impl ConnectionPoolManager {
     /// Shutdown all pools
     pub async fn shutdown_all(&self) {
         let pools = {
-            let mut pools = self.pools.write();
+            let mut pools = self.pools.write().await;
             std::mem::take(&mut *pools)
         };
 
@@ -1064,7 +1063,7 @@ impl ConnectionPoolManager {
 
     /// List all pool names
     pub fn list_pools(&self) -> Vec<String> {
-        self.pools.read().keys().cloned().collect()
+        self.pools.blocking_read().keys().cloned().collect()
     }
 }
 

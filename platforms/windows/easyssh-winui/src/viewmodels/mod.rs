@@ -110,6 +110,11 @@ impl AppViewModel {
         self.port_forward_vm.lock().unwrap()
     }
 
+    /// Get the core state
+    pub fn get_core_state(&self) -> Arc<Mutex<AppState>> {
+        self.core_state.clone()
+    }
+
     pub fn get_servers(&self) -> Vec<ServerViewModel> {
         let state = self.core_state.lock().unwrap();
         match easyssh_core::get_servers(&state) {

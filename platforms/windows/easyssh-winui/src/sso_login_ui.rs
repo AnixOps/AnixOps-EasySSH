@@ -358,18 +358,28 @@ impl SsoLoginPanel {
                 ui.add_space(16.0);
 
                 ui.horizontal(|ui| {
+                    let mut saved_provider = None;
+                    let mut saved_provider_id = None;
+
                     if ui.button("💾 Save Provider").clicked() && !self.new_provider_name.is_empty() {
                         if let Some(provider) = self.create_provider_from_form() {
                             let provider_id = provider.id.clone();
                             if let Err(e) = self.sso_manager.add_provider(provider.clone()) {
                                 self.error_message = Some(format!("Failed to add provider: {}", e));
                             } else {
-                                response.provider_added = Some(provider);
+                                saved_provider = Some(provider);
+                                saved_provider_id = Some(provider_id);
                                 self.show_provider_config = false;
                                 self.new_provider_name.clear();
-                                self.selected_provider = Some(provider_id);
                             }
                         }
+                    }
+
+                    if saved_provider.is_some() {
+                        response.provider_added = saved_provider;
+                    }
+                    if saved_provider_id.is_some() {
+                        self.selected_provider = saved_provider_id;
                     }
 
                     if ui.button("❌ Cancel").clicked() {

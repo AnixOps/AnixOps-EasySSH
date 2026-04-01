@@ -116,6 +116,12 @@ pub enum JumpAuthType {
     Agent,
 }
 
+impl Default for JumpAuthType {
+    fn default() -> Self {
+        JumpAuthType::Password
+    }
+}
+
 impl std::fmt::Display for JumpAuthType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

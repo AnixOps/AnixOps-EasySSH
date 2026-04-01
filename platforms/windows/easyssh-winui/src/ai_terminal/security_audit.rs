@@ -8,8 +8,8 @@ use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::ai_terminal::providers::AiProvider;
-use crate::ai_terminal::providers::{ChatRequest, Message, Role};
+// Re-export types from providers module
+use crate::ai_terminal::providers::{self, AiProvider, ChatRequest, Message, Role};
 
 /// 安全审计请求
 #[derive(Debug, Clone)]
@@ -143,6 +143,12 @@ impl ThreatCategory {
             Self::ResourceExhaustion => "May exhaust system resources",
             Self::InformationDisclosure => "May reveal sensitive system information",
         }
+    }
+}
+
+impl std::fmt::Display for ThreatCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 

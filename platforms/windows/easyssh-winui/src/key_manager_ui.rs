@@ -43,6 +43,12 @@ pub enum KeyType {
     Dsa, // Legacy, but supported
 }
 
+impl Default for KeyType {
+    fn default() -> Self {
+        KeyType::Ed25519
+    }
+}
+
 impl std::fmt::Display for KeyType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

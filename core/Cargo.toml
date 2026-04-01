@@ -128,6 +128,7 @@ git = ["dep:git2"]
 team = []
 audit = []
 sso = []
+port-forwarding = []
 sync = ["dep:async-trait", "dep:reqwest"]
 telemetry = ["dep:windows-sys"]
 tauri = []  # Platform feature for Tauri-specific integrations

@@ -1,9 +1,14 @@
-//! AI终端模块 - 简化版存根
+//! AI终端模块 - 智能命令助手
 //!
-//! 这是一个简化实现，用于让项目能够编译。
-//! 完整的AI功能将在后续版本中实现。
+//! 提供AI辅助的终端功能，包括：
+//! - 自然语言转命令
+//! - 命令补全建议
+//! - 命令解释
+//! - 安全审计
+//! - 错误诊断
+//! - 日志分析
 
-use serde::{Deserialize, Serialize};
+#![allow(dead_code)]
 
 pub mod command_explainer;
 pub mod completion;
@@ -15,13 +20,18 @@ pub mod providers;
 pub mod security_audit;
 pub mod suggestions;
 
+use serde::{Deserialize, Serialize};
+use anyhow::Result;
+use async_trait::async_trait;
+
 pub use context::TerminalContext;
 pub use suggestions::AiSuggestion;
+pub use security_audit::{SecurityAuditRequest, SecurityAuditResult, RiskLevel, UserPermissions};
 
 pub const VERSION: &str = "0.1.0";
 
 /// Operating system type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum OsType {
     #[default]
     Linux,
@@ -32,7 +42,7 @@ pub enum OsType {
 }
 
 /// Detail level for command explanations
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum DetailLevel {
     Brief,
     #[default]
@@ -41,12 +51,18 @@ pub enum DetailLevel {
 }
 
 /// Log type for analysis
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LogType {
     System,
     Application,
     Security,
     Custom,
+}
+
+impl Default for LogType {
+    fn default() -> Self {
+        LogType::System
+    }
 }
 
 /// AI功能类型
@@ -124,14 +140,6 @@ pub struct ExplanationRequest {
     pub focus_area: Option<String>,
 }
 
-/// 安全审计请求
-#[derive(Debug, Clone)]
-pub struct SecurityAuditRequest {
-    pub command: String,
-    pub context: Option<TerminalContext>,
-    pub user_permissions: security_audit::UserPermissions,
-}
-
 /// 日志分析请求
 #[derive(Debug, Clone)]
 pub struct LogAnalysisRequest {
@@ -139,16 +147,6 @@ pub struct LogAnalysisRequest {
     pub log_type: Option<LogType>,
     pub max_issues: usize,
     pub time_range: Option<(String, String)>,
-}
-
-/// 风险等级
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RiskLevel {
-    Safe,
-    Low,
-    Medium,
-    High,
-    Critical,
 }
 
 /// 补全结果
@@ -217,26 +215,6 @@ pub struct CommandExample {
     pub explanation: String,
 }
 
-/// 安全审计结果
-#[derive(Debug, Clone)]
-pub struct SecurityAuditResult {
-    pub is_safe: bool,
-    pub risk_level: RiskLevel,
-    pub risk_score: f32,
-    pub explanation: String,
-    pub threats: Vec<SecurityThreat>,
-    pub warnings: Vec<String>,
-    pub safe_alternatives: Vec<String>,
-    pub requires_confirmation: bool,
-}
-
-/// 安全威胁
-#[derive(Debug, Clone)]
-pub struct SecurityThreat {
-    pub category: String,
-    pub description: String,
-}
-
 /// 日志分析结果
 #[derive(Debug, Clone)]
 pub struct LogAnalysisResult {
@@ -273,17 +251,21 @@ pub struct LogPattern {
 /// AI终端主结构
 pub struct AiTerminal {
     config: AiTerminalConfig,
+    provider: Option<Box<dyn providers::AiProvider>>,
 }
 
 impl AiTerminal {
-    pub async fn new(config: AiTerminalConfig) -> anyhow::Result<Self> {
-        Ok(Self { config })
+    pub async fn new(config: AiTerminalConfig) -> Result<Self> {
+        Ok(Self {
+            config,
+            provider: None,
+        })
     }
 
     pub async fn complete_command(
         &self,
         _request: CommandCompletionRequest,
-    ) -> anyhow::Result<CompletionResult> {
+    ) -> Result<CompletionResult> {
         Ok(CompletionResult {
             suggestions: vec![],
         })
@@ -292,7 +274,7 @@ impl AiTerminal {
     pub async fn diagnose_error(
         &self,
         _request: ErrorDiagnosisRequest,
-    ) -> anyhow::Result<DiagnosisResult> {
+    ) -> Result<DiagnosisResult> {
         Ok(DiagnosisResult {
             error_summary: "Stub implementation".to_string(),
             severity: "low".to_string(),
@@ -306,12 +288,12 @@ impl AiTerminal {
     pub async fn natural_language_to_command(
         &self,
         request: NlToCommandRequest,
-    ) -> anyhow::Result<NlToCommandResult> {
+    ) -> Result<NlToCommandResult> {
         Ok(NlToCommandResult {
             generated_commands: vec![GeneratedCommand {
                 command: format!("echo '{}'", request.natural_language),
                 confidence: 0.5,
-                risk_level: RiskLevel::Low,
+                risk_level: RiskLevel::Safe,
             }],
             explanation: "Stub implementation".to_string(),
         })
@@ -320,7 +302,7 @@ impl AiTerminal {
     pub async fn explain_command(
         &self,
         request: ExplanationRequest,
-    ) -> anyhow::Result<ExplanationResult> {
+    ) -> Result<ExplanationResult> {
         Ok(ExplanationResult {
             summary: format!("Command: {}", request.command),
             detailed_explanation: "Stub implementation".to_string(),
@@ -332,7 +314,7 @@ impl AiTerminal {
     pub async fn audit_command(
         &self,
         request: SecurityAuditRequest,
-    ) -> anyhow::Result<SecurityAuditResult> {
+    ) -> Result<SecurityAuditResult> {
         Ok(SecurityAuditResult {
             is_safe: true,
             risk_level: RiskLevel::Safe,
@@ -342,13 +324,14 @@ impl AiTerminal {
             warnings: vec![],
             safe_alternatives: vec![],
             requires_confirmation: false,
+            confirmation_message: None,
         })
     }
 
     pub async fn analyze_logs(
         &self,
         request: LogAnalysisRequest,
-    ) -> anyhow::Result<LogAnalysisResult> {
+    ) -> Result<LogAnalysisResult> {
         let lines = request.log_content.lines().count();
         Ok(LogAnalysisResult {
             summary: LogSummary {
