@@ -43,6 +43,12 @@ mod transfer_queue;
 
 #[cfg(feature = "team")]
 mod team_ui;
+
+#[cfg(feature = "docker")]
+mod docker_ui;
+#[cfg(feature = "kubernetes")]
+mod kubernetes_ui;
+
 mod user_experience;
 mod viewmodels;
 mod ws_server;
@@ -56,7 +62,7 @@ mod remote_desktop_ui;
 
 #[cfg(feature = "workflow")]
 mod batch_results_ui;
-#[cfg(feature = "workflow")]
+#[cfg(feature = "macro-recorder")]
 mod macro_recorder_ui;
 #[cfg(feature = "workflow")]
 mod scheduled_tasks_ui;
@@ -65,6 +71,9 @@ mod workflow_editor;
 #[cfg(feature = "workflow")]
 mod workflow_panel;
 
+#[cfg(feature = "sso")]
+mod sso_login_ui;
+
 #[cfg(feature = "ai-terminal")]
 mod ai_terminal;
 #[cfg(feature = "ai-terminal")]
@@ -72,6 +81,12 @@ mod ai_terminal_ui;
 
 #[cfg(feature = "ai-terminal")]
 use ai_terminal_ui::AiTerminalUi;
+
+#[cfg(feature = "macro-recorder")]
+use macro_recorder_ui::{MacroRecorderPanel, MacroRecorderResponse};
+
+#[cfg(feature = "sso")]
+use sso_login_ui::{SsoLoginPanel, SsoLoginResponse};
 
 use apple_design::MicrointeractionState;
 use design::{AccessibilitySettings, DesignTheme};
@@ -102,6 +117,12 @@ use user_experience::{
 
 #[cfg(feature = "team")]
 use team_ui::{render_team_panel, TeamManagerUI};
+
+#[cfg(feature = "docker")]
+use docker_ui::{render_docker_panel, DockerManagerUI};
+
+#[cfg(feature = "kubernetes")]
+use kubernetes_ui::{render_kubernetes_panel, KubernetesManagerUI};
 
 fn main() -> eframe::Result {
     // Start global startup profiler
@@ -464,6 +485,22 @@ struct EasySSHApp {
     #[cfg(feature = "code-editor")]
     current_editing_file: Option<FileInfo>,
 
+    // === Macro Recorder (Feature #89) ===
+    /// Macro recorder panel for recording and replaying SSH sessions
+    #[cfg(feature = "macro-recorder")]
+    macro_recorder_panel: MacroRecorderPanel,
+    /// Show macro recorder panel
+    #[cfg(feature = "macro-recorder")]
+    show_macro_recorder: bool,
+
+    // === SSO Login (Feature #88) ===
+    /// SSO login panel for SAML/OIDC authentication
+    #[cfg(feature = "sso")]
+    sso_login_panel: SsoLoginPanel,
+    /// Show SSO login panel
+    #[cfg(feature = "sso")]
+    show_sso_panel: bool,
+
     // === Shared Runtime (startup optimization) ===
     /// Shared Tokio runtime for all async operations
     runtime: Arc<tokio::runtime::Runtime>,
@@ -487,6 +524,28 @@ struct EasySSHApp {
     pending_delete_server_id: Option<String>,
     /// Server name pending deletion (for display)
     pending_delete_server_name: Option<String>,
+    pending_delete_server_id: Option<String>,
+    pending_connect_server_id: Option<String>,
+
+    // === Session Manager (Feature #95) ===
+    session_manager: SessionManagerUI,
+    show_session_manager: bool,
+
+    // === Connection Pool Manager (Feature #96) ===
+    connection_pool_ui: ConnectionPoolManagerUI,
+    show_connection_pool: bool,
+
+    // === Proxy Jump Configuration (Feature #97) ===
+    proxy_jump_ui: ProxyJumpUI,
+    show_proxy_jump: bool,
+
+    // === SSH Key Manager (Feature #98) ===
+    key_manager: KeyManagerUI,
+    show_key_manager: bool,
+
+    // === Cloud Sync Configuration (Feature #99) ===
+    cloud_sync_ui: CloudSyncUI,
+    show_cloud_sync: bool,
 }
 
 #[derive(Default)]
@@ -919,6 +978,18 @@ impl EasySSHApp {
             #[cfg(feature = "code-editor")]
             current_editing_file: None,
 
+            // Macro Recorder (Feature #89)
+            #[cfg(feature = "macro-recorder")]
+            macro_recorder_panel: MacroRecorderPanel::new(),
+            #[cfg(feature = "macro-recorder")]
+            show_macro_recorder: false,
+
+            // SSO Login (Feature #88)
+            #[cfg(feature = "sso")]
+            sso_login_panel: SsoLoginPanel::new(),
+            #[cfg(feature = "sso")]
+            show_sso_panel: false,
+
             // Shared runtime
             runtime,
 
@@ -935,6 +1006,26 @@ impl EasySSHApp {
             pending_delete_server_name: None,
             pending_edit_server_id: None,
             pending_connect_server_id: None,
+
+            // Session Manager
+            session_manager: SessionManagerUI::new(),
+            show_session_manager: false,
+
+            // Connection Pool Manager
+            connection_pool_ui: ConnectionPoolManagerUI::new(),
+            show_connection_pool: false,
+
+            // Proxy Jump Configuration
+            proxy_jump_ui: ProxyJumpUI::new(),
+            show_proxy_jump: false,
+
+            // SSH Key Manager
+            key_manager: KeyManagerUI::new(),
+            show_key_manager: false,
+
+            // Cloud Sync
+            cloud_sync_ui: CloudSyncUI::new(),
+            show_cloud_sync: false,
         }
     }
 
@@ -3268,6 +3359,44 @@ impl eframe::App for EasySSHApp {
                         ui.add_space(8.0);
                     }
 
+                    #[cfg(feature = "sso")]
+                    {
+                        // SSO Login button (Feature #88)
+                        let sso_btn_fill = if self.show_sso_panel {
+                            egui::Color32::from_rgb(80, 100, 220) // Active state - blue
+                        } else {
+                            egui::Color32::from_rgb(60, 70, 85)
+                        };
+                        let sso_btn = egui::Button::new("🔐")  // Lock emoji
+                            .fill(sso_btn_fill)
+                            .rounding(4.0)
+                            .min_size([44.0, 44.0].into());
+                        if ui.add(sso_btn).on_hover_text("SSO Login - SAML/OIDC Authentication for team access").clicked() {
+                            self.show_sso_panel = !self.show_sso_panel;
+                        }
+                        ui.add_space(8.0);
+                    }
+
+                    #[cfg(feature = "macro-recorder")]
+                    {
+                        // Macro Recorder button (Feature #89)
+                        let macro_btn_fill = if self.show_macro_recorder {
+                            egui::Color32::from_rgb(220, 160, 60) // Active state - orange
+                        } else {
+                            egui::Color32::from_rgb(60, 70, 85)
+                        };
+                        let is_recording = self.macro_recorder_panel.is_recording();
+                        let macro_icon = if is_recording { "⏺️" } else { "⏺" };  // Record emoji
+                        let macro_btn = egui::Button::new(macro_icon)
+                            .fill(macro_btn_fill)
+                            .rounding(4.0)
+                            .min_size([44.0, 44.0].into());
+                        if ui.add(macro_btn).on_hover_text("Macro Recorder - Record and replay SSH sessions (Ctrl+Shift+R)").clicked() {
+                            self.show_macro_recorder = !self.show_macro_recorder;
+                        }
+                        ui.add_space(8.0);
+                    }
+
                     #[cfg(feature = "code-editor")]
                     {
                         // Code Editor button
@@ -4460,6 +4589,30 @@ impl eframe::App for EasySSHApp {
         // Sync UI theme with terminal theme when user selects a theme in the gallery
         // This ensures the UI theme matches the terminal theme (light/dark)
         self.sync_ui_theme_with_terminal_theme(ctx);
+n        // ==================== Feature #95: Session Manager ====================
+        if self.show_session_manager {
+            self.session_manager.render(ctx);
+        }
+
+        // ==================== Feature #96: Connection Pool Manager ====================
+        if self.show_connection_pool {
+            self.connection_pool_ui.render(ctx, None);
+        }
+
+        // ==================== Feature #97: Proxy Jump Configuration ====================
+        if self.show_proxy_jump {
+            self.proxy_jump_ui.render(ctx);
+        }
+
+        // ==================== Feature #98: SSH Key Manager ====================
+        if self.show_key_manager {
+            self.key_manager.render(ctx);
+        }
+
+        // ==================== Feature #99: Cloud Sync ====================
+        if self.show_cloud_sync {
+            self.cloud_sync_ui.render(ctx);
+        }
 
         // ==================== Enterprise Password Vault ====================
         if self.enterprise_vault.open {
@@ -4490,6 +4643,30 @@ impl eframe::App for EasySSHApp {
         #[cfg(feature = "team")]
         if self.show_team_panel {
             render_team_panel(ctx, &mut self.show_team_panel, &mut self.team_manager);
+        }
+
+        // ==================== SSO Login Panel (Feature #88) ====================
+        #[cfg(feature = "sso")]
+        if self.show_sso_panel {
+            egui::Window::new("SSO Login")
+                .open(&mut self.show_sso_panel)
+                .resizable(true)
+                .default_size([500.0, 600.0])
+                .show(ctx, |ui| {
+                    let _response = self.sso_login_panel.ui(ui);
+                });
+        }
+
+        // ==================== Macro Recorder Panel (Feature #89) ====================
+        #[cfg(feature = "macro-recorder")]
+        if self.show_macro_recorder {
+            egui::Window::new("Macro Recorder")
+                .open(&mut self.show_macro_recorder)
+                .resizable(true)
+                .default_size([600.0, 500.0])
+                .show(ctx, |ui| {
+                    let _response = self.macro_recorder_panel.ui(ui);
+                });
         }
 
         // ==================== Shortcut Cheatsheet ====================
