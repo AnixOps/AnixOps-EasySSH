@@ -127,7 +127,7 @@ pub struct CloudSyncUI {
     pub show_sync_log: bool,
     pub new_provider: CloudProviderType,
     pub new_config_name: String,
-    pub action_message: Option<(String, Instant)>,
+    pub action_message: Option<(String, chrono::DateTime<chrono::Local>)>,
     pub sync_log: Vec<SyncLogEntry>,
     // Sync options
     pub sync_servers: bool,
@@ -285,13 +285,14 @@ impl CloudSyncUI {
 
     /// Show action message
     pub fn show_message(&mut self, message: String) {
-        self.action_message = Some((message, Instant::now()));
+        self.action_message = Some((message, chrono::Local::now()));
     }
 
     /// Clear expired message
     pub fn clear_expired_message(&mut self) {
         if let Some((_, timestamp)) = self.action_message {
-            if timestamp.elapsed().as_secs() > 3 {
+            let elapsed = chrono::Local::now().signed_duration_since(timestamp);
+            if elapsed.num_seconds() > 3 {
                 self.action_message = None;
             }
         }

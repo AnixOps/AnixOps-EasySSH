@@ -19,9 +19,9 @@ pub struct SessionInfo {
     pub server_name: String,
     pub host: String,
     pub username: String,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub created_at: Instant,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub last_accessed: Instant,
     pub is_active: bool,
     pub tab_index: usize,

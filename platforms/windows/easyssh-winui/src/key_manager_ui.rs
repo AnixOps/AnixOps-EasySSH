@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use uuid::Uuid;
 
 /// SSH Key information
@@ -100,7 +99,7 @@ pub struct KeyManagerUI {
     pub import_form: ImportKeyForm,
     pub export_password: String,
     pub new_tag: String,
-    pub action_message: Option<(String, Instant)>,
+    pub action_message: Option<(String, chrono::DateTime<chrono::Local>)>,
     pub ssh_dir: PathBuf,
 }
 
@@ -439,13 +438,14 @@ impl KeyManagerUI {
 
     /// Show action message
     pub fn show_message(&mut self, message: String) {
-        self.action_message = Some((message, Instant::now()));
+        self.action_message = Some((message, chrono::Local::now()));
     }
 
     /// Clear expired message
     pub fn clear_expired_message(&mut self) {
         if let Some((_, timestamp)) = self.action_message {
-            if timestamp.elapsed().as_secs() > 3 {
+            let elapsed = chrono::Local::now().signed_duration_since(timestamp);
+            if elapsed.num_seconds() > 3 {
                 self.action_message = None;
             }
         }
