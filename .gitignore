@@ -1,45 +1,195 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
+# =============================================================================
+# EasySSH .gitignore - Comprehensive Temporary File Exclusions
+# =============================================================================
 
-# Build
-dist/
-dist-ssr/
-*.local
-
-# Rust build
-src-tauri/target/
-src-tauri/Cargo.lock
-
-# IDE
+# -----------------------------------------------------------------------------
+# IDE & Editor Files
+# -----------------------------------------------------------------------------
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+*.iml
+*.ipr
+*.iws
+.vs/
+*.code-workspace
 
-# OS
+# -----------------------------------------------------------------------------
+# OS Generated Files
+# -----------------------------------------------------------------------------
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Thumbs.db:encryptable
+desktop.ini
+*.lnk
+*.stackdump
 
+# -----------------------------------------------------------------------------
 # Logs
+# -----------------------------------------------------------------------------
 *.log
+*.log.*
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# Environment
+# -----------------------------------------------------------------------------
+# Cache Files
+# -----------------------------------------------------------------------------
+.cache/
+*.cache
+.eslintcache
+.parcel-cache
+.prettiercache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_*/
+.fusebox/
+.dynamodb/
+
+# -----------------------------------------------------------------------------
+# Environment & Local Config
+# -----------------------------------------------------------------------------
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+!.env.template
+*.local
+.local/
+*.secret
+*.secrets
 
-# Testing
-coverage/
+# -----------------------------------------------------------------------------
+# Node.js / JavaScript
+# -----------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npm
+.yarn-integrity
+.node_repl_history
 
-# Misc
-*.tsbuildinfo
-.claude/worktrees/
+# -----------------------------------------------------------------------------
+# Rust / Cargo
+# -----------------------------------------------------------------------------
 target/
+**/target/
+Cargo.lock
+**/Cargo.lock
+**/*.rs.bk
+*.pdb
+**/*.pdb
+**/*.rlib
+**/*.rmeta
+**/*.exe
+**/*.dll
+**/*.so
+**/*.dylib
+**/*.ilk
+**/*.exp
+**/*.lib
+**/*.o
+**/*.obj
+**/*.a
+**/*.d
+**/.rustc_info.json
+**/build-script-build
+**/build-script-build.exe
+**/build_script_build*
+**/.fingerprint/
+**/.incremental/
+**/.cargo/
+
+# -----------------------------------------------------------------------------
+# Testing & Coverage
+# -----------------------------------------------------------------------------
+coverage/
+*.lcov
+.nyc_output/
+tests/playwright-report/
+tests/test-results/
+test-results/
+playwright-report/
+playwright/.cache/
+*.snap.png
+__snapshots__/__diff_output__/
+!tests/visual/__snapshots__/**/*.png
+
+# -----------------------------------------------------------------------------
+# Documentation Build Outputs
+# -----------------------------------------------------------------------------
+book/
+site/
+*.tsbuildinfo
+.typedoc/
+.docusaurus/
+.vitepress/dist
+.vitepress/cache
+
+# -----------------------------------------------------------------------------
+# Claude / AI Agent Workspace
+# -----------------------------------------------------------------------------
+.claude/
+.a5c/
+.agents/
+.claude-*
+
+# -----------------------------------------------------------------------------
+# Backup & Temporary Files
+# -----------------------------------------------------------------------------
+*.bak
+*.backup
+*.tmp
+*.temp
+*.orig
+*.old
+*.save
+*.rej
+*.diff
+
+# -----------------------------------------------------------------------------
+# Build & Distribution
+# -----------------------------------------------------------------------------
+dist/
+dist-ssr/
+build/
+out/
+.output/
+.vercel
+.netlify
+
+# -----------------------------------------------------------------------------
+# Database & Data Files
+# -----------------------------------------------------------------------------
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+*.pid
+*.seed
+*.pid.lock
+.tern-port
+.vscode-test
+.history/

@@ -1,1 +1,0 @@
-{"step":"Aligned AddServerModal and AddGroupModal to use design-system Modal component instead of inline modal styling","changed":["src/components/AddGroupModal.tsx","src/components/AddServerModal.tsx"],"typecheckPassed":true,"done":false,"nextStep":"Fix Terminal.tsx callback dependency issues in useEffect (focusTerminal depends on onActivate which changes on every render)"}
