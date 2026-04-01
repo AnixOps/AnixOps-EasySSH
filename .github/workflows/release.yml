@@ -42,7 +42,7 @@ jobs:
       channel: ${{ steps.get_version.outputs.channel }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Get version
         id: get_version
@@ -105,13 +105,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -142,7 +142,7 @@ jobs:
           Compress-Archive -Path release/* -DestinationPath EasySSH-${{ needs.version.outputs.version }}-windows-x64.zip -Force
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-x64
           path: platforms/windows/easyssh-winui/EasySSH-${{ needs.version.outputs.version }}-windows-x64.zip
@@ -166,7 +166,7 @@ jobs:
             cross: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Dependencies
         run: |
@@ -183,7 +183,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -216,7 +216,7 @@ jobs:
           tar -czf EasySSH-${{ needs.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz -C release .
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.arch }}
           path: platforms/linux/easyssh-gtk4/EasySSH-${{ needs.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
@@ -238,7 +238,7 @@ jobs:
             target: aarch64-apple-darwin
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -251,7 +251,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -308,7 +308,7 @@ jobs:
             EasySSH-${{ needs.version.outputs.version }}-macos-${{ matrix.arch }}.dmg
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.arch }}
           path: platforms/macos/EasySSH/EasySSH-${{ needs.version.outputs.version }}-macos-${{ matrix.arch }}.dmg
@@ -326,13 +326,13 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -368,7 +368,7 @@ jobs:
         shell: bash
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tui-${{ matrix.os }}
           path: tui/EasySSH-*-tui-*.tar.gz
@@ -399,10 +399,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download All Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -484,7 +484,7 @@ jobs:
           cat release-manifest.json
 
       - name: Upload Manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-manifest
           path: release-manifest.json
