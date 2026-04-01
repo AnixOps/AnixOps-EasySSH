@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
@@ -131,7 +131,7 @@ jobs:
 
       - name: Upload Logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: core-logs-${{ matrix.os }}
           path: |
@@ -150,7 +150,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
@@ -183,7 +183,7 @@ jobs:
         shell: bash
 
       - name: Upload TUI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tui-${{ matrix.os }}
           path: target/release/easyssh*
@@ -203,7 +203,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
@@ -229,7 +229,7 @@ jobs:
 
       - name: Upload GTK4
         if: steps.build.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gtk4-linux
           path: ${{ matrix.workdir }}/target/release/easyssh

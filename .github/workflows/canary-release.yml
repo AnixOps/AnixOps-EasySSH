@@ -34,10 +34,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Release Package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-package
           path: release
@@ -110,7 +110,7 @@ jobs:
           cat canary-manifest.json
 
       - name: Upload Canary Manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: canary-manifest
           path: canary-manifest.json
@@ -125,10 +125,10 @@ jobs:
     environment: canary
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -255,7 +255,7 @@ jobs:
           echo "Canary rolled back to previous version"
 
       - name: Create Rollback Issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.create({

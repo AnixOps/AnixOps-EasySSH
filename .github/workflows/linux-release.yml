@@ -94,7 +94,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # ==========================================================================
       # Setup Environment
@@ -303,7 +303,7 @@ jobs:
       # Upload Artifacts
       # ==========================================================================
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.arch }}-${{ matrix.format }}
           path: releases/${{ inputs.version }}/linux/*
@@ -320,7 +320,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Flatpak
         run: |
@@ -387,7 +387,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Flatpak
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success()
         with:
           name: linux-flatpak
@@ -406,7 +406,7 @@ jobs:
 
     steps:
       - name: Download All Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: linux-*
@@ -456,7 +456,7 @@ jobs:
           cat releases/${{ inputs.version }}/linux/SHA256SUMS
 
       - name: Upload Final Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-release-${{ inputs.version }}
           path: releases/${{ inputs.version }}/linux/*

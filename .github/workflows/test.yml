@@ -20,7 +20,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -60,10 +60,10 @@ jobs:
         browser: [chromium, firefox, webkit]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
 
@@ -95,7 +95,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: playwright-results-${{ matrix.os }}-${{ matrix.browser }}
         path: |
@@ -105,7 +105,7 @@ jobs:
 
     - name: Upload screenshots
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: screenshots-${{ matrix.os }}-${{ matrix.browser }}
         path: tests/test-results/
@@ -117,10 +117,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
 
@@ -151,7 +151,7 @@ jobs:
 
     - name: Upload visual diffs
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: visual-diffs
         path: tests/test-results/
@@ -169,10 +169,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
 
@@ -204,7 +204,7 @@ jobs:
         cat playwright-report/test-results.json | jq -r '.suites[]?.specs[]? | \"## \(.title)\n- Status: \(.ok)\"' >> a11y-report.md || true
 
     - name: Upload accessibility report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: accessibility-report
         path: tests/a11y-report.md
@@ -215,10 +215,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
 
@@ -248,7 +248,7 @@ jobs:
         CI: true
 
     - name: Upload performance results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: performance-results
         path: tests/playwright-report/
@@ -259,10 +259,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
 

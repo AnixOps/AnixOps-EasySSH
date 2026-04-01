@@ -71,7 +71,7 @@ jobs:
       release_channel: ${{ steps.version.outputs.release_channel }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -157,7 +157,7 @@ jobs:
     if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.should_build_all == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -169,7 +169,7 @@ jobs:
         run: cargo audit --json > audit-results.json || true
 
       - name: Upload Audit Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: security-audit
           path: audit-results.json
@@ -192,7 +192,7 @@ jobs:
     if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.should_build_all == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run Cargo Deny
         uses: EmbarkStudios/cargo-deny-action@v1
@@ -221,7 +221,7 @@ jobs:
             rust: beta
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@master
@@ -274,7 +274,7 @@ jobs:
       SIGN_ENABLED: ${{ secrets.WINDOWS_CERTIFICATE != '' || github.event.inputs.enable_signing == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -290,7 +290,7 @@ jobs:
             platforms/windows/easyssh-winui
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -330,7 +330,7 @@ jobs:
           # Add installer creation logic here
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-native
           path: |
@@ -359,7 +359,7 @@ jobs:
             cross: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install System Dependencies
         run: |
@@ -414,7 +414,7 @@ jobs:
           # Add AppImage creation logic here
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-native-${{ matrix.arch }}
           path: |
@@ -436,7 +436,7 @@ jobs:
           - aarch64-apple-darwin
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -488,7 +488,7 @@ jobs:
           echo "Creating macOS DMG..."
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-native-${{ matrix.target }}
           path: |
@@ -508,7 +508,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -532,7 +532,7 @@ jobs:
         run: cargo clippy -p easyssh-core -- -D warnings
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: core-${{ matrix.os }}
           path: |
@@ -552,7 +552,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -582,7 +582,7 @@ jobs:
           fi
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tui-${{ matrix.os }}
           path: dist/tui/
@@ -598,7 +598,7 @@ jobs:
     if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.should_build_all == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -609,7 +609,7 @@ jobs:
           shared-key: benchmarks
 
       - name: Download Previous Benchmark
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: benchmark-results
           path: previous-benchmark
@@ -628,7 +628,7 @@ jobs:
           fi
 
       - name: Upload Benchmark Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results
           path: benchmark-results.txt
@@ -651,10 +651,10 @@ jobs:
     if: ${{ needs.changes.outputs.release_channel != 'dev' || github.event.inputs.build_type == 'canary' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download All Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -709,7 +709,7 @@ jobs:
           echo "Release prepared: v$VERSION ($CHANNEL)"
 
       - name: Upload Release Package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-package
           path: release/
@@ -726,10 +726,10 @@ jobs:
     environment: canary
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Release Package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-package
           path: release
@@ -767,10 +767,10 @@ jobs:
     environment: production
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Release Package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-package
           path: release
@@ -798,7 +798,7 @@ jobs:
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Generate Update Manifest
         run: |
@@ -838,7 +838,7 @@ jobs:
           cat update-manifest.json
 
       - name: Upload Update Manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: update-manifest
           path: update-manifest.json
@@ -861,7 +861,7 @@ jobs:
     if: ${{ always() && needs.github-release.result == 'success' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Monitoring
         run: |
@@ -892,7 +892,7 @@ jobs:
     environment: production
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Rollback to Previous Version
         run: |

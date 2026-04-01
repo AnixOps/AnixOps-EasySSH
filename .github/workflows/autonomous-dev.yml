@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Setup Rust
       uses: dtolnay/rust-action@stable
@@ -38,7 +38,7 @@ jobs:
         toolchain: stable
 
     - name: Setup Node.js (for babysitter)
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
 
@@ -46,7 +46,7 @@ jobs:
       run: npm install -g @a5c-ai/babysitter-cli
 
     - name: Cache Cargo
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cargo/registry
@@ -63,7 +63,7 @@ jobs:
       continue-on-error: true
 
     - name: Upload Report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: autonomous-report-${{ matrix.os }}
         path: autonomous-report.json

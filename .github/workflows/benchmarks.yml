@@ -25,7 +25,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -91,7 +91,7 @@ jobs:
           fi
 
       - name: Upload Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results-${{ matrix.os }}
           path: |
@@ -102,7 +102,7 @@ jobs:
 
       - name: Post PR Comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -136,10 +136,10 @@ jobs:
     needs: benchmark
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download All Benchmark Results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: benchmarks
           pattern: benchmark-results-*
@@ -164,7 +164,7 @@ jobs:
           fi
 
       - name: Upload Analysis
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: regression-analysis
           path: regression-report.md
@@ -179,13 +179,13 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: gh-pages
           path: gh-pages
 
       - name: Download All Benchmark Results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: benchmarks
           pattern: benchmark-results-*

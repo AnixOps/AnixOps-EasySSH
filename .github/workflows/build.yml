@@ -21,13 +21,13 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -45,7 +45,7 @@ jobs:
         run: cargo clippy -p easyssh-core -- -D warnings
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: core-${{ matrix.os }}
           path: target/release/*easyssh_core*
@@ -61,13 +61,13 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -91,7 +91,7 @@ jobs:
           .\target\release\easyssh.exe --help
 
       - name: Upload Binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tui-${{ matrix.os }}
           path: target/release/easyssh*
@@ -114,7 +114,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
@@ -134,7 +134,7 @@ jobs:
 
       - name: Upload Native Build
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}-build
           path: |
@@ -150,7 +150,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

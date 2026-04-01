@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-native
           path: artifacts
@@ -77,7 +77,7 @@ jobs:
           Remove-Item -Force certificate.pfx -ErrorAction SilentlyContinue
 
       - name: Upload Signed Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-signed
           path: artifacts/
@@ -93,13 +93,13 @@ jobs:
 
     steps:
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-native-x86_64-apple-darwin
           path: artifacts/x86_64
 
       - name: Download ARM64 Build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-native-aarch64-apple-darwin
           path: artifacts/arm64
@@ -189,7 +189,7 @@ jobs:
           rm -f certificate.p12
 
       - name: Upload Signed Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-signed
           path: |
@@ -207,13 +207,13 @@ jobs:
 
     steps:
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-native-amd64
           path: artifacts/amd64
 
       - name: Download ARM64 Build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-native-arm64
           path: artifacts/arm64
@@ -271,7 +271,7 @@ jobs:
           gpg --detach-sign --armor --passphrase "$GPG_PASSPHRASE" --pinentry-mode loopback ../SHA256SUMS
 
       - name: Upload Signed Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-signed
           path: |
@@ -290,7 +290,7 @@ jobs:
 
     steps:
       - name: Download All Signed Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: signed-artifacts
 
@@ -347,7 +347,7 @@ jobs:
           cat signature-manifest.json
 
       - name: Upload Signature Manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: signature-manifest
           path: signature-manifest.json
