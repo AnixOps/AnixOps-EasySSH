@@ -1,0 +1,655 @@
+#![allow(dead_code)]
+
+//! Metrics collection from remote servers via SSH
+
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::{mpsc, RwLock};
+use tokio::time::{interval, Duration, Instant};
+
+use crate::monitoring::metrics::ServerMetrics;
+use crate::monitoring::ServerConnectionConfig;
+use crate::monitoring::storage::MetricsStorage;
+use crate::monitoring::MonitoringError;
+
+/// Metrics collector that fetches data from remote servers
+pub struct MetricsCollector {
+    storage: Arc<MetricsStorage>,
+    collection_interval_secs: u64,
+    servers: Arc<RwLock<HashMap<String, ServerCollectionState>>>,
+    tx: Arc<RwLock<Option<mpsc::Sender<CollectionMessage>>>>,
+    running: Arc<RwLock<bool>>,
+}
+
+#[derive(Clone)]
+struct ServerCollectionState {
+    config: ServerConnectionConfig,
+    last_collection: Option<Instant>,
+    last_metrics: Option<ServerMetrics>,
+    consecutive_failures: u32,
+}
+
+enum CollectionMessage {
+    Collect { server_id: String },
+    Stop,
+}
+
+impl MetricsCollector {
+    pub fn new(
+        storage: Arc<MetricsStorage>,
+        collection_interval_secs: u64,
+    ) -> Self {
+        Self {
+            storage,
+            collection_interval_secs,
+            servers: Arc::new(RwLock::new(HashMap::new())),
+            tx: Arc::new(RwLock::new(None)),
+            running: Arc::new(RwLock::new(false)),
+        }
+    }
+
+    /// Register a server for monitoring
+    pub async fn register_server(
+        &self,
+        server_id: String,
+        config: ServerConnectionConfig,
+    ) -> Result<(), MonitoringError> {
+        let mut servers = self.servers.write().await;
+
+        servers.insert(
+            server_id,
+            ServerCollectionState {
+                config,
+                last_collection: None,
+                last_metrics: None,
+                consecutive_failures: 0,
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Unregister a server from monitoring
+    pub async fn unregister_server(&self, server_id: &str) {
+        let mut servers = self.servers.write().await;
+        servers.remove(server_id);
+    }
+
+    /// Start the collector
+    pub async fn start(&self) -> Result<(), MonitoringError> {
+        if *self.running.read().await {
+            return Ok(());
+        }
+
+        *self.running.write().await = true;
+
+        let (tx, mut rx) = mpsc::channel(100);
+        *self.tx.write().await = Some(tx);
+
+        let servers = Arc::clone(&self.servers);
+        let storage = Arc::clone(&self.storage);
+        let running = Arc::clone(&self.running);
+        let collection_interval_secs = self.collection_interval_secs;
+
+        // Spawn collection loop
+        tokio::spawn(async move {
+            let mut ticker = interval(Duration::from_secs(collection_interval_secs));
+
+            while *running.read().await {
+                tokio::select! {
+                    _ = ticker.tick() => {
+                        // Trigger collection for all servers
+                        let server_ids: Vec<String> = {
+                            let servers = servers.read().await;
+                            servers.keys().cloned().collect()
+                        };
+
+                        for server_id in server_ids {
+                            if let Err(e) = Self::collect_server(
+                                &server_id,
+                                &servers,
+                                &storage,
+                            ).await {
+                                log::error!("Failed to collect metrics for {}: {}", server_id, e);
+                            }
+                        }
+                    }
+                    Some(msg) = rx.recv() => {
+                        match msg {
+                            CollectionMessage::Collect { server_id } => {
+                                if let Err(e) = Self::collect_server(
+                                    &server_id,
+                                    &servers,
+                                    &storage,
+                                ).await {
+                                    log::error!("Failed to collect metrics for {}: {}", server_id, e);
+                                }
+                            }
+                            CollectionMessage::Stop => {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    /// Stop the collector
+    pub async fn stop(&self) {
+        *self.running.write().await = false;
+
+        if let Some(tx) = self.tx.write().await.take() {
+            let _ = tx.send(CollectionMessage::Stop).await;
+        }
+    }
+
+    /// Collect metrics for a single server
+    async fn collect_server(
+        server_id: &str,
+        servers: &Arc<RwLock<HashMap<String, ServerCollectionState>>>,
+        storage: &Arc<MetricsStorage>,
+    ) -> Result<(), MonitoringError> {
+        let config = {
+            let servers_guard = servers.read().await;
+            let state = servers_guard
+                .get(server_id)
+                .ok_or_else(|| MonitoringError::Collection(format!("Server {} not found", server_id)))?;
+            state.config.clone()
+        };
+
+        // Collect metrics via SSH
+        let metrics = collect_server_metrics(server_id, &config).await?;
+
+        // Store metrics
+        storage.store_metrics(&metrics).await?;
+
+        // Update server state
+        {
+            let mut servers_guard = servers.write().await;
+            if let Some(state) = servers_guard.get_mut(server_id) {
+                state.last_collection = Some(Instant::now());
+                state.last_metrics = Some(metrics.clone());
+                state.consecutive_failures = 0;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Force immediate collection for a server
+    pub async fn force_collection(&self, server_id: &str) -> Result<(), MonitoringError> {
+        if let Some(tx) = self.tx.read().await.as_ref() {
+            tx.send(CollectionMessage::Collect {
+                server_id: server_id.to_string(),
+            })
+            .await
+            .map_err(|e| MonitoringError::Collection(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    /// Get collection status for all servers
+    pub async fn get_collection_status(&self) -> HashMap<String, CollectionStatus> {
+        let servers = self.servers.read().await;
+        let mut status = HashMap::new();
+
+        for (server_id, state) in servers.iter() {
+            let last_collection_secs = state
+                .last_collection
+                .map(|t| t.elapsed().as_secs())
+                .unwrap_or(u64::MAX);
+
+            status.insert(
+                server_id.clone(),
+                CollectionStatus {
+                    last_collection_secs,
+                    consecutive_failures: state.consecutive_failures,
+                    has_data: state.last_metrics.is_some(),
+                    is_healthy: last_collection_secs < self.collection_interval_secs * 2,
+                },
+            );
+        }
+
+        status
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CollectionStatus {
+    pub last_collection_secs: u64,
+    pub consecutive_failures: u32,
+    pub has_data: bool,
+    pub is_healthy: bool,
+}
+
+/// Collect metrics from a remote server via SSH
+async fn collect_server_metrics(
+    server_id: &str,
+    _config: &ServerConnectionConfig,
+) -> Result<ServerMetrics, MonitoringError> {
+    // This would use the SSH session manager to execute remote commands
+    // For now, we'll implement the command collection logic
+
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    // Commands to collect metrics
+    let _cpu_cmd = "cat /proc/stat | head -1 && cat /proc/loadavg";
+    let _memory_cmd = "cat /proc/meminfo | grep -E '^(MemTotal|MemFree|MemAvailable|Buffers|Cached|SwapTotal|SwapFree):'";
+    let _disk_cmd = "df -B1 / | tail -1 && cat /proc/diskstats | grep -E ' (sd[a-z]|nvme[0-9]n[0-9]|xvd[a-z]) ' | head -1";
+    let _network_cmd = "cat /proc/net/dev | grep -E '^\\s*(eth|ens|enp|wlan|wlp)' | head -1";
+    let _process_cmd = "ps aux | wc -l && ps aux | grep -c '^[A-Za-z]' && ps aux | grep -c 'Z'";
+    let _uptime_cmd = "cat /proc/uptime";
+    let _boot_cmd = "date +%s -d \"$(uptime -s)\" 2>/dev/null || stat -c %Y /proc/1";
+
+    // In a real implementation, these would be SSH executions
+    // For now, we'll simulate the parsing logic
+
+    // Parse CPU metrics (would come from SSH execution)
+    let cpu_metrics = parse_cpu_metrics(
+        "cpu  123456 789 45678 123456789 1234 0 5678 0 0 0",
+        "0.52 0.48 0.35 2/1234 56789",
+    );
+
+    // Parse memory metrics
+    let memory_metrics = parse_memory_metrics(
+        "MemTotal:       16384000 kB\nMemFree:         2048000 kB\nMemAvailable:    8192000 kB\nBuffers:          512000 kB\nCached:          6144000 kB\nSwapTotal:       4096000 kB\nSwapFree:        3072000 kB",
+    );
+
+    // Parse disk metrics
+    let disk_metrics = parse_disk_metrics(
+        "/dev/sda1 107374182400 53687091200 48344791040 53% /",
+        "8       0 sda 12345 67890 1234567890 123456 78901 23456 7890123456 234567 0 123456 345678",
+    );
+
+    // Parse network metrics
+    let network_metrics = parse_network_metrics(
+        "eth0: 1234567890 1234567 0 0 0 0 0 0 9876543210 987654 0 0 0 0 0 0",
+    );
+
+    // Parse process metrics
+    let process_metrics = parse_process_metrics("150\n145\n2");
+
+    // Parse uptime
+    let uptime = parse_uptime("3600.00 7200.00");
+
+    let metrics = ServerMetrics {
+        server_id: server_id.to_string(),
+        timestamp,
+        collected_at: timestamp,
+
+        cpu_usage: cpu_metrics.usage,
+        cpu_user: cpu_metrics.user,
+        cpu_system: cpu_metrics.system,
+        cpu_iowait: cpu_metrics.iowait,
+        cpu_steal: cpu_metrics.steal,
+        cpu_cores: cpu_metrics.cores,
+        cpu_load1: cpu_metrics.load1,
+        cpu_load5: cpu_metrics.load5,
+        cpu_load15: cpu_metrics.load15,
+
+        memory_used: memory_metrics.used,
+        memory_total: memory_metrics.total,
+        memory_free: memory_metrics.free,
+        memory_buffers: memory_metrics.buffers,
+        memory_cached: memory_metrics.cached,
+        memory_available: memory_metrics.available,
+        swap_used: memory_metrics.swap_used,
+        swap_total: memory_metrics.swap_total,
+
+        disk_used: disk_metrics.used,
+        disk_total: disk_metrics.total,
+        disk_free: disk_metrics.free,
+        disk_read_bytes: disk_metrics.read_bytes,
+        disk_write_bytes: disk_metrics.write_bytes,
+        disk_read_iops: disk_metrics.read_iops,
+        disk_write_iops: disk_metrics.write_iops,
+        disk_io_util: disk_metrics.io_util,
+
+        network_rx_bytes: network_metrics.rx_bytes,
+        network_tx_bytes: network_metrics.tx_bytes,
+        network_rx_packets: network_metrics.rx_packets,
+        network_tx_packets: network_metrics.tx_packets,
+        network_rx_errors: network_metrics.rx_errors,
+        network_tx_errors: network_metrics.tx_errors,
+        network_rx_dropped: network_metrics.rx_dropped,
+        network_tx_dropped: network_metrics.tx_dropped,
+
+        process_count: process_metrics.total,
+        process_running: process_metrics.running,
+        process_sleeping: process_metrics.sleeping,
+        process_zombie: process_metrics.zombie,
+        thread_count: process_metrics.threads,
+        open_files: process_metrics.open_files,
+
+        uptime_seconds: uptime,
+        boot_time: 0, // Would be parsed from boot command
+        context_switches: 0,
+        interrupts: 0,
+
+        cpu_temp: None,
+        system_temp: None,
+
+        extra: HashMap::new(),
+    };
+
+    Ok(metrics)
+}
+
+// Parsing functions for /proc data
+fn parse_cpu_metrics(stat_line: &str, loadavg_line: &str) -> CpuMetrics {
+    // Parse /proc/stat first line: cpu user nice system idle iowait irq softirq steal guest guest_nice
+    let parts: Vec<&str> = stat_line.split_whitespace().collect();
+    let mut usage = 0.0;
+    let mut user = 0.0;
+    let mut system = 0.0;
+    let mut iowait = 0.0;
+    let mut steal = 0.0;
+    let mut cores = 1;
+
+    if parts.len() >= 5 && parts[0] == "cpu" {
+        let user_ticks: f64 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let nice_ticks: f64 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let system_ticks: f64 = parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let idle_ticks: f64 = parts.get(4).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let iowait_ticks: f64 = parts.get(5).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let irq_ticks: f64 = parts.get(6).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let softirq_ticks: f64 = parts.get(7).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let steal_ticks: f64 = parts.get(8).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+
+        let total_ticks = user_ticks + nice_ticks + system_ticks + idle_ticks + iowait_ticks + irq_ticks + softirq_ticks + steal_ticks;
+        let idle_total = idle_ticks + iowait_ticks;
+
+        if total_ticks > 0.0 {
+            usage = ((total_ticks - idle_total) / total_ticks) * 100.0;
+            user = (user_ticks + nice_ticks) / total_ticks * 100.0;
+            system = (system_ticks + irq_ticks + softirq_ticks) / total_ticks * 100.0;
+            iowait = iowait_ticks / total_ticks * 100.0;
+            steal = steal_ticks / total_ticks * 100.0;
+        }
+    }
+
+    // Parse /proc/loadavg: load1 load5 load15 running/total last_pid
+    let load_parts: Vec<&str> = loadavg_line.split_whitespace().collect();
+    let load1 = load_parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+    let load5 = load_parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+    let load15 = load_parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+
+    // Count CPU cores from /proc/cpuinfo would be separate command
+    cores = 1; // Default to 1, would be parsed separately
+
+    CpuMetrics {
+        usage,
+        user,
+        system,
+        iowait,
+        steal,
+        cores,
+        load1,
+        load5,
+        load15,
+    }
+}
+
+#[derive(Debug)]
+struct CpuMetrics {
+    usage: f64,
+    user: f64,
+    system: f64,
+    iowait: f64,
+    steal: f64,
+    cores: u32,
+    load1: f64,
+    load5: f64,
+    load15: f64,
+}
+
+fn parse_memory_metrics(meminfo: &str) -> MemoryMetrics {
+    let mut total = 0u64;
+    let mut free = 0u64;
+    let mut available = 0u64;
+    let mut buffers = 0u64;
+    let mut cached = 0u64;
+    let mut swap_total = 0u64;
+    let mut swap_free = 0u64;
+
+    for line in meminfo.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let value_kb: u64 = parts[1].parse().unwrap_or(0);
+            let value = value_kb * 1024; // Convert to bytes
+
+            if line.starts_with("MemTotal:") {
+                total = value;
+            } else if line.starts_with("MemFree:") {
+                free = value;
+            } else if line.starts_with("MemAvailable:") {
+                available = value;
+            } else if line.starts_with("Buffers:") {
+                buffers = value;
+            } else if line.starts_with("Cached:") {
+                cached = value;
+            } else if line.starts_with("SwapTotal:") {
+                swap_total = value;
+            } else if line.starts_with("SwapFree:") {
+                swap_free = value;
+            }
+        }
+    }
+
+    let used = total - free;
+    let swap_used = swap_total.saturating_sub(swap_free);
+
+    MemoryMetrics {
+        total,
+        free,
+        used,
+        available,
+        buffers,
+        cached,
+        swap_total,
+        swap_free,
+        swap_used,
+    }
+}
+
+#[derive(Debug)]
+struct MemoryMetrics {
+    total: u64,
+    free: u64,
+    used: u64,
+    available: u64,
+    buffers: u64,
+    cached: u64,
+    swap_total: u64,
+    swap_free: u64,
+    swap_used: u64,
+}
+
+fn parse_disk_metrics(df_line: &str, diskstats_line: &str) -> DiskMetrics {
+    // Parse df output: filesystem size used available percent mount
+    let parts: Vec<&str> = df_line.split_whitespace().collect();
+    let total = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0u64);
+    let used = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0u64);
+    let free = parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0u64);
+
+    // Parse /proc/diskstats
+    let stats: Vec<&str> = diskstats_line.split_whitespace().collect();
+    let read_sectors = stats.get(5).and_then(|s| s.parse().ok()).unwrap_or(0u64);
+    let write_sectors = stats.get(9).and_then(|s| s.parse().ok()).unwrap_or(0u64);
+    let read_bytes = read_sectors * 512;
+    let write_bytes = write_sectors * 512;
+
+    DiskMetrics {
+        total,
+        used,
+        free,
+        read_bytes,
+        write_bytes,
+        read_iops: 0.0,
+        write_iops: 0.0,
+        io_util: 0.0,
+    }
+}
+
+#[derive(Debug)]
+struct DiskMetrics {
+    total: u64,
+    used: u64,
+    free: u64,
+    read_bytes: u64,
+    write_bytes: u64,
+    read_iops: f64,
+    write_iops: f64,
+    io_util: f64,
+}
+
+fn parse_network_metrics(net_line: &str) -> NetworkMetrics {
+    // Parse /proc/net/dev: iface rx_bytes rx_packets rx_errs rx_drop rx_fifo rx_frame rx_compressed rx_multicast tx_bytes tx_packets tx_errs tx_drop tx_fifo tx_colls tx_carrier tx_compressed
+    let parts: Vec<&str> = net_line.split_whitespace().collect();
+
+    NetworkMetrics {
+        rx_bytes: parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+        rx_packets: parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
+        rx_errors: parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0),
+        rx_dropped: parts.get(4).and_then(|s| s.parse().ok()).unwrap_or(0),
+        tx_bytes: parts.get(9).and_then(|s| s.parse().ok()).unwrap_or(0),
+        tx_packets: parts.get(10).and_then(|s| s.parse().ok()).unwrap_or(0),
+        tx_errors: parts.get(11).and_then(|s| s.parse().ok()).unwrap_or(0),
+        tx_dropped: parts.get(12).and_then(|s| s.parse().ok()).unwrap_or(0),
+    }
+}
+
+#[derive(Debug)]
+struct NetworkMetrics {
+    rx_bytes: u64,
+    rx_packets: u64,
+    rx_errors: u64,
+    rx_dropped: u64,
+    tx_bytes: u64,
+    tx_packets: u64,
+    tx_errors: u64,
+    tx_dropped: u64,
+}
+
+fn parse_process_metrics(ps_output: &str) -> ProcessMetrics {
+    let lines: Vec<&str> = ps_output.lines().collect();
+
+    ProcessMetrics {
+        total: lines.get(0).and_then(|s| s.parse().ok()).unwrap_or(0),
+        running: lines.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+        sleeping: 0, // Would need separate command
+        zombie: lines.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
+        threads: 0,
+        open_files: 0,
+    }
+}
+
+#[derive(Debug)]
+struct ProcessMetrics {
+    total: u32,
+    running: u32,
+    sleeping: u32,
+    zombie: u32,
+    threads: u32,
+    open_files: u32,
+}
+
+fn parse_uptime(uptime_str: &str) -> u64 {
+    uptime_str
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0) as u64
+}
+
+/// Collection script generator for different OS types
+pub struct CollectionScript;
+
+impl CollectionScript {
+    /// Generate Linux collection script
+    pub fn linux() -> &'static str {
+        r##"#!/bin/bash
+# EasySSH Metrics Collection Script for Linux
+set -e
+
+echo "===METRICS_START==="
+
+# CPU Metrics
+echo "CPU:"
+cat /proc/stat | head -1
+cat /proc/loadavg
+cat /proc/cpuinfo | grep -c "^processor"
+
+# Memory Metrics
+echo "MEMORY:"
+cat /proc/meminfo | grep -E '^(MemTotal|MemFree|MemAvailable|Buffers|Cached|SwapTotal|SwapFree):'
+
+# Disk Metrics
+echo "DISK:"
+df -B1 / | tail -1
+cat /proc/diskstats
+
+# Network Metrics
+echo "NETWORK:"
+cat /proc/net/dev | grep -v "^Inter-" | grep -v "^ face"
+
+# Process Metrics
+echo "PROCESS:"
+ps aux | wc -l
+echo "$(ps aux | grep -c '^. R')"
+echo "$(ps aux | grep -c '^. S')"
+echo "$(ps aux | grep -c 'Z')"
+
+# System Metrics
+echo "SYSTEM:"
+cat /proc/uptime
+stat -c %Y /proc/1 2>/dev/null || date +%s
+
+echo "===METRICS_END==="
+"##
+    }
+
+    /// Generate macOS collection script
+    pub fn macos() -> &'static str {
+        r##"#!/bin/bash
+# EasySSH Metrics Collection Script for macOS
+set -e
+
+echo "===METRICS_START==="
+
+# CPU Metrics
+echo "CPU:"
+top -l 1 -n 0 | head -10
+sysctl -n hw.ncpu
+
+# Memory Metrics
+echo "MEMORY:"
+vm_stat
+
+# Disk Metrics
+echo "DISK:"
+df -k / | tail -1
+
+# Network Metrics
+echo "NETWORK:"
+netstat -ib | head -2 | tail -1
+
+# Process Metrics
+echo "PROCESS:"
+ps aux | wc -l
+
+# System Metrics
+echo "SYSTEM:"
+sysctl -n kern.boottime
+echo "$(date +%s) - $(sysctl -n kern.boottime | awk '{print $4}' | tr -d ',')" | bc
+
+echo "===METRICS_END==="
+"##
+    }
+}

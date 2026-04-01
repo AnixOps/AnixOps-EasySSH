@@ -1,0 +1,1581 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\tui\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\platforms\linux\easyssh-gtk4\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\platforms\windows\easyssh-winui\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\pro-server\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+    Blocking waiting for file lock on build directory
+   Compiling easyssh-core v0.3.0 (C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\core)
+warning: unused import: `std::collections::HashMap`
+ --> core\src\git_types.rs:3:5
+  |
+3 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `AnnotatedCommit`, `Branch`, `DiffFindOptions`, `Index`, `ObjectType`, `Rebase`, `TreeWalkMode`, and `TreeWalkResult`
+ --> core\src\git_client.rs:4:5
+  |
+4 |     AnnotatedCommit, AutotagOption, Branch, BranchType, Cred, Diff, DiffFindOptions,
+  |     ^^^^^^^^^^^^^^^                 ^^^^^^                          ^^^^^^^^^^^^^^^
+5 |     DiffOptions, FetchOptions as GitFetchOptions, Index, IndexAddOption, MergeAnalysis,
+  |                                                   ^^^^^
+6 |     MergeOptions, ObjectType, Oid, PushOptions as GitPushOptions, Rebase, RemoteCallbacks,
+  |                   ^^^^^^^^^^                                      ^^^^^^
+7 |     Repository, Sort, StashFlags, SubmoduleIgnore, SubmoduleUpdate, TreeWalkMode, TreeWalkResult,
+  |                                                                     ^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `HashMap`
+ --> core\src\git_client.rs:9:24
+  |
+9 | use std::collections::{HashMap, HashSet};
+  |                        ^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+ --> core\src\git_ffi.rs:3:13
+  |
+3 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::ptr`
+ --> core\src\git_ffi.rs:7:5
+  |
+7 | use std::ptr;
+  |     ^^^^^^^^
+
+warning: unused import: `crate::git_client::GitClient`
+ --> core\src\git_workflow.rs:1:5
+  |
+1 | use crate::git_client::GitClient;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `mpsc`
+  --> core\src\connection_pool.rs:19:19
+   |
+19 | use tokio::sync::{mpsc, Mutex, RwLock};
+   |                   ^^^^
+
+warning: unused import: `tokio::time::interval`
+  --> core\src\connection_pool.rs:21:5
+   |
+21 | use tokio::time::interval;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> core\src\config_import_export.rs:2:5
+  |
+2 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `HostRecord`, `IdentityRecord`, `NewHost`, `SnippetRecord`, and `TagRecord`
+ --> core\src\config_import_export.rs:6:28
+  |
+6 |     Database, GroupRecord, HostRecord, IdentityRecord, NewGroup, NewHost, NewIdentity,
+  |                            ^^^^^^^^^^  ^^^^^^^^^^^^^^            ^^^^^^^
+7 |     ServerRecord, SnippetRecord, TagRecord,
+  |                   ^^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `Instant`
+ --> core\src\log_monitor.rs:8:27
+  |
+8 | use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+  |                           ^^^^^^^
+
+warning: unused import: `mpsc`
+ --> core\src\log_monitor.rs:9:30
+  |
+9 | use tokio::sync::{broadcast, mpsc, RwLock};
+  |                              ^^^^
+
+warning: unused import: `crate::error::LiteError`
+ --> core\src\log_monitor_ffi.rs:2:5
+  |
+2 | use crate::error::LiteError;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `c_void`
+ --> core\src\log_monitor_ffi.rs:4:35
+  |
+4 | use std::os::raw::{c_char, c_int, c_void};
+  |                                   ^^^^^^
+
+warning: unused import: `ServerMetrics`
+ --> core\src\monitoring\dashboard.rs:6:59
+  |
+6 | use crate::monitoring::metrics::{MetricPoint, MetricType, ServerMetrics};
+  |                                                           ^^^^^^^^^^^^^
+
+warning: unused import: `AggregationType`
+ --> core\src\monitoring\storage.rs:8:5
+  |
+8 |     AggregationType, CapacityForecast, MetricPoint, MetricQuery, MetricQueryResult,
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `CryptoState`
+  --> core\src\vault.rs:15:21
+   |
+15 | use crate::crypto::{CryptoState, CRYPTO_STATE};
+   |                     ^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+ --> core\src\workflow_engine.rs:3:5
+  |
+3 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+ --> core\src\workflow_executor.rs:1:13
+  |
+1 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `oneshot`
+ --> core\src\workflow_executor.rs:4:25
+  |
+4 | use tokio::sync::{mpsc, oneshot};
+  |                         ^^^^^^^
+
+warning: unused import: `warn`
+ --> core\src\workflow_executor.rs:7:28
+  |
+7 | use tracing::{error, info, warn};
+  |                            ^^^^
+
+warning: unused import: `Instant`
+ --> core\src\workflow_scheduler.rs:3:27
+  |
+3 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+
+warning: unused imports: `Interval` and `interval`
+ --> core\src\workflow_scheduler.rs:4:19
+  |
+4 | use tokio::time::{interval, Interval};
+  |                   ^^^^^^^^  ^^^^^^^^
+
+warning: unused import: `Weekday`
+ --> core\src\workflow_scheduler.rs:6:49
+  |
+6 | use chrono::{DateTime, Utc, Datelike, Timelike, Weekday};
+  |                                                 ^^^^^^^
+
+warning: unused imports: `error` and `warn`
+ --> core\src\workflow_scheduler.rs:7:15
+  |
+7 | use tracing::{error, info, warn};
+  |               ^^^^^        ^^^^
+
+warning: unused import: `crate::workflow_engine::Workflow`
+ --> core\src\workflow_scheduler.rs:9:5
+  |
+9 | use crate::workflow_engine::Workflow;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+ --> core\src\workflow_variables.rs:3:17
+  |
+3 | use std::time::{Duration, Instant};
+  |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `Path`
+ --> core\src\script_library.rs:3:17
+  |
+3 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `uuid::Uuid`
+ --> core\src\script_library.rs:4:5
+  |
+4 | use uuid::Uuid;
+  |     ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> core\src\docker.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `Mutex`
+ --> core\src\docker.rs:7:25
+  |
+7 | use tokio::sync::{mpsc, Mutex, RwLock};
+  |                         ^^^^^
+
+warning: unused import: `Instant`
+ --> core\src\docker.rs:9:27
+  |
+9 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+
+warning: unused imports: `TcpListener` and `TcpStream`
+  --> core\src\port_forward.rs:17:16
+   |
+17 | use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr};
+   |                ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `AtomicU64`
+  --> core\src\port_forward.rs:18:37
+   |
+18 | use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+   |                                     ^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> core\src\port_forward.rs:20:27
+   |
+20 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `mpsc`
+  --> core\src\port_forward.rs:23:19
+   |
+23 | use tokio::sync::{mpsc, RwLock};
+   |                   ^^^^
+
+warning: unused import: `interval`
+  --> core\src\port_forward.rs:25:19
+   |
+25 | use tokio::time::{interval, sleep};
+   |                   ^^^^^^^^
+
+warning: unused import: `RwLock`
+   --> core\src\lib.rs:263:22
+    |
+263 | use std::sync::{Arc, RwLock};
+    |                      ^^^^^^
+
+warning: use of deprecated function `base64::encode`: Use Engine::encode
+    --> core\src\docker.rs:1153:21
+     |
+1153 |             base64::encode(command)
+     |                     ^^^^^^
+     |
+     = note: `#[warn(deprecated)]` on by default
+
+warning: unused variable: `path_str`
+  --> core\src\git_manager.rs:26:13
+   |
+26 |         let path_str = path.to_string_lossy().to_string();
+   |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_path_str`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+error[E0616]: field `repo` of struct `GitClient` is private
+   --> core\src\git_manager.rs:548:44
+    |
+548 |             if let Some(ref repo) = client.repo {
+    |                                            ^^^^ private field
+
+warning: variable does not need to be mutable
+   --> core\src\git_manager.rs:603:13
+    |
+603 |         let mut client = client.lock().await;
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `base_manager`
+   --> core\src\connection_pool.rs:538:13
+    |
+538 |         let base_manager = self.base_manager.clone();
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_base_manager`
+
+error[E0369]: binary operation `==` cannot be applied to type `log_monitor::LogType`
+   --> core\src\log_monitor.rs:850:37
+    |
+850 |                         if log_type == LogType::SystemdJournal {
+    |                            -------- ^^ ----------------------- log_monitor::LogType
+    |                            |
+    |                            log_monitor::LogType
+    |
+note: an implementation of `PartialEq` might be missing for `log_monitor::LogType`
+   --> core\src\log_monitor.rs:345:1
+    |
+345 | pub enum LogType {
+    | ^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `log_monitor::LogType` with `#[derive(PartialEq)]`
+    |
+345 + #[derive(PartialEq)]
+346 | pub enum LogType {
+    |
+
+error[E0308]: mismatched types
+    --> core\src\log_monitor.rs:1391:65
+     |
+1391 | ...                   handle_client_command(cmd, &center, &mut ws_sender).await;
+     |                       ---------------------               ^^^^^^^^^^^^^^ expected `MaybeTlsStream<TcpStream>`, found `tokio::net::TcpStream`
+     |                       |
+     |                       arguments to this function are incorrect
+     |
+     = note: expected mutable reference `&mut SplitSink<WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, _>`
+                found mutable reference `&mut SplitSink<WebSocketStream<tokio::net::TcpStream>, _>`
+note: function defined here
+    --> core\src\log_monitor.rs:1409:10
+     |
+1409 |   async fn handle_client_command(
+     |            ^^^^^^^^^^^^^^^^^^^^^
+...
+1412 | /     sender: &mut futures_util::stream::SplitSink<
+1413 | |         tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>,
+1414 | |         Message
+1415 | |     >,
+     | |_____-
+
+warning: unused variable: `duration_minutes`
+   --> core\src\monitoring\alerts.rs:312:9
+    |
+312 |         duration_minutes: u32,
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_duration_minutes`
+
+warning: unused variable: `memory`
+   --> core\src\monitoring\storage.rs:312:38
+    |
+312 |         let (last_seen, uptime, cpu, memory, disk, net_rx, net_tx) = health
+    |                                      ^^^^^^ help: if this is intentional, prefix it with an underscore: `_memory`
+
+warning: unused variable: `disk`
+   --> core\src\monitoring\storage.rs:312:46
+    |
+312 |         let (last_seen, uptime, cpu, memory, disk, net_rx, net_tx) = health
+    |                                              ^^^^ help: if this is intentional, prefix it with an underscore: `_disk`
+
+warning: unused variable: `net_rx`
+   --> core\src\monitoring\storage.rs:312:52
+    |
+312 |         let (last_seen, uptime, cpu, memory, disk, net_rx, net_tx) = health
+    |                                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_net_rx`
+
+warning: unused variable: `net_tx`
+   --> core\src\monitoring\storage.rs:312:60
+    |
+312 |         let (last_seen, uptime, cpu, memory, disk, net_rx, net_tx) = health
+    |                                                            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_net_tx`
+
+warning: unused variable: `config`
+   --> core\src\monitoring\collector.rs:229:5
+    |
+229 |     config: &ServerConnectionConfig,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+warning: unused variable: `cpu_cmd`
+   --> core\src\monitoring\collector.rs:240:9
+    |
+240 |     let cpu_cmd = "cat /proc/stat | head -1 && cat /proc/loadavg";
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_cpu_cmd`
+
+warning: unused variable: `memory_cmd`
+   --> core\src\monitoring\collector.rs:241:9
+    |
+241 |     let memory_cmd = "cat /proc/meminfo | grep -E '^(MemTotal|MemFree|MemAvailable|Buffers|Cached|SwapTotal|SwapFree):'";
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_memory_cmd`
+
+warning: unused variable: `disk_cmd`
+   --> core\src\monitoring\collector.rs:242:9
+    |
+242 |     let disk_cmd = "df -B1 / | tail -1 && cat /proc/diskstats | grep -E ' (sd[a-z]|nvme[0-9]n[0-9]|xvd[a-z]) ' | head -1";
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_disk_cmd`
+
+warning: unused variable: `network_cmd`
+   --> core\src\monitoring\collector.rs:243:9
+    |
+243 |     let network_cmd = "cat /proc/net/dev | grep -E '^\\s*(eth|ens|enp|wlan|wlp)' | head -1";
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_network_cmd`
+
+warning: unused variable: `process_cmd`
+   --> core\src\monitoring\collector.rs:244:9
+    |
+244 |     let process_cmd = "ps aux | wc -l && ps aux | grep -c '^[A-Za-z]' && ps aux | grep -c 'Z'";
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_process_cmd`
+
+warning: unused variable: `uptime_cmd`
+   --> core\src\monitoring\collector.rs:245:9
+    |
+245 |     let uptime_cmd = "cat /proc/uptime";
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_uptime_cmd`
+
+warning: unused variable: `boot_cmd`
+   --> core\src\monitoring\collector.rs:246:9
+    |
+246 |     let boot_cmd = "date +%s -d \"$(uptime -s)\" 2>/dev/null || stat -c %Y /proc/1";
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_boot_cmd`
+
+warning: unused variable: `timeout_secs`
+   --> core\src\workflow_executor.rs:382:9
+    |
+382 |         timeout_secs: Option<u64>,
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeout_secs`
+
+warning: unused variable: `create_dirs`
+   --> core\src\workflow_executor.rs:399:9
+    |
+399 |         create_dirs: bool,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_create_dirs`
+
+warning: unused variable: `create_dirs`
+   --> core\src\workflow_executor.rs:413:9
+    |
+413 |         create_dirs: bool,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_create_dirs`
+
+warning: unused variable: `result`
+    --> core\src\docker.rs:1051:17
+     |
+1051 |             let result = tokio::task::spawn_blocking(move || {
+     |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+
+error[E0382]: borrow of moved value: `container_id`
+    --> core\src\docker.rs:1091:58
+     |
+1044 |         let container_id = container_id.to_string();
+     |             ------------ move occurs because `container_id` has type `std::string::String`, which does not implement the `Copy` trait
+...
+1049 |         let handle = tokio::spawn(async move {
+     |                                   ---------- value moved here
+...
+1084 |             log::info!("Log stream ended for container {}", container_id);
+     |                                                             ------------ variable moved due to use in coroutine
+...
+1091 |         log_channels.insert(format!("{}_{}", session_id, container_id), tx);
+     |                                                          ^^^^^^^^^^^^ value borrowed here after move
+     |
+     = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0382]: use of moved value: `tx`
+    --> core\src\docker.rs:1091:73
+     |
+1035 |         let (tx, rx) = mpsc::unbounded_channel();
+     |              -- move occurs because `tx` has type `UnboundedSender<std::string::String>`, which does not implement the `Copy` trait
+...
+1049 |         let handle = tokio::spawn(async move {
+     |                                   ---------- value moved here
+1050 |             let tx_clone = tx.clone();
+     |                            -- variable moved due to use in coroutine
+...
+1091 |         log_channels.insert(format!("{}_{}", session_id, container_id), tx);
+     |                                                                         ^^ value used here after move
+
+warning: unused variable: `session`
+   --> core\src\remote_desktop.rs:488:29
+    |
+488 |                         let session = session_clone.clone();
+    |                             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session`
+
+error[E0596]: cannot borrow `local_stream` as mutable, as it is not declared as mutable
+   --> core\src\remote_desktop.rs:542:63
+    |
+542 | ...                   match std::io::Read::read(&mut local_stream, &mut local_buf) {
+    |                                                 ^^^^^^^^^^^^^^^^^ cannot borrow as mutable
+    |
+help: consider changing this to be mutable
+    |
+496 |                             let mut local_stream = match local_stream.into_std() {
+    |                                 +++
+
+error[E0596]: cannot borrow `local_stream` as mutable, as it is not declared as mutable
+   --> core\src\remote_desktop.rs:560:74
+    |
+560 | ...                   if std::io::Write::write_all(&mut local_stream, &remote_buf[..n]).is_err() {
+    |                                                    ^^^^^^^^^^^^^^^^^ cannot borrow as mutable
+    |
+help: consider changing this to be mutable
+    |
+496 |                             let mut local_stream = match local_stream.into_std() {
+    |                                 +++
+
+error[E0382]: borrow of moved value: `session_clone`
+   --> core\src\remote_desktop.rs:488:39
+    |
+488 |                         let session = session_clone.clone();
+    |                                       ^^^^^^^^^^^^^ value borrowed here after move
+...
+492 |                         tokio::spawn(async move {
+    |                                      ---------- value moved here, in previous iteration of loop
+    |
+    = note: move occurs because `session_clone` has type `Arc<tokio::sync::Mutex<ssh2::Session>>`, which does not implement the `Copy` trait
+
+warning: unused variable: `tunnel`
+   --> core\src\remote_desktop.rs:624:21
+    |
+624 |         if let Some(tunnel) = self.active_tunnels.remove(session_id) {
+    |                     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_tunnel`
+
+warning: unused variable: `local_stream`
+   --> core\src\port_forward.rs:901:9
+    |
+901 |     mut local_stream: TokioTcpStream,
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_local_stream`
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:930:21
+    |
+930 |                 let mut local_closed = false;
+    |                     ----^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:931:21
+    |
+931 |                 let mut channel_closed = false;
+    |                     ----^^^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:901:5
+    |
+901 |     mut local_stream: TokioTcpStream,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `session`
+   --> core\src\port_forward.rs:566:17
+    |
+566 |             let session = ssh_session.blocking_lock();
+    |                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session`
+
+warning: unused variable: `stats_clone`
+    --> core\src\port_forward.rs:1104:17
+     |
+1104 |             let stats_clone = stats.clone();
+     |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stats_clone`
+
+warning: unused variable: `stop_clone`
+    --> core\src\port_forward.rs:1105:17
+     |
+1105 |             let stop_clone = stop_signal.clone();
+     |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stop_clone`
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:713:21
+    |
+713 |         if let Some(mut forward) = forwards.remove(rule_id) {
+    |                     ----^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+
+error[E0308]: mismatched types
+   --> core\src\git_client.rs:89:26
+    |
+89  |         self.repo = Some(repo);
+    |                     ---- ^^^^ expected `Arc<Mutex<Repository>>`, found `Repository`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+    = note: expected struct `Arc<std::sync::Mutex<git2::Repository>>`
+               found struct `git2::Repository`
+help: the type constructed contains `git2::Repository` due to the type of the argument passed
+   --> core\src\git_client.rs:89:21
+    |
+89  |         self.repo = Some(repo);
+    |                     ^^^^^----^
+    |                          |
+    |                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> C:\Users\z7299\.rustup\toolchains\stable-x86_64-pc-windows-msvc\lib/rustlib/src/rust\library\core\src\option.rs:599:5
+    |
+599 |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+    |     ^^^^
+
+error[E0308]: mismatched types
+   --> core\src\git_client.rs:100:26
+    |
+100 |         self.repo = Some(repo);
+    |                     ---- ^^^^ expected `Arc<Mutex<Repository>>`, found `Repository`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+    = note: expected struct `Arc<std::sync::Mutex<git2::Repository>>`
+               found struct `git2::Repository`
+help: the type constructed contains `git2::Repository` due to the type of the argument passed
+   --> core\src\git_client.rs:100:21
+    |
+100 |         self.repo = Some(repo);
+    |                     ^^^^^----^
+    |                          |
+    |                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> C:\Users\z7299\.rustup\toolchains\stable-x86_64-pc-windows-msvc\lib/rustlib/src/rust\library\core\src\option.rs:599:5
+    |
+599 |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+    |     ^^^^
+
+error[E0308]: mismatched types
+   --> core\src\git_client.rs:133:26
+    |
+133 |         self.repo = Some(repo);
+    |                     ---- ^^^^ expected `Arc<Mutex<Repository>>`, found `Repository`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+    = note: expected struct `Arc<std::sync::Mutex<git2::Repository>>`
+               found struct `git2::Repository`
+help: the type constructed contains `git2::Repository` due to the type of the argument passed
+   --> core\src\git_client.rs:133:21
+    |
+133 |         self.repo = Some(repo);
+    |                     ^^^^^----^
+    |                          |
+    |                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> C:\Users\z7299\.rustup\toolchains\stable-x86_64-pc-windows-msvc\lib/rustlib/src/rust\library\core\src\option.rs:599:5
+    |
+599 |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+    |     ^^^^
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:143:25
+    |
+143 |         let head = repo.head().ok();
+    |                         ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `branch_upstream_remote` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:151:40
+    |
+151 |             if let Ok(upstream) = repo.branch_upstream_remote(head_ref.name().unwrap_or("")) {
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0282]: type annotations needed
+   --> core\src\git_client.rs:151:72
+    |
+151 |             if let Ok(upstream) = repo.branch_upstream_remote(head_ref.name().unwrap_or("")) {
+    |                                                                        ^^^^ cannot infer type for type parameter `T` declared on the enum `Option`
+
+error[E0599]: no method named `refname_to_id` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:156:41
+    |
+156 |                 let upstream_oid = repo.refname_to_id(&upstream_ref).ok();
+    |                                         ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `graph_ahead_behind` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:159:39
+    |
+159 |                     let (a, b) = repo.graph_ahead_behind(local, upstream)?;
+    |                                       ^^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `statuses` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:176:29
+    |
+176 |         let statuses = repo.statuses(Some(&mut opts))?;
+    |                             ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `is_bare` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:206:27
+    |
+206 |             is_bare: repo.is_bare(),
+    |                           ^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `state` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:218:25
+    |
+218 |             state: repo.state().into(),
+    |                         ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `statuses` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:233:29
+    |
+233 |         let statuses = repo.statuses(Some(&mut opts))?;
+    |                             ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:296:30
+    |
+296 |         let mut index = repo.index()?;
+    |                              ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:308:25
+    |
+308 |         let head = repo.head()?;
+    |                         ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:311:30
+    |
+311 |         let mut index = repo.index()?;
+    |                              ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_object` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:317:41
+    |
+317 |                 if let Some(obj) = repo.find_object(entry.id(), None).ok() {
+    |                                         ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `paths` found for struct `CheckoutBuilder` in the current scope
+   --> core\src\git_client.rs:348:23
+    |
+348 |         checkout_opts.paths(paths);
+    |                       ^^^^^ private field, not a method
+    |
+help: there is a method `path` with a similar name
+    |
+348 -         checkout_opts.paths(paths);
+348 +         checkout_opts.path(paths);
+    |
+
+error[E0599]: no method named `checkout_head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:350:14
+    |
+350 |         repo.checkout_head(Some(&mut checkout_opts))?;
+    |              ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `signature` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:360:24
+    |
+360 |         let sig = repo.signature()?;
+    |                        ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:361:30
+    |
+361 |         let mut index = repo.index()?;
+    |                              ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:363:25
+    |
+363 |         let tree = repo.find_tree(tree_id)?;
+    |                         ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:366:29
+    |
+366 |             let head = repo.head()?;
+    |                             ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:381:72
+    |
+381 |         let parent_commits: Vec<git2::Commit> = if let Ok(head) = repo.head() {
+    |                                                                        ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:389:30
+    |
+389 |         let commit_id = repo.commit(
+    |                         -----^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `revwalk` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:407:32
+    |
+407 |         let mut revwalk = repo.revwalk()?;
+    |                                ^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_reference` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:410:34
+    |
+410 |             let reference = repo.find_reference(&format!("refs/heads/{}", b))
+    |                                  ^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_reference` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:411:35
+    |
+411 |                 .or_else(|_| repo.find_reference(&format!("refs/remotes/origin/{}", b)))?;
+    |                                   ^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:428:31
+    |
+428 |             let commit = repo.find_commit(oid)?;
+    |                               ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:457:27
+    |
+457 |         let commit = repo.find_commit(oid)?;
+    |                           ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `diff_tree_to_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:468:18
+    |
+468 |             repo.diff_tree_to_tree(Some(&parent), Some(&tree), Some(&mut diff_opts))?
+    |                  ^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `diff_tree_to_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:470:18
+    |
+470 |             repo.diff_tree_to_tree(None, Some(&tree), Some(&mut diff_opts))?
+    |                  ^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:482:25
+    |
+482 |         let head = repo.head()?;
+    |                         ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `diff_tree_to_workdir_with_index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:486:25
+    |
+486 |         let diff = repo.diff_tree_to_workdir_with_index(Some(&tree), Some(&mut diff_opts))?;
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:497:25
+    |
+497 |         let head = repo.head()?;
+    |                         ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:500:30
+    |
+500 |         let mut index = repo.index()?;
+    |                              ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:502:31
+    |
+502 |         let index_tree = repo.find_tree(index_tree)?;
+    |                               ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `diff_tree_to_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:505:25
+    |
+505 |         let diff = repo.diff_tree_to_tree(Some(&head_tree), Some(&index_tree), Some(&mut diff_opts))?;
+    |                         ^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `to_string_lossy` found for reference `&[u8]` in the current scope
+   --> core\src\git_client.rs:545:47
+    |
+545 |                         header: hunk.header().to_string_lossy().to_string(),
+    |                                               ^^^^^^^^^^^^^^^ method not found in `&[u8]`
+
+error[E0599]: no method named `to_string_lossy` found for reference `&[u8]` in the current scope
+   --> core\src\git_client.rs:556:53
+    |
+556 | ...                   content: line.content().to_string_lossy().to_string(),
+    |                                               ^^^^^^^^^^^^^^^ method not found in `&[u8]`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:575:25
+    |
+575 |         let head = repo.head().ok();
+    |                         ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `branches` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:580:28
+    |
+580 |         for branch in repo.branches(Some(BranchType::Local))? {
+    |                            ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `branches` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:609:28
+    |
+609 |         for branch in repo.branches(Some(BranchType::Remote))? {
+    |                            ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `revparse_single` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:636:28
+    |
+636 |             let obj = repo.revparse_single(point)?;
+    |                            ^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:639:29
+    |
+639 |             let head = repo.head()?;
+    |                             ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `branch` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:643:14
+    |
+643 |         repo.branch(name, &commit, false)?;
+    |              ^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `revparse_ext` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:653:37
+    |
+653 |         let (obj, reference) = repo.revparse_ext(name)?;
+    |                                     ^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `checkout_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:655:14
+    |
+655 |         repo.checkout_tree(&obj, None)?;
+    |              ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `set_head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:658:18
+    |
+658 |             repo.set_head(reference.name().unwrap())?;
+    |                  ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0282]: type annotations needed
+   --> core\src\git_client.rs:658:37
+    |
+658 |             repo.set_head(reference.name().unwrap())?;
+    |                                     ^^^^ cannot infer type for type parameter `T` declared on the enum `Option`
+
+error[E0599]: no method named `set_head_detached` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:660:18
+    |
+660 |             repo.set_head_detached(obj.id())?;
+    |                  ^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `branch` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:665:18
+    |
+665 |             repo.branch(name, &commit, false)?;
+    |                  ^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_branch` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:677:31
+    |
+677 |         let mut branch = repo.find_branch(name, BranchType::Local)?;
+    |                               ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_reference` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:689:30
+    |
+689 |         let their_ref = repo.find_reference(&format!("refs/heads/{}", branch_name))?;
+    |                              ^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_annotated_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:692:30
+    |
+692 |         let annotated = repo.find_annotated_commit(their_commit.id())?;
+    |                              ^^^^^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `merge_analysis` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:694:34
+    |
+694 |         let (analysis, _) = repo.merge_analysis(&[&annotated])?;
+    |                                  ^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no associated item named `UP_TO_DATE` found for struct `MergeAnalysis` in the current scope
+   --> core\src\git_client.rs:696:45
+    |
+696 |         if analysis.contains(MergeAnalysis::UP_TO_DATE) {
+    |                                             ^^^^^^^^^^ associated item not found in `MergeAnalysis`
+    |
+help: there is an associated constant `ANALYSIS_UP_TO_DATE` with a similar name
+    |
+696 |         if analysis.contains(MergeAnalysis::ANALYSIS_UP_TO_DATE) {
+    |                                             +++++++++
+
+error[E0599]: no associated item named `UNBORN` found for struct `MergeAnalysis` in the current scope
+   --> core\src\git_client.rs:705:45
+    |
+705 |         if analysis.contains(MergeAnalysis::UNBORN) {
+    |                                             ^^^^^^ associated item not found in `MergeAnalysis`
+
+error[E0599]: no associated item named `FASTFORWARD` found for struct `MergeAnalysis` in the current scope
+   --> core\src\git_client.rs:711:45
+    |
+711 |         if analysis.contains(MergeAnalysis::FASTFORWARD) {
+    |                                             ^^^^^^^^^^^ associated item not found in `MergeAnalysis`
+    |
+help: there is an associated constant `ANALYSIS_FASTFORWARD` with a similar name
+    |
+711 |         if analysis.contains(MergeAnalysis::ANALYSIS_FASTFORWARD) {
+    |                                             +++++++++
+
+error[E0599]: no method named `checkout_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:713:18
+    |
+713 |             repo.checkout_tree(&tree.into_object(), None)?;
+    |                  ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `set_head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:714:18
+    |
+714 |             repo.set_head(&format!("refs/heads/{}", branch_name))?;
+    |                  ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `merge` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:724:14
+    |
+724 |         repo.merge(&[&annotated], Some(&mut merge_opts), None)?;
+    |              ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:726:30
+    |
+726 |         let mut index = repo.index()?;
+    |                              ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:740:25
+    |
+740 |         let tree = repo.find_tree(tree_id)?;
+    |                         ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:741:25
+    |
+741 |         let head = repo.head()?;
+    |                         ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `signature` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:744:24
+    |
+744 |         let sig = repo.signature()?;
+    |                        ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:747:30
+    |
+747 |         let commit_id = repo.commit(
+    |                         -----^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `cleanup_state` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:756:14
+    |
+756 |         repo.cleanup_state()?;
+    |              ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:772:26
+    |
+772 |         let index = repo.index()?;
+    |                          ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_blob` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:787:33
+    |
+787 |                 let blob = repo.find_blob(entry.id)?;
+    |                                 ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `index` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:822:30
+    |
+822 |         let mut index = repo.index()?;
+    |                              ^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:825:25
+    |
+825 |         let tree = repo.find_tree(tree_id)?;
+    |                         ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `blob` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:827:28
+    |
+827 |         let blob_id = repo.blob(content.as_bytes())?;
+    |                            ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `cleanup_state` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:857:14
+    |
+857 |         repo.cleanup_state()?;
+    |              ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `checkout_head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:862:14
+    |
+862 |         repo.checkout_head(Some(&mut checkout_opts))?;
+    |              ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `remotes` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:873:33
+    |
+873 |         let remote_names = repo.remotes()?;
+    |                                 ^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_remote` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:878:35
+    |
+878 |                 let remote = repo.find_remote(name)?;
+    |                                   ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `remote` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:896:14
+    |
+896 |         repo.remote(name, url)?;
+    |              ^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `remote_delete` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:906:14
+    |
+906 |         repo.remote_delete(name)?;
+    |              ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_remote` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:916:31
+    |
+916 |         let mut remote = repo.find_remote(&options.remote)?;
+    |                               ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_remote` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:940:31
+    |
+940 |         let mut remote = repo.find_remote(&options.remote)?;
+    |                               ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:954:31
+    |
+954 |             let branch = repo.head()?.shorthand().unwrap_or("HEAD").to_string();
+    |                               ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_branch` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:955:35
+    |
+955 |             let mut branch = repo.find_branch(&branch, BranchType::Local)?;
+    |                                   ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:974:25
+    |
+974 |         let head = repo.head()?;
+    |                         ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_reference` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:978:33
+    |
+978 |         let their_commit = repo.find_reference(&remote_ref)?.peel_to_commit()?;
+    |                                 ^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_annotated_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:980:30
+    |
+980 |         let annotated = repo.find_annotated_commit(their_commit.id())?;
+    |                              ^^^^^^^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `merge_analysis` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:982:34
+    |
+982 |         let (analysis, _) = repo.merge_analysis(&[&annotated])?;
+    |                                  ^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no associated item named `UP_TO_DATE` found for struct `MergeAnalysis` in the current scope
+   --> core\src\git_client.rs:984:45
+    |
+984 |         if analysis.contains(MergeAnalysis::UP_TO_DATE) {
+    |                                             ^^^^^^^^^^ associated item not found in `MergeAnalysis`
+    |
+help: there is an associated constant `ANALYSIS_UP_TO_DATE` with a similar name
+    |
+984 |         if analysis.contains(MergeAnalysis::ANALYSIS_UP_TO_DATE) {
+    |                                             +++++++++
+
+error[E0599]: no associated item named `FASTFORWARD` found for struct `MergeAnalysis` in the current scope
+   --> core\src\git_client.rs:993:45
+    |
+993 |         if analysis.contains(MergeAnalysis::FASTFORWARD) {
+    |                                             ^^^^^^^^^^^ associated item not found in `MergeAnalysis`
+    |
+help: there is an associated constant `ANALYSIS_FASTFORWARD` with a similar name
+    |
+993 |         if analysis.contains(MergeAnalysis::ANALYSIS_FASTFORWARD) {
+    |                                             +++++++++
+
+error[E0599]: no method named `checkout_tree` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:995:18
+    |
+995 |             repo.checkout_tree(&tree.into_object(), None)?;
+    |                  ^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `reference` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:996:18
+    |
+996 |             repo.reference(&format!("refs/heads/{}", branch_name), their_commit.id(), true, "pull: fast-forward")?;
+    |                  ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `set_head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+   --> core\src\git_client.rs:997:18
+    |
+997 |             repo.set_head(&format!("refs/heads/{}", branch_name))?;
+    |                  ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `tag_foreach` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1018:14
+     |
+1018 |         repo.tag_foreach(|oid, name| {
+     |         -----^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_tag` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1021:73
+     |
+1021 |             let (message, tagger, is_annotated) = if let Ok(tag) = repo.find_tag(oid) {
+     |                                                                         ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `revparse_single` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1057:18
+     |
+1057 |             repo.revparse_single(t)?
+     |                  ^^^^^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `head` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1059:29
+     |
+1059 |             let head = repo.head()?;
+     |                             ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `signature` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1064:28
+     |
+1064 |             let sig = repo.signature()?;
+     |                            ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `tag` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1065:18
+     |
+1065 |             repo.tag(
+     |             -----^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `tag` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1073:18
+     |
+1073 |             repo.tag(
+     |             -----^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `signature` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1076:23
+     |
+1076 |                 &repo.signature()?,
+     |                       ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `tag_delete` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1091:14
+     |
+1091 |         repo.tag_delete(name)?;
+     |              ^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0308]: mismatched types
+    --> core\src\git_client.rs:1142:32
+     |
+1142 |         repo.stash_save2(&sig, msg, Some(flags))?;
+     |              -----------       ^^^ expected `Option<&str>`, found `&str`
+     |              |
+     |              arguments to this method are incorrect
+     |
+     = note:   expected enum `std::option::Option<&str>`
+             found reference `&str`
+note: method defined here
+    --> C:\Users\z7299\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\git2-0.18.3\src\repo.rs:2870:12
+     |
+2870 |     pub fn stash_save2(
+     |            ^^^^^^^^^^^
+help: try wrapping the expression in `Some`
+     |
+1142 |         repo.stash_save2(&sig, Some(msg), Some(flags))?;
+     |                                +++++   +
+
+error[E0599]: no method named `submodules` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1186:31
+     |
+1186 |         let submodules = repo.submodules()?;
+     |                               ^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `is_initialized` found for struct `git2::Submodule` in the current scope
+    --> core\src\git_client.rs:1234:24
+     |
+1234 |             if !submod.is_initialized() {
+     |                        ^^^^^^^^^^^^^^ method not found in `git2::Submodule<'_>`
+
+error[E0599]: no method named `submodule` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1254:22
+     |
+1254 |         let _ = repo.submodule(url, path, false)?;
+     |                      ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `blame_file` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1271:26
+     |
+1271 |         let blame = repo.blame_file(Path::new(path), Some(&opts))?;
+     |                          ^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_blob` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1273:25
+     |
+1273 |         let blob = repo.find_blob(blame.get_blame().iter().next()
+     |                    -----^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1275:34
+     |
+1275 |             .and_then(|oid| repo.find_commit(oid).ok())
+     |                                  ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no variant named `FileNotFound` found for enum `git_types::GitError`
+    --> core\src\git_client.rs:1279:38
+     |
+1279 |             .ok_or_else(|| GitError::FileNotFound { path: path.to_string() })?)?;
+     |                                      ^^^^^^^^^^^^ variant not found in `git_types::GitError`
+     |
+    ::: core\src\git_types.rs:8:1
+     |
+8    | pub enum GitError {
+     | ----------------- variant `FileNotFound` not found here
+
+error[E0599]: no method named `find_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1288:35
+     |
+1288 |                 let commit = repo.find_commit(hunk.final_commit_id())?;
+     |                                   ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `revwalk` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1309:32
+     |
+1309 |         let mut revwalk = repo.revwalk()?;
+     |                                ^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `branches` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1314:33
+     |
+1314 |         let branch_count = repo.branches(None)?.count();
+     |                                 ^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `revwalk` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1319:32
+     |
+1319 |         let mut revwalk = repo.revwalk()?;
+     |                                ^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1322:38
+     |
+1322 |             if let Ok(commit) = repo.find_commit(oid.unwrap()) {
+     |                                      ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `path` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1327:49
+     |
+1327 |         let size_bytes = std::fs::metadata(repo.path())
+     |                                                 ^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_commit` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1348:27
+     |
+1348 |         let commit = repo.find_commit(oid)?;
+     |                           ^^^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0599]: no method named `find_blob` found for reference `&Arc<std::sync::Mutex<git2::Repository>>` in the current scope
+    --> core\src\git_client.rs:1352:25
+     |
+1352 |         let blob = repo.find_blob(entry.id())?;
+     |                         ^^^^^^^^^ method not found in `&Arc<std::sync::Mutex<git2::Repository>>`
+
+error[E0277]: the trait bound `LogLevel: std::default::Default` is not satisfied
+   --> core\src\log_monitor.rs:272:5
+    |
+270 | #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    |                        ------- in this derive macro expansion
+271 | pub struct LogFilter {
+272 |     pub min_level: LogLevel,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^ the trait `std::default::Default` is not implemented for `LogLevel`
+
+error[E0277]: the trait bound `ConnectionPool: Clone` is not satisfied
+   --> core\src\ssh.rs:187:5
+    |
+184 | #[derive(Clone)]
+    |          ----- in this derive macro expansion
+...
+187 |     pools: HashMap<ServerKey, ConnectionPool>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `ConnectionPool`
+    |
+    = note: required for `HashMap<ServerKey, ConnectionPool>` to implement `Clone`
+
+error[E0277]: the trait bound `UserSession: Clone` is not satisfied
+   --> core\src\ssh.rs:189:5
+    |
+184 | #[derive(Clone)]
+    |          ----- in this derive macro expansion
+...
+189 |     user_sessions: HashMap<String, UserSession>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `UserSession`
+    |
+    = note: required for `HashMap<std::string::String, UserSession>` to implement `Clone`
+help: consider annotating `UserSession` with `#[derive(Clone)]`
+    |
+176 + #[derive(Clone)]
+177 | struct UserSession {
+    |
+
+error[E0277]: the trait bound `ShellSession: Clone` is not satisfied
+   --> core\src\ssh.rs:191:5
+    |
+184 | #[derive(Clone)]
+    |          ----- in this derive macro expansion
+...
+191 |     shell_sessions: HashMap<String, ShellSession>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `ShellSession`
+    |
+    = note: required for `HashMap<std::string::String, ShellSession>` to implement `Clone`
+
+warning: unused import: `Write`
+ --> core\src\config_import_export.rs:3:21
+  |
+3 | use std::io::{Read, Write};
+  |                     ^^^^^
+
+warning: unused import: `Read`
+ --> core\src\config_import_export.rs:3:15
+  |
+3 | use std::io::{Read, Write};
+  |               ^^^^
+
+warning: unused import: `AsyncWriteExt`
+ --> core\src\remote_desktop.rs:9:31
+  |
+9 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                               ^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> core\src\remote_desktop.rs:9:17
+  |
+9 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `Write`
+  --> core\src\port_forward.rs:16:21
+   |
+16 | use std::io::{Read, Write};
+   |                     ^^^^^
+
+warning: unused import: `Read`
+  --> core\src\port_forward.rs:16:15
+   |
+16 | use std::io::{Read, Write};
+   |               ^^^^
+
+warning: unreachable pattern
+   --> core\src\git_types.rs:139:13
+    |
+139 |             _ => RepoState::Clean,
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> core\src\git_types.rs:139:13
+    |
+131 |               git2::RepositoryState::Clean => RepoState::Clean,
+    |               ---------------------------- matches some of the same values
+132 |               git2::RepositoryState::Merge => RepoState::Merge,
+    |               ---------------------------- matches some of the same values
+133 | /             git2::RepositoryState::Rebase | git2::RepositoryState::RebaseInteractive |
+134 | |             git2::RepositoryState::RebaseMerge => RepoState::Rebase,
+    | |______________________________________________- matches some of the same values
+135 |               git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => RepoState::Revert,
+    |               --------------------------------------------------------------------- matches some of the same values
+...
+139 |               _ => RepoState::Clean,
+    |               ^ ...and 3 other patterns collectively make this unreachable
+    = note: `#[warn(unreachable_patterns)]` on by default
+
+warning: unused variable: `url`
+  --> core\src\git_client.rs:35:37
+   |
+35 |         callbacks.credentials(move |url, username_from_url, allowed_types| {
+   |                                     ^^^ help: if this is intentional, prefix it with an underscore: `_url`
+
+warning: unused variable: `username_from_url`
+  --> core\src\git_client.rs:35:42
+   |
+35 |         callbacks.credentials(move |url, username_from_url, allowed_types| {
+   |                                          ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_username_from_url`
+
+error[E0596]: cannot borrow `repo` as mutable, as it is not declared as mutable
+    --> core\src\git_client.rs:1114:9
+     |
+1114 |         repo.stash_foreach(|i, message, oid| {
+     |         ^^^^ cannot borrow as mutable
+     |
+help: consider changing this to be mutable
+     |
+1110 |         let mut repo = repo.lock().map_err(|_| GitError::RepositoryNotFound("Failed to lock repository".to_string()))?;
+     |             +++
+
+warning: unused variable: `c_str`
+    --> core\src\log_monitor.rs:1533:23
+     |
+1533 |             if let Ok(c_str) = CString::new(source_id) {
+     |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_c_str`
+
+warning: unused variable: `handle`
+   --> core\src\log_monitor_ffi.rs:452:9
+    |
+452 |     let handle = unsafe { &mut *handle };
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle`
+
+warning: unused variable: `port`
+   --> core\src\log_monitor_ffi.rs:446:5
+    |
+446 |     port: u16,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_port`
+
+warning: value assigned to `cores` is never read
+   --> core\src\monitoring\collector.rs:351:13
+    |
+351 |     let mut cores = 1;
+    |             ^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: unused variable: `password`
+   --> core\src\vault.rs:490:25
+    |
+490 |             if let Some(password) = options.master_password {
+    |                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_password`
+
+warning: unused variable: `encrypted`
+   --> core\src\vault.rs:603:17
+    |
+603 |             let encrypted = std::fs::read(&items_path)
+    |                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_encrypted`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:746:13
+    |
+746 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:784:13
+    |
+784 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:816:13
+    |
+816 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:849:13
+    |
+849 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:876:13
+    |
+876 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `initial_variables`
+  --> core\src\workflow_executor.rs:58:9
+   |
+58 |         initial_variables: HashMap<String, serde_json::Value>,
+   |         ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_initial_variables`
+
+warning: unused variable: `cat`
+   --> core\src\script_library.rs:322:25
+    |
+322 |         if let Some(ref cat) = options.category {
+    |                         ^^^ help: if this is intentional, prefix it with an underscore: `_cat`
+
+Some errors have detailed explanations: E0277, E0282, E0308, E0369, E0382, E0596, E0599, E0616.
+For more information about an error, try `rustc --explain E0277`.
+warning: `easyssh-core` (lib) generated 91 warnings
+error: could not compile `easyssh-core` (lib) due to 129 previous errors; 91 warnings emitted

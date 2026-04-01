@@ -1,0 +1,485 @@
+name: Cross-Platform Build Matrix
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: 'Specific target to build (optional)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - windows
+          - linux
+          - macos
+          - core
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  # ==================== Core Library (All Platforms) ====================
+  core-matrix:
+    name: Core Library (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        features: [lite, standard, pro]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.features }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Check Formatting
+        run: cargo fmt -p easyssh-core -- --check
+
+      - name: Clippy
+        run: cargo clippy -p easyssh-core --features ${{ matrix.features }} -- -D warnings
+
+      - name: Build Core (${{ matrix.features }})
+        run: cargo build -p easyssh-core --features ${{ matrix.features }}
+
+      - name: Run Tests (${{ matrix.features }})
+        run: cargo test -p easyssh-core --features ${{ matrix.features }}
+
+  # ==================== Windows Native (egui + WGPU) ====================
+  windows-native:
+    name: Windows Native Client
+    runs-on: windows-latest
+    if: github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'windows' || github.event.inputs.build_target == ''
+    env:
+      RUSTFLAGS: "-C target-feature=+crt-static"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-native-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Dependencies
+        run: |
+          choco install pkgconfiglite
+          echo "PKG_CONFIG_PATH=C:\\ProgramData\\chocolatey\\lib\\pkgconfiglite\\tools\\pkgconfig" >> $env:GITHUB_ENV
+
+      - name: Check Formatting
+        working-directory: platforms/windows/easyssh-winui
+        run: cargo fmt -- --check
+
+      - name: Clippy
+        working-directory: platforms/windows/easyssh-winui
+        run: cargo clippy -- -D warnings
+
+      - name: Build Debug
+        working-directory: platforms/windows/easyssh-winui
+        run: cargo build
+
+      - name: Build Release
+        working-directory: platforms/windows/easyssh-winui
+        run: cargo build --release
+
+      - name: Run Tests
+        working-directory: platforms/windows/easyssh-winui
+        run: cargo test --lib
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-native-x64
+          path: |
+            target/release/EasySSH.exe
+            target/release/EasySSH-Debug.exe
+          if-no-files-found: warn
+
+  # ==================== Linux Native (GTK4 + libadwaita) ====================
+  linux-native:
+    name: Linux Native Client
+    runs-on: ubuntu-latest
+    if: github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'linux' || github.event.inputs.build_target == ''
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Setup Cross Compilation (ARM64)
+        if: matrix.arch == 'aarch64'
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            pkg-config \
+            xvfb \
+            dbus-x11 \
+            libssl-dev
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check Formatting
+        working-directory: platforms/linux/easyssh-gtk4
+        run: cargo fmt -- --check
+
+      - name: Clippy
+        working-directory: platforms/linux/easyssh-gtk4
+        run: cargo clippy -- -D warnings
+
+      - name: Build Debug (${{ matrix.arch }})
+        working-directory: platforms/linux/easyssh-gtk4
+        run: |
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            cargo build --target aarch64-unknown-linux-gnu
+          else
+            cargo build
+          fi
+
+      - name: Build Release (${{ matrix.arch }})
+        working-directory: platforms/linux/easyssh-gtk4
+        run: |
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            cargo build --release --target aarch64-unknown-linux-gnu
+          else
+            cargo build --release
+          fi
+
+      - name: Run Tests (Headless)
+        if: matrix.arch == 'x86_64'
+        working-directory: platforms/linux/easyssh-gtk4
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 3
+          dbus-run-session -- cargo test --lib
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-native-${{ matrix.arch }}
+          path: |
+            target/**/release/easyssh
+            target/**/debug/easyssh
+          if-no-files-found: warn
+
+  # ==================== macOS Native (SwiftUI) ====================
+  macos-native:
+    name: macOS Native Client
+    runs-on: macos-latest
+    if: github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'macos' || github.event.inputs.build_target == ''
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: ${{ matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: macos-${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Core Library
+        run: |
+          cd core
+          cargo build --release
+          mkdir -p target/include
+          ls -la target/release/
+
+      - name: Build Swift Package (${{ matrix.arch }})
+        working-directory: platforms/macos/EasySSH
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            swift build --arch arm64
+          else
+            swift build --arch x86_64
+          fi
+
+      - name: Run Swift Tests
+        working-directory: platforms/macos/EasySSH
+        run: swift test
+
+      - name: Build Universal Binary
+        if: matrix.arch == 'arm64'
+        working-directory: platforms/macos/EasySSH
+        run: |
+          swift build -c release --arch arm64
+          swift build -c release --arch x86_64
+          # Create universal binary
+          lipo -create \
+            .build/arm64-apple-macosx/release/EasySSH \
+            .build/x86_64-apple-macosx/release/EasySSH \
+            -output .build/universal/EasySSH
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-native-${{ matrix.arch }}
+          path: |
+            platforms/macos/EasySSH/.build/**/release/
+            platforms/macos/EasySSH/.build/universal/
+          if-no-files-found: warn
+
+  # ==================== TUI Application ====================
+  tui-build:
+    name: TUI Application
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-tui-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Build TUI
+        run: cargo build -p easyssh-tui --release
+
+      - name: Run TUI Tests
+        run: cargo test -p easyssh-tui
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tui-${{ matrix.os }}
+          path: target/release/easyssh-tui*
+          if-no-files-found: warn
+
+  # ==================== Pro Server ====================
+  pro-server:
+    name: Pro Server
+    runs-on: ubuntu-latest
+    if: github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'core'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: easyssh_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: pro-server-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config libxmlsec1-dev
+
+      - name: Build Pro Server
+        run: cargo build -p easyssh-pro-server --release
+
+      - name: Run Tests
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/easyssh_test
+          REDIS_URL: redis://localhost:6379
+        run: cargo test -p easyssh-pro-server
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pro-server
+          path: target/release/pro-server
+          if-no-files-found: warn
+
+  # ==================== Compatibility Report ====================
+  compatibility-report:
+    name: Generate Compatibility Report
+    needs: [core-matrix, windows-native, linux-native, macos-native, tui-build]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+        continue-on-error: true
+
+      - name: Generate Report
+        run: |
+          echo "# Cross-Platform Build Report" > report.md
+          echo "" >> report.md
+          echo "## Build Status" >> report.md
+          echo "" >> report.md
+          echo "| Platform | Target | Status |" >> report.md
+          echo "|----------|--------|--------|" >> report.md
+
+          # Core Matrix
+          for features in lite standard pro; do
+            status="${{ needs.core-matrix.result == 'success' && '✅' || '❌' }}"
+            echo "| Core Library | $features | $status |" >> report.md
+          done
+
+          # Windows
+          win_status="${{ needs.windows-native.result == 'success' && '✅' || '❌' }}"
+          echo "| Windows | x86_64 MSVC | $win_status |" >> report.md
+
+          # Linux
+          linux_x64="${{ needs.linux-native.result == 'success' && '✅' || '❌' }}"
+          echo "| Linux | x86_64 GTK4 | $linux_x64 |" >> report.md
+
+          # macOS
+          macos_arm="${{ needs.macos-native.result == 'success' && '✅' || '❌' }}"
+          echo "| macOS | ARM64 SwiftUI | $macos_arm |" >> report.md
+
+          echo "" >> report.md
+          echo "## Artifacts" >> report.md
+          echo "" >> report.md
+          echo "\`\`\`" >> report.md
+          find artifacts -type f -name "*.exe" -o -name "easyssh*" -o -name "pro-server*" | head -20 >> report.md
+          echo "\`\`\`" >> report.md
+
+          cat report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-report
+          path: report.md
+          if-no-files-found: warn
+
+  # ==================== Summary ====================
+  summary:
+    name: Build Summary
+    needs: [core-matrix, windows-native, linux-native, macos-native, tui-build, pro-server]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Core Library | ${{ needs.core-matrix.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows Native | ${{ needs.windows-native.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux Native | ${{ needs.linux-native.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS Native | ${{ needs.macos-native.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TUI Application | ${{ needs.tui-build.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pro Server | ${{ needs.pro-server.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY

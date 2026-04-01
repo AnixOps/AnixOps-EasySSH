@@ -1,0 +1,451 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\tui\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\platforms\linux\easyssh-gtk4\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\platforms\windows\easyssh-winui\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\pro-server\Cargo.toml
+workspace: C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\Cargo.toml
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling easyssh-core v0.3.0 (C:\Users\z7299\Documents\GitHub\AnixOps-EasySSH\core)
+warning: unused import: `mpsc`
+  --> core\src\connection_pool.rs:19:19
+   |
+19 | use tokio::sync::{mpsc, Mutex, RwLock};
+   |                   ^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `tokio::time::interval`
+  --> core\src\connection_pool.rs:21:5
+   |
+21 | use tokio::time::interval;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> core\src\config_import_export.rs:2:5
+  |
+2 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `HostRecord`, `IdentityRecord`, `NewHost`, `SnippetRecord`, and `TagRecord`
+ --> core\src\config_import_export.rs:6:28
+  |
+6 |     Database, GroupRecord, HostRecord, IdentityRecord, NewGroup, NewHost, NewIdentity,
+  |                            ^^^^^^^^^^  ^^^^^^^^^^^^^^            ^^^^^^^
+7 |     ServerRecord, SnippetRecord, TagRecord,
+  |                   ^^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> core\src\terminal.rs:5:5
+  |
+5 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CryptoState`
+  --> core\src\vault.rs:15:21
+   |
+15 | use crate::crypto::{CryptoState, CRYPTO_STATE};
+   |                     ^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+ --> core\src\workflow_engine.rs:3:5
+  |
+3 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+ --> core\src\workflow_executor.rs:1:13
+  |
+1 | use serde::{Deserialize, Serialize};
+  |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `oneshot`
+ --> core\src\workflow_executor.rs:4:25
+  |
+4 | use tokio::sync::{mpsc, oneshot};
+  |                         ^^^^^^^
+
+warning: unused import: `warn`
+ --> core\src\workflow_executor.rs:7:28
+  |
+7 | use tracing::{error, info, warn};
+  |                            ^^^^
+
+warning: unused import: `Instant`
+ --> core\src\workflow_scheduler.rs:3:27
+  |
+3 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+
+warning: unused imports: `Interval` and `interval`
+ --> core\src\workflow_scheduler.rs:4:19
+  |
+4 | use tokio::time::{interval, Interval};
+  |                   ^^^^^^^^  ^^^^^^^^
+
+warning: unused import: `Weekday`
+ --> core\src\workflow_scheduler.rs:6:49
+  |
+6 | use chrono::{DateTime, Utc, Datelike, Timelike, Weekday};
+  |                                                 ^^^^^^^
+
+warning: unused imports: `error` and `warn`
+ --> core\src\workflow_scheduler.rs:7:15
+  |
+7 | use tracing::{error, info, warn};
+  |               ^^^^^        ^^^^
+
+warning: unused import: `crate::workflow_engine::Workflow`
+ --> core\src\workflow_scheduler.rs:9:5
+  |
+9 | use crate::workflow_engine::Workflow;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+ --> core\src\workflow_variables.rs:3:17
+  |
+3 | use std::time::{Duration, Instant};
+  |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `Path`
+ --> core\src\script_library.rs:3:17
+  |
+3 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `uuid::Uuid`
+ --> core\src\script_library.rs:4:5
+  |
+4 | use uuid::Uuid;
+  |     ^^^^^^^^^^
+
+warning: unused imports: `TcpListener` and `TcpStream`
+  --> core\src\port_forward.rs:17:16
+   |
+17 | use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr};
+   |                ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `AtomicU64`
+  --> core\src\port_forward.rs:18:37
+   |
+18 | use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+   |                                     ^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> core\src\port_forward.rs:20:27
+   |
+20 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `mpsc`
+  --> core\src\port_forward.rs:23:19
+   |
+23 | use tokio::sync::{mpsc, RwLock};
+   |                   ^^^^
+
+warning: unused import: `interval`
+  --> core\src\port_forward.rs:25:19
+   |
+25 | use tokio::time::{interval, sleep};
+   |                   ^^^^^^^^
+
+warning: unused import: `RwLock`
+   --> core\src\lib.rs:263:22
+    |
+263 | use std::sync::{Arc, RwLock};
+    |                      ^^^^^^
+
+warning: unused variable: `base_manager`
+   --> core\src\connection_pool.rs:538:13
+    |
+538 |         let base_manager = self.base_manager.clone();
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_base_manager`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `timeout_secs`
+   --> core\src\workflow_executor.rs:382:9
+    |
+382 |         timeout_secs: Option<u64>,
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeout_secs`
+
+warning: unused variable: `create_dirs`
+   --> core\src\workflow_executor.rs:399:9
+    |
+399 |         create_dirs: bool,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_create_dirs`
+
+warning: unused variable: `create_dirs`
+   --> core\src\workflow_executor.rs:413:9
+    |
+413 |         create_dirs: bool,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_create_dirs`
+
+warning: unused variable: `local_stream`
+   --> core\src\port_forward.rs:901:9
+    |
+901 |     mut local_stream: TokioTcpStream,
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_local_stream`
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:930:21
+    |
+930 |                 let mut local_closed = false;
+    |                     ----^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:931:21
+    |
+931 |                 let mut channel_closed = false;
+    |                     ----^^^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:901:5
+    |
+901 |     mut local_stream: TokioTcpStream,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `session`
+   --> core\src\port_forward.rs:566:17
+    |
+566 |             let session = ssh_session.blocking_lock();
+    |                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session`
+
+warning: unused variable: `stats_clone`
+    --> core\src\port_forward.rs:1104:17
+     |
+1104 |             let stats_clone = stats.clone();
+     |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stats_clone`
+
+warning: unused variable: `stop_clone`
+    --> core\src\port_forward.rs:1105:17
+     |
+1105 |             let stop_clone = stop_signal.clone();
+     |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stop_clone`
+
+warning: variable does not need to be mutable
+   --> core\src\port_forward.rs:713:21
+    |
+713 |         if let Some(mut forward) = forwards.remove(rule_id) {
+    |                     ----^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: unused import: `Write`
+ --> core\src\config_import_export.rs:3:21
+  |
+3 | use std::io::{Read, Write};
+  |                     ^^^^^
+
+warning: unused import: `Read`
+ --> core\src\config_import_export.rs:3:15
+  |
+3 | use std::io::{Read, Write};
+  |               ^^^^
+
+warning: unused import: `Write`
+  --> core\src\port_forward.rs:16:21
+   |
+16 | use std::io::{Read, Write};
+   |                     ^^^^^
+
+warning: unused import: `Read`
+  --> core\src\port_forward.rs:16:15
+   |
+16 | use std::io::{Read, Write};
+   |               ^^^^
+
+warning: unused variable: `password`
+   --> core\src\vault.rs:490:25
+    |
+490 |             if let Some(password) = options.master_password {
+    |                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_password`
+
+warning: unused variable: `encrypted`
+   --> core\src\vault.rs:603:17
+    |
+603 |             let encrypted = std::fs::read(&items_path)
+    |                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_encrypted`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:746:13
+    |
+746 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:784:13
+    |
+784 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:816:13
+    |
+816 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:849:13
+    |
+849 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> core\src\vault.rs:876:13
+    |
+876 |         let mut metadata = VaultItemMetadata {
+    |             ----^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `initial_variables`
+  --> core\src\workflow_executor.rs:58:9
+   |
+58 |         initial_variables: HashMap<String, serde_json::Value>,
+   |         ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_initial_variables`
+
+warning: unused variable: `cat`
+   --> core\src\script_library.rs:322:25
+    |
+322 |         if let Some(ref cat) = options.category {
+    |                         ^^^ help: if this is intentional, prefix it with an underscore: `_cat`
+
+warning: method `health_status` is never used
+   --> core\src\connection_pool.rs:328:8
+    |
+254 | impl HealthCheckWorker {
+    | ---------------------- method in this implementation
+...
+328 |     fn health_status(&self) -> ConnectionHealth {
+    |        ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: fields `ssh_tx` and `result_rx` are never read
+  --> core\src\workflow_executor.rs:17:5
+   |
+13 | pub struct WorkflowExecutor {
+   |            ---------------- fields in this struct
+...
+17 |     ssh_tx: Option<mpsc::UnboundedSender<SshCommand>>,
+   |     ^^^^^^
+18 |     /// Result receiver
+19 |     result_rx: Option<mpsc::UnboundedReceiver<StepExecutionResult>>,
+   |     ^^^^^^^^^
+
+warning: field `listener` is never read
+   --> core\src\port_forward.rs:234:5
+    |
+222 | struct ActiveForward {
+    |        ------------- field in this struct
+...
+234 |     listener: Option<Arc<TokioTcpListener>>,
+    |     ^^^^^^^^
+    |
+    = note: `ActiveForward` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `forward_to_local` is never used
+   --> core\src\port_forward.rs:971:4
+    |
+971 | fn forward_to_local(_channel: ssh2::Channel, _local_addr: SocketAddr) -> Result<(), LiteError> {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> core\src\script_library.rs:286:19
+    |
+286 |     pub fn search(&self, options: ScriptSearchOptions) -> Vec<ScriptSearchResult> {
+    |                   ^^^^^ the lifetime is elided here           ------------------ the same lifetime is hidden here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+    = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+    |
+286 |     pub fn search(&self, options: ScriptSearchOptions) -> Vec<ScriptSearchResult<'_>> {
+    |                                                                                 ++++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> core\src\script_library.rs:401:26
+    |
+401 |     pub fn get_favorites(&self) -> Vec<ScriptSearchResult> {
+    |                          ^^^^^         ------------------ the same lifetime is hidden here
+    |                          |
+    |                          the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+401 |     pub fn get_favorites(&self) -> Vec<ScriptSearchResult<'_>> {
+    |                                                          ++++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> core\src\script_library.rs:420:30
+    |
+420 |     pub fn get_recently_used(&self, limit: usize) -> Vec<ScriptSearchResult> {
+    |                              ^^^^^                       ------------------ the same lifetime is hidden here
+    |                              |
+    |                              the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+420 |     pub fn get_recently_used(&self, limit: usize) -> Vec<ScriptSearchResult<'_>> {
+    |                                                                            ++++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> core\src\script_library.rs:438:26
+    |
+438 |     pub fn get_most_used(&self, limit: usize) -> Vec<ScriptSearchResult> {
+    |                          ^^^^^                       ------------------ the same lifetime is hidden here
+    |                          |
+    |                          the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+438 |     pub fn get_most_used(&self, limit: usize) -> Vec<ScriptSearchResult<'_>> {
+    |                                                                        ++++
+
+warning: unused `Result` that must be used
+   --> core\src\port_forward.rs:565:9
+    |
+565 | /         tokio::task::spawn_blocking(move || {
+566 | |             let session = ssh_session.blocking_lock();
+...   |
+578 | |             Ok::<(), LiteError>(())
+579 | |         }).await.map_err(|e| LiteError::Io(format!("Remote forward task failed: {}", e)))?;
+    | |__________________________________________________________________________________________^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+565 |         let _ = tokio::task::spawn_blocking(move || {
+    |         +++++++
+
+warning: `easyssh-core` (lib) generated 58 warnings (run `cargo fix --lib -p easyssh-core` to apply 33 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 18.49s

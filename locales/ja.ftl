@@ -1,0 +1,387 @@
+### EasySSH - 日本語翻訳
+
+## アプリ情報
+-app-name = EasySSH
+-app-description = 全プラットフォーム対応のモダンSSHクライアント
+-app-version = バージョン { $version }
+
+## 一般UI
+-general-ok = OK
+-general-cancel = キャンセル
+-general-save = 保存
+-general-delete = 削除
+-general-edit = 編集
+-general-add = 追加
+-general-remove = 削除
+-general-close = 閉じる
+-general-back = 戻る
+-general-next = 次へ
+-general-finish = 完了
+-general-apply = 適用
+-general-reset = リセット
+-general-search = 検索
+-general-filter = フィルター
+-general-loading = 読み込み中...
+-general-empty = 空
+-general-error = エラー
+-general-success = 成功
+-general-warning = 警告
+-general-info = 情報
+-general-confirm = 確認
+-general-yes = はい
+-general-no = いいえ
+-general-copy = コピー
+-general-paste = 貼り付け
+-general-cut = 切り取り
+-general-select-all = すべて選択
+-general-undo = 元に戻す
+-general-redo = やり直し
+-general-refresh = 更新
+-general-reload = 再読み込み
+-general-settings = 設定
+-general-preferences = 環境設定
+-general-help = ヘルプ
+-general-about = EasySSHについて
+-general-feedback = フィードバック
+-general-donate = 寄付
+-general-exit = 終了
+-general-quit = 終了
+
+## メインウィンドウ
+-main-title = { -app-name }
+-main-sidebar-servers = サーバー
+-main-sidebar-groups = グループ
+-main-sidebar-snippets = スニペット
+-main-sidebar-history = 履歴
+-main-sidebar-settings = 設定
+-main-sidebar-add-server = サーバーを追加
+-main-sidebar-add-group = グループを追加
+-main-sidebar-import = インポート
+-main-sidebar-export = エクスポート
+-main-status-ready = 準備完了
+-main-status-connecting = 接続中...
+-main-status-connected = 接続済み
+-main-status-disconnected = 切断
+-main-status-error = エラー
+-main-status-syncing = 同期中...
+
+## サーバーリスト
+-server-list-title = サーバー一覧
+-server-list-empty = サーバーが設定されていません
+-server-list-empty-hint = 「サーバーを追加」をクリックして開始
+-server-list-search-placeholder = サーバーを検索...
+-server-list-filter-all = すべてのサーバー
+-server-list-filter-favorites = お気に入り
+-server-list-filter-recent = 最近接続
+-server-list-sort-name = 名前
+-server-list-sort-host = ホスト
+-server-list-sort-last-connected = 最終接続日
+-server-list-context-connect = 接続
+-server-list-context-edit = 編集
+-server-list-context-delete = 削除
+-server-list-context-duplicate = 複製
+-server-list-context-copy-ip = IPをコピー
+-server-list-context-add-to-group = グループに追加
+-server-list-context-remove-from-group = グループから削除
+-server-group-uncategorized = 未分類
+
+## サーバー詳細
+-server-detail-title = サーバー詳細
+-server-detail-connect = 接続
+-server-detail-disconnect = 切断
+-server-detail-edit = 編集
+-server-detail-delete = 削除
+-server-detail-name = 名前
+-server-detail-host = ホスト
+-server-detail-port = ポート
+-server-detail-username = ユーザー名
+-server-detail-auth-method = 認証方法
+-server-detail-auth-password = パスワード
+-server-detail-auth-key = SSHキー
+-server-detail-auth-agent = SSHエージェント
+-server-detail-group = グループ
+-server-detail-tags = タグ
+-server-detail-color = 色
+-server-detail-notes = メモ
+-server-detail-last-connected = 最終接続日
+-server-detail-never-connected = 未接続
+-server-detail-created = 作成日
+-server-detail-updated = 更新日
+-server-detail-connection-status = 接続状態
+-server-detail-terminal = ターミナル
+-server-detail-sftp = SFTP
+-server-detail-monitoring = 監視
+-server-detail-logs = ログ
+
+## サーバー追加/編集ダイアログ
+-server-dialog-add-title = サーバーを追加
+-server-dialog-edit-title = サーバーを編集
+-server-dialog-name-label = サーバー名
+-server-dialog-name-placeholder = 例：本番Webサーバー
+-server-dialog-host-label = ホスト/IPアドレス
+-server-dialog-host-placeholder = 例：192.168.1.100 または server.example.com
+-server-dialog-port-label = ポート
+-server-dialog-port-default = デフォルト：22
+-server-dialog-username-label = ユーザー名
+-server-dialog-username-placeholder = 例：root または admin
+-server-dialog-auth-label = 認証方法
+-server-dialog-auth-password-label = パスワード
+-server-dialog-auth-password-placeholder = パスワードを入力
+-server-dialog-auth-key-label = 秘密鍵
+-server-dialog-auth-key-select = キーファイルを選択
+-server-dialog-auth-key-passphrase = キーのパスフレーズ（オプション）
+-server-dialog-auth-agent-label = SSHエージェントを使用
+-server-dialog-group-label = グループ
+-server-dialog-group-none = グループなし
+-server-dialog-group-new = 新しいグループ...
+-server-dialog-tags-label = タグ
+-server-dialog-tags-placeholder = タグを追加、カンマ区切り
+-server-dialog-color-label = 色
+-server-dialog-advanced = 詳細設定
+-server-dialog-advanced-jump = ジャンプホスト
+-server-dialog-advanced-proxy = プロキシ
+-server-dialog-advanced-keepalive = キープアライブ間隔
+-server-dialog-save-and-connect = 保存して接続
+-server-dialog-save = 保存
+-server-dialog-test-connection = 接続テスト
+-server-dialog-test-success = 接続成功！
+-server-dialog-test-failed = 接続失敗：{ $error }
+-server-dialog-validation-required = { $field }は必須です
+-server-dialog-validation-invalid-port = ポートは1-65535の範囲である必要があります
+-server-dialog-validation-invalid-host = 無効なホストアドレス
+
+## グループ
+group-list-title = グループ一覧
+group-list-empty = グループが作成されていません
+group-list-add = 新しいグループ
+group-dialog-add-title = グループを作成
+group-dialog-edit-title = グループを編集
+group-dialog-name-label = グループ名
+group-dialog-name-placeholder = 例：本番サーバー
+group-dialog-parent-label = 親グループ（オプション）
+group-dialog-color-label = グループの色
+group-dialog-delete-confirm = グループ「{ $name }」を削除しますか？
+group-dialog-delete-warning = このグループのサーバーは未分類になります。
+
+## ターミナル
+-terminal-title = ターミナル
+-terminal-new-tab = 新しいタブ
+-terminal-close-tab = タブを閉じる
+-terminal-split-horizontal = 水平分割
+-terminal-split-vertical = 垂直分割
+-terminal-copy = コピー
+-terminal-paste = 貼り付け
+-terminal-select-all = すべて選択
+-terminal-find = 検索
+-terminal-clear = クリア
+-terminal-reset = リセット
+-terminal-zoom-in = 拡大
+-terminal-zoom-out = 縮小
+-terminal-zoom-reset = ズームをリセット
+-terminal-font-size = フォントサイズ
+-terminal-theme = テーマ
+-terminal-theme-dark = ダーク
+-terminal-theme-light = ライト
+-terminal-cursor-style = カーソルスタイル
+-terminal-cursor-blink = カーソルを点滅
+-terminal-alt-screen = 代替画面
+-terminal-mouse-reporting = マウスレポート
+-terminal-disconnected = セッションが切断されました。Enterキーで再接続。
+-terminal-reconnecting = 再接続中...
+-terminal-command-palette = コマンドパレット
+-terminal-sftp-open = SFTPパネルを開く
+
+## SFTP
+-sftp-title = SFTPファイル転送
+-sftp-local = ローカル
+-sftp-remote = リモート
+-sftp-upload = アップロード
+-sftp-download = ダウンロード
+-sftp-delete = 削除
+-sftp-rename = 名前変更
+-sftp-new-folder = 新しいフォルダ
+-sftp-refresh = 更新
+-sftp-transfer-progress = { $filename } を転送中（{ $progress }%）
+-sftp-transfer-complete = 転送完了：{ $filename }
+-sftp-transfer-error = 転送失敗：{ $error }
+-sftp-path-home = ホーム
+-sftp-path-root = ルート
+-sftp-context-upload = ここにアップロード
+-sftp-context-download = ダウンロード
+-sftp-context-delete = 削除
+-sftp-context-rename = 名前変更
+-sftp-context-properties = プロパティ
+
+## スニペット
+-snippets-title = スニペット
+-snippets-empty = スニペットが保存されていません
+-snippets-add = 新しいスニペット
+-snippets-edit = スニペットを編集
+-snippets-delete = スニペットを削除
+-snippets-run = スニペットを実行
+-snippets-name = 名前
+-snippets-content = 内容
+-snippets-variables = 変数
+-snippets-description = 説明
+-snippets-global = グローバルスニペット
+-snippets-server-specific = サーバー専用
+
+## 接続
+-connection-connecting = { $host } に接続中...
+-connection-connected = { $host } に接続しました
+-connection-disconnected = { $host } から切断しました
+-connection-error = 接続エラー：{ $error }
+-connection-auth-failed = 認証に失敗しました
+-connection-host-key-changed = 警告：リモートホストキーが変更されました！
+-connection-host-key-unknown = 不明なホストキー。承認しますか？
+-connection-timeout = 接続タイムアウト
+-connection-refused = 接続が拒否されました
+-connection-reset = ピアによる接続リセット
+-connection-retrying = 再試行中...（{ $attempt }/{ $max }）
+
+## 設定
+-settings-title = 設定
+-settings-general = 一般
+-settings-appearance = 外観
+-settings-terminal = ターミナル
+-settings-ssh = SSH
+-settings-advanced = 詳細
+-settings-language = 言語
+-settings-language-auto = 自動検出
+-settings-theme = テーマ
+-settings-theme-system = システムデフォルト
+-settings-theme-dark = ダーク
+-settings-theme-light = ライト
+-settings-font-size = フォントサイズ
+-settings-font-family = フォント
+-settings-show-tray-icon = システムトレイに表示
+-settings-minimize-to-tray = トレイに最小化
+-settings-startup = 起動
+-settings-startup-launch = システム起動時に起動
+-settings-startup-restore = 前回のセッションを復元
+-settings-updates = 更新
+-settings-updates-check = 更新を確認
+-settings-updates-auto = 更新を自動インストール
+-settings-shortcuts = キーボードショートカット
+-settings-shortcuts-new-tab = 新しいタブ
+-settings-shortcuts-close-tab = タブを閉じる
+-settings-shortcuts-next-tab = 次のタブ
+-settings-shortcuts-prev-tab = 前のタブ
+-settings-backup = バックアップと復元
+-settings-backup-export = 設定をエクスポート
+-settings-backup-import = 設定をインポート
+-settings-reset = デフォルトにリセット
+-settings-reset-confirm = すべての設定をデフォルトに戻しますか？
+
+## 暗号化とセキュリティ
+-security-unlock-title = EasySSHのロック解除
+-security-unlock-prompt = 続行するにはマスターパスワードを入力してください
+-security-unlock-button = ロック解除
+-security-forgot-password = パスワードを忘れましたか？
+-security-set-password = マスターパスワードを設定
+-security-change-password = マスターパスワードを変更
+-security-password-hint = パスワードヒント（オプション）
+-security-biometric-enable = { $type }を有効にする
+-security-biometric-type-face = Face ID
+-security-biometric-type-fingerprint = Touch ID
+-security-biometric-type-generic = 生体認証
+-security-auto-lock = 自動ロック
+-security-auto-lock-never = しない
+-security-auto-lock-1m = 1分
+-security-auto-lock-5m = 5分
+-security-auto-lock-15m = 15分
+-security-auto-lock-1h = 1時間
+-security-export-encrypted = エクスポートデータを暗号化
+
+## インポート/エクスポート
+-import-title = 設定をインポート
+-import-source = ソース
+-import-source-file = ファイルから
+-import-source-url = URLから
+-import-source-clipboard = クリップボードから
+-import-format = 形式
+-import-format-auto = 自動検出
+-import-format-json = JSON
+-import-format-csv = CSV
+-import-format-ssh-config = SSH設定
+-import-options = オプション
+-import-options-duplicate-skip = 重複をスキップ
+-import-options-duplicate-replace = 重複を置換
+-import-options-duplicate-merge = 既存とマージ
+-import-preview = プレビュー
+-import-items-count = { $count } 個のアイテムが見つかりました
+-import-success = インポート成功：{ $count } 個のアイテムをインポートしました
+-import-error = インポート失敗：{ $error }
+-export-title = 設定をエクスポート
+-export-format = エクスポート形式
+-export-what = エクスポート内容
+-export-what-all = すべてのデータ
+-export-what-servers = サーバーのみ
+-export-what-groups = グループのみ
+-export-what-snippets = スニペットのみ
+-export-encrypted = エクスポートを暗号化
+-export-password = エクスポートパスワード
+-export-success = エクスポート成功
+-export-error = エクスポート失敗：{ $error }
+
+## 監視（標準版/Pro版）
+-monitoring-title = システム監視
+-monitoring-cpu = CPU
+-monitoring-memory = メモリ
+-monitoring-disk = ディスク
+-monitoring-network = ネットワーク
+-monitoring-processes = プロセス
+-monitoring-refresh = 更新頻度
+-monitoring-alert-threshold = アラート閾値
+-monitoring-history = 履歴
+-monitoring-export-data = データをエクスポート
+
+## チーム機能（Pro版）
+-team-title = チーム管理
+-team-members = メンバー
+-team-roles = ロール
+-team-invite = メンバーを招待
+-team-remove = メンバーを削除
+-team-role-owner = オーナー
+-team-role-admin = 管理者
+-team-role-member = メンバー
+-team-role-viewer = 閲覧者
+-team-sync = チーム同期
+-team-audit = 監査ログ
+-team-shared-snippets = 共有スニペット
+
+## 通知
+-notify-connection-lost = 接続が切断されました：{ $server }
+-notify-transfer-complete = ファイル転送が完了しました
+-notify-transfer-failed = ファイル転送に失敗しました
+-notify-update-available = 更新が利用可能です：{ $version }
+-notify-copy-success = クリップボードにコピーしました
+
+## エラーメッセージ
+-error-generic = エラーが発生しました
+-error-not-found = リソースが見つかりません
+-error-permission = アクセスが拒否されました
+-error-network = ネットワークエラー
+-error-timeout = リクエストがタイムアウトしました
+-error-invalid-input = 無効な入力
+-error-database = データベースエラー
+-error-crypto = 暗号化エラー
+-error-ssh = SSHエラー：{ $message }
+-error-keychain = キーチェーンエラー
+-error-terminal = ターミナルエラー
+-error-import-failed = インポートに失敗しました
+-error-export-failed = エクスポートに失敗しました
+-error-file-not-found = ファイルが見つかりません：{ $path }
+-error-invalid-key = 無効なSSHキー
+-error-connection-failed = 接続に失敗しました
+
+## アクセシビリティ
+-a11y-terminal-label = ターミナルパネル
+-a11y-server-list-label = サーバーリスト
+-a11y-sidebar-label = サイドバーナビゲーション
+-a11y-close-dialog = ダイアログを閉じる
+-a11y-expand-section = セクションを展開
+-a11y-collapse-section = セクションを折りたたむ
+-a11y-more-options = その他のオプション
+-a11y-search-results = { $count } 件の検索結果
+-a11y-connection-status = 接続状態：{ $status }

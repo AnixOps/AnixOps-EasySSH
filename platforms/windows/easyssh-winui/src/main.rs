@@ -229,6 +229,7 @@ struct EasySSHApp {
     edit_error: Option<String>,
     editing_server_id: Option<String>,
     pending_edit_server_id: Option<String>,
+    pending_connect_server_id: Option<String>,
     show_manage_groups_dialog: bool,
     new_group_name: String,
     edit_group_id: Option<String>,
@@ -893,6 +894,7 @@ impl EasySSHApp {
             pending_delete_server_id: None,
             pending_delete_server_name: None,
             pending_edit_server_id: None,
+            pending_connect_server_id: None,
         }
     }
 
@@ -3613,12 +3615,11 @@ impl eframe::App for EasySSHApp {
                             ui.add_space(2.0);
                             let response = ui.add(btn);
                             if response.clicked() { self.selected_server = Some($server.id.clone()); }
-                            // Right-click context menu for delete
+                            // Right-click context menu for server actions
                             response.context_menu(|ui| {
                                 ui.set_max_width(150.0);
                                 if ui.button("Connect").clicked() {
-                                    self.selected_server = Some($server.id.clone());
-                                    self.start_connect();
+                                    self.pending_connect_server_id = Some($server.id.clone());
                                     ui.close_menu();
                                 }
                                 if ui.button("Edit").clicked() {
@@ -3627,7 +3628,8 @@ impl eframe::App for EasySSHApp {
                                 }
                                 ui.separator();
                                 if ui.button("Delete").clicked() {
-                                    self.quick_delete_server(&$server.id);
+                                    self.pending_delete_server_id = Some($server.id.clone());
+                                    self.pending_delete_server_name = Some($server.name.clone());
                                     ui.close_menu();
                                 }
                             });
@@ -3733,6 +3735,19 @@ impl eframe::App for EasySSHApp {
                     }
                 });
             });
+
+        // Process pending actions from context menu
+        if let Some(server_id) = self.pending_connect_server_id.take() {
+            self.selected_server = Some(server_id);
+            self.start_connect();
+        }
+        if let Some(server_id) = self.pending_edit_server_id.take() {
+            self.selected_server = Some(server_id);
+            self.start_edit_server();
+        }
+        if self.pending_delete_server_id.is_some() && !self.show_delete_confirm {
+            self.show_delete_confirm = true;
+        }
 
         // Snippets Panel
         self.render_snippets_panel(ctx);

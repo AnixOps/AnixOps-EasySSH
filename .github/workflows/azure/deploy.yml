@@ -1,0 +1,102 @@
+name: Deploy to Azure
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      region:
+        required: false
+        type: string
+        default: 'eastus'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      region:
+        description: 'Azure Region'
+        required: false
+        default: 'eastus'
+
+env:
+  AZURE_REGION: ${{ inputs.region || 'eastus' }}
+  RESOURCE_GROUP: easyssh-${{ inputs.environment || 'staging' }}-rg
+  ACR_NAME: easyssh${{ inputs.environment || 'staging' }}acr
+  APP_NAME: easyssh-${{ inputs.environment || 'staging' }}
+
+jobs:
+  # ============================================================================
+  # Azure Deployment
+  # ============================================================================
+  deploy-azure:
+    name: Deploy to Azure ${{ inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'staging' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_NAME }}.azurecr.io
+          username: ${{ secrets.AZURE_CLIENT_ID }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Build and Push Image
+        run: |
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/easyssh:${{ github.sha }} -f docker/lite/Dockerfile .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/easyssh:${{ github.sha }}
+
+      - name: Deploy to Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          appSourcePath: .
+          acrName: ${{ env.ACR_NAME }}
+          containerAppName: ${{ env.APP_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          imageToDeploy: ${{ env.ACR_NAME }}.azurecr.io/easyssh:${{ github.sha }}
+
+      - name: Deploy to AKS
+        if: ${{ inputs.environment == 'production' }}
+        uses: azure/k8s-deploy@v1
+        with:
+          namespace: easyssh
+          manifests: |
+            deploy/k8s/deployment.yaml
+            deploy/k8s/service.yaml
+          images: |
+            ${{ env.ACR_NAME }}.azurecr.io/easyssh:${{ github.sha }}
+
+      - name: Update Traffic Manager
+        if: ${{ inputs.environment == 'production' }}
+        run: |
+          echo "Updating traffic manager endpoint..."
+          # Update traffic manager to point to new deployment
+
+      - name: Run Health Checks
+        run: |
+          echo "Running health checks..."
+          # Add health check logic
+
+      - name: Notify Deployment
+        if: always()
+        run: |
+          echo "Azure deployment to ${{ inputs.environment }}: ${{ job.status }}"

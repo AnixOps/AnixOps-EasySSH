@@ -1,0 +1,23 @@
+[package]
+name = "api-tester-tauri"
+version = "0.1.0"
+edition = "2021"
+authors = ["EasySSH Team"]
+description = "Tauri commands for API testing tool"
+license = "MIT"
+
+[lib]
+name = "api_tester_tauri"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[dependencies]
+api-tester-core = { path = "../api-core" }
+tauri = { version = "2.0", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dependencies.tauri-macros]
+version = "2.0"

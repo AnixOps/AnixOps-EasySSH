@@ -1,6 +1,9 @@
+#![allow(dead_code)]
+
 use std::ffi::{c_char, c_void, CStr, CString};
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 pub struct BridgeHandle {
     ptr: *mut c_void,
 }
@@ -21,6 +24,7 @@ pub struct GroupViewModel {
     pub name: String,
 }
 
+#[allow(dead_code)]
 extern "C" {
     fn easyssh_init() -> *mut c_void;
     fn easyssh_destroy(handle: *mut c_void);
@@ -29,6 +33,7 @@ extern "C" {
     fn easyssh_connect_native(handle: *mut c_void, id: *const c_char) -> i32;
 }
 
+#[allow(dead_code)]
 impl BridgeHandle {
     pub fn new() -> anyhow::Result<Self> {
         let ptr = unsafe { easyssh_init() };
@@ -65,6 +70,7 @@ impl BridgeHandle {
     }
 }
 
+#[allow(dead_code)]
 impl Drop for BridgeHandle {
     fn drop(&mut self) {
         if !self.ptr.is_null() {

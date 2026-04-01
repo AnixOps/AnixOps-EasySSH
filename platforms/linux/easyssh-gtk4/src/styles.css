@@ -37,3 +37,158 @@
     border-radius: 12px;
     margin: 8px;
 }
+
+/* Additional styles */
+
+.server-sidebar {
+    background-color: @sidebar_bg_color;
+    border-right: 1px solid @borders;
+}
+
+.server-row {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 2px 6px;
+}
+
+.server-row:hover {
+    background-color: alpha(@accent_color, 0.1);
+}
+
+.server-row:selected {
+    background-color: alpha(@accent_color, 0.15);
+}
+
+/* Group header styling */
+.group-header {
+    font-weight: bold;
+    padding: 4px 12px;
+    color: alpha(@window_fg_color, 0.7);
+}
+
+/* Status indicators */
+.status-unknown {
+    color: alpha(@window_fg_color, 0.4);
+}
+
+/* Terminal styling */
+.terminal-view {
+    background-color: #1a1d23;
+    color: #d0d5e0;
+    font-family: "Monospace", "Consolas", monospace;
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.terminal-output {
+    font-family: "Monospace", "Consolas", monospace;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Monitor panel */
+.monitor-panel {
+    background-color: alpha(@card_bg_color, 0.5);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.monitor-value {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.monitor-label {
+    font-size: 12px;
+    color: alpha(@window_fg_color, 0.6);
+}
+
+/* Search entry */
+.search-entry {
+    border-radius: 20px;
+    padding: 6px 12px;
+}
+
+/* Dialog buttons */
+.dialog-actions {
+    padding: 12px;
+    border-top: 1px solid @borders;
+}
+
+/* Connection status badge */
+.status-badge {
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.status-badge-connected {
+    background-color: alpha(@success_color, 0.15);
+    color: @success_color;
+}
+
+.status-badge-disconnected {
+    background-color: alpha(@error_color, 0.15);
+    color: @error_color;
+}
+
+/* Empty state */
+.empty-state {
+    color: alpha(@window_fg_color, 0.5);
+}
+
+.empty-state-icon {
+    opacity: 0.3;
+}
+
+/* Card styling */
+.info-card {
+    background-color: @card_bg_color;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+/* Favorite button */
+.favorite-button {
+    padding: 4px;
+    border-radius: 50%;
+}
+
+.favorite-button:hover {
+    background-color: alpha(@warning_color, 0.1);
+}
+
+/* Session tabs */
+.session-tab {
+    padding: 6px 12px;
+    border-radius: 4px;
+    margin-right: 4px;
+}
+
+.session-tab-active {
+    background-color: alpha(@success_color, 0.2);
+    color: @success_color;
+}
+
+/* File browser */
+.file-row {
+    padding: 6px 12px;
+}
+
+.file-row:hover {
+    background-color: alpha(@accent_color, 0.1);
+}
+
+.file-row-selected {
+    background-color: alpha(@accent_color, 0.15);
+}
+
+.file-icon-folder {
+    color: @accent_color;
+}
+
+.file-icon-file {
+    color: alpha(@window_fg_color, 0.6);
+}

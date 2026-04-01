@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EasySSH WiX Installer Configuration
+  Builds MSI installer for Windows
+
+  Build command:
+    candle EasySSH.wxs -arch x64 -out build/
+    light build/EasySSH.wixobj -ext WixUIExtension -out EasySSH-0.3.0-x64.msi
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="EasySSH"
+    Language="1033"
+    Version="0.3.0"
+    Manufacturer="AnixOps"
+    UpgradeCode="A8C3D4E5-F6B7-8901-2345-6789ABCDEF01"
+  >
+    <Package
+      Id="*"
+      Description="EasySSH - Native SSH Client for Windows"
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perUserOrMachine"
+      InstallPrivileges="elevated"
+      Platform="x64"
+    />
+
+    <!-- Major upgrade - remove previous versions -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of EasySSH is already installed."
+      AllowSameVersionUpgrades="no"
+    />
+
+    <!-- Media -->
+    <Media Id="1" Cabinet="EasySSH.cab" EmbedCab="yes" />
+
+    <!-- Properties -->
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/anixops/easyssh" />
+    <Property Id="ARPURLINFOABOUT" Value="https://docs.anixops.com/easyssh" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/anixops/easyssh/releases" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <!-- Always install for current user unless explicitly elevated -->
+    <Property Id="ALLUSERS" Value="2" />
+    <Property Id="MSIINSTALLPERUSER" Value="1" />
+
+    <!-- Features -->
+    <Feature Id="ProductFeature" Title="EasySSH" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="ProgramMenuComponents" />
+      <ComponentGroupRef Id="DesktopComponents" />
+    </Feature>
+
+    <!-- Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- Program Files -->
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="ManufacturerFolder" Name="AnixOps">
+          <Directory Id="INSTALLFOLDER" Name="EasySSH">
+            <Component Id="AppComponent" Guid="B1C2D3E4-F5A6-7890-1234-567890ABCDEF">
+              <File Id="EasySSHExe" Source="$(var.SourceDir)\EasySSH.exe" Name="EasySSH.exe" KeyPath="yes">
+                <Shortcut
+                  Id="StartMenuShortcut"
+                  Directory="ApplicationProgramsFolder"
+                  Name="EasySSH"
+                  Description="Native SSH Client"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon.ico"
+                  Advertise="yes"
+                />
+              </File>
+              <File Id="IconFile" Source="$(var.SourceDir)\icon.ico" Name="icon.ico" />
+              <File Id="LicenseFile" Source="$(var.SourceDir)\LICENSE.txt" Name="LICENSE.txt" />
+              <File Id="ReadmeFile" Source="$(var.SourceDir)\README.txt" Name="README.txt" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="EasySSH">
+          <Component Id="ApplicationShortcut" Guid="C2D3E4F5-A6B7-8901-2345-6789ABCDEF12">
+            <Shortcut
+              Id="UninstallProduct"
+              Name="Uninstall EasySSH"
+              Description="Uninstalls EasySSH"
+              Target="[SystemFolder]msiexec.exe"
+              Arguments="/x [ProductCode]"
+              Icon="AppIcon.ico"
+            />
+            <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+            <RegistryValue
+              Root="HKCU"
+              Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\EasySSH"
+              Name="Installed"
+              Type="integer"
+              Value="1"
+              KeyPath="yes"
+            />
+          </Component>
+        </Directory>
+      </Directory>
+
+      <!-- Desktop -->
+      <Directory Id="DesktopFolder">
+        <Component Id="DesktopShortcut" Guid="D3E4F5A6-B7C8-9012-3456-789ABCDEF23">
+          <Condition>INSTALLDESKTOPSHORTCUT</Condition>
+          <Shortcut
+            Id="DesktopShortcut"
+            Directory="DesktopFolder"
+            Name="EasySSH"
+            Description="Native SSH Client"
+            Target="[#EasySSHExe]"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon.ico"
+          />
+          <RegistryValue
+            Root="HKCU"
+            Key="Software\AnixOps\EasySSH"
+            Name="DesktopShortcut"
+            Type="integer"
+            Value="1"
+            KeyPath="yes"
+          />
+        </Component>
+      </Directory>
+    </Directory>
+
+    <!-- Component Groups -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <ComponentRef Id="AppComponent" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="ProgramMenuComponents" Directory="ApplicationProgramsFolder">
+      <ComponentRef Id="ApplicationShortcut" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="DesktopComponents" Directory="DesktopFolder">
+      <ComponentRef Id="DesktopShortcut" />
+    </ComponentGroup>
+
+    <!-- Icons -->
+    <Icon Id="AppIcon.ico" SourceFile="$(var.SourceDir)\icon.ico" />
+
+    <!-- UI Configuration -->
+    <UIRef Id="WixUI_InstallDir" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <!-- Custom UI Properties -->
+    <Property Id="INSTALLDESKTOPSHORTCUT" Value="1" />
+    <Property Id="WIXUI_BGPATH" Value="$(var.SourceDir)\bg.bmp" />
+    <Property Id="WIXUI_INSTALLDIRICON" Value="AppIcon.ico" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch EasySSH" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+    <!-- Custom Actions -->
+    <CustomAction
+      Id="LaunchApplication"
+      BinaryKey="WixCA"
+      DllEntry="WixShellExec"
+      Impersonate="yes"
+      Execute="immediate"
+      Return="ignore"
+    />
+
+    <!-- Launch after install -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <CustomActionRef Id="LaunchApplication" />
+
+    <!-- Windows Version Check -->
+    <Condition Message="This application requires Windows 10 or later.">
+      <![CDATA[Installed OR (VersionNT >= 603)]]>
+    </Condition>
+
+    <!-- EULA -->
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.SourceDir)\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.SourceDir)\dialog.bmp" />
+
+  </Product>
+</Wix>

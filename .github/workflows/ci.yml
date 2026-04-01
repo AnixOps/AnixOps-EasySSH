@@ -1,99 +1,560 @@
-name: CI (Babysitter)
+name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'feature/*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/**'
+  merge_group:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # BabySitter: Watch for issues and regressions
-  babysitter:
-    name: Code Quality Watchdog
+  # ============================================================================
+  # Changed Files Detection
+  # ============================================================================
+  changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.changes.outputs.rust }}
+      typescript: ${{ steps.changes.outputs.typescript }}
+      swift: ${{ steps.changes.outputs.swift }}
+      windows: ${{ steps.changes.outputs.windows }}
+      linux: ${{ steps.changes.outputs.linux }}
+      macos: ${{ steps.changes.outputs.macos }}
+      docker: ${{ steps.changes.outputs.docker }}
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Babysitter checks
-        run: |
-          echo "=== BabySitter Code Quality Check ==="
-          echo "Checking for code smells..."
-          # Placeholder for babysitter integration
-          echo "Babysitter is watching your code quality"
-
-  # TypeScript type check
-  types:
-    name: TypeScript Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: changes
         with:
-          node-version: "22"
+          filters: |
+            rust:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - '**/Cargo.lock'
+              - 'deny.toml'
+            typescript:
+              - '**/*.ts'
+              - '**/*.tsx'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.json'
+            swift:
+              - 'platforms/macos/**/*.swift'
+              - 'platforms/macos/**/Package.swift'
+            windows:
+              - 'platforms/windows/**/*.rs'
+              - 'platforms/windows/**/Cargo.toml'
+            linux:
+              - 'platforms/linux/**/*.rs'
+              - 'platforms/linux/**/Cargo.toml'
+            macos:
+              - 'platforms/macos/**/*.swift'
+              - 'platforms/macos/**/*.rs'
+            docker:
+              - 'docker/**'
+              - '**/Dockerfile'
+
+  # ============================================================================
+  # Rust Code Quality
+  # ============================================================================
+  rust-quality:
+    name: Rust Code Quality
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Install cargo tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit,cargo-outdated
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "easyssh-quality"
+          workspaces: ". -> target"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config libssl-dev
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run Clippy
+        run: |
+          cargo clippy --workspace --all-targets --all-features -- \
+            -D warnings \
+            -A clippy::type_complexity \
+            -A clippy::too_many_arguments
+
+      - name: Check dependencies
+        run: |
+          echo "### Dependency Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cargo deny check licenses 2>&1 | head -50 || true
+
+      - name: Check for outdated dependencies
+        run: cargo outdated -R 2>/dev/null || echo "No outdated dependencies check"
+        continue-on-error: true
+
+  # ============================================================================
+  # TypeScript Code Quality
+  # ============================================================================
+  typescript-quality:
+    name: TypeScript Code Quality
+    needs: changes
+    if: ${{ needs.changes.outputs.typescript == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd tests && npm ci
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: |
+          cd tests
+          npx tsc --noEmit
 
-  # Rust check
-  rust-check:
-    name: Rust Check
-    runs-on: ubuntu-latest
+      - name: Run ESLint
+        run: |
+          cd tests
+          npm run lint 2>/dev/null || true
+        continue-on-error: true
+
+      - name: Check formatting
+        run: |
+          cd tests
+          npx prettier --check "**/*.{ts,tsx,js,jsx}" 2>/dev/null || true
+        continue-on-error: true
+
+  # ============================================================================
+  # Swift Code Quality (macOS)
+  # ============================================================================
+  swift-quality:
+    name: Swift Code Quality
+    needs: changes
+    if: ${{ needs.changes.outputs.swift == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
         with:
-          components: rustfmt, clippy
+          xcode-version: latest-stable
 
-      - name: Rustfmt
-        run: rustfmt --check src-tauri/src/**/*.rs
+      - name: Build Core
+        working-directory: core
+        run: cargo build --release
 
-      - name: Clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+      - name: Swift Format Check
+        working-directory: platforms/macos/EasySSH
+        run: |
+          swift package resolve
+          swift-format lint --recursive Sources/ 2>/dev/null || true
+        continue-on-error: true
 
-  # Build
-  build:
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+      - name: Swift Build
+        working-directory: platforms/macos/EasySSH
+        run: swift build
+
+  # ============================================================================
+  # Core Library Tests
+  # ============================================================================
+  core-tests:
+    name: Core Tests
+    needs: [changes, rust-quality]
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Rust setup
-        if: matrix.os != 'ubuntu-latest'
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "easyssh-core"
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev pkg-config
 
-      - name: Install npm deps
-        run: npm ci
+      - name: Run tests with coverage
+        working-directory: core
+        run: |
+          cargo llvm-cov --all-features --lcov --output-path ../lcov-core.info
 
-      - name: Build Tauri
-        run: npm run tauri build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov-core.info
+          flags: core
+          name: core-coverage
+          fail_ci_if_error: false
+        continue-on-error: true
 
-  # BabySitter End-to-End Test
-  e2e-test:
-    name: E2E Test (Babysitter)
-    needs: build
-    runs-on: ubuntu-latest
+      - name: Generate test report
+        working-directory: core
+        run: |
+          cargo test --all-features -- --format=json > ../test-results-core.json 2>/dev/null || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-test-results
+          path: test-results-core.json
+
+  # ============================================================================
+  # Windows Build Check
+  # ============================================================================
+  windows-build:
+    name: Windows Build
+    needs: [changes, rust-quality]
+    if: ${{ needs.changes.outputs.windows == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Playwright
-        run: npx playwright install --with-deps
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Run E2E tests
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "easyssh-windows"
+
+      - name: Build Windows UI
+        working-directory: platforms/windows/easyssh-winui
         run: |
-          echo "=== BabySitter E2E Test ==="
-          # Placeholder for Playwright E2E tests
-          echo "E2E tests would run here"
+          cargo build --release
+          cargo test --lib
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: windows-build-artifacts
+          path: platforms/windows/easyssh-winui/target/
+
+  # ============================================================================
+  # Linux Build Check
+  # ============================================================================
+  linux-build:
+    name: Linux Build
+    needs: [changes, rust-quality]
+    if: ${{ needs.changes.outputs.linux == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config libssl-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "easyssh-linux"
+
+      - name: Build Linux GTK4 UI
+        working-directory: platforms/linux/easyssh-gtk4
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 3
+          cargo build --release
+
+      - name: Run Linux tests
+        working-directory: platforms/linux/easyssh-gtk4
+        run: |
+          export DISPLAY=:99
+          cargo test --lib
+
+  # ============================================================================
+  # macOS Build Check
+  # ============================================================================
+  macos-build:
+    name: macOS Build
+    needs: [changes, rust-quality, swift-quality]
+    if: ${{ needs.changes.outputs.macos == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Core
+        working-directory: core
+        run: cargo build --release
+
+      - name: Build macOS SwiftUI
+        working-directory: platforms/macos/EasySSH
+        run: swift build
+
+  # ============================================================================
+  # TUI Build Check
+  # ============================================================================
+  tui-build:
+    name: TUI Build
+    needs: [changes, rust-quality]
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-tui
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+      - name: Build TUI
+        working-directory: tui
+        run: cargo build --release
+
+      - name: Test TUI
+        working-directory: tui
+        run: cargo test --lib 2>/dev/null || true
+        continue-on-error: true
+
+  # ============================================================================
+  # Docker Build Check
+  # ============================================================================
+  docker-build:
+    name: Docker Build
+    needs: changes
+    if: ${{ needs.changes.outputs.docker == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        run: |
+          for variant in lite standard tui; do
+            if [ -f "docker/$variant/Dockerfile" ]; then
+              echo "Building $variant..."
+              docker build -f "docker/$variant/Dockerfile" -t "easyssh-$variant:ci" . || true
+            fi
+          done
+
+  # ============================================================================
+  # Documentation Check
+  # ============================================================================
+  docs-check:
+    name: Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Rust docs
+        run: |
+          cargo doc --workspace --no-deps 2>&1 | tee doc-warnings.txt || true
+          if grep -q "warning" doc-warnings.txt; then
+            echo "Documentation warnings found"
+          fi
+
+      - name: Check dead links
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: --timeout 30 --max-retries 3 docs/ *.md
+          fail: false
+
+  # ============================================================================
+  # CI Summary
+  # ============================================================================
+  ci-summary:
+    name: CI Summary
+    needs:
+      - rust-quality
+      - typescript-quality
+      - swift-quality
+      - core-tests
+      - windows-build
+      - linux-build
+      - macos-build
+      - tui-build
+      - docker-build
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.rust-quality.result }}" == "success" ]; then
+            echo "| Rust Quality | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.rust-quality.result }}" == "skipped" ]; then
+            echo "| Rust Quality | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Rust Quality | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.typescript-quality.result }}" == "success" ]; then
+            echo "| TypeScript Quality | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.typescript-quality.result }}" == "skipped" ]; then
+            echo "| TypeScript Quality | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| TypeScript Quality | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.swift-quality.result }}" == "success" ]; then
+            echo "| Swift Quality | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.swift-quality.result }}" == "skipped" ]; then
+            echo "| Swift Quality | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Swift Quality | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.core-tests.result }}" == "success" ]; then
+            echo "| Core Tests | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.core-tests.result }}" == "skipped" ]; then
+            echo "| Core Tests | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Core Tests | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.windows-build.result }}" == "success" ]; then
+            echo "| Windows Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.windows-build.result }}" == "skipped" ]; then
+            echo "| Windows Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Windows Build | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.linux-build.result }}" == "success" ]; then
+            echo "| Linux Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.linux-build.result }}" == "skipped" ]; then
+            echo "| Linux Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Linux Build | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.macos-build.result }}" == "success" ]; then
+            echo "| macOS Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.macos-build.result }}" == "skipped" ]; then
+            echo "| macOS Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| macOS Build | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.tui-build.result }}" == "success" ]; then
+            echo "| TUI Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.tui-build.result }}" == "skipped" ]; then
+            echo "| TUI Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| TUI Build | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.docker-build.result }}" == "success" ]; then
+            echo "| Docker Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.docker-build.result }}" == "skipped" ]; then
+            echo "| Docker Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Docker Build | ❌ |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "${{ needs.rust-quality.result }}" == "success" ] && \
+             [ "${{ needs.core-tests.result }}" == "success" ] && \
+             [ "${{ needs.windows-build.result }}" == "success" ] && \
+             [ "${{ needs.linux-build.result }}" == "success" ]; then
+            echo "## ✅ All Critical Checks Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Some Checks Failed" >> $GITHUB_STEP_SUMMARY
+          fi

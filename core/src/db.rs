@@ -139,6 +139,43 @@ impl Database {
                 level TEXT NOT NULL DEFAULT 'info',
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS remote_desktop_connections (
+                id TEXT PRIMARY KEY,
+                host_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                protocol TEXT NOT NULL DEFAULT 'rdp',
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 3389,
+                username TEXT NOT NULL,
+                domain TEXT,
+                password_encrypted BLOB,
+                use_ssh_tunnel INTEGER NOT NULL DEFAULT 0,
+                ssh_host TEXT,
+                ssh_port INTEGER DEFAULT 22,
+                ssh_username TEXT,
+                ssh_auth_type TEXT DEFAULT 'agent',
+                display_settings_json TEXT,
+                performance_settings_json TEXT,
+                local_resources_json TEXT,
+                experience_settings_json TEXT,
+                gateway_settings_json TEXT,
+                recording_settings_json TEXT,
+                group_id TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS remote_desktop_sessions (
+                id TEXT PRIMARY KEY,
+                connection_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'connecting',
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                recording_path TEXT,
+                recording_active INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (connection_id) REFERENCES remote_desktop_connections(id) ON DELETE CASCADE
+            );
             CREATE INDEX IF NOT EXISTS idx_hosts_group ON hosts(group_id);
             CREATE INDEX IF NOT EXISTS idx_hosts_name ON hosts(name);
             CREATE INDEX IF NOT EXISTS idx_hosts_status ON hosts(status);
@@ -146,10 +183,54 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_sessions_host ON sessions(host_id);
             CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_events(created_at);
             CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_events(target_type, target_id);
+            CREATE INDEX IF NOT EXISTS idx_rdp_connections_host ON remote_desktop_connections(host_id);
+            CREATE INDEX IF NOT EXISTS idx_rdp_connections_group ON remote_desktop_connections(group_id);
+            CREATE INDEX IF NOT EXISTS idx_rdp_sessions_connection ON remote_desktop_sessions(connection_id);
             CREATE TABLE IF NOT EXISTS config (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS k8s_clusters (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                kubeconfig_path TEXT,
+                kubeconfig_content TEXT,
+                context TEXT NOT NULL,
+                server_url TEXT NOT NULL,
+                current_namespace TEXT NOT NULL DEFAULT 'default',
+                is_connected INTEGER NOT NULL DEFAULT 0,
+                last_connected TEXT,
+                labels_json TEXT,
+                tags_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS k8s_namespaces (
+                id TEXT PRIMARY KEY,
+                cluster_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                status TEXT,
+                labels_json TEXT,
+                annotations_json TEXT,
+                created_at TEXT,
+                FOREIGN KEY (cluster_id) REFERENCES k8s_clusters(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS k8s_port_forwards (
+                id TEXT PRIMARY KEY,
+                cluster_id TEXT NOT NULL,
+                namespace TEXT NOT NULL,
+                pod_name TEXT,
+                service_name TEXT,
+                local_port INTEGER NOT NULL,
+                remote_port INTEGER NOT NULL,
+                protocol TEXT DEFAULT 'TCP',
+                is_active INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (cluster_id) REFERENCES k8s_clusters(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_k8s_clusters_name ON k8s_clusters(name);
+            CREATE INDEX IF NOT EXISTS idx_k8s_namespaces_cluster ON k8s_namespaces(cluster_id);
+            CREATE INDEX IF NOT EXISTS idx_k8s_port_forwards_cluster ON k8s_port_forwards(cluster_id);
             COMMIT;
             "#,
         )?;
@@ -891,6 +972,268 @@ impl Database {
         )?;
         Ok(())
     }
+
+    // ============ Remote Desktop Connection Methods ============
+
+    pub fn get_remote_desktop_connections(&self) -> Result<Vec<RemoteDesktopConnectionRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, host_id, name, protocol, host, port, username, domain, password_encrypted,
+                    use_ssh_tunnel, ssh_host, ssh_port, ssh_username, ssh_auth_type,
+                    display_settings_json, performance_settings_json, local_resources_json,
+                    experience_settings_json, gateway_settings_json, recording_settings_json,
+                    group_id, created_at, updated_at
+             FROM remote_desktop_connections ORDER BY name"
+        )?;
+
+        let connections = stmt
+            .query_map([], |row| {
+                Ok(RemoteDesktopConnectionRecord {
+                    id: row.get(0)?,
+                    host_id: row.get(1)?,
+                    name: row.get(2)?,
+                    protocol: row.get(3)?,
+                    host: row.get(4)?,
+                    port: row.get(5)?,
+                    username: row.get(6)?,
+                    domain: row.get(7)?,
+                    password_encrypted: row.get(8)?,
+                    use_ssh_tunnel: row.get::<_, i64>(9)? != 0,
+                    ssh_host: row.get(10)?,
+                    ssh_port: row.get(11)?,
+                    ssh_username: row.get(12)?,
+                    ssh_auth_type: row.get(13)?,
+                    display_settings_json: row.get(14)?,
+                    performance_settings_json: row.get(15)?,
+                    local_resources_json: row.get(16)?,
+                    experience_settings_json: row.get(17)?,
+                    gateway_settings_json: row.get(18)?,
+                    recording_settings_json: row.get(19)?,
+                    group_id: row.get(20)?,
+                    created_at: row.get(21)?,
+                    updated_at: row.get(22)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(connections)
+    }
+
+    pub fn get_remote_desktop_connection(&self, id: &str) -> Result<RemoteDesktopConnectionRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, host_id, name, protocol, host, port, username, domain, password_encrypted,
+                    use_ssh_tunnel, ssh_host, ssh_port, ssh_username, ssh_auth_type,
+                    display_settings_json, performance_settings_json, local_resources_json,
+                    experience_settings_json, gateway_settings_json, recording_settings_json,
+                    group_id, created_at, updated_at
+             FROM remote_desktop_connections WHERE id = ?"
+        )?;
+
+        let connection = stmt.query_row([id], |row| {
+            Ok(RemoteDesktopConnectionRecord {
+                id: row.get(0)?,
+                host_id: row.get(1)?,
+                name: row.get(2)?,
+                protocol: row.get(3)?,
+                host: row.get(4)?,
+                port: row.get(5)?,
+                username: row.get(6)?,
+                domain: row.get(7)?,
+                password_encrypted: row.get(8)?,
+                use_ssh_tunnel: row.get::<_, i64>(9)? != 0,
+                ssh_host: row.get(10)?,
+                ssh_port: row.get(11)?,
+                ssh_username: row.get(12)?,
+                ssh_auth_type: row.get(13)?,
+                display_settings_json: row.get(14)?,
+                performance_settings_json: row.get(15)?,
+                local_resources_json: row.get(16)?,
+                experience_settings_json: row.get(17)?,
+                gateway_settings_json: row.get(18)?,
+                recording_settings_json: row.get(19)?,
+                group_id: row.get(20)?,
+                created_at: row.get(21)?,
+                updated_at: row.get(22)?,
+            })
+        })?;
+
+        Ok(connection)
+    }
+
+    pub fn add_remote_desktop_connection(&self, connection: &NewRemoteDesktopConnection) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "INSERT INTO remote_desktop_connections
+             (id, host_id, name, protocol, host, port, username, domain, password_encrypted,
+              use_ssh_tunnel, ssh_host, ssh_port, ssh_username, ssh_auth_type,
+              display_settings_json, performance_settings_json, local_resources_json,
+              experience_settings_json, gateway_settings_json, recording_settings_json,
+              group_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                connection.id,
+                connection.host_id,
+                connection.name,
+                connection.protocol,
+                connection.host,
+                connection.port,
+                connection.username,
+                connection.domain,
+                connection.password_encrypted,
+                connection.use_ssh_tunnel as i64,
+                connection.ssh_host,
+                connection.ssh_port,
+                connection.ssh_username,
+                connection.ssh_auth_type,
+                connection.display_settings_json,
+                connection.performance_settings_json,
+                connection.local_resources_json,
+                connection.experience_settings_json,
+                connection.gateway_settings_json,
+                connection.recording_settings_json,
+                connection.group_id,
+                now,
+                now
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_remote_desktop_connection(&self, connection: &UpdateRemoteDesktopConnection) -> Result<(), LiteError> {
+        let now = chrono_now();
+        self.conn.execute(
+            "UPDATE remote_desktop_connections SET
+                host_id = ?, name = ?, protocol = ?, host = ?, port = ?, username = ?,
+                domain = ?, password_encrypted = ?, use_ssh_tunnel = ?, ssh_host = ?,
+                ssh_port = ?, ssh_username = ?, ssh_auth_type = ?, display_settings_json = ?,
+                performance_settings_json = ?, local_resources_json = ?, experience_settings_json = ?,
+                gateway_settings_json = ?, recording_settings_json = ?, group_id = ?, updated_at = ?
+             WHERE id = ?",
+            params![
+                connection.host_id,
+                connection.name,
+                connection.protocol,
+                connection.host,
+                connection.port,
+                connection.username,
+                connection.domain,
+                connection.password_encrypted,
+                connection.use_ssh_tunnel as i64,
+                connection.ssh_host,
+                connection.ssh_port,
+                connection.ssh_username,
+                connection.ssh_auth_type,
+                connection.display_settings_json,
+                connection.performance_settings_json,
+                connection.local_resources_json,
+                connection.experience_settings_json,
+                connection.gateway_settings_json,
+                connection.recording_settings_json,
+                connection.group_id,
+                now,
+                connection.id
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_remote_desktop_connection(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute(
+            "DELETE FROM remote_desktop_connections WHERE id = ?",
+            [id]
+        )?;
+        Ok(())
+    }
+
+    // ============ Remote Desktop Session Methods ============
+
+    pub fn get_remote_desktop_sessions(&self) -> Result<Vec<RemoteDesktopSessionRecord>, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, connection_id, status, started_at, ended_at, recording_path, recording_active
+             FROM remote_desktop_sessions ORDER BY started_at DESC"
+        )?;
+
+        let sessions = stmt
+            .query_map([], |row| {
+                Ok(RemoteDesktopSessionRecord {
+                    id: row.get(0)?,
+                    connection_id: row.get(1)?,
+                    status: row.get(2)?,
+                    started_at: row.get(3)?,
+                    ended_at: row.get(4)?,
+                    recording_path: row.get(5)?,
+                    recording_active: row.get::<_, i64>(6)? != 0,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(sessions)
+    }
+
+    pub fn get_remote_desktop_session(&self, id: &str) -> Result<RemoteDesktopSessionRecord, LiteError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, connection_id, status, started_at, ended_at, recording_path, recording_active
+             FROM remote_desktop_sessions WHERE id = ?"
+        )?;
+
+        let session = stmt.query_row([id], |row| {
+            Ok(RemoteDesktopSessionRecord {
+                id: row.get(0)?,
+                connection_id: row.get(1)?,
+                status: row.get(2)?,
+                started_at: row.get(3)?,
+                ended_at: row.get(4)?,
+                recording_path: row.get(5)?,
+                recording_active: row.get::<_, i64>(6)? != 0,
+            })
+        })?;
+
+        Ok(session)
+    }
+
+    pub fn add_remote_desktop_session(&self, session: &NewRemoteDesktopSession) -> Result<(), LiteError> {
+        self.conn.execute(
+            "INSERT INTO remote_desktop_sessions
+             (id, connection_id, status, started_at, ended_at, recording_path, recording_active)
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            params![
+                session.id,
+                session.connection_id,
+                session.status,
+                session.started_at,
+                session.ended_at,
+                session.recording_path,
+                session.recording_active as i64
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_remote_desktop_session(&self, session: &UpdateRemoteDesktopSession) -> Result<(), LiteError> {
+        self.conn.execute(
+            "UPDATE remote_desktop_sessions SET
+                connection_id = ?, status = ?, started_at = ?, ended_at = ?,
+                recording_path = ?, recording_active = ?
+             WHERE id = ?",
+            params![
+                session.connection_id,
+                session.status,
+                session.started_at,
+                session.ended_at,
+                session.recording_path,
+                session.recording_active as i64,
+                session.id
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_remote_desktop_session(&self, id: &str) -> Result<(), LiteError> {
+        self.conn.execute(
+            "DELETE FROM remote_desktop_sessions WHERE id = ?",
+            [id]
+        )?;
+        Ok(())
+    }
 }
 
 fn chrono_now() -> String {
@@ -1223,6 +1566,116 @@ pub struct NewAuditEvent {
     pub level: String,
 }
 
+#[derive(serde::Serialize, Clone)]
+pub struct RemoteDesktopConnectionRecord {
+    pub id: String,
+    pub host_id: String,
+    pub name: String,
+    pub protocol: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub domain: Option<String>,
+    pub password_encrypted: Option<Vec<u8>>,
+    pub use_ssh_tunnel: bool,
+    pub ssh_host: Option<String>,
+    pub ssh_port: Option<i64>,
+    pub ssh_username: Option<String>,
+    pub ssh_auth_type: Option<String>,
+    pub display_settings_json: Option<String>,
+    pub performance_settings_json: Option<String>,
+    pub local_resources_json: Option<String>,
+    pub experience_settings_json: Option<String>,
+    pub gateway_settings_json: Option<String>,
+    pub recording_settings_json: Option<String>,
+    pub group_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewRemoteDesktopConnection {
+    pub id: String,
+    pub host_id: String,
+    pub name: String,
+    pub protocol: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub domain: Option<String>,
+    pub password_encrypted: Option<Vec<u8>>,
+    pub use_ssh_tunnel: bool,
+    pub ssh_host: Option<String>,
+    pub ssh_port: Option<i64>,
+    pub ssh_username: Option<String>,
+    pub ssh_auth_type: Option<String>,
+    pub display_settings_json: Option<String>,
+    pub performance_settings_json: Option<String>,
+    pub local_resources_json: Option<String>,
+    pub experience_settings_json: Option<String>,
+    pub gateway_settings_json: Option<String>,
+    pub recording_settings_json: Option<String>,
+    pub group_id: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateRemoteDesktopConnection {
+    pub id: String,
+    pub host_id: String,
+    pub name: String,
+    pub protocol: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub domain: Option<String>,
+    pub password_encrypted: Option<Vec<u8>>,
+    pub use_ssh_tunnel: bool,
+    pub ssh_host: Option<String>,
+    pub ssh_port: Option<i64>,
+    pub ssh_username: Option<String>,
+    pub ssh_auth_type: Option<String>,
+    pub display_settings_json: Option<String>,
+    pub performance_settings_json: Option<String>,
+    pub local_resources_json: Option<String>,
+    pub experience_settings_json: Option<String>,
+    pub gateway_settings_json: Option<String>,
+    pub recording_settings_json: Option<String>,
+    pub group_id: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct RemoteDesktopSessionRecord {
+    pub id: String,
+    pub connection_id: String,
+    pub status: String,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub recording_path: Option<String>,
+    pub recording_active: bool,
+}
+
+#[derive(serde::Deserialize)]
+pub struct NewRemoteDesktopSession {
+    pub id: String,
+    pub connection_id: String,
+    pub status: String,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub recording_path: Option<String>,
+    pub recording_active: bool,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateRemoteDesktopSession {
+    pub id: String,
+    pub connection_id: String,
+    pub status: String,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub recording_path: Option<String>,
+    pub recording_active: bool,
+}
+
 /// 全局数据库连接
 pub static DATABASE: Mutex<Option<Database>> = Mutex::new(None);
 
@@ -1494,6 +1947,348 @@ mod tests {
             // 多配置键
             db.set_config("language", "zh-CN").unwrap();
             assert_eq!(db.get_config("language").unwrap().unwrap(), "zh-CN");
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_session_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_session_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 首先创建host，因为session有外键约束
+            let host = NewHost {
+                id: "host-1".to_string(),
+                name: "Test Host".to_string(),
+                host: "192.168.1.100".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                identity_id: None,
+                group_id: None,
+                notes: None,
+                color: None,
+                environment: None,
+                region: None,
+                purpose: None,
+                status: "online".to_string(),
+            };
+            db.add_host(&host).unwrap();
+
+            // 创建会话
+            let session = NewSession {
+                id: "sess-1".to_string(),
+                host_id: "host-1".to_string(),
+                title: Some("Test Session".to_string()),
+                status: "active".to_string(),
+                last_command: Some("ls -la".to_string()),
+                started_at: chrono_now(),
+                ended_at: None,
+            };
+            db.add_session(&session).unwrap();
+
+            // 读取并验证
+            let sessions = db.get_sessions().unwrap();
+            assert_eq!(sessions.len(), 1);
+            assert_eq!(sessions[0].title, Some("Test Session".to_string()));
+
+            // 更新会话
+            let update = UpdateSession {
+                id: "sess-1".to_string(),
+                host_id: "host-1".to_string(),
+                title: Some("Updated Session".to_string()),
+                status: "closed".to_string(),
+                last_command: Some("pwd".to_string()),
+                started_at: chrono_now(),
+                ended_at: Some(chrono_now()),
+            };
+            db.update_session(&update).unwrap();
+
+            // 验证更新
+            let session = db.get_session("sess-1").unwrap();
+            assert_eq!(session.status, "closed");
+
+            // 删除会话
+            db.delete_session("sess-1").unwrap();
+            let sessions = db.get_sessions().unwrap();
+            assert_eq!(sessions.len(), 0);
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_snippet_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_snippet_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 创建代码片段
+            let snippet = NewSnippet {
+                id: "snip-1".to_string(),
+                name: "List Files".to_string(),
+                command: "ls -la".to_string(),
+                description: Some("List all files".to_string()),
+                folder_id: Some("folder-1".to_string()),
+                variables_json: Some("[]".to_string()),
+                scope: "personal".to_string(),
+            };
+            db.add_snippet(&snippet).unwrap();
+
+            // 读取并验证
+            let snippets = db.get_snippets().unwrap();
+            assert_eq!(snippets.len(), 1);
+            assert_eq!(snippets[0].name, "List Files");
+
+            // 更新代码片段
+            let update = UpdateSnippet {
+                id: "snip-1".to_string(),
+                name: "List Files Updated".to_string(),
+                command: "ls -lh".to_string(),
+                description: Some("List files with human sizes".to_string()),
+                folder_id: None,
+                variables_json: None,
+                scope: "shared".to_string(),
+            };
+            db.update_snippet(&update).unwrap();
+
+            // 验证更新
+            let snippet = db.get_snippet("snip-1").unwrap();
+            assert_eq!(snippet.name, "List Files Updated");
+            assert_eq!(snippet.scope, "shared");
+
+            // 删除代码片段
+            db.delete_snippet("snip-1").unwrap();
+            let snippets = db.get_snippets().unwrap();
+            assert_eq!(snippets.len(), 0);
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_tag_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_tag_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 创建标签
+            let tag = NewTag {
+                id: "tag-1".to_string(),
+                name: "Production".to_string(),
+                color: Some("#FF0000".to_string()),
+                description: Some("Production servers".to_string()),
+            };
+            db.add_tag(&tag).unwrap();
+
+            // 读取并验证
+            let tags = db.get_tags().unwrap();
+            assert_eq!(tags.len(), 1);
+            assert_eq!(tags[0].name, "Production");
+            assert_eq!(tags[0].color, Some("#FF0000".to_string()));
+
+            // 更新标签
+            let update = UpdateTag {
+                id: "tag-1".to_string(),
+                name: "Prod".to_string(),
+                color: Some("#FF5733".to_string()),
+                description: Some("Prod servers".to_string()),
+            };
+            db.update_tag(&update).unwrap();
+
+            // 验证更新
+            let tag = db.get_tag("tag-1").unwrap();
+            assert_eq!(tag.name, "Prod");
+
+            // 删除标签
+            db.delete_tag("tag-1").unwrap();
+            let tags = db.get_tags().unwrap();
+            assert_eq!(tags.len(), 0);
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_audit_event_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_audit_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 创建审计事件
+            let event = NewAuditEvent {
+                id: "audit-1".to_string(),
+                actor: Some("user-1".to_string()),
+                action: "server.connect".to_string(),
+                target_type: Some("server".to_string()),
+                target_id: Some("srv-1".to_string()),
+                payload_json: Some(r#"{"ip": "192.168.1.1"}"#.to_string()),
+                level: "info".to_string(),
+            };
+            db.add_audit_event(&event).unwrap();
+
+            // 读取并验证
+            let events = db.get_audit_events().unwrap();
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].action, "server.connect");
+            assert_eq!(events[0].actor, Some("user-1".to_string()));
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_layout_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_layout_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 创建布局
+            let layout = NewLayout {
+                id: "layout-1".to_string(),
+                name: "Default".to_string(),
+                workspace_mode: "standard".to_string(),
+                layout_json: r#"{"split": "horizontal"}"#.to_string(),
+            };
+            db.add_layout(&layout).unwrap();
+
+            // 读取并验证
+            let layouts = db.get_layouts().unwrap();
+            assert_eq!(layouts.len(), 1);
+            assert_eq!(layouts[0].name, "Default");
+
+            // 更新布局
+            let update = UpdateLayout {
+                id: "layout-1".to_string(),
+                name: "Custom".to_string(),
+                workspace_mode: "developer".to_string(),
+                layout_json: r#"{"split": "vertical"}"#.to_string(),
+            };
+            db.update_layout(&update).unwrap();
+
+            // 验证更新
+            let layout = db.get_layout("layout-1").unwrap();
+            assert_eq!(layout.name, "Custom");
+
+            // 删除布局
+            db.delete_layout("layout-1").unwrap();
+            let layouts = db.get_layouts().unwrap();
+            assert_eq!(layouts.len(), 0);
+        }
+
+        // 清理
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_sync_state_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_sync_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // 创建同步状态
+            let state = NewSyncState {
+                id: "sync-1".to_string(),
+                device_id: "device-1".to_string(),
+                scope: "full".to_string(),
+                checkpoint: Some("checkpoint-abc".to_string()),
+                state_json: Some(r#"{"last_sync": "2024-01-01"}"#.to_string()),
+                last_sync_at: Some(chrono_now()),
+            };
+            db.upsert_sync_state(&state).unwrap();
+
+            // 读取并验证
+            let states = db.get_sync_states().unwrap();
+            assert_eq!(states.len(), 1);
+            assert_eq!(states[0].device_id, "device-1");
+
+            // 更新同步状态
+            let updated_state = NewSyncState {
+                id: "sync-1".to_string(),
+                device_id: "device-1".to_string(),
+                scope: "incremental".to_string(),
+                checkpoint: Some("checkpoint-xyz".to_string()),
+                state_json: Some(r#"{"last_sync": "2024-01-02"}"#.to_string()),
+                last_sync_at: Some(chrono_now()),
+            };
+            db.upsert_sync_state(&updated_state).unwrap();
+
+            // 验证更新
+            let state = db.get_sync_state("sync-1").unwrap();
+            assert_eq!(state.scope, "incremental");
+
+            // 删除同步状态
+            db.delete_sync_state("sync-1").unwrap();
+            let states = db.get_sync_states().unwrap();
+            assert_eq!(states.len(), 0);
         }
 
         // 清理

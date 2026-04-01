@@ -11,11 +11,15 @@ name = "easyssh"
 path = "src/main.rs"
 
 [dependencies]
-easyssh-core = { path = "../../../core" }
+easyssh-core = { path = "../../../core", features = ["sftp"] }
 
 # GTK4 + libadwaita for modern GNOME-style UI
 gtk4 = { version = "0.8", features = ["v4_12"] }
 libadwaita = { version = "0.6", features = ["v1_5"] }
+cairo-rs = { version = "0.19", features = ["png"] }
+
+# DateTime for file timestamps
+chrono = "0.4"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -23,13 +27,22 @@ serde_json = "1"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-[profile.release]
-panic = "abort"
-lto = true
-opt-level = 3
-strip = true
+[dev-dependencies]
+# Testing - GTK4 tests require display
+serial_test = "3"
+tempfile = "3"
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests.rs"
+
+[features]
+default = []
+gtk-tests = []
+integration-tests = []

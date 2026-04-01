@@ -1,0 +1,5 @@
+module CEasySSHCore {
+    header "shim.h"
+    export *
+    link "easyssh_core"
+}

@@ -1,0 +1,353 @@
+name: Code Signing & Notarization
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      platform:
+        required: true
+        type: string
+  workflow_dispatch:
+
+jobs:
+  # ============================================================================
+  # Windows Code Signing
+  # ============================================================================
+  sign-windows:
+    name: Sign Windows Binaries
+    runs-on: windows-latest
+    if: ${{ inputs.platform == 'windows' || inputs.platform == 'all' }}
+
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-native
+          path: artifacts
+
+      - name: Setup Certificate
+        shell: pwsh
+        run: |
+          $certBytes = [Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
+          [IO.File]::WriteAllBytes("certificate.pfx", $certBytes)
+
+      - name: Sign Executable
+        shell: pwsh
+        run: |
+          $signTool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtool.exe"
+          if (-not (Test-Path $signTool)) {
+            $signTool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Select-Object -First 1).FullName
+          }
+
+          # Sign main executable
+          & $signTool sign `
+            /f certificate.pfx `
+            /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" `
+            /tr http://timestamp.digicert.com `
+            /td sha256 `
+            /fd sha256 `
+            /a `
+            "artifacts\EasySSH.exe"
+
+          # Verify signature
+          & $signTool verify /pa "artifacts\EasySSH.exe"
+
+      - name: Sign MSI Installer
+        if: exists('artifacts/*.msi')
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem "artifacts\*.msi" | Select-Object -First 1
+          if ($msi) {
+            & $signTool sign `
+              /f certificate.pfx `
+              /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" `
+              /tr http://timestamp.digicert.com `
+              /td sha256 `
+              /fd sha256 `
+              /a `
+              $msi.FullName
+          }
+
+      - name: Cleanup Certificate
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-Item -Force certificate.pfx -ErrorAction SilentlyContinue
+
+      - name: Upload Signed Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-signed
+          path: artifacts/
+          retention-days: 30
+
+  # ============================================================================
+  # macOS Notarization
+  # ============================================================================
+  sign-macos:
+    name: Sign & Notarize macOS App
+    runs-on: macos-latest
+    if: ${{ inputs.platform == 'macos' || inputs.platform == 'all' }}
+
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-native-x86_64-apple-darwin
+          path: artifacts/x86_64
+
+      - name: Download ARM64 Build
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-native-aarch64-apple-darwin
+          path: artifacts/arm64
+
+      - name: Setup Certificates
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+
+          # Create keychain
+          security create-keychain -p "$MACOS_CERTIFICATE_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CERTIFICATE_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+
+          # Import certificate
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CERTIFICATE_PASSWORD" build.keychain
+
+          # Verify
+          security find-identity -v -p codesigning build.keychain
+
+      - name: Create Universal Binary
+        run: |
+          mkdir -p artifacts/universal
+          lipo -create \
+            artifacts/x86_64/EasySSH \
+            artifacts/arm64/EasySSH \
+            -output artifacts/universal/EasySSH
+
+          # Verify
+          lipo -info artifacts/universal/EasySSH
+
+      - name: Sign App Bundle
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+        run: |
+          # Sign the binary
+          codesign --force --options runtime --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            artifacts/universal/EasySSH
+
+          # Verify signature
+          codesign -dv --verbose=4 artifacts/universal/EasySSH
+          codesign -vvv --deep --strict artifacts/universal/EasySSH
+
+      - name: Create DMG
+        run: |
+          # Create temporary directory for DMG
+          mkdir -p dist/EasySSH
+          cp artifacts/universal/EasySSH dist/EasySSH/
+          ln -s /Applications dist/EasySSH/Applications
+
+          # Create DMG
+          hdiutil create -volname "EasySSH" -srcfolder dist/EasySSH \
+            -ov -format UDZO dist/EasySSH-${{ inputs.version }}-universal.dmg
+
+          # Sign DMG
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp dist/EasySSH-${{ inputs.version }}-universal.dmg
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Submit for notarization
+          xcrun notarytool submit dist/EasySSH-${{ inputs.version }}-universal.dmg \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple dist/EasySSH-${{ inputs.version }}-universal.dmg
+
+          # Verify
+          spctl -a -t open --context context:primary-signature -v dist/EasySSH-${{ inputs.version }}-universal.dmg
+
+      - name: Cleanup
+        if: always()
+        run: |
+          security delete-keychain build.keychain
+          rm -f certificate.p12
+
+      - name: Upload Signed Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-signed
+          path: |
+            dist/*.dmg
+            artifacts/universal/
+          retention-days: 30
+
+  # ============================================================================
+  # Linux Signing (AppImage & deb)
+  # ============================================================================
+  sign-linux:
+    name: Sign Linux Packages
+    runs-on: ubuntu-latest
+    if: ${{ inputs.platform == 'linux' || inputs.platform == 'all' }}
+
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-native-amd64
+          path: artifacts/amd64
+
+      - name: Download ARM64 Build
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-native-arm64
+          path: artifacts/arm64
+
+      - name: Install Signing Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnupg2 debsigs
+
+      - name: Setup GPG Key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+          # Configure gpg-agent
+          cat > ~/.gnupg/gpg-agent.conf << EOF
+          allow-preset-passphrase
+          default-cache-ttl 34560000
+          max-cache-ttl 34560000
+          EOF
+
+          gpg-connect-agent reloadagent /bye
+
+      - name: Sign AppImage
+        run: |
+          # Sign AppImage files
+          for appimage in artifacts/*/*.AppImage; do
+            if [ -f "$appimage" ]; then
+              gpg --detach-sign --armor \
+                --passphrase "$GPG_PASSPHRASE" \
+                --pinentry-mode loopback \
+                "$appimage"
+              echo "Signed: $appimage"
+            fi
+          done
+
+      - name: Sign deb Packages
+        run: |
+          # Sign .deb packages
+          for deb in artifacts/*/*.deb; do
+            if [ -f "$deb" ]; then
+              debsigs --sign=origin \
+                --default-key="${{ secrets.GPG_KEY_ID }}" \
+                "$deb"
+              echo "Signed: $deb"
+            fi
+          done
+
+      - name: Create Checksums
+        run: |
+          cd artifacts
+          find . -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.tar.gz" \) -exec sha256sum {} \; > ../SHA256SUMS
+          gpg --detach-sign --armor --passphrase "$GPG_PASSPHRASE" --pinentry-mode loopback ../SHA256SUMS
+
+      - name: Upload Signed Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-signed
+          path: |
+            artifacts/
+            SHA256SUMS*
+          retention-days: 30
+
+  # ============================================================================
+  # Update Manifest with Signatures
+  # ============================================================================
+  update-signatures:
+    name: Update Update Manifest
+    runs-on: ubuntu-latest
+    needs: [sign-windows, sign-macos, sign-linux]
+    if: always() && (needs.sign-windows.result == 'success' || needs.sign-macos.result == 'success' || needs.sign-linux.result == 'success')
+
+    steps:
+      - name: Download All Signed Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: signed-artifacts
+
+      - name: Generate Signature Manifest
+        run: |
+          cat > signature-manifest.json << 'EOF'
+          {
+            "version": "${{ inputs.version }}",
+            "signatures": {
+          EOF
+
+          # Add Windows signatures
+          if [ -d "signed-artifacts/windows-signed" ]; then
+            echo '    "windows": {' >> signature-manifest.json
+            for sig in signed-artifacts/windows-signed/*.sig; do
+              if [ -f "$sig" ]; then
+                filename=$(basename "$sig" .sig)
+                hash=$(sha256sum "signed-artifacts/windows-signed/$filename" | cut -d' ' -f1)
+                echo "      \"$filename\": \"$hash\"," >> signature-manifest.json
+              fi
+            done
+            echo '    },' >> signature-manifest.json
+          fi
+
+          # Add macOS signatures
+          if [ -d "signed-artifacts/macos-signed" ]; then
+            echo '    "macos": {' >> signature-manifest.json
+            for dmg in signed-artifacts/macos-signed/*.dmg; do
+              if [ -f "$dmg" ]; then
+                filename=$(basename "$dmg")
+                hash=$(sha256sum "$dmg" | cut -d' ' -f1)
+                echo "      \"$filename\": \"$hash\"," >> signature-manifest.json
+              fi
+            done
+            echo '    },' >> signature-manifest.json
+          fi
+
+          # Add Linux signatures
+          if [ -d "signed-artifacts/linux-signed" ]; then
+            echo '    "linux": {' >> signature-manifest.json
+            for file in signed-artifacts/linux-signed/*.{AppImage,deb,tar.gz}; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                hash=$(sha256sum "$file" | cut -d' ' -f1)
+                echo "      \"$filename\": \"$hash\"," >> signature-manifest.json
+              fi
+            done
+            echo '    }' >> signature-manifest.json
+          fi
+
+          echo '  }' >> signature-manifest.json
+          echo '}' >> signature-manifest.json
+
+          cat signature-manifest.json
+
+      - name: Upload Signature Manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: signature-manifest
+          path: signature-manifest.json

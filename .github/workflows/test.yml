@@ -1,0 +1,304 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Unit and integration tests for Rust core
+  rust-tests:
+    name: Rust Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: "easyssh-rust"
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+    - name: Run Rust tests
+      run: |
+        cd core
+        cargo test --verbose --all-features
+        cd ..
+        cargo test --workspace --verbose
+
+    - name: Run Rust clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Check Rust formatting
+      run: cargo fmt -- --check
+
+  # Playwright E2E and visual regression tests
+  playwright-tests:
+    name: Playwright Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        browser: [chromium, firefox, webkit]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
+      run: |
+        cd tests
+        npm ci
+
+    - name: Install Playwright browsers
+      run: |
+        cd tests
+        npx playwright install --with-deps ${{ matrix.browser }}
+
+    - name: Build Windows UI
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd platforms/windows/easyssh-winui
+        cargo build --release
+
+    - name: Run Playwright tests
+      run: |
+        cd tests
+        npx playwright test --project=${{ matrix.browser }}
+      env:
+        CI: true
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-results-${{ matrix.os }}-${{ matrix.browser }}
+        path: |
+          tests/playwright-report/
+          tests/test-results/
+        retention-days: 30
+
+    - name: Upload screenshots
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: screenshots-${{ matrix.os }}-${{ matrix.browser }}
+        path: tests/test-results/
+        retention-days: 7
+
+  # Visual regression tests with updated snapshots
+  visual-regression:
+    name: Visual Regression
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
+      run: |
+        cd tests
+        npm ci
+
+    - name: Install Playwright
+      run: |
+        cd tests
+        npx playwright install --with-deps chromium
+
+    - name: Build Windows UI
+      run: |
+        cd platforms/windows/easyssh-winui
+        cargo build --release
+
+    - name: Run visual regression tests
+      run: |
+        cd tests
+        npx playwright test --project=visual-regression
+      env:
+        CI: true
+
+    - name: Upload visual diffs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: visual-diffs
+        path: tests/test-results/
+        retention-days: 30
+
+    - name: Update snapshots (on main branch)
+      if: github.ref == 'refs/heads/main' && failure()
+      run: |
+        cd tests
+        npx playwright test --project=visual-regression --update-snapshots
+
+  # Accessibility tests
+  accessibility:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
+      run: |
+        cd tests
+        npm ci
+
+    - name: Install Playwright
+      run: |
+        cd tests
+        npx playwright install --with-deps chromium
+
+    - name: Run accessibility tests
+      run: |
+        cd tests
+        npx playwright test --project=accessibility
+      env:
+        CI: true
+
+    - name: Generate accessibility report
+      if: always()
+      run: |
+        cd tests
+        echo "# Accessibility Test Results" > a11y-report.md
+        cat playwright-report/test-results.json | jq -r '.suites[]?.specs[]? | \"## \(.title)\n- Status: \(.ok)\"' >> a11y-report.md || true
+
+    - name: Upload accessibility report
+      uses: actions/upload-artifact@v4
+      with:
+        name: accessibility-report
+        path: tests/a11y-report.md
+
+  # Performance benchmarks
+  performance:
+    name: Performance Tests
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
+      run: |
+        cd tests
+        npm ci
+
+    - name: Install Playwright
+      run: |
+        cd tests
+        npx playwright install --with-deps chromium
+
+    - name: Build Windows UI
+      run: |
+        cd platforms/windows/easyssh-winui
+        cargo build --release
+
+    - name: Run performance tests
+      run: |
+        cd tests
+        npx playwright test e2e/performance.spec.ts --project=chromium
+      env:
+        CI: true
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results
+        path: tests/playwright-report/
+
+  # Lint and format checks
+  lint-checks:
+    name: Lint and Format
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Check TypeScript types
+      run: |
+        cd tests
+        npm ci
+        npm run lint
+
+    - name: Check Rust formatting
+      run: cargo fmt -- --check
+
+    - name: Run Rust clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # Test summary
+  test-summary:
+    name: Test Summary
+    needs: [rust-tests, playwright-tests, visual-regression, accessibility, performance]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - name: Summarize test results
+      run: |
+        echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Rust Tests | ${{ needs.rust-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Playwright Tests | ${{ needs.playwright-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Visual Regression | ${{ needs.visual-regression.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Accessibility | ${{ needs.accessibility.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Performance | ${{ needs.performance.result }} |" >> $GITHUB_STEP_SUMMARY

@@ -373,7 +373,62 @@ test('Terminal component does not leak memory', async () => {
 
 ---
 
-## 7. 自动化UI优化工具链
+## 8. Design System Reference
+
+### Generated Files
+
+The EasySSH Design System is located at `packages/design-system/`:
+
+```
+packages/design-system/
+├── src/
+│   ├── tokens/
+│   │   └── design-tokens.ts      # Complete token system
+│   ├── styles/
+│   │   └── theme.css              # CSS variables (light/dark)
+│   ├── hooks/
+│   │   └── useTheme.ts            # React theme hook
+│   └── utils/
+│       └── index.ts               # Token utilities
+├── specs/
+│   ├── AppShell.md                # App shell specification
+│   ├── Sidebar.md                 # Sidebar specification
+│   ├── TerminalPanel.md           # Terminal specification
+│   ├── ServerCard.md              # Server card specification
+│   ├── CommandPalette.md          # Command palette specification
+│   └── AnimationMotion.md         # Animation system specification
+├── tailwind.config.ts             # Tailwind configuration
+├── index.ts                       # Main exports
+└── package.json                   # Package manifest
+```
+
+### Usage
+
+```typescript
+// Import design tokens
+import { tokens, useTheme } from '@easyssh/design-system';
+
+// Access tokens
+const primary = tokens.colors.brand[500];
+const spacing = tokens.spacing[4]; // 16px
+
+// Use theme hook
+const { theme, toggleTheme } = useTheme();
+```
+
+### Component Specifications
+
+All core component specifications include:
+- Anatomy diagrams
+- TypeScript interfaces
+- Design token references
+- Motion specifications
+- Accessibility requirements
+- Responsive behavior
+
+See individual spec files in `packages/design-system/specs/`.
+
+---
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐

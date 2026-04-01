@@ -1,0 +1,387 @@
+### EasySSH - Deutsch Übersetzung
+
+## App-Informationen
+-app-name = EasySSH
+-app-description = Moderner SSH-Client für alle Plattformen
+-app-version = Version { $version }
+
+## Allgemeine UI
+-general-ok = OK
+-general-cancel = Abbrechen
+-general-save = Speichern
+-general-delete = Löschen
+-general-edit = Bearbeiten
+-general-add = Hinzufügen
+-general-remove = Entfernen
+-general-close = Schließen
+-general-back = Zurück
+-general-next = Weiter
+-general-finish = Fertigstellen
+-general-apply = Anwenden
+-general-reset = Zurücksetzen
+-general-search = Suchen
+-general-filter = Filtern
+-general-loading = Laden...
+-general-empty = Leer
+-general-error = Fehler
+-general-success = Erfolg
+-general-warning = Warnung
+-general-info = Info
+-general-confirm = Bestätigen
+-general-yes = Ja
+-general-no = Nein
+-general-copy = Kopieren
+-general-paste = Einfügen
+-general-cut = Ausschneiden
+-general-select-all = Alles auswählen
+-general-undo = Rückgängig
+-general-redo = Wiederholen
+-general-refresh = Aktualisieren
+-general-reload = Neu laden
+-general-settings = Einstellungen
+-general-preferences = Voreinstellungen
+-general-help = Hilfe
+-general-about = Über
+-general-feedback = Feedback
+-general-donate = Spenden
+-general-exit = Beenden
+-general-quit = Beenden
+
+## Hauptfenster
+-main-title = { -app-name }
+-main-sidebar-servers = Server
+-main-sidebar-groups = Gruppen
+-main-sidebar-snippets = Snippets
+-main-sidebar-history = Verlauf
+-main-sidebar-settings = Einstellungen
+-main-sidebar-add-server = Server hinzufügen
+-main-sidebar-add-group = Gruppe hinzufügen
+-main-sidebar-import = Importieren
+-main-sidebar-export = Exportieren
+-main-status-ready = Bereit
+-main-status-connecting = Verbinden...
+-main-status-connected = Verbunden
+-main-status-disconnected = Getrennt
+-main-status-error = Fehler
+-main-status-syncing = Synchronisieren...
+
+## Serverliste
+-server-list-title = Serverliste
+-server-list-empty = Keine Server konfiguriert
+-server-list-empty-hint = Klicken Sie auf "Server hinzufügen" um zu starten
+-server-list-search-placeholder = Server suchen...
+-server-list-filter-all = Alle Server
+-server-list-filter-favorites = Favoriten
+-server-list-filter-recent = Zuletzt verbunden
+-server-list-sort-name = Name
+-server-list-sort-host = Host
+-server-list-sort-last-connected = Zuletzt verbunden
+-server-list-context-connect = Verbinden
+-server-list-context-edit = Bearbeiten
+-server-list-context-delete = Löschen
+-server-list-context-duplicate = Duplizieren
+-server-list-context-copy-ip = IP kopieren
+-server-list-context-add-to-group = Zur Gruppe hinzufügen
+-server-list-context-remove-from-group = Aus Gruppe entfernen
+-server-group-uncategorized = Nicht kategorisiert
+
+## Serverdetails
+-server-detail-title = Serverdetails
+-server-detail-connect = Verbinden
+-server-detail-disconnect = Trennen
+-server-detail-edit = Bearbeiten
+-server-detail-delete = Löschen
+-server-detail-name = Name
+-server-detail-host = Host
+-server-detail-port = Port
+-server-detail-username = Benutzername
+-server-detail-auth-method = Authentifizierung
+-server-detail-auth-password = Passwort
+-server-detail-auth-key = SSH-Schlüssel
+-server-detail-auth-agent = SSH-Agent
+-server-detail-group = Gruppe
+-server-detail-tags = Tags
+-server-detail-color = Farbe
+-server-detail-notes = Notizen
+-server-detail-last-connected = Zuletzt verbunden
+-server-detail-never-connected = Noch nicht verbunden
+-server-detail-created = Erstellt
+-server-detail-updated = Aktualisiert
+-server-detail-connection-status = Verbindungsstatus
+-server-detail-terminal = Terminal
+-server-detail-sftp = SFTP
+-server-detail-monitoring = Überwachung
+-server-detail-logs = Protokolle
+
+## Server-Dialog
+-server-dialog-add-title = Server hinzufügen
+-server-dialog-edit-title = Server bearbeiten
+-server-dialog-name-label = Servername
+-server-dialog-name-placeholder = z.B. Produktions-Webserver
+-server-dialog-host-label = Host / IP-Adresse
+-server-dialog-host-placeholder = z.B. 192.168.1.100 oder server.example.com
+-server-dialog-port-label = Port
+-server-dialog-port-default = Standard: 22
+-server-dialog-username-label = Benutzername
+-server-dialog-username-placeholder = z.B. root oder admin
+-server-dialog-auth-label = Authentifizierungsmethode
+-server-dialog-auth-password-label = Passwort
+-server-dialog-auth-password-placeholder = Passwort eingeben
+-server-dialog-auth-key-label = Privater Schlüssel
+-server-dialog-auth-key-select = Schlüsseldatei auswählen
+-server-dialog-auth-key-passphrase = Schlüsselpassphrase (optional)
+-server-dialog-auth-agent-label = SSH-Agent verwenden
+-server-dialog-group-label = Gruppe
+-server-dialog-group-none = Keine Gruppe
+-server-dialog-group-new = Neue Gruppe...
+-server-dialog-tags-label = Tags
+-server-dialog-tags-placeholder = Tags hinzufügen, kommagetrennt
+-server-dialog-color-label = Farbe
+-server-dialog-advanced = Erweiterte Optionen
+-server-dialog-advanced-jump = Jump-Host
+-server-dialog-advanced-proxy = Proxy
+-server-dialog-advanced-keepalive = Keep-Alive-Intervall
+-server-dialog-save-and-connect = Speichern & Verbinden
+-server-dialog-save = Speichern
+-server-dialog-test-connection = Verbindung testen
+-server-dialog-test-success = Verbindung erfolgreich!
+-server-dialog-test-failed = Verbindung fehlgeschlagen: { $error }
+-server-dialog-validation-required = { $field } ist erforderlich
+-server-dialog-validation-invalid-port = Port muss zwischen 1 und 65535 liegen
+-server-dialog-validation-invalid-host = Ungültige Host-Adresse
+
+## Gruppen
+group-list-title = Gruppenliste
+group-list-empty = Keine Gruppen erstellt
+group-list-add = Neue Gruppe
+group-dialog-add-title = Gruppe erstellen
+group-dialog-edit-title = Gruppe bearbeiten
+group-dialog-name-label = Gruppenname
+group-dialog-name-placeholder = z.B. Produktions-Server
+group-dialog-parent-label = Übergeordnete Gruppe (optional)
+group-dialog-color-label = Gruppenfarbe
+group-dialog-delete-confirm = Gruppe "{ $name }" löschen?
+group-dialog-delete-warning = Server in dieser Gruppe werden nicht kategorisiert.
+
+## Terminal
+-terminal-title = Terminal
+-terminal-new-tab = Neuer Tab
+-terminal-close-tab = Tab schließen
+-terminal-split-horizontal = Horizontal teilen
+-terminal-split-vertical = Vertikal teilen
+-terminal-copy = Kopieren
+-terminal-paste = Einfügen
+-terminal-select-all = Alles auswählen
+-terminal-find = Suchen
+-terminal-clear = Löschen
+-terminal-reset = Zurücksetzen
+-terminal-zoom-in = Vergrößern
+-terminal-zoom-out = Verkleinern
+-terminal-zoom-reset = Zoom zurücksetzen
+-terminal-font-size = Schriftgröße
+-terminal-theme = Theme
+-terminal-theme-dark = Dunkel
+-terminal-theme-light = Hell
+-terminal-cursor-style = Cursor-Stil
+-terminal-cursor-blink = Cursor blinken
+-terminal-alt-screen = Alternativer Bildschirm
+-terminal-mouse-reporting = Maus-Berichterstattung
+-terminal-disconnected = Sitzung getrennt. Enter zum Wiederverbinden.
+-terminal-reconnecting = Wiederverbinden...
+-terminal-command-palette = Befehlspalette
+-terminal-sftp-open = SFTP-Panel öffnen
+
+## SFTP
+-sftp-title = SFTP Dateiübertragung
+-sftp-local = Lokal
+-sftp-remote = Remote
+-sftp-upload = Hochladen
+-sftp-download = Herunterladen
+-sftp-delete = Löschen
+-sftp-rename = Umbenennen
+-sftp-new-folder = Neuer Ordner
+-sftp-refresh = Aktualisieren
+-sftp-transfer-progress = Übertrage { $filename } ({ $progress }%)
+-sftp-transfer-complete = Übertragung abgeschlossen: { $filename }
+-sftp-transfer-error = Übertragung fehlgeschlagen: { $error }
+-sftp-path-home = Home
+-sftp-path-root = Root
+-sftp-context-upload = Hierher hochladen
+-sftp-context-download = Herunterladen
+-sftp-context-delete = Löschen
+-sftp-context-rename = Umbenennen
+-sftp-context-properties = Eigenschaften
+
+## Snippets
+-snippets-title = Snippets
+-snippets-empty = Keine Snippets gespeichert
+-snippets-add = Neues Snippet
+-snippets-edit = Snippet bearbeiten
+-snippets-delete = Snippet löschen
+-snippets-run = Snippet ausführen
+-snippets-name = Name
+-snippets-content = Inhalt
+-snippets-variables = Variablen
+-snippets-description = Beschreibung
+-snippets-global = Globale Snippets
+-snippets-server-specific = Server-spezifisch
+
+## Verbindung
+-connection-connecting = Verbinde mit { $host }...
+-connection-connected = Verbunden mit { $host }
+-connection-disconnected = Getrennt von { $host }
+-connection-error = Verbindungsfehler: { $error }
+-connection-auth-failed = Authentifizierung fehlgeschlagen
+-connection-host-key-changed = Warnung: Remote-Host-Schlüssel hat sich geändert!
+-connection-host-key-unknown = Unbekannter Host-Schlüssel. Akzeptieren?
+-connection-timeout = Verbindungszeitüberschreitung
+-connection-refused = Verbindung abgelehnt
+-connection-reset = Verbindung durch Peer zurückgesetzt
+-connection-retrying = Wiederverbinden... ({ $attempt }/{ $max })
+
+## Einstellungen
+-settings-title = Einstellungen
+-settings-general = Allgemein
+-settings-appearance = Erscheinungsbild
+-settings-terminal = Terminal
+-settings-ssh = SSH
+-settings-advanced = Erweitert
+-settings-language = Sprache
+-settings-language-auto = Automatisch erkennen
+-settings-theme = Theme
+-settings-theme-system = Systemstandard
+-settings-theme-dark = Dunkel
+-settings-theme-light = Hell
+-settings-font-size = Schriftgröße
+-settings-font-family = Schriftart
+-settings-show-tray-icon = In System-Tray anzeigen
+-settings-minimize-to-tray = In Tray minimieren
+-settings-startup = Start
+-settings-startup-launch = Beim Systemstart starten
+-settings-startup-restore = Letzte Sitzung wiederherstellen
+-settings-updates = Updates
+-settings-updates-check = Auf Updates prüfen
+-settings-updates-auto = Updates automatisch installieren
+-settings-shortcuts = Tastenkürzel
+-settings-shortcuts-new-tab = Neuer Tab
+-settings-shortcuts-close-tab = Tab schließen
+-settings-shortcuts-next-tab = Nächster Tab
+-settings-shortcuts-prev-tab = Vorheriger Tab
+-settings-backup = Sicherung & Wiederherstellung
+-settings-backup-export = Konfiguration exportieren
+-settings-backup-import = Konfiguration importieren
+-settings-reset = Auf Standard zurücksetzen
+-settings-reset-confirm = Alle Einstellungen auf Standard zurücksetzen?
+
+## Sicherheit
+-security-unlock-title = EasySSH entsperren
+-security-unlock-prompt = Master-Passwort eingeben um fortzufahren
+-security-unlock-button = Entsperren
+-security-forgot-password = Passwort vergessen?
+-security-set-password = Master-Passwort festlegen
+-security-change-password = Master-Passwort ändern
+-security-password-hint = Passwort-Hinweis (optional)
+-security-biometric-enable = { $type } aktivieren
+-security-biometric-type-face = Face ID
+-security-biometric-type-fingerprint = Touch ID
+-security-biometric-type-generic = Biometrische Authentifizierung
+-security-auto-lock = Automatisch sperren nach
+-security-auto-lock-never = Nie
+-security-auto-lock-1m = 1 Minute
+-security-auto-lock-5m = 5 Minuten
+-security-auto-lock-15m = 15 Minuten
+-security-auto-lock-1h = 1 Stunde
+-security-export-encrypted = Exportierte Daten verschlüsseln
+
+## Import/Export
+-import-title = Konfiguration importieren
+-import-source = Quelle
+-import-source-file = Aus Datei
+-import-source-url = Von URL
+-import-source-clipboard = Aus Zwischenablage
+-import-format = Format
+-import-format-auto = Automatisch erkennen
+-import-format-json = JSON
+-import-format-csv = CSV
+-import-format-ssh-config = SSH-Konfiguration
+-import-options = Optionen
+-import-options-duplicate-skip = Duplikate überspringen
+-import-options-duplicate-replace = Duplikate ersetzen
+-import-options-duplicate-merge = Mit bestehenden zusammenführen
+-import-preview = Vorschau
+-import-items-count = { $count } Elemente gefunden
+-import-success = Import erfolgreich: { $count } Elemente importiert
+-import-error = Import fehlgeschlagen: { $error }
+-export-title = Konfiguration exportieren
+-export-format = Exportformat
+-export-what = Was exportieren
+-export-what-all = Alle Daten
+-export-what-servers = Nur Server
+-export-what-groups = Nur Gruppen
+-export-what-snippets = Nur Snippets
+-export-encrypted = Export verschlüsseln
+-export-password = Export-Passwort
+-export-success = Export erfolgreich
+-export-error = Export fehlgeschlagen: { $error }
+
+## Überwachung
+-monitoring-title = Systemüberwachung
+-monitoring-cpu = CPU
+-monitoring-memory = Arbeitsspeicher
+-monitoring-disk = Festplatte
+-monitoring-network = Netzwerk
+-monitoring-processes = Prozesse
+-monitoring-refresh = Aktualisierungsrate
+-monitoring-alert-threshold = Warnschwelle
+-monitoring-history = Verlauf
+-monitoring-export-data = Daten exportieren
+
+## Team-Funktionen
+-team-title = Teamverwaltung
+-team-members = Mitglieder
+-team-roles = Rollen
+-team-invite = Mitglied einladen
+-team-remove = Mitglied entfernen
+-team-role-owner = Besitzer
+-team-role-admin = Administrator
+-team-role-member = Mitglied
+-team-role-viewer = Betrachter
+-team-sync = Teamsynchronisation
+-team-audit = Audit-Log
+-team-shared-snippets = Geteilte Snippets
+
+## Benachrichtigungen
+-notify-connection-lost = Verbindung verloren: { $server }
+-notify-transfer-complete = Dateiübertragung abgeschlossen
+-notify-transfer-failed = Dateiübertragung fehlgeschlagen
+-notify-update-available = Update verfügbar: { $version }
+-notify-copy-success = In Zwischenablage kopiert
+
+## Fehlermeldungen
+-error-generic = Ein Fehler ist aufgetreten
+-error-not-found = Ressource nicht gefunden
+-error-permission = Zugriff verweigert
+-error-network = Netzwerkfehler
+-error-timeout = Zeitüberschreitung der Anforderung
+-error-invalid-input = Ungültige Eingabe
+-error-database = Datenbankfehler
+-error-crypto = Verschlüsselungsfehler
+-error-ssh = SSH-Fehler: { $message }
+-error-keychain = Schlüsselbund-Fehler
+-error-terminal = Terminalfehler
+-error-import-failed = Import fehlgeschlagen
+-error-export-failed = Export fehlgeschlagen
+-error-file-not-found = Datei nicht gefunden: { $path }
+-error-invalid-key = Ungültiger SSH-Schlüssel
+-error-connection-failed = Verbindung fehlgeschlagen
+
+## Barrierefreiheit
+-a11y-terminal-label = Terminal-Panel
+-a11y-server-list-label = Serverliste
+-a11y-sidebar-label = Seitenleisten-Navigation
+-a11y-close-dialog = Dialog schließen
+-a11y-expand-section = Abschnitt erweitern
+-a11y-collapse-section = Abschnitt einklappen
+-a11y-more-options = Weitere Optionen
+-a11y-search-results = { $count } Suchergebnisse
+-a11y-connection-status = Verbindungsstatus: { $status }

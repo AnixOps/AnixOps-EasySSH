@@ -1,0 +1,387 @@
+### EasySSH - Русский перевод
+
+## Информация о приложении
+-app-name = EasySSH
+-app-description = Современный SSH-клиент для всех платформ
+-app-version = Версия { $version }
+
+## Общий интерфейс
+-general-ok = OK
+-general-cancel = Отмена
+-general-save = Сохранить
+-general-delete = Удалить
+-general-edit = Редактировать
+-general-add = Добавить
+-general-remove = Удалить
+-general-close = Закрыть
+-general-back = Назад
+-general-next = Далее
+-general-finish = Готово
+-general-apply = Применить
+-general-reset = Сбросить
+-general-search = Поиск
+-general-filter = Фильтр
+-general-loading = Загрузка...
+-general-empty = Пусто
+-general-error = Ошибка
+-general-success = Успешно
+-general-warning = Предупреждение
+-general-info = Информация
+-general-confirm = Подтвердить
+-general-yes = Да
+-general-no = Нет
+-general-copy = Копировать
+-general-paste = Вставить
+-general-cut = Вырезать
+-general-select-all = Выделить все
+-general-undo = Отменить
+-general-redo = Повторить
+-general-refresh = Обновить
+-general-reload = Перезагрузить
+-general-settings = Настройки
+-general-preferences = Предпочтения
+-general-help = Справка
+-general-about = О программе
+-general-feedback = Обратная связь
+-general-donate = Поддержать
+-general-exit = Выход
+-general-quit = Выход
+
+## Главное окно
+-main-title = { -app-name }
+-main-sidebar-servers = Серверы
+-main-sidebar-groups = Группы
+-main-sidebar-snippets = Сниппеты
+-main-sidebar-history = История
+-main-sidebar-settings = Настройки
+-main-sidebar-add-server = Добавить сервер
+-main-sidebar-add-group = Добавить группу
+-main-sidebar-import = Импорт
+-main-sidebar-export = Экспорт
+-main-status-ready = Готово
+-main-status-connecting = Подключение...
+-main-status-connected = Подключено
+-main-status-disconnected = Отключено
+-main-status-error = Ошибка
+-main-status-syncing = Синхронизация...
+
+## Список серверов
+-server-list-title = Список серверов
+-server-list-empty = Серверы не настроены
+-server-list-empty-hint = Нажмите "Добавить сервер" чтобы начать
+-server-list-search-placeholder = Поиск серверов...
+-server-list-filter-all = Все серверы
+-server-list-filter-favorites = Избранное
+-server-list-filter-recent = Недавние
+-server-list-sort-name = Имя
+-server-list-sort-host = Хост
+-server-list-sort-last-connected = Последнее подключение
+-server-list-context-connect = Подключиться
+-server-list-context-edit = Редактировать
+-server-list-context-delete = Удалить
+-server-list-context-duplicate = Дублировать
+-server-list-context-copy-ip = Копировать IP
+-server-list-context-add-to-group = Добавить в группу
+-server-list-context-remove-from-group = Удалить из группы
+-server-group-uncategorized = Без категории
+
+## Детали сервера
+-server-detail-title = Сведения о сервере
+-server-detail-connect = Подключиться
+-server-detail-disconnect = Отключиться
+-server-detail-edit = Редактировать
+-server-detail-delete = Удалить
+-server-detail-name = Имя
+-server-detail-host = Хост
+-server-detail-port = Порт
+-server-detail-username = Имя пользователя
+-server-detail-auth-method = Аутентификация
+-server-detail-auth-password = Пароль
+-server-detail-auth-key = SSH-ключ
+-server-detail-auth-agent = SSH-агент
+-server-detail-group = Группа
+-server-detail-tags = Теги
+-server-detail-color = Цвет
+-server-detail-notes = Заметки
+-server-detail-last-connected = Последнее подключение
+-server-detail-never-connected = Не подключался
+-server-detail-created = Создан
+-server-detail-updated = Обновлён
+-server-detail-connection-status = Статус подключения
+-server-detail-terminal = Терминал
+-server-detail-sftp = SFTP
+-server-detail-monitoring = Мониторинг
+-server-detail-logs = Логи
+
+## Диалог сервера
+-server-dialog-add-title = Добавить сервер
+-server-dialog-edit-title = Редактировать сервер
+-server-dialog-name-label = Имя сервера
+-server-dialog-name-placeholder = например, Продакшн Веб-сервер
+-server-dialog-host-label = Хост / IP-адрес
+-server-dialog-host-placeholder = например, 192.168.1.100 или server.example.com
+-server-dialog-port-label = Порт
+-server-dialog-port-default = По умолчанию: 22
+-server-dialog-username-label = Имя пользователя
+-server-dialog-username-placeholder = например, root или admin
+-server-dialog-auth-label = Способ аутентификации
+-server-dialog-auth-password-label = Пароль
+-server-dialog-auth-password-placeholder = Введите пароль
+-server-dialog-auth-key-label = Приватный ключ
+-server-dialog-auth-key-select = Выбрать файл ключа
+-server-dialog-auth-key-passphrase = Пароль ключа (опционально)
+-server-dialog-auth-agent-label = Использовать SSH-агент
+-server-dialog-group-label = Группа
+-server-dialog-group-none = Без группы
+-server-dialog-group-new = Новая группа...
+-server-dialog-tags-label = Теги
+-server-dialog-tags-placeholder = Добавьте теги, разделённые запятыми
+-server-dialog-color-label = Цвет
+-server-dialog-advanced = Дополнительные параметры
+-server-dialog-advanced-jump = Jump-хост
+-server-dialog-advanced-proxy = Прокси
+-server-dialog-advanced-keepalive = Интервал keepalive
+-server-dialog-save-and-connect = Сохранить и подключиться
+-server-dialog-save = Сохранить
+-server-dialog-test-connection = Проверить подключение
+-server-dialog-test-success = Подключение успешно!
+-server-dialog-test-failed = Ошибка подключения: { $error }
+-server-dialog-validation-required = { $field } обязательно
+-server-dialog-validation-invalid-port = Порт должен быть от 1 до 65535
+-server-dialog-validation-invalid-host = Неверный адрес хоста
+
+## Группы
+group-list-title = Список групп
+group-list-empty = Группы не созданы
+group-list-add = Новая группа
+group-dialog-add-title = Создать группу
+group-dialog-edit-title = Редактировать группу
+group-dialog-name-label = Имя группы
+group-dialog-name-placeholder = например, Продакшн серверы
+group-dialog-parent-label = Родительская группа (опционально)
+group-dialog-color-label = Цвет группы
+group-dialog-delete-confirm = Удалить группу "{ $name }"?
+group-dialog-delete-warning = Серверы в этой группе станут без категории.
+
+## Терминал
+-terminal-title = Терминал
+-terminal-new-tab = Новая вкладка
+-terminal-close-tab = Закрыть вкладку
+-terminal-split-horizontal = Разделить горизонтально
+-terminal-split-vertical = Разделить вертикально
+-terminal-copy = Копировать
+-terminal-paste = Вставить
+-terminal-select-all = Выделить всё
+-terminal-find = Найти
+-terminal-clear = Очистить
+-terminal-reset = Сбросить
+-terminal-zoom-in = Увеличить
+-terminal-zoom-out = Уменьшить
+-terminal-zoom-reset = Сбросить масштаб
+-terminal-font-size = Размер шрифта
+-terminal-theme = Тема
+-terminal-theme-dark = Тёмная
+-terminal-theme-light = Светлая
+-terminal-cursor-style = Стиль курсора
+-terminal-cursor-blink = Мигающий курсор
+-terminal-alt-screen = Альтернативный экран
+-terminal-mouse-reporting = Отчёт мыши
+-terminal-disconnected = Сессия отключена. Нажмите Enter для переподключения.
+-terminal-reconnecting = Переподключение...
+-terminal-command-palette = Палитра команд
+-terminal-sftp-open = Открыть панель SFTP
+
+## SFTP
+-sftp-title = Передача файлов SFTP
+-sftp-local = Локальный
+-sftp-remote = Удалённый
+-sftp-upload = Загрузить
+-sftp-download = Скачать
+-sftp-delete = Удалить
+-sftp-rename = Переименовать
+-sftp-new-folder = Новая папка
+-sftp-refresh = Обновить
+-sftp-transfer-progress = Передача { $filename } ({ $progress }%)
+-sftp-transfer-complete = Передача завершена: { $filename }
+-sftp-transfer-error = Ошибка передачи: { $error }
+-sftp-path-home = Домашняя
+-sftp-path-root = Корень
+-sftp-context-upload = Загрузить сюда
+-sftp-context-download = Скачать
+-sftp-context-delete = Удалить
+-sftp-context-rename = Переименовать
+-sftp-context-properties = Свойства
+
+## Сниппеты
+-snippets-title = Сниппеты
+-snippets-empty = Сниппеты не сохранены
+-snippets-add = Новый сниппет
+-snippets-edit = Редактировать сниппет
+-snippets-delete = Удалить сниппет
+-snippets-run = Запустить сниппет
+-snippets-name = Имя
+-snippets-content = Содержимое
+-snippets-variables = Переменные
+-snippets-description = Описание
+-snippets-global = Глобальные сниппеты
+-snippets-server-specific = Для конкретного сервера
+
+## Подключение
+-connection-connecting = Подключение к { $host }...
+-connection-connected = Подключено к { $host }
+-connection-disconnected = Отключено от { $host }
+-connection-error = Ошибка подключения: { $error }
+-connection-auth-failed = Ошибка аутентификации
+-connection-host-key-changed = Внимание: ключ удалённого хоста изменился!
+-connection-host-key-unknown = Неизвестный ключ хоста. Принять?
+-connection-timeout = Таймаут подключения
+-connection-refused = В подключении отказано
+-connection-reset = Подключение сброшено удалённой стороной
+-connection-retrying = Повторная попытка... ({ $attempt }/{ $max })
+
+## Настройки
+-settings-title = Настройки
+-settings-general = Общие
+-settings-appearance = Внешний вид
+-settings-terminal = Терминал
+-settings-ssh = SSH
+-settings-advanced = Дополнительно
+-settings-language = Язык
+-settings-language-auto = Автоопределение
+-settings-theme = Тема
+-settings-theme-system = Системная
+-settings-theme-dark = Тёмная
+-settings-theme-light = Светлая
+-settings-font-size = Размер шрифта
+-settings-font-family = Шрифт
+-settings-show-tray-icon = Показывать в трее
+-settings-minimize-to-tray = Сворачивать в трей
+-settings-startup = Автозагрузка
+-settings-startup-launch = Запускать при старте системы
+-settings-startup-restore = Восстанавливать последнюю сессию
+-settings-updates = Обновления
+-settings-updates-check = Проверять обновления
+-settings-updates-auto = Устанавливать обновления автоматически
+-settings-shortcuts = Горячие клавиши
+-settings-shortcuts-new-tab = Новая вкладка
+-settings-shortcuts-close-tab = Закрыть вкладку
+-settings-shortcuts-next-tab = Следующая вкладка
+-settings-shortcuts-prev-tab = Предыдущая вкладка
+-settings-backup = Резервное копирование
+-settings-backup-export = Экспорт настроек
+-settings-backup-import = Импорт настроек
+-settings-reset = Сбросить настройки
+-settings-reset-confirm = Сбросить все настройки на значения по умолчанию?
+
+## Безопасность
+-security-unlock-title = Разблокировать EasySSH
+-security-unlock-prompt = Введите мастер-пароль для продолжения
+-security-unlock-button = Разблокировать
+-security-forgot-password = Забыли пароль?
+-security-set-password = Установить мастер-пароль
+-security-change-password = Изменить мастер-пароль
+-security-password-hint = Подсказка к паролю (опционально)
+-security-biometric-enable = Включить { $type }
+-security-biometric-type-face = Face ID
+-security-biometric-type-fingerprint = Touch ID
+-security-biometric-type-generic = Биометрическая аутентификация
+-security-auto-lock = Автоблокировка через
+-security-auto-lock-never = Никогда
+-security-auto-lock-1m = 1 минуту
+-security-auto-lock-5m = 5 минут
+-security-auto-lock-15m = 15 минут
+-security-auto-lock-1h = 1 час
+-security-export-encrypted = Шифровать экспортированные данные
+
+## Импорт/Экспорт
+-import-title = Импорт настроек
+-import-source = Источник
+-import-source-file = Из файла
+-import-source-url = Из URL
+-import-source-clipboard = Из буфера обмена
+-import-format = Формат
+-import-format-auto = Автоопределение
+-import-format-json = JSON
+-import-format-csv = CSV
+-import-format-ssh-config = Конфигурация SSH
+-import-options = Параметры
+-import-options-duplicate-skip = Пропустить дубликаты
+-import-options-duplicate-replace = Заменить дубликаты
+-import-options-duplicate-merge = Объединить с существующими
+-import-preview = Предпросмотр
+-import-items-count = Найдено { $count } элементов
+-import-success = Импорт успешен: импортировано { $count } элементов
+-import-error = Ошибка импорта: { $error }
+-export-title = Экспорт настроек
+-export-format = Формат экспорта
+-export-what = Что экспортировать
+-export-what-all = Все данные
+-export-what-servers = Только серверы
+-export-what-groups = Только группы
+-export-what-snippets = Только сниппеты
+-export-encrypted = Шифровать экспорт
+-export-password = Пароль экспорта
+-export-success = Экспорт успешен
+-export-error = Ошибка экспорта: { $error }
+
+## Мониторинг
+-monitoring-title = Мониторинг системы
+-monitoring-cpu = Процессор
+-monitoring-memory = Память
+-monitoring-disk = Диск
+-monitoring-network = Сеть
+-monitoring-processes = Процессы
+-monitoring-refresh = Частота обновления
+-monitoring-alert-threshold = Порог предупреждений
+-monitoring-history = История
+-monitoring-export-data = Экспорт данных
+
+## Командные функции
+-team-title = Управление командой
+-team-members = Участники
+-team-roles = Роли
+-team-invite = Пригласить участника
+-team-remove = Удалить участника
+-team-role-owner = Владелец
+-team-role-admin = Администратор
+-team-role-member = Участник
+-team-role-viewer = Наблюдатель
+-team-sync = Синхронизация команды
+-team-audit = Журнал аудита
+-team-shared-snippets = Общие сниппеты
+
+## Уведомления
+-notify-connection-lost = Соединение потеряно: { $server }
+-notify-transfer-complete = Передача файла завершена
+-notify-transfer-failed = Ошибка передачи файла
+-notify-update-available = Доступно обновление: { $version }
+-notify-copy-success = Скопировано в буфер обмена
+
+## Сообщения об ошибках
+-error-generic = Произошла ошибка
+-error-not-found = Ресурс не найден
+-error-permission = Доступ запрещён
+-error-network = Сетевая ошибка
+-error-timeout = Истекло время ожидания
+-error-invalid-input = Неверный ввод
+-error-database = Ошибка базы данных
+-error-crypto = Ошибка шифрования
+-error-ssh = Ошибка SSH: { $message }
+-error-keychain = Ошибка связки ключей
+-error-terminal = Ошибка терминала
+-error-import-failed = Ошибка импорта
+-error-export-failed = Ошибка экспорта
+-error-file-not-found = Файл не найден: { $path }
+-error-invalid-key = Неверный SSH-ключ
+-error-connection-failed = Ошибка подключения
+
+## Доступность
+-a11y-terminal-label = Панель терминала
+-a11y-server-list-label = Список серверов
+-a11y-sidebar-label = Боковая панель
+-a11y-close-dialog = Закрыть диалог
+-a11y-expand-section = Развернуть раздел
+-a11y-collapse-section = Свернуть раздел
+-a11y-more-options = Дополнительные опции
+-a11y-search-results = { $count } результатов поиска
+-a11y-connection-status = Статус подключения: { $status }

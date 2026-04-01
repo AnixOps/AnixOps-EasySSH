@@ -1,0 +1,22 @@
+# Test artifacts
+playwright-report/
+test-results/
+*.png
+!__snapshots__/**/*.png
+*.webm
+*.zip
+
+# Dependencies
+node_modules/
+
+# Build outputs
+*.log
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

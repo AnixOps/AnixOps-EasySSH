@@ -1,0 +1,32 @@
+[Unit]
+Description=EasySSH SSH Client Service
+Documentation=https://easyssh.io/docs
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/easyssh --daemon
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+Restart=on-failure
+RestartSec=5
+WatchdogSec=30
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/easyssh /var/log/easyssh /run/easyssh
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Environment
+Environment="RUST_LOG=info"
+Environment="EASYSSH_CONFIG_DIR=/var/lib/easyssh"
+
+[Install]
+WantedBy=multi-user.target

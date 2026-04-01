@@ -14,18 +14,42 @@
 
 ```
 docs/
-├── competitor-analysis.md        # 竞品分析(痛点/优点/警示)
-├── easyssh-lite-planning.md      # Lite版本详细规划
-├── easyssh-standard-planning.md # Standard版本详细规划
-├── easyssh-pro-planning.md      # Pro版本详细规划
+├── INDEX.md                       # 文档总索引 (本文档)
+├── competitor-analysis.md         # 竞品分析(痛点/优点/警示)
+├── easyssh-lite-planning.md       # Lite版本详细规划
+├── easyssh-standard-planning.md   # Standard版本详细规划
+├── easyssh-pro-planning.md        # Pro版本详细规划
 │
-├── architecture/
-│   └── overall-architecture.md  # 整体架构设计
+├── architecture/                  # 架构设计文档
+│   ├── overall-architecture.md    # 整体架构设计
+│   ├── system-architecture.md     # 系统架构
+│   ├── api-design.md              # API设计
+│   ├── data-flow.md               # 数据流设计
+│   ├── deployment.md              # 部署架构
+│   └── termius-inspired-redesign.md # Termius风格重构方案
 │
-└── standards/
-    ├── code-quality.md           # 代码质量标准
-    ├── ui-ux-automation.md      # UI/UX自动化
-    └── debug-interface.md        # Debug接口
+├── developers/                    # 开发者指南
+│   ├── SETUP.md                   # 开发环境配置
+│   ├── DEBUGGING.md               # 调试指南
+│   ├── TESTING.md                 # 测试指南
+│   ├── PROFILING.md               # 性能分析
+│   └── TROUBLESHOOTING.md         # 故障排查
+│
+├── standards/                     # 开发标准
+│   ├── code-quality.md            # 代码质量标准
+│   ├── ui-ux-automation.md        # UI/UX自动化
+│   └── debug-interface.md         # Debug接口
+│
+├── security/                      # 安全文档
+│   ├── audit-report.md            # 安全审计报告
+│   ├── audit-fix-report.md        # 安全修复报告
+│   ├── audit-complete-2026-04-01.md # 审计完成报告
+│   └── patch-guide.md             # 安全补丁指南
+│
+├── deployment/                    # 部署运维
+├── features/                      # 功能实现文档
+├── analysis/                      # 分析报告
+└── dependency-analysis/           # 依赖分析
 
 CLAUDE.md                          # 本文件 - 总览
 ```
@@ -35,6 +59,7 @@ CLAUDE.md                          # 本文件 - 总览
 ## 快速导航
 
 ### 开发指南
+- [文档索引](docs/INDEX.md) - 完整文档导航
 - [竞品分析](docs/competitor-analysis.md) - SSH客户端痛点与警示
 - [Lite版本规划](docs/easyssh-lite-planning.md) - Lite版完整功能规格
 - [Standard版本规划](docs/easyssh-standard-planning.md) - Standard版完整功能规格
@@ -42,10 +67,21 @@ CLAUDE.md                          # 本文件 - 总览
 - [架构设计](docs/architecture/overall-architecture.md) - Monorepo结构、依赖关系
 - [Termius风格重构](docs/architecture/termius-inspired-redesign.md) - 全平台工作区与版本重构方案
 
+### 开发者文档
+- [开发环境设置](docs/developers/SETUP.md) - 环境配置指南
+- [调试指南](docs/developers/DEBUGGING.md) - 调试技巧与工具
+- [测试指南](docs/developers/TESTING.md) - 测试策略与用例编写
+- [性能分析](docs/developers/PROFILING.md) - 性能分析工具
+- [故障排查](docs/developers/TROUBLESHOOTING.md) - 常见问题解决
+
 ### 开发标准
 - [代码质量标准](docs/standards/code-quality.md) - Rust/TypeScript编码规范
 - [UI/UX自动化](docs/standards/ui-ux-automation.md) - AI辅助设计、视觉回归测试
 - [Debug接口](docs/standards/debug-interface.md) - AI Agent集成、CLI工具
+
+### 安全文档
+- [安全审计报告](docs/security/audit-report.md) - 安全审计详细报告
+- [安全修复报告](docs/security/audit-fix-report.md) - 安全漏洞修复记录
 
 ---
 
@@ -256,6 +292,7 @@ ai_self_fix("TypeScript error in auth.ts:42")
 - [x] UI/UX自动化方案
 - [x] 代码质量标准
 - [x] **AI全自动化运维接口** (新增)
+- [x] **文档归档与索引** (2026-04-01)
 
 **等待中**:
 - [ ] 用户确认规划

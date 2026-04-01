@@ -1,0 +1,22 @@
+{
+  "name": "easyssh-docs",
+  "version": "1.0.0",
+  "description": "EasySSH Documentation Site - VitePress",
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
+    "lint": "markdownlint docs/**/*.md",
+    "format": "prettier --write docs/**/*.md"
+  },
+  "devDependencies": {
+    "vitepress": "^1.0.0",
+    "markdownlint-cli": "^0.39.0",
+    "prettier": "^3.2.0",
+    "markdown-it-container": "^4.0.0"
+  },
+  "dependencies": {
+    "markdown-it": "^14.0.0"
+  }
+}

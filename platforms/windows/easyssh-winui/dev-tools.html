@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasySSH Developer Tools - WebSocket Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #1a1a2e;
+            color: #eaeaea;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00d4aa;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #0f3460;
+        }
+        .panel h2 {
+            font-size: 16px;
+            color: #e94560;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status.connected {
+            background: #00d4aa20;
+            color: #00d4aa;
+        }
+        .status.disconnected {
+            background: #e9456020;
+            color: #e94560;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .connected .status-dot {
+            background: #00d4aa;
+        }
+        .disconnected .status-dot {
+            background: #e94560;
+            animation: none;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        input, select, button, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #0f3460;
+            background: #0a0a14;
+            color: #eaeaea;
+            font-size: 14px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+        button {
+            background: #e94560;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover {
+            background: #ff6b6b;
+        }
+        button:disabled {
+            background: #333;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #0f3460;
+        }
+        button.secondary:hover {
+            background: #1a4a7a;
+        }
+        button.success {
+            background: #00d4aa;
+            color: #1a1a2e;
+        }
+        button.success:hover {
+            background: #00f5c4;
+        }
+        .command-group {
+            margin-bottom: 20px;
+        }
+        .command-group h3 {
+            font-size: 13px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .btn-grid button {
+            font-size: 12px;
+            padding: 8px;
+        }
+        .log {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 6px;
+            border-left: 3px solid;
+        }
+        .log-entry.sent {
+            background: #0f346020;
+            border-color: #e94560;
+        }
+        .log-entry.received {
+            background: #00d4aa20;
+            border-color: #00d4aa;
+        }
+        .log-entry.error {
+            background: #e9456020;
+            border-color: #e94560;
+        }
+        .log-entry.info {
+            background: #333;
+            border-color: #888;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 11px;
+        }
+        .label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .form-row {
+            margin-bottom: 12px;
+        }
+        .server-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #0f3460;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .server-card:hover {
+            border-color: #e94560;
+        }
+        .server-card.selected {
+            border-color: #00d4aa;
+            background: #00d4aa10;
+        }
+        .server-name {
+            font-weight: 600;
+            color: #eaeaea;
+        }
+        .server-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #0f3460;
+            padding-bottom: 10px;
+        }
+        .tab {
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            background: #0f3460;
+        }
+        .tab.active {
+            background: #e94560;
+            font-weight: 600;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .quick-test {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .quick-test button {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .session-info {
+            background: #00d4aa20;
+            border: 1px solid #00d4aa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 EasySSH Developer Tools</h1>
+        <p class="subtitle">WebSocket Control API Test Interface — ws://localhost:8765</p>
+
+        <div class="grid">
+            <!-- Left Panel: Controls -->
+            <div class="panel">
+                <h2>
+                    <span id="wsStatus" class="status disconnected">
+                        <span class="status-dot"></span>
+                        <span id="wsStatusText">Disconnected</span>
+                    </span>
+                    <span id="latencyDisplay" style="margin-left: 10px; font-size: 12px; color: #888;">--</span>
+                </h2>
+
+                <button id="connectBtn" onclick="toggleConnection()">
+                    <span>🔗</span> Connect to EasySSH
+                </button>
+
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('servers')">Servers</div>
+                    <div class="tab" onclick="switchTab('session')">Session</div>
+                    <div class="tab" onclick="switchTab('test')">Auto Test</div>
+                </div>
+
+                <!-- Servers Tab -->
+                <div id="serversTab" class="tab-content active">
+                    <div class="command-group">
+                        <h3>Server Management</h3>
+                        <button onclick="sendCommand('get_servers')">📋 List All Servers</button>
+                        <button class="secondary" onclick="deleteSelectedServer()">🗑 Delete Selected Server</button>
+                    </div>
+
+                    <div class="command-group">
+                        <h3>Add New Server</h3>
+                        <div class="form-row">
+                            <div class="label">Name</div>
+                            <input type="text" id="newName" placeholder="My Server">
+                        </div>
+                        <div class="form-row">
+                            <div class="label">Host</div>
+                            <input type="text" id="newHost" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-row">
+                            <div class="label">Port</div>
+                            <input type="number" id="newPort" value="22">
+                        </div>
+                        <div class="form-row">
+                            <div class="label">Username</div>
+                            <input type="text" id="newUsername" placeholder="root">
+                        </div>
+                        <button onclick="addServer()">➕ Add Server</button>
+                    </div>
+
+                    <div class="command-group">
+                        <h3>Saved Servers</h3>
+                        <div id="serverList">No servers loaded</div>
+                    </div>
+                </div>
+
+                <!-- Session Tab -->
+                <div id="sessionTab" class="tab-content">
+                    <div id="activeSession" class="session-info hidden">
+                        <strong>Active Session:</strong> <span id="sessionId"></span>
+                    </div>
+
+                    <div class="command-group">
+                        <h3>Connect to Server</h3>
+                        <div class="form-row">
+                            <div class="label">Server ID</div>
+                            <select id="connectServerId">
+                                <option value="">Select a server...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="label">Password (optional)</div>
+                            <input type="password" id="connectPassword" placeholder="Enter password">
+                        </div>
+                        <button onclick="connectToServer()">🔌 Connect</button>
+                        <button class="secondary" onclick="sendCommand('disconnect')">🔌 Disconnect</button>
+                    </div>
+
+                    <div class="command-group">
+                        <h3>Execute Command</h3>
+                        <div class="form-row">
+                            <div class="label">Command</div>
+                            <input type="text" id="execCommand" placeholder="whoami" value="whoami">
+                        </div>
+                        <button onclick="executeCommand()">▶ Execute</button>
+                        <button class="secondary" onclick="executeQuick('ls -la')">ls -la</button>
+                        <button class="secondary" onclick="executeQuick('pwd')">pwd</button>
+                        <button class="secondary" onclick="executeQuick('uname -a')">uname</button>
+                    </div>
+
+                    <div class="command-group">
+                        <h3>Password Management</h3>
+                        <div class="form-row">
+                            <div class="label">Server ID</div>
+                            <select id="pwdServerId">
+                                <option value="">Select a server...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="label">Password</div>
+                            <input type="password" id="savePassword" placeholder="Enter password to save">
+                        </div>
+                        <button onclick="savePassword()">💾 Save Password</button>
+                        <button class="secondary" onclick="getPassword()">🔍 Check Password</button>
+                    </div>
+                </div>
+
+                <!-- Auto Test Tab -->
+                <div id="testTab" class="tab-content">
+                    <div class="command-group">
+                        <h3>Quick Tests</h3>
+                        <div class="quick-test">
+                            <button class="success" onclick="runQuickTest()">⚡ Quick Test</button>
+                            <button class="secondary" onclick="runAutomationProbe()">🩺 Probe</button>
+                            <button onclick="clearLog()">🗑 Clear Log</button>
+                        </div>
+                    </div>
+
+                    <div class="command-group">
+                        <h3>Full Automation</h3>
+                        <div class="form-row">
+                            <div class="label">Server ID</div>
+                            <select id="autoServerId">
+                                <option value="">Select a server...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="label">Password</div>
+                            <input type="password" id="autoPassword" placeholder="Password for auto-connect">
+                        </div>
+                        <button class="success" onclick="runFullAutomation()">🤖 Full Auto Test</button>
+                    </div>
+
+                    <div class="command-group">
+                        <h3>Test Sequence</h3>
+                        <div class="btn-grid">
+                            <button onclick="sendCommand('get_status')">Status</button>
+                            <button onclick="sendCommand('get_servers')">List</button>
+                            <button onclick="testAddServer()">Add Test</button>
+                            <button onclick="testAll()">Test All</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Log -->
+            <div class="panel">
+                <h2>📊 Message Log</h2>
+                <div id="log" class="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let servers = [];
+        let currentSession = null;
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+
+            if (typeof message === 'object') {
+                message = JSON.stringify(message, null, 2);
+            }
+
+            entry.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        let pingInterval = null;
+        let latency = 0;
+
+        function toggleConnection() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            log('Connecting to ws://localhost:8765...', 'info');
+            ws = new WebSocket('ws://localhost:8765');
+
+            ws.onopen = () => {
+                updateStatus(true);
+                log('✅ WebSocket connected', 'received');
+                // Start auto-ping every 5 seconds
+                if (pingInterval) clearInterval(pingInterval);
+                pingInterval = setInterval(() => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ command: 'ping', params: {} }));
+                    }
+                }, 5000);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                log('📥 Received:', 'received');
+                log(data, 'received');
+
+                // Handle pong response
+                if (data.data && data.data.pong) {
+                    latency = Date.now() - lastPingTime;
+                    updateLatencyDisplay();
+                }
+
+                handleResponse(data);
+            };
+
+            ws.onclose = () => {
+                updateStatus(false);
+                if (pingInterval) {
+                    clearInterval(pingInterval);
+                    pingInterval = null;
+                }
+                log('❌ WebSocket disconnected', 'error');
+            };
+
+            ws.onerror = (err) => {
+                log('💥 WebSocket error: ' + err, 'error');
+            };
+        }
+
+        function updateLatencyDisplay() {
+            const latencyEl = document.getElementById('latencyDisplay');
+            if (latencyEl) {
+                latencyEl.textContent = latency + 'ms';
+                latencyEl.style.color = latency < 100 ? '#00d4aa' : latency < 500 ? '#ffd700' : '#e94560';
+            }
+        }
+
+        let lastPingTime = 0;
+
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('wsStatus');
+            const statusText = document.getElementById('wsStatusText');
+            const btn = document.getElementById('connectBtn');
+
+            if (connected) {
+                statusEl.className = 'status connected';
+                statusText.textContent = 'Connected';
+                btn.innerHTML = '<span>❌</span> Disconnect';
+            } else {
+                statusEl.className = 'status disconnected';
+                statusText.textContent = 'Disconnected';
+                btn.innerHTML = '<span>🔗</span> Connect to EasySSH';
+            }
+        }
+
+        function sendCommand(command, params = {}) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ Not connected. Click "Connect to EasySSH" first.', 'error');
+                return;
+            }
+
+            const msg = { command, params };
+            ws.send(JSON.stringify(msg));
+            log(`📤 Sent: ${command}`, 'sent');
+            if (Object.keys(params).length > 0) {
+                log(params, 'sent');
+            }
+        }
+
+        function handleResponse(data) {
+            // Update server list if get_servers response
+            if (data.data && data.data.servers) {
+                servers = data.data.servers;
+                updateServerList();
+            }
+
+            // Track session
+            if (data.data && data.data.session_id) {
+                currentSession = data.data.session_id;
+                document.getElementById('sessionId').textContent = currentSession.substring(0, 8) + '...';
+                document.getElementById('activeSession').classList.remove('hidden');
+            }
+
+            // Handle disconnect
+            if (data.data && data.data.disconnected) {
+                currentSession = null;
+                document.getElementById('activeSession').classList.add('hidden');
+            }
+        }
+
+        function updateServerList() {
+            const listEl = document.getElementById('serverList');
+            const selects = ['connectServerId', 'pwdServerId', 'autoServerId'];
+
+            if (servers.length === 0) {
+                listEl.innerHTML = 'No servers';
+            } else {
+                listEl.innerHTML = servers.map(s => `
+                    <div class="server-card" onclick="selectServer('${s.id}')" id="server-${s.id}">
+                        <div class="server-name">${s.name}</div>
+                        <div class="server-info">${s.username}@${s.host}:${s.port}</div>
+                        <div class="server-info" style="font-size:10px;color:#666">ID: ${s.id}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Update selects
+            selects.forEach(id => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '<option value="">Select a server...</option>' +
+                    servers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            });
+        }
+
+        function selectServer(id) {
+            document.querySelectorAll('.server-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById(`server-${id}`)?.classList.add('selected');
+            document.getElementById('connectServerId').value = id;
+            document.getElementById('pwdServerId').value = id;
+            document.getElementById('autoServerId').value = id;
+        }
+
+        function addServer() {
+            const name = document.getElementById('newName').value;
+            const host = document.getElementById('newHost').value;
+            const port = parseInt(document.getElementById('newPort').value);
+            const username = document.getElementById('newUsername').value;
+
+            if (!name || !host || !username) {
+                log('❌ Name, host and username are required', 'error');
+                return;
+            }
+
+            sendCommand('add_server', { name, host, port, username, auth_type: 'password' });
+        }
+
+        function connectToServer() {
+            const serverId = document.getElementById('connectServerId').value;
+            const password = document.getElementById('connectPassword').value;
+
+            if (!serverId) {
+                log('❌ Please select a server', 'error');
+                return;
+            }
+
+            const params = { server_id: serverId };
+            if (password) params.password = password;
+
+            sendCommand('connect', params);
+        }
+
+        function executeCommand() {
+            const cmd = document.getElementById('execCommand').value;
+            if (!currentSession) {
+                log('❌ No active session. Connect first.', 'error');
+                return;
+            }
+            sendCommand('execute', { session_id: currentSession, command: cmd });
+        }
+
+        function executeQuick(cmd) {
+            document.getElementById('execCommand').value = cmd;
+            executeCommand();
+        }
+
+        function savePassword() {
+            const serverId = document.getElementById('pwdServerId').value;
+            const password = document.getElementById('savePassword').value;
+
+            if (!serverId || !password) {
+                log('❌ Server ID and password are required', 'error');
+                return;
+            }
+
+            sendCommand('save_password', { server_id: serverId, password });
+        }
+
+        function getPassword() {
+            const serverId = document.getElementById('pwdServerId').value;
+            if (!serverId) {
+                log('❌ Please select a server', 'error');
+                return;
+            }
+            sendCommand('get_password', { server_id: serverId });
+        }
+
+        function deleteSelectedServer() {
+            const serverId = document.getElementById('connectServerId').value || document.getElementById('pwdServerId').value;
+            if (!serverId) {
+                log('❌ Select a server first', 'error');
+                return;
+            }
+            sendCommand('delete_server', { server_id: serverId });
+            setTimeout(() => sendCommand('get_servers'), 300);
+        }
+
+        function runAutomationProbe() {
+            const serverId = document.getElementById('autoServerId').value || document.getElementById('pwdServerId').value || '';
+            const password = document.getElementById('autoPassword').value || document.getElementById('savePassword').value || '';
+            sendCommand('automation_probe', { server_id: serverId, password });
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // Quick Tests
+        async function runQuickTest() {
+            log('⚡ Starting quick test...', 'info');
+            sendCommand('get_status');
+            await delay(500);
+            sendCommand('get_servers');
+        }
+
+        function testAddServer() {
+            const name = 'TestServer-' + Date.now().toString().slice(-4);
+            sendCommand('add_server', {
+                name: name,
+                host: '192.168.1.100',
+                port: 22,
+                username: 'testuser',
+                auth_type: 'password'
+            });
+        }
+
+        function testAll() {
+            log('🧪 Running all basic tests...', 'info');
+            sendCommand('get_status');
+            setTimeout(() => sendCommand('get_servers'), 300);
+            setTimeout(() => testAddServer(), 600);
+        }
+
+        async function runFullAutomation() {
+            const serverId = document.getElementById('autoServerId').value;
+            const password = document.getElementById('autoPassword').value;
+
+            if (!serverId) {
+                log('❌ Please select a server for automation', 'error');
+                return;
+            }
+
+            log('🤖 Starting full automation...', 'info');
+
+            // Step 1: Get status
+            log('Step 1: Getting status...', 'info');
+            sendCommand('get_status');
+            await delay(500);
+
+            // Step 2: Save password
+            if (password) {
+                log('Step 2: Saving password...', 'info');
+                sendCommand('save_password', { server_id: serverId, password });
+                await delay(500);
+            }
+
+            // Step 3: Check password
+            log('Step 3: Checking saved password...', 'info');
+            sendCommand('get_password', { server_id: serverId });
+            await delay(500);
+
+            // Step 4: Connect
+            log('Step 4: Connecting to server...', 'info');
+            const connectParams = { server_id: serverId };
+            if (password) connectParams.password = password;
+            sendCommand('connect', connectParams);
+            await delay(2000);
+
+            // Step 5: Execute commands
+            if (currentSession) {
+                log('Step 5: Executing test commands...', 'info');
+                const commands = ['whoami', 'hostname', 'uptime', 'uname -a'];
+                for (const cmd of commands) {
+                    sendCommand('execute', { session_id: currentSession, command: cmd });
+                    await delay(800);
+                }
+
+                // Step 6: Disconnect
+                log('Step 6: Disconnecting...', 'info');
+                await delay(1000);
+                sendCommand('disconnect');
+            }
+
+            log('✅ Full automation complete!', 'info');
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Auto-connect on load (optional)
+        window.onload = () => {
+            log('🚀 EasySSH Developer Tools loaded', 'info');
+            log('Click "Connect to EasySSH" to start', 'info');
+        };
+    </script>
+</body>
+</html>

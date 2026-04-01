@@ -37,7 +37,14 @@ let package = Package(
         ),
         .testTarget(
             name: "EasySSHTests",
-            dependencies: ["EasySSHCore"]
+            dependencies: ["EasySSHCore"],
+            path: "Tests/EasySSHTests",
+            exclude: ["EasySSHCoreBridgeTests.m"],
+            swiftSettings: [
+                .unsafeFlags(["-I", "../../core/target/include"]),
+                .unsafeFlags(["-L", "../../core/target/release"]),
+                .unsafeFlags(["-leasyssh_core"])
+            ]
         )
     ]
 )

@@ -1,0 +1,21 @@
+EasySSH v0.3.0 Release Checksums
+================================
+
+Generated: 2026-04-01 18:15:00 UTC
+
+## Windows
+# Build required - compilation errors need fixing
+# Run: cargo build --release -p easyssh-winui --bin EasySSH
+
+## Linux
+# Build on Linux with: ./scripts/build-linux.sh
+# Then add checksum: sha256sum linux/easyssh-0.3.0-linux-x64.tar.gz
+
+## macOS
+# Build on macOS with: ./scripts/build-macos.sh
+# Then add checksum: sha256sum macos/EasySSH-0.3.0-macos-universal.dmg
+
+## Source Code
+# GitHub will auto-generate source archives when tag is pushed
+# Source code (zip): https://github.com/anixops/easyssh/archive/refs/tags/v0.3.0.zip
+# Source code (tar.gz): https://github.com/anixops/easyssh/archive/refs/tags/v0.3.0.tar.gz

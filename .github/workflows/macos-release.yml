@@ -1,0 +1,548 @@
+name: macOS Release Build
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+      - 'macos-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.2.3)'
+        required: true
+        type: string
+      enable_notarization:
+        description: 'Enable Apple notarization'
+        required: false
+        type: boolean
+        default: true
+      create_draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: false
+      upload_artifact_only:
+        description: 'Only upload artifact, do not create release'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ============================================================================
+  # Version Extraction
+  # ============================================================================
+  version:
+    name: Extract Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      version_no_v: ${{ steps.get_version.outputs.version_no_v }}
+      is_prerelease: ${{ steps.get_version.outputs.is_prerelease }}
+      channel: ${{ steps.get_version.outputs.channel }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+
+          VERSION_NO_V="${VERSION#v}"
+
+          # Determine if prerelease and channel
+          IS_PRERELEASE="false"
+          CHANNEL="stable"
+
+          if [[ "$VERSION" == *"alpha"* ]]; then
+            CHANNEL="alpha"
+            IS_PRERELEASE="true"
+          elif [[ "$VERSION" == *"beta"* ]]; then
+            CHANNEL="beta"
+            IS_PRERELEASE="true"
+          elif [[ "$VERSION" == *"rc"* ]]; then
+            CHANNEL="rc"
+            IS_PRERELEASE="true"
+          elif [[ "$VERSION" == macos-* ]]; then
+            CHANNEL="development"
+            IS_PRERELEASE="true"
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_no_v=$VERSION_NO_V" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+
+          echo "Version: $VERSION"
+          echo "Channel: $CHANNEL"
+          echo "Is Prerelease: $IS_PRERELEASE"
+
+  # ============================================================================
+  # Build macOS Universal Binary
+  # ============================================================================
+  build-macos:
+    name: Build macOS Universal
+    needs: version
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+      artifact_path: ${{ steps.package.outputs.artifact_path }}
+
+    env:
+      VERSION: ${{ needs.version.outputs.version_no_v }}
+      NOTARIZE: ${{ github.event.inputs.enable_notarization || 'true' }}
+      CODESIGN_IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - name: Cache Rust Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache Swift Packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+            ~/Library/Caches/org.swift.swiftpm
+            .build
+          key: ${{ runner.os }}-swift-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-
+
+      - name: Install Dependencies
+        run: |
+          # Install create-dmg if not present
+          if ! command -v create-dmg &> /dev/null; then
+            brew install create-dmg
+          fi
+
+      - name: Build Rust Core (x86_64)
+        run: |
+          cd core
+          cargo build --release --target x86_64-apple-darwin
+
+      - name: Build Rust Core (arm64)
+        run: |
+          cd core
+          cargo build --release --target aarch64-apple-darwin
+
+      - name: Create Universal Rust Library
+        run: |
+          mkdir -p platforms/macos/EasySSH/libs
+          lipo -create \
+            target/x86_64-apple-darwin/release/libeasyssh_core.a \
+            target/aarch64-apple-darwin/release/libeasyssh_core.a \
+            -output platforms/macos/EasySSH/libs/libeasyssh_core.a
+
+      - name: Build Swift Package (x86_64)
+        working-directory: platforms/macos/EasySSH
+        run: |
+          swift build -c release --arch x86_64
+
+      - name: Build Swift Package (arm64)
+        working-directory: platforms/macos/EasySSH
+        run: |
+          swift build -c release --arch arm64
+
+      - name: Create Universal Binary
+        working-directory: platforms/macos/EasySSH
+        run: |
+          mkdir -p .build/universal/release
+          lipo -create \
+            .build/release/EasySSH \
+            -output .build/universal/release/EasySSH
+
+      - name: Create App Bundle
+        working-directory: platforms/macos/EasySSH
+        run: |
+          APP_BUNDLE="release/EasySSH.app"
+          mkdir -p "$APP_BUNDLE/Contents/MacOS"
+          mkdir -p "$APP_BUNDLE/Contents/Resources"
+
+          # Copy binary
+          cp .build/universal/release/EasySSH "$APP_BUNDLE/Contents/MacOS/"
+
+          # Create Info.plist
+          cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key>
+              <string>en</string>
+              <key>CFBundleExecutable</key>
+              <string>EasySSH</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.anixops.easyssh</string>
+              <key>CFBundleInfoDictionaryVersion</key>
+              <string>6.0</string>
+              <key>CFBundleName</key>
+              <string>EasySSH</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${VERSION}</string>
+              <key>CFBundleVersion</key>
+              <string>${GITHUB_RUN_NUMBER}</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>13.0</string>
+              <key>LSApplicationCategoryType</key>
+              <string>public.app-category.utilities</string>
+              <key>NSHumanReadableCopyright</key>
+              <string>Copyright © 2024 AnixOps. All rights reserved.</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+          # Create PkgInfo
+          echo "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
+
+      - name: Sign Application
+        working-directory: platforms/macos/EasySSH
+        run: |
+          APP_BUNDLE="release/EasySSH.app"
+
+          if [ -n "$CODESIGN_IDENTITY" ]; then
+            echo "Signing with Developer ID..."
+            codesign --force --options runtime --sign "$CODESIGN_IDENTITY" --timestamp "$APP_BUNDLE/Contents/MacOS/EasySSH"
+            codesign --force --deep --options runtime --sign "$CODESIGN_IDENTITY" --timestamp "$APP_BUNDLE"
+          else
+            echo "Using ad-hoc signing..."
+            codesign --force --deep --sign - "$APP_BUNDLE"
+          fi
+
+          # Verify signature
+          codesign --verify --verbose "$APP_BUNDLE"
+
+      - name: Notarize Application
+        if: env.NOTARIZE == 'true' && env.APPLE_ID != ''
+        working-directory: platforms/macos/EasySSH
+        run: |
+          APP_BUNDLE="release/EasySSH.app"
+          ZIP_PATH="release/EasySSH.zip"
+
+          # Create zip for notarization
+          ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
+
+          # Submit for notarization
+          xcrun notarytool submit "$ZIP_PATH" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+
+          # Staple ticket
+          xcrun stapler staple "$APP_BUNDLE"
+
+          # Cleanup
+          rm "$ZIP_PATH"
+
+      - name: Package DMG
+        id: package
+        working-directory: platforms/macos/EasySSH
+        run: |
+          mkdir -p release-dmg
+          cp -R release/EasySSH.app release-dmg/
+          ln -s /Applications release-dmg/Applications
+
+          DMG_NAME="EasySSH-${{ needs.version.outputs.version }}-macos-universal.dmg"
+
+          if command -v create-dmg &> /dev/null; then
+            create-dmg \
+              --volname "EasySSH Installer" \
+              --window-pos 200 120 \
+              --window-size 600 400 \
+              --icon-size 100 \
+              --app-drop-link 450 185 \
+              "$DMG_NAME" \
+              release-dmg/
+          else
+            hdiutil create -volname "EasySSH Installer" \
+              -srcfolder release-dmg \
+              -ov -format UDZO \
+              "$DMG_NAME"
+          fi
+
+          # Sign DMG if identity available
+          if [ -n "$CODESIGN_IDENTITY" ]; then
+            codesign --sign "$CODESIGN_IDENTITY" --timestamp "$DMG_NAME" || true
+          fi
+
+          # Output paths
+          echo "artifact_name=$DMG_NAME" >> $GITHUB_OUTPUT
+          echo "artifact_path=platforms/macos/EasySSH/$DMG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Verify Build
+        working-directory: platforms/macos/EasySSH
+        run: |
+          ls -la release-dmg/
+          ls -la release/
+
+          # Check binary architectures
+          lipo -info release/EasySSH.app/Contents/MacOS/EasySSH
+
+          # Verify code signature
+          codesign -dv --verbose=4 release/EasySSH.app
+
+      - name: Generate Checksum
+        working-directory: platforms/macos/EasySSH
+        run: |
+          DMG_NAME="EasySSH-${{ needs.version.outputs.version }}-macos-universal.dmg"
+          shasum -a 256 "$DMG_NAME" > "${DMG_NAME}.sha256"
+          cat "${DMG_NAME}.sha256"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: |
+            platforms/macos/EasySSH/EasySSH-*.dmg
+            platforms/macos/EasySSH/*.sha256
+          retention-days: 30
+
+  # ============================================================================
+  # Build Individual Architectures (for testing)
+  # ============================================================================
+  build-macos-arch:
+    name: Build macOS ${{ matrix.arch }}
+    needs: version
+    runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch' && !inputs.upload_artifact_only
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-apple-darwin
+          - arch: arm64
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Core
+        run: |
+          cd core
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Build Swift Package
+        working-directory: platforms/macos/EasySSH
+        run: |
+          swift build -c release --arch ${{ matrix.arch }}
+
+      - name: Create Test Bundle
+        working-directory: platforms/macos/EasySSH
+        run: |
+          mkdir -p "test-${{ matrix.arch }}.app/Contents/MacOS"
+          cp .build/release/EasySSH "test-${{ matrix.arch }}.app/Contents/MacOS/"
+          codesign --force --sign - "test-${{ matrix.arch }}.app"
+
+      - name: Upload Test Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-test
+          path: platforms/macos/EasySSH/test-*.app
+          retention-days: 7
+
+  # ============================================================================
+  # Create GitHub Release
+  # ============================================================================
+  create-release:
+    name: Create Release
+    needs: [version, build-macos]
+    runs-on: ubuntu-latest
+    if: |
+      always() &&
+      needs.build-macos.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || !inputs.upload_artifact_only)
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-universal
+          path: artifacts
+
+      - name: Generate Release Notes
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+
+          if [ -f CHANGELOG.md ]; then
+            # Extract changelog for this version
+            awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | head -n -1 > RELEASE_NOTES.md || true
+          fi
+
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "## Changes in $VERSION" > RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            git log --oneline --no-decorate $(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo HEAD~10)..HEAD >> RELEASE_NOTES.md || true
+          fi
+
+          echo "" >> RELEASE_NOTES.md
+          echo "## Installation" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### macOS" >> RELEASE_NOTES.md
+          echo "1. Download the DMG file" >> RELEASE_NOTES.md
+          echo "2. Open the DMG and drag EasySSH to Applications" >> RELEASE_NOTES.md
+          echo "3. If you see 'App can't be opened', right-click and select Open" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### Checksums" >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          cat artifacts/*.sha256 >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+
+          cat RELEASE_NOTES.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.version.outputs.version }}
+          name: EasySSH ${{ needs.version.outputs.version }} (macOS)
+          body_path: RELEASE_NOTES.md
+          draft: ${{ github.event.inputs.create_draft || false }}
+          prerelease: ${{ needs.version.outputs.is_prerelease }}
+          files: |
+            artifacts/*.dmg
+            artifacts/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # Update Release Manifest
+  # ============================================================================
+  update-manifest:
+    name: Update Release Manifest
+    needs: [version, build-macos, create-release]
+    runs-on: ubuntu-latest
+    if: always() && needs.build-macos.result == 'success'
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-universal
+          path: artifacts
+
+      - name: Calculate Checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(cat artifacts/*.sha256 | grep -o '^[a-f0-9]*' | head -1)
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+
+      - name: Update manifest.json (if exists)
+        run: |
+          cat > macos-manifest.json << EOF
+          {
+            "version": "${{ needs.version.outputs.version }}",
+            "channel": "${{ needs.version.outputs.channel }}",
+            "release_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platform": "macos",
+            "architectures": ["x86_64", "arm64"],
+            "minimum_os_version": "13.0",
+            "download_url": "https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.version }}/EasySSH-${{ needs.version.outputs.version }}-macos-universal.dmg",
+            "checksum": "${{ steps.checksum.outputs.checksum }}",
+            "checksum_algorithm": "sha256"
+          }
+          EOF
+
+          cat macos-manifest.json
+
+      - name: Upload Manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-manifest
+          path: macos-manifest.json
+          retention-days: 30
+
+  # ============================================================================
+  # Post-Release Summary
+  # ============================================================================
+  summary:
+    name: Release Summary
+    needs: [version, build-macos, create-release]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Build Summary
+        run: |
+          echo "# macOS Release Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ needs.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Channel** | ${{ needs.version.outputs.channel }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Build Status** | ${{ needs.build-macos.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Release Status** | ${{ needs.create-release.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.build-macos.result }}" = "success" ]; then
+            echo "✅ Build completed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Build failed" >> $GITHUB_STEP_SUMMARY
+          fi

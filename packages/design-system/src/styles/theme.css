@@ -1,0 +1,555 @@
+/**
+ * EasySSH Theme System
+ * CSS Custom Properties for dark/light theme switching
+ *
+ * @usage Add data-theme="light" or data-theme="dark" to document root
+ * @example <html data-theme="dark">
+ */
+
+/* ============================================================================
+   ROOT VARIABLES - Default (Light) Theme
+   ============================================================================ */
+
+:root {
+  /* -------------------------------------------------------------------------
+     Color System - Backgrounds
+     ------------------------------------------------------------------------- */
+  --easyssh-bg-primary: #FFFFFF;
+  --easyssh-bg-secondary: #FAFAFA;
+  --easyssh-bg-tertiary: #F5F5F5;
+  --easyssh-bg-quaternary: #EBEBEB;
+  --easyssh-bg-elevated: #FFFFFF;
+  --easyssh-bg-overlay: rgba(0, 0, 0, 0.4);
+  --easyssh-bg-terminal: #1E1E1E;
+
+  /* -------------------------------------------------------------------------
+     Color System - Text
+     ------------------------------------------------------------------------- */
+  --easyssh-text-primary: #1A1A1A;
+  --easyssh-text-secondary: #525252;
+  --easyssh-text-tertiary: #757575;
+  --easyssh-text-quaternary: #C4C4C4;
+  --easyssh-text-inverted: #FFFFFF;
+  --easyssh-text-terminal: #DCDCDC;
+
+  /* -------------------------------------------------------------------------
+     Color System - Borders
+     ------------------------------------------------------------------------- */
+  --easyssh-border-subtle: #EBEBEB;
+  --easyssh-border-default: #E0E0E0;
+  --easyssh-border-strong: #C4C4C4;
+
+  /* -------------------------------------------------------------------------
+     Interactive Colors - Primary (Brand Blue)
+     ------------------------------------------------------------------------- */
+  --easyssh-primary-50: #EFF6FF;
+  --easyssh-primary-100: #DBEAFE;
+  --easyssh-primary-200: #BFDBFE;
+  --easyssh-primary-300: #93C5FD;
+  --easyssh-primary-400: #60A5FA;
+  --easyssh-primary-500: #3B82F6;
+  --easyssh-primary-600: #2563EB;
+  --easyssh-primary-700: #1D4ED8;
+  --easyssh-primary-800: #1E40AF;
+  --easyssh-primary-900: #1E3A8A;
+
+  --easyssh-interactive-primary: #2563EB;
+  --easyssh-interactive-primary-hover: #1D4ED8;
+  --easyssh-interactive-primary-active: #1E40AF;
+  --easyssh-interactive-primary-text: #FFFFFF;
+
+  /* -------------------------------------------------------------------------
+     Interactive Colors - Secondary
+     ------------------------------------------------------------------------- */
+  --easyssh-interactive-secondary: #F5F5F5;
+  --easyssh-interactive-secondary-hover: #EBEBEB;
+  --easyssh-interactive-secondary-active: #E0E0E0;
+  --easyssh-interactive-secondary-text: #1A1A1A;
+
+  /* -------------------------------------------------------------------------
+     Interactive Colors - Ghost
+     ------------------------------------------------------------------------- */
+  --easyssh-interactive-ghost: transparent;
+  --easyssh-interactive-ghost-hover: #F5F5F5;
+  --easyssh-interactive-ghost-active: #EBEBEB;
+
+  /* -------------------------------------------------------------------------
+     Semantic Colors
+     ------------------------------------------------------------------------- */
+  --easyssh-success-main: #22C55E;
+  --easyssh-success-bg: rgba(34, 197, 94, 0.1);
+  --easyssh-success-border: rgba(34, 197, 94, 0.3);
+
+  --easyssh-warning-main: #F59E0B;
+  --easyssh-warning-bg: rgba(245, 158, 11, 0.1);
+  --easyssh-warning-border: rgba(245, 158, 11, 0.3);
+
+  --easyssh-danger-main: #EF4444;
+  --easyssh-danger-bg: rgba(239, 68, 68, 0.1);
+  --easyssh-danger-border: rgba(239, 68, 68, 0.3);
+
+  --easyssh-info-main: #3B82F6;
+  --easyssh-info-bg: rgba(59, 130, 246, 0.1);
+  --easyssh-info-border: rgba(59, 130, 246, 0.3);
+
+  /* -------------------------------------------------------------------------
+     Status Colors
+     ------------------------------------------------------------------------- */
+  --easyssh-status-online: #22C55E;
+  --easyssh-status-offline: #EF4444;
+  --easyssh-status-connecting: #F59E0B;
+  --easyssh-status-maintenance: #8B5CF6;
+  --easyssh-status-unknown: #9CA3AF;
+
+  /* -------------------------------------------------------------------------
+     Focus & Selection
+     ------------------------------------------------------------------------- */
+  --easyssh-focus-color: #3B82F6;
+  --easyssh-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  --easyssh-selection-bg: rgba(59, 130, 246, 0.15);
+
+  /* -------------------------------------------------------------------------
+     Typography
+     ------------------------------------------------------------------------- */
+  --easyssh-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --easyssh-font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Monaco, monospace;
+  --easyssh-font-display: 'Inter', system-ui, sans-serif;
+
+  /* -------------------------------------------------------------------------
+     Spacing (4px grid)
+     ------------------------------------------------------------------------- */
+  --easyssh-space-0: 0;
+  --easyssh-space-0-5: 2px;
+  --easyssh-space-1: 4px;
+  --easyssh-space-1-5: 6px;
+  --easyssh-space-2: 8px;
+  --easyssh-space-2-5: 10px;
+  --easyssh-space-3: 12px;
+  --easyssh-space-3-5: 14px;
+  --easyssh-space-4: 16px;
+  --easyssh-space-5: 20px;
+  --easyssh-space-6: 24px;
+  --easyssh-space-7: 28px;
+  --easyssh-space-8: 32px;
+  --easyssh-space-9: 36px;
+  --easyssh-space-10: 40px;
+  --easyssh-space-12: 48px;
+  --easyssh-space-14: 56px;
+  --easyssh-space-16: 64px;
+
+  /* -------------------------------------------------------------------------
+     Border Radius
+     ------------------------------------------------------------------------- */
+  --easyssh-radius-none: 0;
+  --easyssh-radius-xs: 2px;
+  --easyssh-radius-sm: 4px;
+  --easyssh-radius-md: 6px;
+  --easyssh-radius-lg: 8px;
+  --easyssh-radius-xl: 12px;
+  --easyssh-radius-2xl: 16px;
+  --easyssh-radius-3xl: 24px;
+  --easyssh-radius-full: 9999px;
+
+  /* -------------------------------------------------------------------------
+     Shadows
+     ------------------------------------------------------------------------- */
+  --easyssh-shadow-none: none;
+  --easyssh-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --easyssh-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+  --easyssh-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --easyssh-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.06);
+  --easyssh-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  --easyssh-shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --easyssh-shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+  --easyssh-shadow-terminal: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --easyssh-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --easyssh-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --easyssh-shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --easyssh-shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.18);
+  --easyssh-shadow-tooltip: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* -------------------------------------------------------------------------
+     Motion
+     ------------------------------------------------------------------------- */
+  --easyssh-duration-instant: 0.05s;
+  --easyssh-duration-fast: 0.1s;
+  --easyssh-duration-normal: 0.2s;
+  --easyssh-duration-slow: 0.3s;
+  --easyssh-duration-slower: 0.4s;
+  --easyssh-duration-slowest: 0.5s;
+
+  --easyssh-easing-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --easyssh-easing-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --easyssh-easing-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --easyssh-easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --easyssh-easing-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+  --easyssh-easing-snappy: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  --easyssh-transition-default: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --easyssh-transition-fast: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  --easyssh-transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --easyssh-transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* -------------------------------------------------------------------------
+     Z-Index Scale
+     ------------------------------------------------------------------------- */
+  --easyssh-z-base: 0;
+  --easyssh-z-dropdown: 100;
+  --easyssh-z-sticky: 200;
+  --easyssh-z-fixed: 300;
+  --easyssh-z-overlay: 400;
+  --easyssh-z-modal-backdrop: 500;
+  --easyssh-z-modal: 510;
+  --easyssh-z-popover: 600;
+  --easyssh-z-tooltip: 700;
+  --easyssh-z-toast: 800;
+  --easyssh-z-command-palette: 900;
+
+  /* -------------------------------------------------------------------------
+     Component Dimensions
+     ------------------------------------------------------------------------- */
+  --easyssh-header-height: 48px;
+  --easyssh-sidebar-width: 260px;
+  --easyssh-sidebar-collapsed-width: 48px;
+  --easyssh-right-panel-width: 320px;
+  --easyssh-bottom-panel-height: 200px;
+
+  --easyssh-terminal-min-height: 200px;
+  --easyssh-terminal-padding: 8px 12px;
+  --easyssh-terminal-font-size: 13px;
+  --easyssh-terminal-line-height: 1.4;
+
+  --easyssh-sidebar-item-height: 36px;
+  --easyssh-sidebar-item-padding: 8px 12px;
+
+  --easyssh-card-width: 280px;
+  --easyssh-card-padding: 16px;
+  --easyssh-card-gap: 12px;
+  --easyssh-card-border-radius: 8px;
+
+  --easyssh-command-palette-width: 640px;
+  --easyssh-command-palette-max-height: 480px;
+  --easyssh-command-palette-item-height: 44px;
+  --easyssh-command-palette-input-height: 56px;
+
+  --easyssh-button-height-xs: 24px;
+  --easyssh-button-height-sm: 32px;
+  --easyssh-button-height-md: 36px;
+  --easyssh-button-height-lg: 44px;
+  --easyssh-button-height-xl: 52px;
+
+  --easyssh-input-height-sm: 32px;
+  --easyssh-input-height-md: 36px;
+  --easyssh-input-height-lg: 44px;
+
+  /* -------------------------------------------------------------------------
+     Terminal Colors (Xterm 256 compatible)
+     ------------------------------------------------------------------------- */
+  --easyssh-terminal-black: #1E1E1E;
+  --easyssh-terminal-red: #E06C75;
+  --easyssh-terminal-green: #98C379;
+  --easyssh-terminal-yellow: #E5C07B;
+  --easyssh-terminal-blue: #61AFEF;
+  --easyssh-terminal-magenta: #C678DD;
+  --easyssh-terminal-cyan: #56B6C2;
+  --easyssh-terminal-white: #DCDCDC;
+  --easyssh-terminal-bright-black: #5C6370;
+  --easyssh-terminal-bright-red: #FF6B7A;
+  --easyssh-terminal-bright-green: #B5E08D;
+  --easyssh-terminal-bright-yellow: #F0D58A;
+  --easyssh-terminal-bright-blue: #7BC3FF;
+  --easyssh-terminal-bright-magenta: #D78FE6;
+  --easyssh-terminal-bright-cyan: #6ED4E0;
+  --easyssh-terminal-bright-white: #FFFFFF;
+  --easyssh-terminal-cursor: #528BFF;
+  --easyssh-terminal-selection: #264F78;
+}
+
+/* ============================================================================
+   DARK THEME
+   ============================================================================ */
+
+[data-theme="dark"] {
+  /* Backgrounds */
+  --easyssh-bg-primary: #0D0D0D;
+  --easyssh-bg-secondary: #1A1A1A;
+  --easyssh-bg-tertiary: #363636;
+  --easyssh-bg-quaternary: #525252;
+  --easyssh-bg-elevated: #1A1A1A;
+  --easyssh-bg-overlay: rgba(0, 0, 0, 0.7);
+  --easyssh-bg-terminal: #1E1E1E;
+
+  /* Text */
+  --easyssh-text-primary: #FFFFFF;
+  --easyssh-text-secondary: #C4C4C4;
+  --easyssh-text-tertiary: #9E9E9E;
+  --easyssh-text-quaternary: #757575;
+  --easyssh-text-inverted: #1A1A1A;
+  --easyssh-text-terminal: #DCDCDC;
+
+  /* Borders */
+  --easyssh-border-subtle: #363636;
+  --easyssh-border-default: #525252;
+  --easyssh-border-strong: #757575;
+
+  /* Interactive - Primary */
+  --easyssh-interactive-primary: #3B82F6;
+  --easyssh-interactive-primary-hover: #60A5FA;
+  --easyssh-interactive-primary-active: #2563EB;
+  --easyssh-interactive-primary-text: #FFFFFF;
+
+  /* Interactive - Secondary */
+  --easyssh-interactive-secondary: #363636;
+  --easyssh-interactive-secondary-hover: #525252;
+  --easyssh-interactive-secondary-active: #757575;
+  --easyssh-interactive-secondary-text: #FFFFFF;
+
+  /* Interactive - Ghost */
+  --easyssh-interactive-ghost: transparent;
+  --easyssh-interactive-ghost-hover: #363636;
+  --easyssh-interactive-ghost-active: #525252;
+
+  /* Semantic Colors - Adjusted for dark mode */
+  --easyssh-success-main: #4ADE80;
+  --easyssh-success-bg: rgba(34, 197, 94, 0.15);
+  --easyssh-success-border: rgba(34, 197, 94, 0.4);
+
+  --easyssh-warning-main: #FBBF24;
+  --easyssh-warning-bg: rgba(245, 158, 11, 0.15);
+  --easyssh-warning-border: rgba(245, 158, 11, 0.4);
+
+  --easyssh-danger-main: #F87171;
+  --easyssh-danger-bg: rgba(239, 68, 68, 0.15);
+  --easyssh-danger-border: rgba(239, 68, 68, 0.4);
+
+  --easyssh-info-main: #60A5FA;
+  --easyssh-info-bg: rgba(59, 130, 246, 0.15);
+  --easyssh-info-border: rgba(59, 130, 246, 0.4);
+
+  /* Focus & Selection */
+  --easyssh-focus-color: #60A5FA;
+  --easyssh-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.4);
+  --easyssh-selection-bg: rgba(59, 130, 246, 0.25);
+
+  /* Shadows - Adjusted for dark mode */
+  --easyssh-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  --easyssh-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --easyssh-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --easyssh-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --easyssh-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --easyssh-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --easyssh-shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --easyssh-shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* ============================================================================
+   HIGH CONTRAST MODE ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-contrast: high) {
+  :root {
+    --easyssh-border-default: #757575;
+    --easyssh-border-strong: #1A1A1A;
+    --easyssh-focus-ring: 0 0 0 4px #2563EB;
+  }
+
+  [data-theme="dark"] {
+    --easyssh-border-default: #C4C4C4;
+    --easyssh-border-strong: #FFFFFF;
+    --easyssh-focus-ring: 0 0 0 4px #60A5FA;
+  }
+}
+
+/* ============================================================================
+   REDUCED MOTION ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --easyssh-duration-instant: 0.01s;
+    --easyssh-duration-fast: 0.01s;
+    --easyssh-duration-normal: 0.01s;
+    --easyssh-duration-slow: 0.01s;
+    --easyssh-duration-slower: 0.01s;
+    --easyssh-duration-slowest: 0.01s;
+    --easyssh-transition-default: none;
+    --easyssh-transition-fast: none;
+    --easyssh-transition-slow: none;
+  }
+}
+
+/* ============================================================================
+   ANIMATION KEYFRAMES
+   ============================================================================ */
+
+@keyframes easyssh-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes easyssh-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes easyssh-slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes easyssh-slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes easyssh-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes easyssh-scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes easyssh-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes easyssh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes easyssh-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes easyssh-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes easyssh-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes easyssh-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes easyssh-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Utility classes for animations */
+.easyssh-animate-fade-in {
+  animation: easyssh-fade-in var(--easyssh-duration-normal) var(--easyssh-easing-ease-out);
+}
+
+.easyssh-animate-fade-out {
+  animation: easyssh-fade-out var(--easyssh-duration-fast) var(--easyssh-easing-ease-in);
+}
+
+.easyssh-animate-slide-in-up {
+  animation: easyssh-slide-in-up var(--easyssh-duration-slow) var(--easyssh-easing-smooth);
+}
+
+.easyssh-animate-slide-in-down {
+  animation: easyssh-slide-in-down var(--easyssh-duration-slow) var(--easyssh-easing-smooth);
+}
+
+.easyssh-animate-scale-in {
+  animation: easyssh-scale-in var(--easyssh-duration-normal) var(--easyssh-easing-spring);
+}
+
+.easyssh-animate-pulse {
+  animation: easyssh-pulse 2s var(--easyssh-easing-ease) infinite;
+}
+
+.easyssh-animate-spin {
+  animation: easyssh-spin 1s linear infinite;
+}
+
+.easyssh-animate-blink {
+  animation: easyssh-blink 1s step-end infinite;
+}
+
+/* ============================================================================
+   RTL SUPPORT
+   ============================================================================ */
+
+[dir="rtl"] {
+  /* Flip directional shadows */
+  --easyssh-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), -1px 0 2px -1px rgba(0, 0, 0, 0.06);
+  --easyssh-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), -2px 0 4px -2px rgba(0, 0, 0, 0.06);
+}

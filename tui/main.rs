@@ -103,14 +103,25 @@ fn list_servers(db: &Database) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
+    println!("{:<36} {:<12} {:<20} {:<10} {}", "ID", "Group", "Name", "Username", "Host:Port");
+    println!("{}", "-".repeat(100));
+
     for s in servers {
         let group_name = s
             .group_id
             .as_ref()
             .and_then(|gid| groups.iter().find(|g| &g.id == gid).map(|g| g.name.as_str()))
-            .unwrap_or("(ungrouped)");
+            .unwrap_or("(none)");
 
-        println!("[{group_name}] {} ({}@{}:{})", s.name, s.username, s.host, s.port);
+        println!(
+            "{:<36} {:<12} {:<20} {:<10} {}:{}",
+            s.id,
+            group_name,
+            s.name,
+            s.username,
+            s.host,
+            s.port
+        );
     }
 
     Ok(())
@@ -162,11 +173,38 @@ fn import_ssh_config(db: &Database) -> Result<(), Box<dyn Error>> {
 
 fn connect_server(db: &Database, args: &[String]) -> Result<(), Box<dyn Error>> {
     if args.len() < 3 {
-        eprintln!("Usage: easyssh connect <server-id>");
+        eprintln!("Usage: easyssh connect <server-id-or-name>");
         return Ok(());
     }
 
-    let server = db.get_server(&args[2])?;
+    let search = &args[2];
+
+    // Try to find server by ID first, then by name
+    let server = if let Ok(s) = db.get_server(search) {
+        s
+    } else {
+        // Search by name
+        let servers = db.get_servers()?;
+        let matches: Vec<_> = servers.iter().filter(|s| s.name == *search).collect();
+
+        match matches.len() {
+            0 => {
+                eprintln!("Server not found: {}", search);
+                return Ok(());
+            }
+            1 => matches[0].clone(),
+            _ => {
+                eprintln!("Multiple servers match '{}':", search);
+                for s in matches {
+                    println!("  {} ({}@{}:{})", s.id, s.username, s.host, s.port);
+                }
+                eprintln!("Please use the server ID to connect");
+                return Ok(());
+            }
+        }
+    };
+
+    println!("Connecting to {} ({}@{}:{})...", server.name, server.username, server.host, server.port);
     terminal::open_native_terminal(
         &server.host,
         server.port as u16,
@@ -198,9 +236,12 @@ fn print_help() {
     println!("  easyssh add-group <name>");
     println!("  easyssh list");
     println!("  easyssh import-ssh");
-    println!("  easyssh connect <server-id>");
+    println!("  easyssh connect <server-id-or-name>");
     println!("  easyssh debug-server [host] [port]");
     println!("  easyssh version");
+    println!();
+    println!("Auth types: password, key, agent (default: agent)");
+    println!("Connect accepts either server ID (UUID) or server name");
 }
 
 fn validate_server(

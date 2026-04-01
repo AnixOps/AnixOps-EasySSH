@@ -1,0 +1,188 @@
+{
+  "name": "EasySSH",
+  "version": "0.3.0",
+  "description": "Enterprise SSH client with native desktop UIs",
+  "ci": {
+    "provider": "github-actions",
+    "features": [
+      "multi-platform-builds",
+      "incremental-builds",
+      "cache-optimization",
+      "code-signing",
+      "auto-release",
+      "canary-releases",
+      "rollback",
+      "security-scanning",
+      "performance-benchmarks"
+    ]
+  },
+  "build": {
+    "platforms": {
+      "windows": {
+        "target": "x86_64-pc-windows-msvc",
+        "toolchain": "stable",
+        "ui": "egui",
+        "signing": {
+          "enabled": true,
+          "method": "authenticode",
+          "timestamp_server": "http://timestamp.digicert.com"
+        }
+      },
+      "linux": {
+        "targets": ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"],
+        "toolchain": "stable",
+        "ui": "gtk4",
+        "signing": {
+          "enabled": true,
+          "method": "gpg"
+        },
+        "packages": ["AppImage", "deb", "tar.gz"]
+      },
+      "macos": {
+        "targets": ["x86_64-apple-darwin", "aarch64-apple-darwin"],
+        "toolchain": "stable",
+        "ui": "swiftui",
+        "signing": {
+          "enabled": true,
+          "method": "apple-developer-id",
+          "notarization": true
+        },
+        "packages": ["dmg", "app"]
+      }
+    },
+    "docker": {
+      "variants": ["lite", "standard", "tui"],
+      "platforms": ["linux/amd64", "linux/arm64"],
+      "registry": "ghcr.io"
+    }
+  },
+  "release": {
+    "channels": {
+      "dev": {
+        "description": "Development builds",
+        "auto_deploy": false,
+        "retention_days": 7
+      },
+      "canary": {
+        "description": "Canary releases",
+        "auto_deploy": true,
+        "rollout_stages": [5, 25, 50, 100],
+        "retention_days": 30,
+        "health_check": {
+          "enabled": true,
+          "duration_minutes": 30,
+          "auto_rollback": true
+        }
+      },
+      "stable": {
+        "description": "Stable releases",
+        "auto_deploy": false,
+        "retention_days": 365,
+        "requires_approval": true
+      }
+    },
+    "auto_update": {
+      "enabled": true,
+      "manifest_format": "json",
+      "signature_required": true
+    }
+  },
+  "security": {
+    "scanning": {
+      "vulnerabilities": {
+        "tool": "cargo-audit",
+        "frequency": "every-build",
+        "fail_on_critical": false
+      },
+      "licenses": {
+        "tool": "cargo-deny",
+        "frequency": "every-build",
+        "allowed_licenses": [
+          "MIT",
+          "Apache-2.0",
+          "BSD-2-Clause",
+          "BSD-3-Clause",
+          "ISC",
+          "MPL-2.0",
+          "CC0-1.0"
+        ],
+        "denied_licenses": [
+          "GPL-1.0",
+          "GPL-2.0",
+          "GPL-3.0",
+          "AGPL-1.0",
+          "AGPL-3.0"
+        ]
+      },
+      "secrets": {
+        "tool": "trufflehog",
+        "frequency": "every-commit"
+      }
+    },
+    "signing": {
+      "windows": {
+        "certificate_source": "github-secrets",
+        "algorithm": "sha256"
+      },
+      "macos": {
+        "certificate_source": "github-secrets",
+        "notarization": {
+          "enabled": true,
+          "staple": true
+        }
+      },
+      "linux": {
+        "gpg_key_source": "github-secrets"
+      }
+    }
+  },
+  "performance": {
+    "benchmarks": {
+      "enabled": true,
+      "tool": "criterion",
+      "platforms": ["ubuntu-latest", "windows-latest", "macos-latest"],
+      "regression_threshold": 0.10,
+      "history_retention_days": 90
+    }
+  },
+  "deployment": {
+    "aws": {
+      "enabled": false,
+      "regions": ["us-east-1", "eu-west-1"],
+      "services": ["ECS", "EKS"],
+      "strategy": "blue-green"
+    },
+    "azure": {
+      "enabled": false,
+      "regions": ["eastus", "westeurope"],
+      "services": ["Container Apps", "AKS"],
+      "strategy": "rolling"
+    }
+  },
+  "notifications": {
+    "slack": {
+      "enabled": true,
+      "events": ["build-start", "build-success", "build-failure", "release", "rollback"]
+    },
+    "github": {
+      "pr_comments": true,
+      "issues_on_failure": true
+    }
+  },
+  "cache": {
+    "cargo": {
+      "enabled": true,
+      "scope": "shared",
+      "workspaces": [".", "core", "tui", "platforms/*"]
+    },
+    "npm": {
+      "enabled": true,
+      "scope": "project"
+    },
+    "docker": {
+      "enabled": true,
+      "mode": "max",
+      "registry_cache": true
+    }
+  }
+}

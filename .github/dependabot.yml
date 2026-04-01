@@ -1,0 +1,173 @@
+# Dependabot Configuration
+# For full documentation: https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  # ============================================================================
+  # Cargo Dependencies
+  # ============================================================================
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "anixops/maintainers"
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "cargo"
+      include: "scope"
+    # Group updates to reduce PR noise
+    groups:
+      # Group security updates separately
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+      # Group patch updates
+      patches:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+      # Group minor updates for related crates
+      serde:
+        patterns:
+          - "serde*"
+      tokio:
+        patterns:
+          - "tokio*"
+          - "async-*"
+    ignore:
+      # Ignore major updates that require manual intervention
+      - dependency-name: "gtk4"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "libadwaita"
+        update-types: ["version-update:semver-major"]
+
+  # ============================================================================
+  # NPM Dependencies
+  # ============================================================================
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 15
+    reviewers:
+      - "anixops/maintainers"
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "npm"
+      include: "scope"
+    groups:
+      # Group security updates
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+      # Group dev dependencies
+      dev-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "*eslint*"
+          - "*prettier*"
+          - "@types/*"
+          - "typescript"
+          - "vitest"
+          - "playwright*"
+      # Group React ecosystem
+      react:
+        patterns:
+          - "react*"
+          - "@react*"
+          - "next*"
+      # Group build tools
+      build-tools:
+        patterns:
+          - "vite*"
+          - "esbuild*"
+          - "rollup*"
+    ignore:
+      # Wait for major framework updates
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+
+  # ============================================================================
+  # GitHub Actions
+  # ============================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "anixops/maintainers"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      actions:
+        patterns:
+          - "actions/*"
+          - "docker/*"
+          - "aws-actions/*"
+
+  # ============================================================================
+  # Docker Images
+  # ============================================================================
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "anixops/maintainers"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+
+  # ============================================================================
+  # Swift (macOS)
+  # ============================================================================
+  - package-ecosystem: "swift"
+    directory: "/platforms/macos/EasySSH"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "anixops/maintainers"
+    labels:
+      - "dependencies"
+      - "swift"
+      - "macos"
+    commit-message:
+      prefix: "swift"
+      include: "scope"

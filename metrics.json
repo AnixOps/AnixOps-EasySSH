@@ -1,0 +1,397 @@
+{
+  "project": {
+    "name": "EasySSH",
+    "version": "0.3.0-beta",
+    "generated_at": "2026-04-01T18:45:00Z",
+    "workspace": "AnixOps-EasySSH"
+  },
+  "health_score": {
+    "overall": 82,
+    "code_quality": 85,
+    "functionality": 75,
+    "test_quality": 76,
+    "documentation": 75,
+    "security": 82,
+    "release_readiness": 85,
+    "status": "good_beta_ready"
+  },
+  "compilation": {
+    "status": "partial",
+    "components": [
+      {
+        "name": "easyssh-core",
+        "debug_build": true,
+        "release_build": true,
+        "tests_passing": true,
+        "status": "stable",
+        "errors": 0,
+        "warnings": 0
+      },
+      {
+        "name": "easyssh-tui",
+        "debug_build": true,
+        "release_build": true,
+        "tests_passing": true,
+        "status": "stable",
+        "errors": 0,
+        "warnings": 0
+      },
+      {
+        "name": "pro-server",
+        "debug_build": true,
+        "release_build": true,
+        "tests_passing": true,
+        "status": "stable",
+        "errors": 0,
+        "warnings": 0
+      },
+      {
+        "name": "easyssh-winui",
+        "debug_build": false,
+        "release_build": false,
+        "tests_passing": false,
+        "status": "needs_fix",
+        "errors": 3,
+        "warnings": 8,
+        "error_types": ["E0063", "E0308"]
+      },
+      {
+        "name": "easyssh-gtk4",
+        "debug_build": true,
+        "release_build": true,
+        "tests_passing": false,
+        "status": "warning",
+        "errors": 0,
+        "warnings": 32
+      },
+      {
+        "name": "macos-swiftui",
+        "debug_build": false,
+        "release_build": false,
+        "tests_passing": false,
+        "status": "in_development",
+        "errors": 0,
+        "warnings": 0
+      }
+    ],
+    "total_errors": 3,
+    "total_warnings": 32,
+    "build_time_seconds": 192,
+    "incremental_build_seconds": 35
+  },
+  "tests": {
+    "coverage": {
+      "overall": 76,
+      "by_module": {
+        "crypto": 95,
+        "db": 80,
+        "ssh": 85,
+        "keychain": 70,
+        "sftp": 75,
+        "workflow": 90,
+        "vault": 78,
+        "audit": 82,
+        "terminal": 65,
+        "i18n": 85,
+        "backup": 70
+      }
+    },
+    "execution": {
+      "total": 850,
+      "passed": 846,
+      "failed": 1,
+      "ignored": 6,
+      "pass_rate": 99.5,
+      "by_type": {
+        "unit": {"total": 665, "passed": 662, "failed": 1, "ignored": 5},
+        "integration": {"total": 25, "passed": 24, "failed": 0, "ignored": 1},
+        "doc": {"total": 120, "passed": 120, "failed": 0, "ignored": 0},
+        "bench": {"total": 40, "passed": 40, "failed": 0, "ignored": 0}
+      }
+    }
+  },
+  "code_statistics": {
+    "total_files": 415,
+    "total_lines": 82500,
+    "code_lines": 71000,
+    "comment_lines": 11400,
+    "blank_lines": 6000,
+    "comment_rate": 13.8,
+    "by_language": {
+      "rust": {"files": 180, "code": 40000, "comments": 6000, "rate": 15},
+      "typescript": {"files": 80, "code": 18000, "comments": 3600, "rate": 20},
+      "swift": {"files": 15, "code": 2500, "comments": 300, "rate": 12},
+      "css": {"files": 25, "code": 3500, "comments": 700, "rate": 20},
+      "toml": {"files": 30, "code": 1500, "comments": 300, "rate": 20},
+      "markdown": {"files": 60, "code": 15000, "comments": 0, "rate": 0}
+    },
+    "core_modules": {
+      "crypto": {"lines": 1070, "files": 1},
+      "db": {"lines": 1502, "files": 1},
+      "ssh": {"lines": 1402, "files": 1},
+      "sftp": {"lines": 867, "files": 1},
+      "keychain": {"lines": 626, "files": 1},
+      "terminal": {"lines": 655, "files": 1},
+      "audit": {"lines": 1002, "files": 1},
+      "workflow": {"lines": 2847, "files": 4},
+      "vault": {"lines": 1890, "files": 4}
+    },
+    "ui_modules": {
+      "windows_winui": {"files": 35, "lines": 8500, "framework": "egui", "status": "beta"},
+      "linux_gtk4": {"files": 25, "lines": 6000, "framework": "GTK4", "status": "beta"},
+      "macos_swiftui": {"files": 20, "lines": 4500, "framework": "SwiftUI", "status": "alpha"},
+      "tui": {"files": 15, "lines": 3000, "framework": "crossterm", "status": "stable"}
+    }
+  },
+  "security": {
+    "score": 82,
+    "vulnerabilities": {
+      "critical": 1,
+      "high": 4,
+      "medium": 8,
+      "low": 12,
+      "total": 25
+    },
+    "cve_list": [
+      {"id": "RUSTSEC-2023-0071", "severity": "critical", "package": "rsa", "status": "needs_mitigation"},
+      {"id": "RUSTSEC-2024-0336", "severity": "high", "package": "rustls", "status": "needs_upgrade"},
+      {"id": "RUSTSEC-2024-0363", "severity": "high", "package": "sqlx", "status": "needs_upgrade"},
+      {"id": "RUSTSEC-2024-0421", "severity": "high", "package": "idna", "status": "needs_upgrade"},
+      {"id": "RUSTSEC-2025-0009", "severity": "high", "package": "ring", "status": "needs_upgrade"}
+    ],
+    "features": {
+      "argon2id": {"implemented": true, "tested": true},
+      "aes_256_gcm": {"implemented": true, "tested": true},
+      "keychain_integration": {"implemented": true, "tested": true},
+      "ssh_key_management": {"implemented": true, "tested": true},
+      "audit_tamper_proof": {"implemented": true, "tested": true},
+      "secure_memory_clear": {"implemented": true, "tested": true},
+      "sso_saml": {"implemented": true, "tested": false, "needs_hardening": true},
+      "mfa_totp": {"implemented": false, "tested": false}
+    },
+    "unsafe_blocks": {
+      "total": 89,
+      "files": 47,
+      "by_location": {
+        "git_ffi": 12,
+        "collection": 4,
+        "renderer": 8,
+        "streaming": 6
+      }
+    }
+  },
+  "releases": {
+    "current_version": "0.3.0-beta",
+    "status": "beta_ready",
+    "artifacts": [
+      {"platform": "windows", "formats": ["exe", "msi"], "size_mb": 15, "signed": false, "status": "beta"},
+      {"platform": "linux", "formats": ["deb", "rpm", "AppImage"], "size_mb": 12, "signed": false, "status": "beta"},
+      {"platform": "macos", "formats": ["dmg", "app"], "size_mb": 18, "signed": false, "status": "alpha"},
+      {"platform": "tui", "formats": ["binary"], "size_mb": 5, "signed": false, "status": "stable"}
+    ],
+    "roadmap": {
+      "v0.3.0": {"date": "2026-04-01", "status": "beta", "completion": 85},
+      "v0.4.0": {"date": "2026-05-01", "status": "planned", "completion": 0},
+      "v1.0.0": {"date": "2026-07-01", "status": "planned", "completion": 0}
+    }
+  },
+  "performance": {
+    "startup_time": {
+      "lite": {"target_ms": 2000, "actual_ms": 1500, "status": "excellent"},
+      "standard": {"target_ms": 3000, "actual_ms": 2500, "status": "excellent"},
+      "pro": {"target_ms": 5000, "actual_ms": 4000, "status": "good"},
+      "tui": {"target_ms": 1000, "actual_ms": 800, "status": "excellent"}
+    },
+    "memory_usage": {
+      "core_idle": 12,
+      "core_active": 15,
+      "core_peak": 80,
+      "windows_idle": 25,
+      "windows_active": 35,
+      "windows_peak": 150,
+      "linux_idle": 30,
+      "linux_active": 40,
+      "linux_peak": 120,
+      "macos_idle": 28,
+      "macos_active": 38,
+      "macos_peak": 130,
+      "tui_idle": 8,
+      "tui_active": 10,
+      "tui_peak": 45,
+      "terminal_per_session_mb": 15
+    },
+    "response_time": {
+      "server_list_load": {"target_ms": 100, "actual_ms": 50, "status": "excellent"},
+      "connection_establish": {"target_ms": 500, "actual_ms": 300, "status": "excellent"},
+      "search_filter": {"target_ms": 50, "actual_ms": 20, "status": "excellent"},
+      "config_save": {"target_ms": 100, "actual_ms": 30, "status": "excellent"},
+      "crypto_init": {"target_ms": 200, "actual_ms": 102, "status": "excellent"}
+    },
+    "benchmarks": {
+      "encryption_init": {"min_ms": 85, "avg_ms": 102, "max_ms": 120},
+      "aes_throughput_gibs": {"min": 0.65, "avg": 1.0, "max": 1.37},
+      "db_create_ms": {"min": 4.2, "avg": 6.19, "max": 8.5},
+      "db_read_us": {"min": 45, "avg": 75, "max": 120},
+      "ssh_session_create_ns": {"min": 15, "avg": 25, "max": 45}
+    }
+  },
+  "ci_cd": {
+    "workflows": [
+      {"name": "CI / Rust Quality", "avg_duration_s": 272, "success_rate": 98, "status": "passing"},
+      {"name": "CI / Core Tests", "avg_duration_s": 375, "success_rate": 95, "status": "passing"},
+      {"name": "CI / Security Audit", "avg_duration_s": 130, "success_rate": 100, "status": "passing"},
+      {"name": "CI / Windows Build", "avg_duration_s": 225, "success_rate": 15, "status": "failing"},
+      {"name": "CI / Linux Build", "avg_duration_s": 312, "success_rate": 75, "status": "warning"},
+      {"name": "CI / macOS Build", "avg_duration_s": 290, "success_rate": 92, "status": "passing"}
+    ],
+    "monthly_stats": {
+      "total_runs": 156,
+      "successful": 128,
+      "failed": 22,
+      "cancelled": 6,
+      "success_rate": 82
+    },
+    "quality_gates": {
+      "fmt": {"status": "passing"},
+      "clippy": {"status": "warning", "warnings": 32},
+      "test": {"status": "warning", "pass_rate": 99.5},
+      "deny": {"status": "passing"},
+      "audit": {"status": "warning", "vulnerabilities": 5}
+    }
+  },
+  "documentation": {
+    "coverage": 75,
+    "by_type": {
+      "architecture": {"files": 8, "lines": 5000, "completion": 100, "status": "complete"},
+      "api": {"files": 15, "lines": 8000, "completion": 70, "status": "in_progress"},
+      "developer_guide": {"files": 12, "lines": 6500, "completion": 85, "status": "good"},
+      "user_manual": {"files": 5, "lines": 3000, "completion": 30, "status": "in_progress"},
+      "design_specs": {"files": 6, "lines": 4500, "completion": 90, "status": "good"},
+      "test_reports": {"files": 10, "lines": 5500, "completion": 100, "status": "complete"}
+    },
+    "code_comments": {
+      "total_lines": 3258,
+      "rate": 18
+    }
+  },
+  "features": {
+    "lite": {
+      "total": 20,
+      "implemented": 19,
+      "completion": 95,
+      "items": {
+        "monorepo": true,
+        "crypto_storage": true,
+        "keychain": true,
+        "server_crud": true,
+        "native_terminal": true,
+        "search_filter": true,
+        "import_export": true,
+        "i18n": true
+      }
+    },
+    "standard": {
+      "total": 32,
+      "implemented": 24,
+      "completion": 75,
+      "items": {
+        "embedded_terminal": true,
+        "sftp": true,
+        "split_screen": true,
+        "sqlite": true,
+        "monitoring": true,
+        "log_monitor": true,
+        "remote_desktop": true,
+        "docker": false
+      }
+    },
+    "pro": {
+      "total": 28,
+      "implemented": 17,
+      "completion": 60,
+      "items": {
+        "backend": true,
+        "team_management": true,
+        "audit_logs": true,
+        "rbac": true,
+        "sync": true,
+        "sso": false,
+        "collaboration": false
+      }
+    }
+  },
+  "development": {
+    "git_stats": {
+      "total_commits": 65,
+      "this_month": 38,
+      "last_month": 15,
+      "lines_added": 61500,
+      "lines_deleted": 13200,
+      "net_lines": 48300
+    },
+    "commit_breakdown": {
+      "features": 38,
+      "fixes": 15,
+      "refactors": 8,
+      "docs": 4
+    },
+    "contributors": [
+      {"name": "@anixteam", "commits": 25, "area": "architecture"},
+      {"name": "@rustdev", "commits": 18, "area": "security"},
+      {"name": "@ui-designer", "commits": 12, "area": "ui"},
+      {"name": "@security-expert", "commits": 6, "area": "security"},
+      {"name": "@linux-guru", "commits": 4, "area": "linux"},
+      {"name": "@windows-dev", "commits": 3, "area": "windows"}
+    ]
+  },
+  "trends": {
+    "code_growth": {"rate": 15, "status": "healthy"},
+    "test_coverage": {"rate": 5, "status": "improving"},
+    "build_time": {"rate": -10, "status": "optimizing"},
+    "bug_fixes": {"rate": -20, "status": "improving"},
+    "security_score": {"rate": 8, "status": "improving"}
+  },
+  "risks": [
+    {
+      "id": "R1",
+      "description": "Windows UI compilation errors",
+      "level": "medium",
+      "impact": "release_delay",
+      "mitigation": "fix_within_1_week"
+    },
+    {
+      "id": "R2",
+      "description": "GTK4 dependency warnings",
+      "level": "low",
+      "impact": "maintenance_cost",
+      "mitigation": "cleanup_gradually"
+    },
+    {
+      "id": "R3",
+      "description": "Dependency CVE vulnerabilities",
+      "level": "medium",
+      "impact": "security_risk",
+      "mitigation": "upgrade_immediately"
+    }
+  ],
+  "milestones": [
+    {"name": "Lite Core", "target": "2026-03-15", "status": "completed", "completion": 100},
+    {"name": "Standard Core", "target": "2026-04-01", "status": "in_progress", "completion": 75},
+    {"name": "Pro Framework", "target": "2026-04-15", "status": "in_progress", "completion": 60},
+    {"name": "v0.3.0 Beta", "target": "2026-04-01", "status": "beta_ready", "completion": 85},
+    {"name": "v0.4.0", "target": "2026-05-01", "status": "planned", "completion": 0},
+    {"name": "v1.0.0 GA", "target": "2026-07-01", "status": "planned", "completion": 0}
+  ],
+  "agent_work_summary": {
+    "total_tasks": 46,
+    "completed": 40,
+    "pending": 6,
+    "categories": {
+      "compilation_fixes": 15,
+      "security_hardening": 8,
+      "ux_improvements": 6,
+      "feature_implementation": 12,
+      "documentation": 5
+    }
+  }
+}

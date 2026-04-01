@@ -77,6 +77,9 @@ parking_lot = "0.12"
 lru = "0.12"
 log = "0.4"
 
+# Clipboard support for terminal copy-paste
+arboard = { version = "3.4", features = ["wayland-data-control"] }
+
 # Security dependencies
 zeroize = { version = "1.7", features = ["derive"] }
 

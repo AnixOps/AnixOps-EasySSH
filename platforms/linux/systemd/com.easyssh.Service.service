@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=com.easyssh.Service
+Exec=/usr/bin/easyssh --daemon
+User=root
+SystemdService=easyssh.service

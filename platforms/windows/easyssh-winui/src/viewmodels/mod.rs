@@ -829,6 +829,7 @@ pub struct ServerViewModel {
     pub port: i64,
     pub username: String,
     pub group_id: Option<String>,
+    pub auth_type: String,
 }
 
 impl From<ServerRecord> for ServerViewModel {
@@ -840,6 +841,7 @@ impl From<ServerRecord> for ServerViewModel {
             port: s.port,
             username: s.username,
             group_id: s.group_id,
+            auth_type: s.auth_type,
         }
     }
 }

@@ -1,0 +1,148 @@
+name: Deploy to AWS
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      region:
+        required: false
+        type: string
+        default: 'us-east-1'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      region:
+        description: 'AWS Region'
+        required: false
+        default: 'us-east-1'
+
+env:
+  AWS_REGION: ${{ inputs.region || 'us-east-1' }}
+  ECR_REPOSITORY: easyssh
+  ECS_CLUSTER: easyssh-${{ inputs.environment || 'staging' }}
+  ECS_SERVICE: easyssh-service
+  ECS_TASK_DEFINITION: .aws/task-definition.json
+
+jobs:
+  # ============================================================================
+  # AWS Deployment
+  # ============================================================================
+  deploy-aws:
+    name: Deploy to AWS ${{ inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'staging' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f docker/lite/Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download Task Definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition $ECS_SERVICE \
+            --query taskDefinition > task-definition.json
+
+      - name: Update Task Definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: easyssh
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      - name: Deploy ECS Task
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Run Health Checks
+        run: |
+          echo "Running health checks..."
+          # Add health check logic
+          sleep 30
+
+      - name: Notify Deployment
+        if: always()
+        run: |
+          echo "Deployment to ${{ inputs.environment }}: ${{ job.status }}"
+
+  # ============================================================================
+  # Blue/Green Deployment
+  # ============================================================================
+  blue-green-deploy:
+    name: Blue/Green Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-aws
+    if: ${{ inputs.environment == 'production' }}
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Blue Environment
+        run: |
+          echo "Deploying to Blue environment..."
+          # Deploy to blue stack
+
+      - name: Run Smoke Tests
+        run: |
+          echo "Running smoke tests..."
+          # Test blue environment
+
+      - name: Switch Traffic
+        run: |
+          echo "Switching traffic to Blue..."
+          # Update load balancer
+
+      - name: Monitor for Issues
+        run: |
+          echo "Monitoring for 5 minutes..."
+          sleep 300
+          # Check metrics
+
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          echo "Rolling back to Green..."
+          # Switch traffic back

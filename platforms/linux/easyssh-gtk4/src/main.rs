@@ -1,10 +1,11 @@
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
-use std::env;
-use tracing::{info, warn};
+use std::cell::RefCell;
+use std::sync::Arc;
 
 mod app;
 mod bridge;
+mod enhanced_app;
 mod models;
 mod views;
 mod widgets;
@@ -17,7 +18,7 @@ fn main() -> glib::ExitCode {
     // Initialize logging
     tracing_subscriber::fmt::init();
 
-    info!("Starting EasySSH GTK4");
+    tracing::info!("Starting EasySSH GTK4");
 
     // Initialize GTK/libadwaita
     gtk4::init().expect("Failed to initialize GTK");
@@ -31,7 +32,23 @@ fn main() -> glib::ExitCode {
         .application_id(APP_ID)
         .build();
 
-    app.connect_activate(build_ui);
+    // Store EasySSHApp instance for shutdown handling
+    let easy_app_ref: RefCell<Option<Arc<EasySSHApp>>> = RefCell::new(None);
+
+    app.connect_activate(glib::clone!(@strong easy_app_ref => move |app| {
+        let easy_app = Arc::new(EasySSHApp::new(app));
+        easy_app.present();
+        easy_app_ref.replace(Some(easy_app));
+    }));
+
+    // Handle graceful shutdown when the application is about to quit
+    app.connect_shutdown(glib::clone!(@strong easy_app_ref => move |_| {
+        tracing::info!("Application shutting down...");
+        if let Some(easy_app) = easy_app_ref.borrow().as_ref() {
+            easy_app.shutdown();
+        }
+        tracing::info!("Application shutdown complete");
+    }));
 
     app.run()
 }
@@ -45,9 +62,4 @@ fn load_css() {
         &provider,
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
-}
-
-fn build_ui(app: &adw::Application) {
-    let easy_app = EasySSHApp::new(app);
-    easy_app.present();
 }

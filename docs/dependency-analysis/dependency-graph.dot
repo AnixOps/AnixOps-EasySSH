@@ -1,0 +1,211 @@
+digraph EasySSH_Dependencies {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial"];
+    edge [fontname="Arial", fontsize=10];
+
+    // Graph title
+    labelloc="t";
+    label="EasySSH Project Dependency Graph";
+    fontsize=20;
+    fontname="Arial Bold";
+
+    // Subgraph for legend
+    subgraph cluster_legend {
+        label="Legend";
+        fontsize=12;
+        style=filled;
+        fillcolor=lightgrey;
+        color=grey;
+
+        legend_binary [label="Binary Crate\n(Application)", fillcolor="#e1f5fe"];
+        legend_library [label="Library Crate", fillcolor="#fff3e0"];
+        legend_core [label="Core Module", fillcolor="#e8f5e9"];
+        legend_feature [label="Feature-Gated\nModule", fillcolor="#fce4ec"];
+        legend_external [label="External\nDependency", fillcolor="#f3e5f5"];
+
+        legend_binary -> legend_library [style=invis];
+        legend_library -> legend_core [style=invis];
+        legend_core -> legend_feature [style=invis];
+        legend_feature -> legend_external [style=invis];
+    }
+
+    // Workspace Crates
+    subgraph cluster_workspace {
+        label="Workspace Crates";
+        fontsize=14;
+        color=blue;
+        style=rounded;
+
+        // Binary crates
+        easyssh_tui [label="easyssh-tui\n(TUI Binary)", fillcolor="#e1f5fe"];
+        easyssh_gtk4 [label="easyssh-gtk4\n(Linux GTK4)", fillcolor="#e1f5fe"];
+        easyssh_winui [label="easyssh-winui\n(Windows egui)", fillcolor="#e1f5fe"];
+        pro_server [label="easyssh-pro-server\n(Backend API)", fillcolor="#e1f5fe"];
+
+        // Library crates
+        easyssh_core [label="easyssh-core\n(Core Library)", fillcolor="#fff3e0", shape=box, peripheries=2];
+        api_tester_core [label="api-tester-core\n(API Testing)", fillcolor="#fff3e0"];
+        api_tester_tauri [label="api-tester-tauri\n(Tauri Bindings)", fillcolor="#fff3e0"];
+        fake_winui_sdk [label="fake-winui-sdk\n(Stub)", fillcolor="#fff3e0", style=dashed];
+    }
+
+    // Core Library Internal Modules
+    subgraph cluster_core {
+        label="Core Library Modules";
+        fontsize=14;
+        color=green;
+        style=rounded;
+
+        // Base modules (always included)
+        base_error [label="error\n(Base)", fillcolor="#e8f5e9"];
+        base_crypto [label="crypto", fillcolor="#e8f5e9"];
+        base_db [label="db", fillcolor="#e8f5e9"];
+        base_ssh [label="ssh", fillcolor="#e8f5e9"];
+        base_connection_pool [label="connection_pool", fillcolor="#e8f5e9"];
+        base_keychain [label="keychain", fillcolor="#e8f5e9"];
+        base_vault [label="vault", fillcolor="#e8f5e9"];
+        base_i18n [label="i18n", fillcolor="#e8f5e9"];
+        base_port_forward [label="port_forward", fillcolor="#e8f5e9"];
+        base_config_io [label="config_import_export", fillcolor="#e8f5e9"];
+
+        // Standard features
+        feat_terminal [label="terminal\n(standard)", fillcolor="#fce4ec"];
+        feat_sftp [label="sftp\n(sftp)", fillcolor="#fce4ec"];
+        feat_layout [label="layout\n(split-screen)", fillcolor="#fce4ec"];
+        feat_docker [label="docker\n(docker)", fillcolor="#fce4ec"];
+        feat_log_monitor [label="log_monitor\n(log-monitor)", fillcolor="#fce4ec"];
+        feat_monitoring [label="monitoring\n(monitoring)", fillcolor="#fce4ec"];
+
+        // Pro features
+        feat_team [label="team\n(team)", fillcolor="#fce4ec"];
+        feat_rbac [label="rbac\n(pro)", fillcolor="#fce4ec"];
+        feat_audit [label="audit\n(audit)", fillcolor="#fce4ec"];
+        feat_sso [label="sso\n(sso)", fillcolor="#fce4ec"];
+        feat_sync [label="sync\n(sync)", fillcolor="#fce4ec"];
+        feat_collaboration [label="collaboration\n(pro)", fillcolor="#fce4ec"];
+
+        // Enterprise features
+        feat_backup [label="backup\n(backup)", fillcolor="#fce4ec"];
+        feat_workflow [label="workflow_*\n(workflow)", fillcolor="#fce4ec"];
+        feat_db_client [label="database_client\n(db-client)", fillcolor="#fce4ec"];
+        feat_k8s [label="kubernetes*\n(kubernetes)", fillcolor="#fce4ec"];
+        feat_git [label="git_*\n(git)", fillcolor="#fce4ec"];
+        feat_auto_update [label="auto_update\n(auto-update)", fillcolor="#fce4ec"];
+        feat_telemetry [label="telemetry\n(telemetry)", fillcolor="#fce4ec"];
+        feat_remote_desktop [label="remote_desktop\n(r-desktop)", fillcolor="#fce4ec"];
+    }
+
+    // External Dependencies (key ones)
+    subgraph cluster_external {
+        label="Key External Dependencies";
+        fontsize=14;
+        color=purple;
+        style=rounded;
+
+        ext_tokio [label="tokio\n(Async)", fillcolor="#f3e5f5"];
+        ext_rusqlite [label="rusqlite\n(SQLite)", fillcolor="#f3e5f5"];
+        ext_ssh2 [label="ssh2\n(SSH)", fillcolor="#f3e5f5"];
+        ext_serde [label="serde\n(Serialize)", fillcolor="#f3e5f5"];
+        ext_argon2 [label="argon2\n(Password)", fillcolor="#f3e5f5"];
+        ext_aes [label="aes-gcm\n(Encrypt)", fillcolor="#f3e5f5"];
+
+        // UI dependencies
+        ext_eframe [label="eframe/egui\n(Win UI)", fillcolor="#f3e5f5"];
+        ext_gtk4 [label="gtk4/libadwaita\n(Linux UI)", fillcolor="#f3e5f5"];
+        ext_wgpu [label="wgpu\n(GPU)", fillcolor="#f3e5f5"];
+
+        // Server dependencies
+        ext_axum [label="axum\n(Web)", fillcolor="#f3e5f5"];
+        ext_sqlx [label="sqlx\n(DB)", fillcolor="#f3e5f5"];
+    }
+
+    // Crate dependencies
+    easyssh_tui -> easyssh_core [color=blue, penwidth=2];
+    easyssh_gtk4 -> easyssh_core [color=blue, penwidth=2];
+    easyssh_winui -> easyssh_core [color=blue, penwidth=2];
+    easyssh_winui -> fake_winui_sdk [color=grey, style=dashed];
+    pro_server -> api_tester_core [color=blue, style=dashed];
+    api_tester_tauri -> api_tester_core [color=blue];
+
+    // Core module dependencies
+    easyssh_core -> base_error [color=green, style=dashed];
+
+    // Base module dependencies
+    base_crypto -> base_error [color=green];
+    base_db -> base_crypto [color=green];
+    base_db -> base_error [color=green];
+    base_ssh -> base_db [color=green];
+    base_ssh -> base_error [color=green];
+    base_connection_pool -> base_ssh [color=green];
+    base_connection_pool -> base_error [color=green];
+    base_keychain -> base_crypto [color=green];
+    base_keychain -> base_error [color=green];
+    base_vault -> base_crypto [color=green];
+    base_vault -> base_error [color=green];
+    base_config_io -> base_db [color=green];
+    base_config_io -> base_crypto [color=green];
+    base_config_io -> base_error [color=green];
+
+    // Feature module dependencies
+    feat_terminal -> base_error [color=red, style=dashed];
+    feat_sftp -> base_ssh [color=red, style=dashed];
+    feat_sftp -> base_error [color=red, style=dashed];
+    feat_layout -> base_error [color=red, style=dashed];
+    feat_docker -> base_ssh [color=red, style=dashed];
+    feat_docker -> base_error [color=red, style=dashed];
+    feat_log_monitor -> base_ssh [color=red, style=dashed];
+    feat_log_monitor -> base_error [color=red, style=dashed];
+    feat_monitoring -> base_error [color=red, style=dashed];
+
+    // Pro features
+    feat_team -> feat_audit [color=red, style=dashed];
+    feat_team -> feat_rbac [color=red, style=dashed];
+    feat_team -> base_error [color=red, style=dashed];
+    feat_rbac -> base_error [color=red, style=dashed];
+    feat_audit -> base_error [color=red, style=dashed];
+    feat_sso -> feat_team [color=red, style=dashed];
+    feat_sso -> base_error [color=red, style=dashed];
+    feat_sync -> base_crypto [color=red, style=dashed];
+    feat_sync -> base_db [color=red, style=dashed];
+    feat_sync -> base_error [color=red, style=dashed];
+    feat_collaboration -> base_error [color=red, style=dashed];
+
+    // Enterprise features
+    feat_backup -> base_ssh [color=red, style=dashed];
+    feat_db_client -> base_ssh [color=red, style=dashed];
+    feat_git -> base_error [color=red, style=dashed];
+    feat_k8s -> base_error [color=red, style=dashed];
+
+    // External dependencies
+    easyssh_core -> ext_tokio [color=purple, style=dotted];
+    easyssh_core -> ext_rusqlite [color=purple, style=dotted];
+    easyssh_core -> ext_ssh2 [color=purple, style=dotted];
+    easyssh_core -> ext_serde [color=purple, style=dotted];
+    easyssh_core -> ext_argon2 [color=purple, style=dotted];
+    easyssh_core -> ext_aes [color=purple, style=dotted];
+
+    easyssh_winui -> ext_eframe [color=purple, style=dotted];
+    easyssh_winui -> ext_wgpu [color=purple, style=dotted];
+    easyssh_gtk4 -> ext_gtk4 [color=purple, style=dotted];
+    pro_server -> ext_axum [color=purple, style=dotted];
+    pro_server -> ext_sqlx [color=purple, style=dotted];
+
+    // Feature groups annotation
+    subgraph cluster_features {
+        label="Feature Hierarchy";
+        fontsize=12;
+        color=orange;
+        style=dashed;
+
+        f_lite [label="lite (default)", fillcolor="#fff9c4", shape=ellipse];
+        f_standard [label="standard", fillcolor="#fff9c4", shape=ellipse];
+        f_pro [label="pro", fillcolor="#fff9c4", shape=ellipse];
+
+        f_lite -> f_standard -> f_pro [style=invis];
+    }
+
+    // Rank same for alignment
+    {rank=same; easyssh_tui; easyssh_gtk4; easyssh_winui}
+    {rank=same; base_error; base_crypto}
+    {rank=same; ext_tokio; ext_rusqlite; ext_ssh2}
+}

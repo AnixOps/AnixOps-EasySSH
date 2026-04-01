@@ -1,0 +1,43 @@
+{
+  "version": "0.3.0",
+  "company": "AnixOps",
+  "product": "EasySSH",
+  "description": "Native SSH Client for Windows",
+  "url": "https://github.com/anixops/easyssh",
+  "helpUrl": "https://docs.anixops.com/easyssh",
+  "updateUrl": "https://github.com/anixops/easyssh/releases",
+
+  "installer": {
+    "msi": {
+      "upgradeCode": "A8C3D4E5-F6B7-8901-2345-6789ABCDEF01",
+      "icon": "core/icons/icon.ico",
+      "banner": "installer/wix/images/banner.bmp",
+      "dialog": "installer/wix/images/dialog.bmp"
+    },
+    "nsis": {
+      "languages": ["English", "SimplifiedChinese", "TraditionalChinese"],
+      "headerImage": "installer/nsis/images/header.bmp",
+      "welcomeImage": "installer/nsis/images/welcome.bmp"
+    }
+  },
+
+  "signing": {
+    "enabled": false,
+    "certificate": "",
+    "timestampUrl": "http://timestamp.digicert.com",
+    "algorithm": "sha256",
+    "description": "EasySSH - Native SSH Client for Windows"
+  },
+
+  "build": {
+    "sourceDir": "target/release",
+    "outputDir": "releases/v{VERSION}/windows",
+    "formats": ["msi", "exe", "zip"]
+  },
+
+  "requirements": {
+    "minWindowsVersion": "10.0.14393",
+    "architecture": "x64",
+    "diskSpaceMB": 100
+  }
+}

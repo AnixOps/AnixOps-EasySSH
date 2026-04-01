@@ -1,0 +1,854 @@
+/*
+ * EasySSH GTK4 Theme
+ * Adwaita-compatible CSS for native Linux UI
+ *
+ * Maps design tokens from packages/design-system/src/styles/theme.css
+ * to GTK4 CSS variables while maintaining GNOME HIG compatibility.
+ *
+ * @version 1.0.0
+ * @platform Linux (GTK4 + libadwaita)
+ */
+
+/* ============================================================================
+   CSS VARIABLES - Design Token Mapping
+   ============================================================================ */
+
+@define-color easyssh_bg_primary @window_bg_color;
+@define-color easyssh_bg_secondary @view_bg_color;
+@define-color easyssh_bg_tertiary @card_bg_color;
+@define-color easyssh_bg_quaternary @sidebar_bg_color;
+@define-color easyssh_bg_elevated @popover_bg_color;
+@define-color easyssh_bg_overlay alpha(black, 0.4);
+
+@define-color easyssh_text_primary @window_fg_color;
+@define-color easyssh_text_secondary @view_fg_color;
+@define-color easyssh_text_tertiary alpha(@window_fg_color, 0.7);
+@define-color easyssh_text_quaternary alpha(@window_fg_color, 0.5);
+@define-color easyssh_text_inverted @card_fg_color;
+
+@define-color easyssh_border_subtle @borders;
+@define-color easyssh_border_default @borders;
+@define-color easyssh_border_strong @headerbar_border_color;
+
+/* Brand Colors - Professional Blue */
+@define-color easyssh_brand_50 #EFF6FF;
+@define-color easyssh_brand_100 #DBEAFE;
+@define-color easyssh_brand_200 #BFDBFE;
+@define-color easyssh_brand_300 #93C5FD;
+@define-color easyssh_brand_400 #60A5FA;
+@define-color easyssh_brand_500 #3B82F6;
+@define-color easyssh_brand_600 #2563EB;
+@define-color easyssh_brand_700 #1D4ED8;
+@define-color easyssh_brand_800 #1E40AF;
+@define-color easyssh_brand_900 #1E3A8A;
+
+/* Interactive Colors */
+@define-color easyssh_interactive_primary @accent_color;
+@define-color easyssh_interactive_primary_hover @accent_bg_color;
+@define-color easyssh_interactive_primary_active shade(@accent_color, 0.9);
+@define-color easyssh_interactive_primary_text @card_fg_color;
+
+@define-color easyssh_interactive_secondary @card_bg_color;
+@define-color easyssh_interactive_secondary_hover @view_bg_color;
+@define-color easyssh_interactive_secondary_active @borders;
+
+/* Semantic Colors */
+@define-color easyssh_success #22C55E;
+@define-color easyssh_success_bg alpha(#22C55E, 0.1);
+@define-color easyssh_success_border alpha(#22C55E, 0.3);
+
+@define-color easyssh_warning #F59E0B;
+@define-color easyssh_warning_bg alpha(#F59E0B, 0.1);
+@define-color easyssh_warning_border alpha(#F59E0B, 0.3);
+
+@define-color easyssh_danger #EF4444;
+@define-color easyssh_danger_bg alpha(#EF4444, 0.1);
+@define-color easyssh_danger_border alpha(#EF4444, 0.3);
+
+@define-color easyssh_info #3B82F6;
+@define-color easyssh_info_bg alpha(#3B82F6, 0.1);
+@define-color easyssh_info_border alpha(#3B82F6, 0.3);
+
+/* Status Colors */
+@define-color easyssh_status_online #22C55E;
+@define-color easyssh_status_offline #EF4444;
+@define-color easyssh_status_connecting #F59E0B;
+@define-color easyssh_status_maintenance #8B5CF6;
+@define-color easyssh_status_unknown #9CA3AF;
+
+/* Terminal Colors (One Dark) */
+@define-color easyssh_term_black #1E1E1E;
+@define-color easyssh_term_red #E06C75;
+@define-color easyssh_term_green #98C379;
+@define-color easyssh_term_yellow #E5C07B;
+@define-color easyssh_term_blue #61AFEF;
+@define-color easyssh_term_magenta #C678DD;
+@define-color easyssh_term_cyan #56B6C2;
+@define-color easyssh_term_white #DCDCDC;
+@define-color easyssh_term_bg #1E1E1E;
+@define-color easyssh_term_fg #DCDCDC;
+@define-color easyssh_term_cursor #528BFF;
+@define-color easyssh_term_selection #264F78;
+
+/* Focus & Selection */
+@define-color easyssh_focus @accent_color;
+
+/* ============================================================================
+   DARK THEME OVERRIDES
+   ============================================================================ */
+
+.dark {
+  --easyssh-bg-primary: #0D0D0D;
+  --easyssh-bg-secondary: #1A1A1A;
+  --easyssh-bg-tertiary: #363636;
+  --easyssh-bg-quaternary: #525252;
+  --easyssh-bg-overlay: alpha(black, 0.7);
+
+  --easyssh-text-primary: #FFFFFF;
+  --easyssh-text-secondary: #C4C4C4;
+  --easyssh-text-tertiary: #9E9E9E;
+  --easyssh-text-quaternary: #757575;
+
+  --easyssh-border-subtle: #363636;
+  --easyssh-border-default: #525252;
+  --easyssh-border-strong: #757575;
+
+  /* Adjusted semantic colors for dark */
+  --easyssh-success: #4ADE80;
+  --easyssh-warning: #FBBF24;
+  --easyssh-danger: #F87171;
+  --easyssh-info: #60A5FA;
+}
+
+/* ============================================================================
+   APPLICATION WINDOW
+   ============================================================================ */
+
+window.easyssh-window {
+  background-color: @easyssh_bg_primary;
+  color: @easyssh_text_primary;
+}
+
+window.easyssh-window .titlebar {
+  background-color: @easyssh_bg_secondary;
+  border-bottom: 1px solid @easyssh_border_subtle;
+}
+
+/* ============================================================================
+   SIDEBAR - Server List Panel
+   ============================================================================ */
+
+.sidebar {
+  background-color: @easyssh_bg_secondary;
+  border-right: 1px solid @easyssh_border_subtle;
+  min-width: 260px;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid @easyssh_border_subtle;
+}
+
+.sidebar-header label {
+  font-size: 13px;
+  font-weight: 600;
+  color: @easyssh_text_secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.sidebar-group {
+  padding: 16px 12px 8px;
+}
+
+.sidebar-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: @easyssh_text_quaternary;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Server List Items */
+.server-item {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 0 8px;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.server-item:hover {
+  background-color: @easyssh_interactive_secondary;
+}
+
+.server-item:selected,
+.server-item.selected {
+  background-color: @easyssh_interactive_primary;
+  color: @easyssh_interactive_primary_text;
+}
+
+.server-item:selected label,
+.server-item.selected label {
+  color: @easyssh_interactive_primary_text;
+}
+
+.server-item-icon {
+  margin-right: 12px;
+  color: @easyssh_text_tertiary;
+}
+
+.server-item:selected .server-item-icon,
+.server-item.selected .server-item-icon {
+  color: @easyssh_interactive_primary_text;
+}
+
+.server-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: @easyssh_text_primary;
+}
+
+.server-item-host {
+  font-size: 12px;
+  color: @easyssh_text_tertiary;
+  font-family: monospace;
+}
+
+/* Status Indicators */
+.server-status {
+  min-width: 8px;
+  min-height: 8px;
+  border-radius: 9999px;
+  margin-right: 8px;
+}
+
+.server-status.online {
+  background-color: @easyssh_status_online;
+}
+
+.server-status.offline {
+  background-color: @easyssh_status_offline;
+}
+
+.server-status.connecting {
+  background-color: @easyssh_status_connecting;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ============================================================================
+   SERVER CARD GRID
+   ============================================================================ */
+
+.server-grid {
+  padding: 24px;
+  background-color: @easyssh_bg_primary;
+}
+
+.server-card {
+  background-color: @easyssh_bg_elevated;
+  border-radius: 8px;
+  border: 1px solid @easyssh_border_subtle;
+  padding: 16px;
+  min-width: 280px;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px alpha(black, 0.08);
+}
+
+.server-card:hover {
+  border-color: @easyssh_border_default;
+  box-shadow: 0 4px 16px alpha(black, 0.12);
+  transform: translateY(-2px);
+}
+
+.server-card-header {
+  margin-bottom: 12px;
+}
+
+.server-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: @easyssh_text_primary;
+}
+
+.server-card-subtitle {
+  font-size: 13px;
+  color: @easyssh_text_tertiary;
+  font-family: monospace;
+}
+
+.server-card-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid @easyssh_border_subtle;
+}
+
+/* ============================================================================
+   TERMINAL PANEL
+   ============================================================================ */
+
+.terminal-container {
+  background-color: @easyssh_term_bg;
+  border-radius: 8px;
+  border: 1px solid @easyssh_border_subtle;
+  padding: 8px 12px;
+  font-family: "JetBrains Mono", "Fira Code", "Source Code Pro", monospace;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.terminal-container vte-terminal {
+  background-color: @easyssh_term_bg;
+  color: @easyssh_term_fg;
+}
+
+/* Terminal Tabs */
+.terminal-tab {
+  min-height: 36px;
+  padding: 0 16px;
+  background-color: transparent;
+  border-bottom: 2px solid transparent;
+  transition: all 200ms ease;
+}
+
+.terminal-tab:hover {
+  background-color: alpha(@easyssh_interactive_primary, 0.1);
+}
+
+.terminal-tab:selected,
+.terminal-tab.active {
+  border-bottom-color: @easyssh_interactive_primary;
+  color: @easyssh_interactive_primary;
+}
+
+.terminal-tab-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+/* Primary Button */
+button.easyssh-primary {
+  background-color: @easyssh_interactive_primary;
+  color: @easyssh_interactive_primary_text;
+  border-radius: 6px;
+  padding: 0 16px;
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button.easyssh-primary:hover {
+  background-color: @easyssh_interactive_primary_hover;
+}
+
+button.easyssh-primary:active {
+  background-color: @easyssh_interactive_primary_active;
+}
+
+/* Secondary Button */
+button.easyssh-secondary {
+  background-color: @easyssh_interactive_secondary;
+  color: @easyssh_text_primary;
+  border-radius: 6px;
+  padding: 0 16px;
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid @easyssh_border_default;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button.easyssh-secondary:hover {
+  background-color: @easyssh_interactive_secondary_hover;
+  border-color: @easyssh_border_strong;
+}
+
+button.easyssh-secondary:active {
+  background-color: @easyssh_interactive_secondary_active;
+}
+
+/* Ghost Button */
+button.easyssh-ghost {
+  background-color: transparent;
+  color: @easyssh_text_secondary;
+  border-radius: 6px;
+  padding: 0 12px;
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button.easyssh-ghost:hover {
+  background-color: @easyssh_interactive_secondary;
+  color: @easyssh_text_primary;
+}
+
+button.easyssh-ghost:active {
+  background-color: alpha(@easyssh_interactive_secondary, 0.8);
+}
+
+/* Icon Button */
+button.easyssh-icon {
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 6px;
+  padding: 0;
+  background-color: transparent;
+  color: @easyssh_text_tertiary;
+  border: none;
+  transition: all 150ms ease;
+}
+
+button.easyssh-icon:hover {
+  background-color: @easyssh_interactive_secondary;
+  color: @easyssh_text_primary;
+}
+
+/* ============================================================================
+   FORM INPUTS
+   ============================================================================ */
+
+entry.easyssh-input {
+  background-color: @easyssh_bg_tertiary;
+  color: @easyssh_text_primary;
+  border-radius: 6px;
+  border: 1px solid @easyssh_border_default;
+  padding: 8px 12px;
+  min-height: 36px;
+  font-size: 14px;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+entry.easyssh-input:focus {
+  border-color: @easyssh_focus;
+  box-shadow: 0 0 0 3px alpha(@easyssh_focus, 0.3);
+}
+
+entry.easyssh-input:disabled {
+  background-color: @easyssh_bg_quaternary;
+  color: @easyssh_text_quaternary;
+}
+
+entry.easyssh-input.error {
+  border-color: @easyssh_danger;
+  background-color: @easyssh_danger_bg;
+}
+
+entry.easyssh-input.success {
+  border-color: @easyssh_success;
+  background-color: @easyssh_success_bg;
+}
+
+/* Search Input */
+entry.easyssh-search {
+  background-color: @easyssh_bg_tertiary;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  min-height: 36px;
+  font-size: 14px;
+}
+
+entry.easyssh-search image {
+  color: @easyssh_text_tertiary;
+  margin-right: 8px;
+}
+
+/* ============================================================================
+   DIALOGS & MODALS
+   ============================================================================ */
+
+dialog.easyssh-dialog {
+  background-color: @easyssh_bg_elevated;
+  border-radius: 12px;
+  border: 1px solid @easyssh_border_subtle;
+  box-shadow: 0 16px 48px alpha(black, 0.18);
+}
+
+dialog.easyssh-dialog .dialog-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid @easyssh_border_subtle;
+}
+
+dialog.easyssh-dialog .dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: @easyssh_text_primary;
+}
+
+dialog.easyssh-dialog .dialog-content {
+  padding: 24px;
+}
+
+dialog.easyssh-dialog .dialog-footer {
+  padding: 16px 24px 20px;
+  border-top: 1px solid @easyssh_border_subtle;
+}
+
+/* Backdrop overlay */
+.overlay {
+  background-color: @easyssh_bg_overlay;
+}
+
+/* ============================================================================
+   COMMAND PALETTE
+   ============================================================================ */
+
+.command-palette {
+  background-color: @easyssh_bg_elevated;
+  border-radius: 12px;
+  border: 1px solid @easyssh_border_default;
+  box-shadow: 0 16px 48px alpha(black, 0.18);
+  min-width: 640px;
+}
+
+.command-palette-search {
+  padding: 16px 20px;
+  border-bottom: 1px solid @easyssh_border_subtle;
+}
+
+.command-palette-search entry {
+  background-color: transparent;
+  border: none;
+  font-size: 18px;
+  font-weight: 500;
+  padding: 0;
+}
+
+.command-palette-results {
+  max-height: 400px;
+}
+
+.command-palette-item {
+  min-height: 44px;
+  padding: 0 20px;
+  transition: all 100ms ease;
+}
+
+.command-palette-item:hover,
+.command-palette-item:selected {
+  background-color: @easyssh_interactive_secondary;
+}
+
+.command-palette-item-icon {
+  margin-right: 12px;
+  color: @easyssh_text_tertiary;
+}
+
+.command-palette-item-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: @easyssh_text_primary;
+}
+
+.command-palette-item-shortcut {
+  font-size: 12px;
+  color: @easyssh_text_quaternary;
+  font-family: monospace;
+  margin-left: 8px;
+}
+
+/* ============================================================================
+   TOOLTIPS
+   ============================================================================ */
+
+tooltip {
+  background-color: @easyssh_bg_secondary;
+  color: @easyssh_text_primary;
+  border-radius: 6px;
+  border: 1px solid @easyssh_border_default;
+  padding: 6px 10px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px alpha(black, 0.15);
+}
+
+/* ============================================================================
+   TOAST NOTIFICATIONS
+   ============================================================================ */
+
+.toast {
+  background-color: @easyssh_bg_secondary;
+  border-radius: 8px;
+  border: 1px solid @easyssh_border_default;
+  padding: 12px 16px;
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 4px 16px alpha(black, 0.12);
+}
+
+.toast-success {
+  border-left: 3px solid @easyssh_success;
+}
+
+.toast-warning {
+  border-left: 3px solid @easyssh_warning;
+}
+
+.toast-error {
+  border-left: 3px solid @easyssh_danger;
+}
+
+.toast-info {
+  border-left: 3px solid @easyssh_info;
+}
+
+.toast-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: @easyssh_text_primary;
+  margin-bottom: 4px;
+}
+
+.toast-message {
+  font-size: 13px;
+  color: @easyssh_text_secondary;
+}
+
+/* ============================================================================
+   MENUS & POPOVERS
+   ============================================================================ */
+
+popover.easyssh-menu {
+  background-color: @easyssh_bg_elevated;
+  border-radius: 8px;
+  border: 1px solid @easyssh_border_default;
+  box-shadow: 0 4px 16px alpha(black, 0.12);
+  padding: 8px 0;
+}
+
+popover.easyssh-menu modelbutton {
+  min-height: 32px;
+  padding: 0 16px;
+  font-size: 14px;
+  transition: all 100ms ease;
+}
+
+popover.easyssh-menu modelbutton:hover {
+  background-color: @easyssh_interactive_secondary;
+}
+
+popover.easyssh-menu modelbutton:selected {
+  background-color: @easyssh_interactive_primary;
+  color: @easyssh_interactive_primary_text;
+}
+
+popover.easyssh-menu separator {
+  margin: 8px 16px;
+  background-color: @easyssh_border_subtle;
+}
+
+/* ============================================================================
+   SPLIT PANES
+   ============================================================================ */
+
+paned > separator {
+  background-color: @easyssh_border_subtle;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+paned > separator.wide {
+  min-width: 8px;
+  min-height: 8px;
+  background-color: transparent;
+}
+
+paned > separator.wide:hover {
+  background-color: @easyssh_interactive_secondary;
+}
+
+/* ============================================================================
+   SCROLLBARS
+   ============================================================================ */
+
+scrollbar {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+
+scrollbar slider {
+  background-color: alpha(@easyssh_text_tertiary, 0.3);
+  border-radius: 9999px;
+  min-width: 8px;
+  min-height: 8px;
+  margin: 2px;
+}
+
+scrollbar slider:hover {
+  background-color: alpha(@easyssh_text_tertiary, 0.5);
+}
+
+scrollbar slider:active {
+  background-color: alpha(@easyssh_text_secondary, 0.5);
+}
+
+/* ============================================================================
+   LIST VIEWS
+   ============================================================================ */
+
+listview {
+  background-color: transparent;
+}
+
+listview > row {
+  min-height: 36px;
+  padding: 0 12px;
+  transition: all 100ms ease;
+}
+
+listview > row:hover {
+  background-color: @easyssh_interactive_secondary;
+}
+
+listview > row:selected {
+  background-color: @easyssh_interactive_primary;
+  color: @easyssh_interactive_primary_text;
+}
+
+/* ============================================================================
+   NOTEBOOK (Tabbed Interface)
+   ============================================================================ */
+
+notebook {
+  background-color: @easyssh_bg_primary;
+}
+
+notebook header {
+  background-color: @easyssh_bg_secondary;
+  border-bottom: 1px solid @easyssh_border_subtle;
+}
+
+notebook tab {
+  min-height: 36px;
+  padding: 0 16px;
+  border-bottom: 2px solid transparent;
+  transition: all 200ms ease;
+}
+
+notebook tab:hover {
+  background-color: alpha(@easyssh_interactive_primary, 0.1);
+}
+
+notebook tab:checked {
+  border-bottom-color: @easyssh_interactive_primary;
+  color: @easyssh_interactive_primary;
+}
+
+/* ============================================================================
+   PROGRESS INDICATORS
+   ============================================================================ */
+
+progressbar {
+  background-color: @easyssh_bg_quaternary;
+  border-radius: 9999px;
+  min-height: 4px;
+}
+
+progressbar trough {
+  background-color: @easyssh_bg_quaternary;
+  border-radius: 9999px;
+}
+
+progressbar progress {
+  background-color: @easyssh_interactive_primary;
+  border-radius: 9999px;
+}
+
+spinner {
+  color: @easyssh_interactive_primary;
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.easyssh-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.easyssh-fade-in {
+  animation: fade-in 200ms ease-out;
+}
+
+.easyssh-slide-in {
+  animation: slide-in 300ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.easyssh-scale-in {
+  animation: scale-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+/* Focus visible styles */
+*:focus-visible {
+  outline: 2px solid @easyssh_focus;
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .server-item,
+  button.easyssh-primary,
+  button.easyssh-secondary,
+  entry.easyssh-input {
+    border-width: 2px;
+  }
+
+  .server-status {
+    border: 1px solid @easyssh_text_primary;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
