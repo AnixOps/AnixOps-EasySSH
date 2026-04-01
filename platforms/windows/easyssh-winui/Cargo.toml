@@ -74,7 +74,7 @@ open = "5.0"
 # Performance optimizations
 num_cpus = "1.16"
 parking_lot = "0.12"
-lru = "0.12"
+lru = "0.16"
 log = "0.4"
 
 # Clipboard support for terminal copy-paste

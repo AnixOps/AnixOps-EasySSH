@@ -28,7 +28,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 # Unified dependency versions - security fixes and optimization
 base64 = "0.21"
 reqwest = { version = "0.12", features = ["json"] }
-lru = "0.12"
+lru = "0.16"
 validator = "0.20"
 redis = "0.25"
 rusqlite = { version = "0.32", features = ["bundled"] }
