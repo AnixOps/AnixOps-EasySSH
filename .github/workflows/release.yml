@@ -514,7 +514,7 @@ jobs:
     steps:
       - name: Post to Slack
         if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@v3
         with:
           payload: |
             {
