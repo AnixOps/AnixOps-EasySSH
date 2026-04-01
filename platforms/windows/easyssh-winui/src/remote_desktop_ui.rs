@@ -51,6 +51,8 @@ pub fn render_remote_desktop_panel(ctx: &egui::Context, manager: &mut RemoteDesk
     }
 }
 
+use crate::embedded_rdp::{ConnectionSettings, RemoteDesktopType, RemoteDesktopViewer};
+
 /// Remote desktop connection UI state
 #[derive(Debug, Clone)]
 pub struct RemoteDesktopConnectionUI {
@@ -385,20 +387,66 @@ impl RemoteDesktopManagerUI {
     pub fn start_session(&mut self, connection_id: &str) -> Option<String> {
         if let Some(connection) = self.get_connection(connection_id) {
             let session_id = format!("session_{}", uuid::Uuid::new_v4());
-            let session = RemoteDesktopSessionUI {
-                id: session_id.clone(),
-                connection_id: connection_id.to_string(),
-                connection_name: connection.name.clone(),
-                protocol: connection.protocol,
-                status: SessionStatus::Connecting,
-                started_at: std::time::Instant::now(),
-                recording_active: false,
-                recording_path: None,
-                recording_duration: None,
-                view_mode: ViewMode::Embedded,
+
+            // Launch external remote desktop client
+            let viewer_type = match connection.protocol {
+                RemoteDesktopProtocol::Rdp | RemoteDesktopProtocol::SshTunnelRdp => RemoteDesktopType::Rdp,
+                RemoteDesktopProtocol::Vnc | RemoteDesktopProtocol::SshTunnelVnc => RemoteDesktopType::Vnc,
             };
-            self.active_sessions.insert(session_id.clone(), session);
-            return Some(session_id);
+
+            let settings = ConnectionSettings {
+                host: connection.host.clone(),
+                port: connection.port,
+                username: connection.username.clone(),
+                password: connection.password.clone(),
+                domain: if connection.domain.is_empty() { None } else { Some(connection.domain.clone()) },
+            };
+
+            // Try to create viewer and connect
+            let dummy_rect = egui::Rect::ZERO;
+            match RemoteDesktopViewer::new(dummy_rect, settings, viewer_type) {
+                Ok(mut viewer) => {
+                    if let Err(e) = viewer.connect() {
+                        eprintln!("Failed to connect remote desktop: {}", e);
+                        // Create session with error status
+                        let session = RemoteDesktopSessionUI {
+                            id: session_id.clone(),
+                            connection_id: connection_id.to_string(),
+                            connection_name: connection.name.clone(),
+                            protocol: connection.protocol,
+                            status: SessionStatus::Error,
+                            started_at: std::time::Instant::now(),
+                            recording_active: false,
+                            recording_path: None,
+                            recording_duration: None,
+                            view_mode: ViewMode::ExternalWindow,
+                        };
+                        self.active_sessions.insert(session_id.clone(), session);
+                        return Some(session_id);
+                    }
+
+                    // Successfully launched external client
+                    let session = RemoteDesktopSessionUI {
+                        id: session_id.clone(),
+                        connection_id: connection_id.to_string(),
+                        connection_name: connection.name.clone(),
+                        protocol: connection.protocol,
+                        status: SessionStatus::Connected,
+                        started_at: std::time::Instant::now(),
+                        recording_active: false,
+                        recording_path: None,
+                        recording_duration: None,
+                        view_mode: ViewMode::ExternalWindow,
+                    };
+                    self.active_sessions.insert(session_id.clone(), session);
+                    println!("Launched external remote desktop client for session {}", session_id);
+                    return Some(session_id);
+                }
+                Err(e) => {
+                    eprintln!("Failed to create remote desktop viewer: {}", e);
+                    return None;
+                }
+            }
         }
         None
     }
