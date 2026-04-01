@@ -228,6 +228,10 @@ struct EasySSHApp {
     edit_server: EditServerForm,
     edit_error: Option<String>,
     editing_server_id: Option<String>,
+    show_manage_groups_dialog: bool,
+    new_group_name: String,
+    edit_group_id: Option<String>,
+    edit_group_name: String,
     show_connect_dialog: bool,
     connect_server: Option<ServerViewModel>,
     password: String,
@@ -349,9 +353,15 @@ struct EasySSHApp {
     notification_settings_panel: NotificationSettingsPanel,
     show_notification_panel: bool,
     show_notification_settings: bool,
-n    // Performance monitoring panel
+    // Performance monitoring panel
     performance_panel: PerformancePanel,
     show_performance_panel: bool,
+
+    // Frame timing for performance monitoring
+    last_frame_time: Instant,
+    frame_count: u64,
+    last_fps_update: Instant,
+    current_fps: f64,
 
     // === Professional Hotkey System ===
     /// Global and app hotkey manager
@@ -682,6 +692,14 @@ impl EasySSHApp {
             show_add_dialog: false,
             new_server: NewServerForm::default(),
             add_error: None,
+            show_edit_dialog: false,
+            edit_server: EditServerForm::default(),
+            edit_error: None,
+            editing_server_id: None,
+            show_manage_groups_dialog: false,
+            new_group_name: String::new(),
+            edit_group_id: None,
+            edit_group_name: String::new(),
             show_connect_dialog: false,
             connect_server: None,
             password: String::new(),
@@ -776,6 +794,16 @@ impl EasySSHApp {
             notification_settings_panel,
             show_notification_panel: false,
             show_notification_settings: false,
+
+            // Performance monitoring panel
+            performance_panel: PerformancePanel::new(),
+            show_performance_panel: false,
+
+            // Frame timing for performance monitoring
+            last_frame_time: Instant::now(),
+            frame_count: 0,
+            last_fps_update: Instant::now(),
+            current_fps: 0.0,
 
             // Hotkey system (lightweight) - using pre-initialized manager
             hotkey_manager,
@@ -878,6 +906,11 @@ impl EasySSHApp {
         self.servers = vm.get_servers();
     }
 
+    fn refresh_groups(&mut self) {
+        let vm = self.view_model.lock().unwrap();
+        self.groups = vm.get_groups();
+    }
+
     fn add_server(&mut self) {
         if self.new_server.name.is_empty() {
             self.add_error = Some("Name is required".to_string());
@@ -905,6 +938,7 @@ impl EasySSHApp {
             port,
             &self.new_server.username,
             auth,
+            self.new_server.group_id.clone(),
         ) {
             Ok(_) => {
                 let server_name = self.new_server.name.clone();
@@ -926,6 +960,84 @@ impl EasySSHApp {
             }
         }
     }
+
+    fn start_edit_server(&mut self) {
+        if let Some(server_id) = self.selected_server.as_ref() {
+            if let Some(server) = self.servers.iter().find(|s| s.id == *server_id).cloned() {
+                self.editing_server_id = Some(server.id.clone());
+                self.edit_server.name = server.name;
+                self.edit_server.host = server.host;
+                self.edit_server.port = server.port.to_string();
+                self.edit_server.username = server.username;
+                self.edit_server.auth_type = match server.auth_type.as_str() {
+                    "key" => AuthType::Key,
+                    _ => AuthType::Password,
+                };
+                self.edit_server.group_id = server.group_id;
+                self.edit_error = None;
+                self.show_edit_dialog = true;
+            }
+        }
+    }
+
+    fn update_server(&mut self) {
+        let server_id = match &self.editing_server_id {
+            Some(id) => id.clone(),
+            None => {
+                self.edit_error = Some("No server selected for editing".to_string());
+                return;
+            }
+        };
+
+        if self.edit_server.name.is_empty() {
+            self.edit_error = Some("Name is required".to_string());
+            return;
+        }
+        if self.edit_server.host.is_empty() {
+            self.edit_error = Some("Host is required".to_string());
+            return;
+        }
+        if self.edit_server.username.is_empty() {
+            self.edit_error = Some("Username is required".to_string());
+            return;
+        }
+
+        let port: i64 = self.edit_server.port.parse().unwrap_or(22);
+        let auth = match self.edit_server.auth_type {
+            AuthType::Password => "password",
+            AuthType::Key => "key",
+        };
+
+        let vm = self.view_model.lock().unwrap();
+        match vm.update_server(
+            &server_id,
+            &self.edit_server.name,
+            &self.edit_server.host,
+            port,
+            &self.edit_server.username,
+            auth,
+        ) {
+            Ok(_) => {
+                let server_name = self.edit_server.name.clone();
+                info!("Server updated successfully: {}", server_name);
+                self.show_edit_dialog = false;
+                self.editing_server_id = None;
+                self.edit_server = EditServerForm::default();
+                self.edit_error = None;
+                drop(vm);
+                self.refresh_servers();
+                info!("Server list refreshed after update, total servers: {}", self.servers.len());
+                self.ux_manager.show_toast(
+                    ToastNotification::success("服务器更新成功", &format!("服务器 '{}' 已更新", server_name))
+                );
+            }
+            Err(e) => {
+                error!("Failed to update server: {}", e);
+                self.edit_error = Some(format!("Failed to update server: {}", e));
+            }
+        }
+    }
+
 
     fn start_connect(&mut self) {
         if let Some(server_id) = self.selected_server.as_ref() {
@@ -2142,13 +2254,46 @@ impl EasySSHApp {
     }
 
     fn quick_delete_server(&mut self, server_id: &str) {
-        let vm = self.view_model.lock().unwrap();
-        if let Err(e) = vm.delete_server(server_id) {
-            error!("Failed to delete server: {}", e);
+        // Find server name for the confirmation dialog
+        let server_name = self.servers.iter()
+            .find(|s| s.id == server_id)
+            .map(|s| s.name.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        // Show confirmation dialog instead of deleting immediately
+        self.pending_delete_server_id = Some(server_id.to_string());
+        self.pending_delete_server_name = Some(server_name);
+        self.show_delete_confirm = true;
+    }
+
+    fn execute_delete_server(&mut self) {
+        if let Some(server_id) = &self.pending_delete_server_id {
+            let vm = self.view_model.lock().unwrap();
+            if let Err(e) = vm.delete_server(server_id) {
+                error!("Failed to delete server: {}", e);
+                self.ux_manager.show_toast(
+                    ToastNotification::error("删除服务器失败", &format!("错误: {}", e))
+                );
+            } else {
+                info!("Server deleted successfully: {}", server_id);
+                self.ux_manager.show_toast(
+                    ToastNotification::success("删除成功", "服务器已从列表中移除")
+                );
+            }
+            drop(vm);
+            self.refresh_servers();
+            self.global_search_results.retain(|r| r.id != *server_id);
         }
-        drop(vm);
-        self.refresh_servers();
-        self.global_search_results.retain(|r| r.id != server_id);
+        // Clear pending state
+        self.pending_delete_server_id = None;
+        self.pending_delete_server_name = None;
+        self.show_delete_confirm = false;
+    }
+
+    fn cancel_delete_server(&mut self) {
+        self.pending_delete_server_id = None;
+        self.pending_delete_server_name = None;
+        self.show_delete_confirm = false;
     }
 
 
@@ -2185,6 +2330,115 @@ impl EasySSHApp {
             &mut self.snippet_manager,
             &mut self.snippet_action_message,
         );
+    }
+
+    fn render_delete_confirm_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_delete_confirm {
+            return;
+        }
+
+        let server_name = self.pending_delete_server_name.as_deref().unwrap_or("Unknown");
+
+        // Dark overlay
+        let screen_rect = ctx.screen_rect();
+        ctx.layer_painter(egui::LayerId::new(egui::Order::Background, "delete_overlay".into()))
+            .rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(160));
+
+        let window_width = 400.0;
+        let window_height = 200.0;
+        let window_pos = egui::Pos2::new(
+            (screen_rect.width() - window_width) / 2.0,
+            (screen_rect.height() - window_height) / 2.0,
+        );
+
+        egui::Window::new("Delete Server")
+            .fixed_pos(window_pos)
+            .fixed_size([window_width, window_height])
+            .collapsible(false)
+            .resizable(false)
+            .title_bar(false)
+            .frame(egui::Frame {
+                fill: egui::Color32::from_rgb(40, 44, 52),
+                rounding: egui::Rounding::same(12.0),
+                stroke: egui::Stroke::new(2.0, egui::Color32::from_rgb(220, 53, 69)),
+                shadow: egui::epaint::Shadow {
+                    blur: 20.0,
+                    spread: 0.0,
+                    offset: egui::Vec2::new(0.0, 8.0),
+                    color: egui::Color32::from_black_alpha(100),
+                },
+                ..Default::default()
+            })
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(24.0);
+
+                    // Warning icon
+                    ui.label(egui::RichText::new("⚠").size(48.0).color(egui::Color32::from_rgb(255, 193, 7)));
+                    ui.add_space(16.0);
+
+                    // Title
+                    ui.label(
+                        egui::RichText::new("Delete Server?")
+                            .size(20.0)
+                            .strong()
+                            .color(egui::Color32::from_rgb(220, 225, 235))
+                    );
+                    ui.add_space(8.0);
+
+                    // Message
+                    ui.label(
+                        egui::RichText::new(format!("Are you sure you want to delete '{}' ?
+This action cannot be undone.", server_name))
+                            .size(14.0)
+                            .color(egui::Color32::from_rgb(180, 185, 195))
+                    );
+
+                    ui.add_space(24.0);
+
+                    // Buttons
+                    ui.horizontal(|ui| {
+                        let cancel_btn = egui::Button::new(
+                            egui::RichText::new("Cancel")
+                                .size(14.0)
+                                .color(egui::Color32::from_rgb(220, 225, 235))
+                        )
+                        .fill(egui::Color32::from_rgb(80, 85, 95))
+                        .min_size([100.0, 36.0].into());
+
+                        if ui.add(cancel_btn).clicked() {
+                            self.cancel_delete_server();
+                        }
+
+                        ui.add_space(16.0);
+
+                        let delete_btn = egui::Button::new(
+                            egui::RichText::new("Delete")
+                                .size(14.0)
+                                .strong()
+                                .color(egui::Color32::WHITE)
+                        )
+                        .fill(egui::Color32::from_rgb(220, 53, 69))
+                        .min_size([100.0, 36.0].into());
+
+                        if ui.add(delete_btn).clicked() {
+                            self.execute_delete_server();
+                        }
+                    });
+
+                    ui.add_space(8.0);
+                });
+            });
+
+        // Handle Escape key to cancel
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.cancel_delete_server();
+        }
+
+        // Handle Enter key to confirm
+        if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
+            self.execute_delete_server();
+        }
     }
 
     #[cfg(feature = "code-editor")]
@@ -2494,6 +2748,22 @@ impl eframe::App for EasySSHApp {
         // Update UX manager for animations and timed events
         self.ux_manager.update();
 
+        // === Frame timing and performance monitoring ===
+        let now = Instant::now();
+        let frame_time = now.duration_since(self.last_frame_time).as_secs_f64() * 1000.0;
+        self.last_frame_time = now;
+        self.frame_count += 1;
+
+        // Update FPS every second
+        if now.duration_since(self.last_fps_update).as_secs_f64() >= 1.0 {
+            self.current_fps = self.frame_count as f64 / now.duration_since(self.last_fps_update).as_secs_f64();
+            self.frame_count = 0;
+            self.last_fps_update = now;
+        }
+
+        // Update performance panel
+        self.performance_panel.update(self.current_fps, frame_time);
+
         // === Handle theme changes from settings panel ===
         self.handle_settings_changes(ctx);
 
@@ -2541,6 +2811,16 @@ impl eframe::App for EasySSHApp {
         // === Render toast notifications ===
         self.ux_manager.render_toasts(ctx, &self.theme);
 
+        // === Render performance panel ===
+        if self.show_performance_panel {
+            self.performance_panel.render(ctx);
+        }
+
+        // === Render performance overlay (mini) when panel is closed ===
+        if !self.show_performance_panel && self.current_fps > 0.0 {
+            performance_panel::render_performance_overlay(ctx, self.current_fps, 1000.0 / self.current_fps.max(1.0));
+        }
+
         egui::TopBottomPanel::top("top_bar")
             .frame(egui::Frame {
                 fill: egui::Color32::from_rgb(30, 34, 42),
@@ -2562,6 +2842,45 @@ impl eframe::App for EasySSHApp {
                         self.settings_panel.toggle();
                     }
                     ui.add_space(8.0);
+
+                    // Performance Monitor toggle button
+                    let perf_btn_fill = if self.show_performance_panel {
+                        egui::Color32::from_rgb(80, 180, 100) // Active state - green
+                    } else {
+                        egui::Color32::from_rgb(60, 70, 85)
+                    };
+                    let perf_btn = egui::Button::new("📊")
+                        .fill(perf_btn_fill)
+                        .rounding(4.0)
+                        .min_size([44.0, 44.0].into());
+                    if ui.add(perf_btn).on_hover_text("Performance Monitor - Show/hide FPS and memory usage").clicked() {
+                        self.show_performance_panel = !self.show_performance_panel;
+                    }
+                    ui.add_space(8.0);
+
+                    // Notification bell button with unread count
+                    let unread_count = self.notification_manager.get_unread_count();
+                    let notif_btn_text = if unread_count > 0 {
+                        format!("🔔 {}", unread_count)
+                    } else {
+                        "🔔".to_string()
+                    };
+                    let notif_btn_fill = if self.notification_panel.visible {
+                        egui::Color32::from_rgb(80, 150, 220) // Active state - blue
+                    } else if unread_count > 0 {
+                        egui::Color32::from_rgb(220, 120, 80) // Has unread - orange
+                    } else {
+                        egui::Color32::from_rgb(60, 70, 85)
+                    };
+                    let notif_btn = egui::Button::new(&notif_btn_text)
+                        .fill(notif_btn_fill)
+                        .rounding(4.0)
+                        .min_size([44.0, 44.0].into());
+                    if ui.add(notif_btn).on_hover_text(&format!("Notifications - {} unread", unread_count)).clicked() {
+                        self.notification_panel.toggle();
+                    }
+                    ui.add_space(8.0);
+
 // Theme Gallery button
                     let theme_btn = egui::Button::new("🎨")
                         .fill(egui::Color32::from_rgb(60, 70, 85))
@@ -2675,6 +2994,19 @@ impl eframe::App for EasySSHApp {
                         self.new_server = NewServerForm::default();
                         self.add_error = None;
                     }
+                    ui.add_space(8.0);
+
+                    let groups_btn = egui::Button::new("📁 Groups")
+                        .fill(egui::Color32::from_rgb(60, 70, 85))
+                        .rounding(4.0)
+                        .min_size([100.0, 44.0].into());
+                    if ui.add(groups_btn).clicked() {
+                        self.show_manage_groups_dialog = true;
+                        self.new_group_name.clear();
+                        self.edit_group_id = None;
+                        self.edit_group_name.clear();
+                        self.refresh_groups();
+                    }
                 });
             });
         });
@@ -2736,6 +3068,27 @@ impl eframe::App for EasySSHApp {
                                 );
                             });
                             ui.end_row();
+
+                            ui.label(egui::RichText::new("Group:").color(egui::Color32::from_rgb(180, 190, 205)));
+                            egui::ComboBox::from_id_salt("new_server_group")
+                                .width(200.0)
+                                .selected_text(
+                                    self.new_server.group_id.as_ref()
+                                        .and_then(|id| self.groups.iter().find(|g| &g.id == id))
+                                        .map(|g| g.name.as_str())
+                                        .unwrap_or("No Group")
+                                )
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(&mut self.new_server.group_id, None, "No Group");
+                                    for group in &self.groups {
+                                        ui.selectable_value(
+                                            &mut self.new_server.group_id,
+                                            Some(group.id.clone()),
+                                            &group.name
+                                        );
+                                    }
+                                });
+                            ui.end_row();
                         });
 
                     ui.add_space(10.0);
@@ -2758,6 +3111,192 @@ impl eframe::App for EasySSHApp {
                                 }
                             });
                         });
+                });
+        }
+
+        // Edit Server Dialog
+        if self.show_edit_dialog {
+            let server_name = self.edit_server.name.clone();
+            egui::Window::new(format!("Edit Server - {}", server_name))
+                .collapsible(false)
+                .resizable(false)
+                .default_size([400.0, 400.0])
+                .frame(egui::Frame {
+                    fill: egui::Color32::from_rgb(42, 48, 58),
+                    stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 70, 85)),
+                    ..Default::default()
+                })
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
+                        ui.label(egui::RichText::new("✏️ Edit Server").heading().color(egui::Color32::from_rgb(220, 225, 235)));
+                        ui.add_space(10.0);
+                    });
+                    ui.separator();
+                    if let Some(ref err) = self.edit_error {
+                        ui.colored_label(egui::Color32::from_rgb(255, 87, 87), err);
+                        ui.separator();
+                    }
+                    egui::Grid::new("edit_server_grid")
+                        .num_columns(2)
+                        .spacing([10.0, 12.0])
+                        .show(ui, |ui| {
+                            ui.label(egui::RichText::new("Name:").color(egui::Color32::from_rgb(180, 190, 205)));
+                            ui.add(egui::TextEdit::singleline(&mut self.edit_server.name).hint_text("My Server"));
+                            ui.end_row();
+                            ui.label(egui::RichText::new("Host:").color(egui::Color32::from_rgb(180, 190, 205)));
+                            ui.add(egui::TextEdit::singleline(&mut self.edit_server.host).hint_text("192.168.1.100"));
+                            ui.end_row();
+                            ui.label(egui::RichText::new("Port:").color(egui::Color32::from_rgb(180, 190, 205)));
+                            ui.add(egui::TextEdit::singleline(&mut self.edit_server.port).hint_text("22"));
+                            ui.end_row();
+                            ui.label(egui::RichText::new("Username:").color(egui::Color32::from_rgb(180, 190, 205)));
+                            ui.add(egui::TextEdit::singleline(&mut self.edit_server.username).hint_text("root"));
+                            ui.end_row();
+                            ui.label(egui::RichText::new("Auth:").color(egui::Color32::from_rgb(180, 190, 205)));
+                            ui.horizontal(|ui| {
+                                ui.radio_value(
+                                    &mut self.edit_server.auth_type,
+                                    AuthType::Password,
+                                    "🔐 Password",
+                                );
+                                ui.radio_value(
+                                    &mut self.edit_server.auth_type,
+                                    AuthType::Key,
+                                    "🔑 SSH Key",
+                                );
+                            });
+                            ui.end_row();
+                            ui.label(egui::RichText::new("Group:").color(egui::Color32::from_rgb(180, 190, 205)));
+                            egui::ComboBox::from_id_salt("edit_server_group")
+                                .width(200.0)
+                                .selected_text(
+                                    self.edit_server.group_id.as_ref()
+                                        .and_then(|id| self.groups.iter().find(|g| &g.id == id))
+                                        .map(|g| g.name.as_str())
+                                        .unwrap_or("No Group")
+                                )
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(&mut self.edit_server.group_id, None, "No Group");
+                                    for group in &self.groups {
+                                        ui.selectable_value(
+                                            &mut self.edit_server.group_id,
+                                            Some(group.id.clone()),
+                                            &group.name
+                                        );
+                                    }
+                                });
+                            ui.end_row();
+                        });
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+                    if self.edit_server.port.is_empty() {
+                        ui.label(egui::RichText::new("Default port: 22").small().color(egui::Color32::from_rgb(120, 130, 150)));
+                    }
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::new("Cancel").min_size([80.0, 44.0].into())).clicked() {
+                            self.show_edit_dialog = false;
+                            self.editing_server_id = None;
+                        }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.add(egui::Button::new("Save Changes").min_size([120.0, 44.0].into())).clicked() {
+                                self.update_server();
+                            }
+                        });
+                    });
+                });
+        }
+        // ==================== Manage Groups Dialog ====================
+        if self.show_manage_groups_dialog {
+            egui::Window::new("Manage Groups")
+                .collapsible(false)
+                .resizable(false)
+                .default_size([350.0, 400.0])
+                .frame(egui::Frame {
+                    fill: egui::Color32::from_rgb(42, 48, 58),
+                    stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 70, 85)),
+                    ..Default::default()
+                })
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
+                        ui.label(egui::RichText::new("📁 Manage Groups").heading().color(egui::Color32::from_rgb(220, 225, 235)));
+                        ui.add_space(10.0);
+                    });
+                    ui.separator();
+
+                    // Add new group section
+                    ui.label(egui::RichText::new("Add New Group:").color(egui::Color32::from_rgb(180, 190, 205)));
+                    ui.horizontal(|ui| {
+                        ui.text_edit_singleline(&mut self.new_group_name);
+                        if ui.add(egui::Button::new("Add").min_size([60.0, 32.0].into())).clicked() {
+                            if !self.new_group_name.is_empty() {
+                                let vm = self.view_model.lock().unwrap();
+                                if let Ok(_) = vm.add_group(&self.new_group_name) {
+                                    self.new_group_name.clear();
+                                    drop(vm);
+                                    self.refresh_groups();
+                                }
+                            }
+                        }
+                    });
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+
+                    // List existing groups
+                    ui.label(egui::RichText::new("Existing Groups:").color(egui::Color32::from_rgb(180, 190, 205)));
+                    egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                        for group in self.groups.clone() {
+                            ui.horizontal(|ui| {
+                                if self.edit_group_id.as_ref() == Some(&group.id) {
+                                    // Edit mode
+                                    ui.text_edit_singleline(&mut self.edit_group_name);
+                                    if ui.add(egui::Button::new("Save").min_size([50.0, 28.0].into())).clicked() {
+                                        if !self.edit_group_name.is_empty() {
+                                            let vm = self.view_model.lock().unwrap();
+                                            if let Ok(_) = vm.update_group(&group.id, &self.edit_group_name) {
+                                                self.edit_group_id = None;
+                                                drop(vm);
+                                                self.refresh_groups();
+                                            }
+                                        }
+                                    }
+                                    if ui.add(egui::Button::new("Cancel").min_size([50.0, 28.0].into())).clicked() {
+                                        self.edit_group_id = None;
+                                    }
+                                } else {
+                                    // Display mode
+                                    ui.label(egui::RichText::new(&group.name).color(egui::Color32::from_rgb(220, 225, 235)));
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        if ui.add(egui::Button::new("🗑").min_size([28.0, 28.0].into())).clicked() {
+                                            let vm = self.view_model.lock().unwrap();
+                                            if let Ok(_) = vm.delete_group(&group.id) {
+                                                drop(vm);
+                                                self.refresh_groups();
+                                                self.refresh_servers();
+                                            }
+                                        }
+                                        if ui.add(egui::Button::new("✎").min_size([28.0, 28.0].into())).clicked() {
+                                            self.edit_group_id = Some(group.id.clone());
+                                            self.edit_group_name = group.name.clone();
+                                        }
+                                    });
+                                }
+                            });
+                            ui.add_space(2.0);
+                        }
+                    });
+
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui.add(egui::Button::new("Close").min_size([80.0, 44.0].into())).clicked() {
+                            self.show_manage_groups_dialog = false;
+                        }
+                    });
                 });
         }
 
@@ -3052,7 +3591,7 @@ impl eframe::App for EasySSHApp {
                         }
                     }
 
-                    // Macro to render a server button
+                    // Macro to render a server button with right-click context menu
                     macro_rules! render_server_btn {
                         ($server:expr) => {
                             let is_sel = self.selected_server.as_ref() == Some(&$server.id);
@@ -3061,12 +3600,32 @@ impl eframe::App for EasySSHApp {
                             let ic = if has_sess { "● " } else if is_fav { "★ " } else { "  " };
                             let nc = if is_sel { egui::Color32::WHITE } else { egui::Color32::from_rgb(220, 225, 235) };
                             let bg = if is_sel { egui::Color32::from_rgb(64, 156, 255) } else { egui::Color32::from_rgb(48, 52, 62) };
-                            let btn = egui::Button::new(egui::RichText::new(format!("{}{}\n{}@{}:{}", ic, $server.name, $server.username, $server.host, $server.port)).color(nc).size(13.0))
+                            let btn = egui::Button::new(egui::RichText::new(format!("{}{}
+{}@{}:{}", ic, $server.name, $server.username, $server.host, $server.port)).color(nc).size(13.0))
                                 .fill(bg).rounding(6.0)
                                 .stroke(if is_sel { egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 180, 255)) } else { egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 65, 75)) })
                                 .frame(false);
                             ui.add_space(2.0);
-                            if ui.add(btn).clicked() { self.selected_server = Some($server.id.clone()); }
+                            let response = ui.add(btn);
+                            if response.clicked() { self.selected_server = Some($server.id.clone()); }
+                            // Right-click context menu for delete
+                            response.context_menu(|ui| {
+                                ui.set_max_width(150.0);
+                                if ui.button("Connect").clicked() {
+                                    self.selected_server = Some($server.id.clone());
+                                    self.start_connect();
+                                    ui.close_menu();
+                                }
+                                if ui.button("Edit").clicked() {
+                                    self.selected_server = Some($server.id.clone());
+                                    ui.close_menu();
+                                }
+                                ui.separator();
+                                if ui.button("Delete").clicked() {
+                                    self.quick_delete_server(&$server.id);
+                                    ui.close_menu();
+                                }
+                            });
                         };
                     }
 
@@ -3231,6 +3790,9 @@ impl eframe::App for EasySSHApp {
         // ==================== Snippets Dialogs ====================
         self.render_snippet_dialog(ctx);
         self.render_add_snippet_dialog(ctx);
+
+        // ==================== Delete Confirmation Dialog ====================
+        self.render_delete_confirm_dialog(ctx);
 
         // ==================== Port Forwarding Dialog ====================
         {
@@ -3402,6 +3964,64 @@ impl EasySSHApp {
         );
     }
 
+    /// Show notification with Windows toast and add to history
+    fn notify_with_toast(
+        &mut self,
+        notif_type: notifications::NotificationType,
+        title: &str,
+        message: &str,
+        priority: Option<notifications::NotificationPriority>,
+    ) {
+        // Show in-app toast
+        let toast = match notif_type {
+            notifications::NotificationType::ConnectionSuccess |
+            notifications::NotificationType::FileTransferComplete => {
+                ToastNotification::success(title, message)
+            }
+            notifications::NotificationType::ConnectionFailed |
+            notifications::NotificationType::FileTransferFailed |
+            notifications::NotificationType::SessionDisconnected => {
+                ToastNotification::error(title, message)
+            }
+            notifications::NotificationType::CpuAlert |
+            notifications::NotificationType::MemoryAlert |
+            notifications::NotificationType::DiskAlert => {
+                ToastNotification::warning(title, message)
+            }
+            _ => ToastNotification::info(title, message),
+        };
+        self.ux_manager.show_toast(toast);
+
+        // Send Windows toast notification
+        let _ = self.notification_manager.notify(
+            notif_type,
+            Some(title),
+            message,
+            priority,
+            None,
+        );
+    }
+
+    /// Notify connection success
+    fn notify_connection_success(&mut self, server_name: &str, session_id: &str) {
+        self.notify_with_toast(
+            notifications::NotificationType::ConnectionSuccess,
+            "连接成功",
+            &format!("已成功连接到 {}", server_name),
+            Some(notifications::NotificationPriority::Default),
+        );
+    }
+
+    /// Notify connection failed
+    fn notify_connection_failed(&mut self, server_name: &str, error: &str) {
+        self.notify_with_toast(
+            notifications::NotificationType::ConnectionFailed,
+            "连接失败",
+            &format!("{}: {}", server_name, error),
+            Some(notifications::NotificationPriority::High),
+        );
+    }
+
     /// Add a quick tip to show
     fn add_quick_tip(&mut self, icon: impl Into<String>, message: impl Into<String>) {
         self.quick_tip_queue.push(
@@ -3411,7 +4031,7 @@ impl EasySSHApp {
 
     // ==================== Split Layout Panel Renderers ====================
 
-    /// Render a terminal panel in split layout
+    /// Render a terminal panel in split layout with interactive input
     fn render_terminal_panel(&mut self, ui: &mut egui::Ui, _panel_id: PanelId, _content: &split_layout::PanelContent, is_active: bool, session_id: Option<&str>) {
         let term_bg = self.theme_manager.current_theme.palette.background;
         let term_fg = self.theme_manager.current_theme.palette.foreground;
@@ -3432,17 +4052,39 @@ impl EasySSHApp {
         ui.separator();
 
         if session_id.is_some() && self.is_terminal_active {
-            // Terminal content
+            // Terminal content with interactive input support
             let available_height = ui.available_height() - 50.0;
-            egui::Frame {
+
+            // Collect keyboard input events
+            let mut text_input = None::<String>;
+            let mut special_key = None::<egui::Key>;
+            let mut modifiers = egui::Modifiers::default();
+
+            ui.input(|i| {
+                modifiers = i.modifiers;
+                for event in &i.events {
+                    match event {
+                        egui::Event::Text(text) => text_input = Some(text.clone()),
+                        egui::Event::Key { key, pressed: true, .. } => special_key = Some(*key),
+                        _ => {}
+                    }
+                }
+            });
+
+            // Terminal frame with focus-aware border
+            let frame_response = egui::Frame {
                 fill: term_bg,
                 rounding: egui::Rounding::same(4.0),
-                stroke: egui::Stroke::new(1.0, term_fg.linear_multiply(0.3)),
+                stroke: egui::Stroke::new(
+                    if self.terminal_has_focus { 2.0 } else { 1.0 },
+                    if self.terminal_has_focus { term_cursor } else { term_fg.linear_multiply(0.3) }
+                ),
                 ..Default::default()
             }.show(ui, |ui| {
                 ui.set_min_height(available_height.max(100.0));
 
-                egui::ScrollArea::vertical()
+                // Terminal display area
+                let scroll_response = egui::ScrollArea::vertical()
                     .auto_shrink([false; 2])
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
@@ -3451,13 +4093,97 @@ impl EasySSHApp {
                             .size(14.0 * self.terminal_font_zoom)
                             .color(term_fg));
                     });
+
+                scroll_response.inner
             });
+
+            // Handle terminal click for focus
+            if frame_response.response.clicked() {
+                self.terminal_has_focus = true;
+                ui.memory_mut(|m| m.request_focus(frame_response.response.id));
+            }
+
+            // Process keyboard input when terminal has focus
+            if self.terminal_has_focus && is_active {
+                // Handle text input (supports Chinese IME)
+                if let Some(text) = text_input {
+                    if let Some(ref sid) = self.current_session_id {
+                        let vm = self.view_model.lock().unwrap();
+                        if let Err(e) = vm.write_shell_input(sid, text.as_bytes()) {
+                            error!("Terminal input failed: {}", e);
+                        }
+                    }
+                }
+
+                // Handle special keys with ANSI sequences
+                if let Some(key) = special_key {
+                    let input_bytes: Option<&[u8]> = match key {
+                        egui::Key::Enter => Some(b"
+"),
+                        egui::Key::Backspace => Some(&[0x7f]),
+                        egui::Key::Tab => Some(b"	"),
+                        egui::Key::Escape => Some(&[0x1b]),
+                        egui::Key::ArrowUp => Some(b"[A"),
+                        egui::Key::ArrowDown => Some(b"[B"),
+                        egui::Key::ArrowRight => Some(b"[C"),
+                        egui::Key::ArrowLeft => Some(b"[D"),
+                        egui::Key::Home => Some(b"[H"),
+                        egui::Key::End => Some(b"[F"),
+                        egui::Key::PageUp => Some(b"[5~"),
+                        egui::Key::PageDown => Some(b"[6~"),
+                        _ => None
+                    };
+
+                    if let Some(bytes) = input_bytes {
+                        if let Some(ref sid) = self.current_session_id {
+                            let vm = self.view_model.lock().unwrap();
+                            if let Err(e) = vm.write_shell_input(sid, bytes) {
+                                error!("Special key failed: {}", e);
+                            }
+                        }
+                    }
+                }
+
+                // Handle Ctrl+Key combinations
+                if modifiers.ctrl {
+                    let ctrl_bytes: Option<&[u8]> = match special_key {
+                        Some(egui::Key::C) => Some(&[0x03]),
+                        Some(egui::Key::D) => Some(&[0x04]),
+                        Some(egui::Key::Z) => Some(&[0x1a]),
+                        Some(egui::Key::L) => Some(&[0x0c]),
+                        Some(egui::Key::U) => Some(&[0x15]),
+                        _ => None
+                    };
+
+                    if let Some(bytes) = ctrl_bytes {
+                        if let Some(ref sid) = self.current_session_id {
+                            let vm = self.view_model.lock().unwrap();
+                            if let Err(e) = vm.write_shell_input(sid, bytes) {
+                                error!("Ctrl key failed: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Unfocus when clicking outside
+            if ui.input(|i| i.pointer.any_click()) {
+                if let Some(pos) = ui.input(|i| i.pointer.interact_pos()) {
+                    if !frame_response.response.rect.contains(pos) {
+                        self.terminal_has_focus = false;
+                    }
+                }
+            }
 
             ui.separator();
 
-            // Command input
+            // Command input with mode indicator
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("❯").color(term_cursor));
+                if self.terminal_has_focus {
+                    ui.label(egui::RichText::new("[INPUT]").color(egui::Color32::GREEN).small());
+                } else {
+                    ui.label(egui::RichText::new("❯").color(term_cursor));
+                }
 
                 let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
 
@@ -3474,11 +4200,13 @@ impl EasySSHApp {
                         .desired_width(ui.available_width() - 100.0),
                 );
 
-                if enter_pressed && !self.command_input.is_empty() {
+                if !self.terminal_has_focus && enter_pressed && !self.command_input.is_empty() {
                     self.execute_command();
                 }
 
-                ui.memory_mut(|m| m.request_focus(response.id));
+                if !self.terminal_has_focus {
+                    ui.memory_mut(|m| m.request_focus(response.id));
+                }
 
                 if ui.add(egui::Button::new("Execute").min_size([80.0, 36.0].into())).clicked() {
                     self.execute_command();
@@ -3504,7 +4232,6 @@ impl EasySSHApp {
             });
         }
     }
-
     /// Render SFTP panel in split layout
     fn render_sftp_panel(&mut self, ui: &mut egui::Ui, _panel_id: PanelId, _content: &split_layout::PanelContent, _is_active: bool) {
         ui.horizontal(|ui| {
