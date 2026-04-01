@@ -228,6 +228,7 @@ struct EasySSHApp {
     edit_server: EditServerForm,
     edit_error: Option<String>,
     editing_server_id: Option<String>,
+    pending_edit_server_id: Option<String>,
     show_manage_groups_dialog: bool,
     new_group_name: String,
     edit_group_id: Option<String>,
@@ -891,6 +892,7 @@ impl EasySSHApp {
             show_delete_confirm: false,
             pending_delete_server_id: None,
             pending_delete_server_name: None,
+            pending_edit_server_id: None,
         }
     }
 
@@ -2267,22 +2269,24 @@ impl EasySSHApp {
     }
 
     fn execute_delete_server(&mut self) {
-        if let Some(server_id) = &self.pending_delete_server_id {
+        // Clone server_id to avoid borrow issues
+        let server_id = self.pending_delete_server_id.clone();
+        if let Some(ref id) = server_id {
             let vm = self.view_model.lock().unwrap();
-            if let Err(e) = vm.delete_server(server_id) {
+            if let Err(e) = vm.delete_server(id) {
                 error!("Failed to delete server: {}", e);
                 self.ux_manager.show_toast(
                     ToastNotification::error("删除服务器失败", &format!("错误: {}", e))
                 );
             } else {
-                info!("Server deleted successfully: {}", server_id);
+                info!("Server deleted successfully: {}", id);
                 self.ux_manager.show_toast(
                     ToastNotification::success("删除成功", "服务器已从列表中移除")
                 );
             }
             drop(vm);
             self.refresh_servers();
-            self.global_search_results.retain(|r| r.id != *server_id);
+            self.global_search_results.retain(|r| r.id != *id);
         }
         // Clear pending state
         self.pending_delete_server_id = None;
@@ -2337,7 +2341,8 @@ impl EasySSHApp {
             return;
         }
 
-        let server_name = self.pending_delete_server_name.as_deref().unwrap_or("Unknown");
+        // Clone server_name to avoid borrow issues
+        let server_name = self.pending_delete_server_name.clone().unwrap_or_else(|| "Unknown".to_string());
 
         // Dark overlay
         let screen_rect = ctx.screen_rect();
@@ -3070,7 +3075,7 @@ impl eframe::App for EasySSHApp {
                             ui.end_row();
 
                             ui.label(egui::RichText::new("Group:").color(egui::Color32::from_rgb(180, 190, 205)));
-                            egui::ComboBox::from_id_salt("new_server_group")
+                            egui::ComboBox::from_label("new_server_group")
                                 .width(200.0)
                                 .selected_text(
                                     self.new_server.group_id.as_ref()
@@ -3168,7 +3173,7 @@ impl eframe::App for EasySSHApp {
                             });
                             ui.end_row();
                             ui.label(egui::RichText::new("Group:").color(egui::Color32::from_rgb(180, 190, 205)));
-                            egui::ComboBox::from_id_salt("edit_server_group")
+                            egui::ComboBox::from_label("edit_server_group")
                                 .width(200.0)
                                 .selected_text(
                                     self.edit_server.group_id.as_ref()
@@ -3617,7 +3622,7 @@ impl eframe::App for EasySSHApp {
                                     ui.close_menu();
                                 }
                                 if ui.button("Edit").clicked() {
-                                    self.selected_server = Some($server.id.clone());
+                                    self.pending_edit_server_id = Some($server.id.clone());
                                     ui.close_menu();
                                 }
                                 ui.separator();
