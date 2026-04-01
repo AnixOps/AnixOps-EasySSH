@@ -181,7 +181,7 @@ mongodb-driver = ["database-client", "dep:mongodb", "dep:futures"]
 redis-driver = ["database-client", "dep:redis"]
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+criterion = { version = "0.8", features = ["async_tokio", "html_reports"] }
 
 [[bench]]
 name = "crypto_bench"
