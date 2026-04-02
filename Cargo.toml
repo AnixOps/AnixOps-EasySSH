@@ -101,7 +101,7 @@ semver = "1"
 git2 = "0.20"
 
 # i18n
-fluent = "0.16"
+fluent = "0.17"
 unic-langid = { version = "0.9", features = ["macros"] }
 
 # TOTP
