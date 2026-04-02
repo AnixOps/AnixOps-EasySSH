@@ -1,0 +1,704 @@
+name: Error Detection & Reporting
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      fail_on_warning:
+        description: 'Fail on warnings'
+        required: false
+        default: 'false'
+        type: boolean
+      create_issues:
+        description: 'Create GitHub issues for new errors'
+        required: false
+        default: 'true'
+        type: boolean
+      notify_slack:
+        description: 'Send Slack notification'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ============================================================================
+  # Detect Changes
+  # ============================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.changes.outputs.rust }}
+      typescript: ${{ steps.changes.outputs.typescript }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            rust:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - '**/Cargo.lock'
+            typescript:
+              - '**/*.ts'
+              - '**/*.tsx'
+
+  # ============================================================================
+  # Rust Error Detection
+  # ============================================================================
+  rust-error-detection:
+    name: Rust Error Detection
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        version: [lite, standard, pro]
+    outputs:
+      has_errors: ${{ steps.parse.outputs.has_errors }}
+      total_errors: ${{ steps.parse.outputs.total_errors }}
+      total_warnings: ${{ steps.parse.outputs.total_warnings }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config libssl-dev
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "error-detect-${{ matrix.os }}-${{ matrix.version }}"
+
+      # Build with error capture
+      - name: Build easyssh-core
+        id: build_core
+        working-directory: crates/easyssh-core
+        shell: bash
+        run: |
+          echo "::group::Building easyssh-core (${{ matrix.version }})"
+          cargo build --features ${{ matrix.version }} 2>&1 | tee ../../build-core-${{ matrix.version }}-${{ matrix.os }}.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Build easyssh-tui
+        id: build_tui
+        working-directory: crates/easyssh-tui
+        shell: bash
+        run: |
+          echo "::group::Building easyssh-tui (${{ matrix.version }})"
+          cargo build --features ${{ matrix.version }} --no-default-features 2>&1 | tee ../../build-tui-${{ matrix.version }}-${{ matrix.os }}.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Build Windows UI
+        id: build_winui
+        if: matrix.os == 'windows-latest'
+        working-directory: crates/easyssh-platforms/windows/easyssh-winui
+        shell: bash
+        run: |
+          echo "::group::Building easyssh-winui (${{ matrix.version }})"
+          cargo build --features ${{ matrix.version }} --no-default-features 2>&1 | tee ../../../../build-winui-${{ matrix.version }}-${{ matrix.os }}.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Build Linux GTK4
+        id: build_gtk4
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: crates/easyssh-platforms/linux/easyssh-gtk4
+        shell: bash
+        run: |
+          echo "::group::Building easyssh-gtk4 (${{ matrix.version }})"
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 3
+          cargo build --features easyssh-core/${{ matrix.version }} --no-default-features 2>&1 | tee ../../../../build-gtk4-${{ matrix.version }}-${{ matrix.os }}.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Build Pro Server
+        id: build_pro_server
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: crates/easyssh-pro-server
+        shell: bash
+        run: |
+          echo "::group::Building easyssh-pro-server"
+          cargo build 2>&1 | tee ../../build-pro-server-${{ matrix.os }}.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      # Run tests with error capture
+      - name: Run Tests
+        id: run_tests
+        working-directory: crates/easyssh-core
+        shell: bash
+        run: |
+          echo "::group::Running tests (${{ matrix.version }})"
+          cargo test --features ${{ matrix.version }} 2>&1 | tee ../../test-${{ matrix.version }}-${{ matrix.os }}.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      # Run Clippy with error capture
+      - name: Run Clippy
+        id: run_clippy
+        shell: bash
+        run: |
+          echo "::group::Running Clippy (${{ matrix.version }})"
+          cargo clippy -p easyssh-core --features ${{ matrix.version }} --message-format=short 2>&1 | tee clippy-${{ matrix.version }}-${{ matrix.os }}.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      # Parse and categorize errors
+      - name: Parse Errors
+        id: parse
+        shell: bash
+        run: |
+          mkdir -p ci-reports
+
+          total_errors=0
+          total_warnings=0
+          has_errors="false"
+
+          # Parse each log file
+          for log in *.log; do
+            if [ -f "$log" ]; then
+              echo "Parsing: $log"
+
+              # Count errors (Rust error patterns)
+              errors=$(grep -c "^error\[" "$log" 2>/dev/null || echo "0")
+              warnings=$(grep -c "^warning:" "$log" 2>/dev/null || echo "0")
+              clippy_warnings=$(grep -c "warning:.*clippy" "$log" 2>/dev/null || echo "0")
+              test_failures=$(grep -c "^test.*FAILED" "$log" 2>/dev/null || echo "0")
+
+              total_errors=$((total_errors + errors + test_failures))
+              total_warnings=$((total_warnings + warnings + clippy_warnings))
+
+              echo "  Errors: $errors, Warnings: $warnings, Clippy: $clippy_warnings, Tests: $test_failures"
+
+              # Categorize errors
+              if [ $errors -gt 0 ]; then
+                echo "### Error Categories in $log" >> ci-reports/error-analysis.md
+                grep "^error\[" "$log" | sed 's/error\[\([E0-9]*\)\]:/\*\*\1\*\*/' | head -20 >> ci-reports/error-analysis.md
+                echo "" >> ci-reports/error-analysis.md
+              fi
+            fi
+          done
+
+          if [ $total_errors -gt 0 ]; then
+            has_errors="true"
+          fi
+
+          echo "total_errors=$total_errors" >> $GITHUB_OUTPUT
+          echo "total_warnings=$total_warnings" >> $GITHUB_OUTPUT
+          echo "has_errors=$has_errors" >> $GITHUB_OUTPUT
+
+          echo "Total Errors: $total_errors"
+          echo "Total Warnings: $total_warnings"
+
+      # Upload logs and reports
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs-${{ matrix.os }}-${{ matrix.version }}
+          path: |
+            *.log
+            ci-reports/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # Set annotation for errors
+      - name: Annotate Errors
+        if: steps.parse.outputs.has_errors == 'true'
+        shell: bash
+        run: |
+          echo "::error::Detected ${{ steps.parse.outputs.total_errors }} errors in ${{ matrix.os }} ${{ matrix.version }} build"
+
+  # ============================================================================
+  # TypeScript Error Detection
+  # ============================================================================
+  typescript-error-detection:
+    name: TypeScript Error Detection
+    needs: changes
+    if: ${{ needs.changes.outputs.typescript == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    outputs:
+      has_errors: ${{ steps.parse_ts.outputs.has_errors }}
+      total_errors: ${{ steps.parse_ts.outputs.total_errors }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd tests && npm ci
+
+      - name: Type Check
+        id: type_check
+        working-directory: tests
+        run: |
+          npx tsc --noEmit 2>&1 | tee ../typescript-errors.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run ESLint
+        id: eslint_check
+        working-directory: tests
+        run: |
+          npm run lint 2>&1 | tee ../eslint-errors.log || true
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Parse TypeScript Errors
+        id: parse_ts
+        run: |
+          ts_errors=$(grep -c "error TS" typescript-errors.log 2>/dev/null || echo "0")
+          eslint_errors=$(grep -c "error" eslint-errors.log 2>/dev/null || echo "0")
+          total=$((ts_errors + eslint_errors))
+
+          echo "total_errors=$total" >> $GITHUB_OUTPUT
+          echo "has_errors=$([ $total -gt 0 ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+
+      - name: Upload TypeScript Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: typescript-logs
+          path: '*.log'
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ============================================================================
+  # Aggregate and Report
+  # ============================================================================
+  aggregate-report:
+    name: Aggregate & Generate Report
+    needs: [rust-error-detection, typescript-error-detection]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      has_errors: ${{ steps.aggregate.outputs.has_errors }}
+      report_path: ${{ steps.aggregate.outputs.report_path }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: "*-logs-*"
+
+      - name: Download TypeScript Logs
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          name: typescript-logs
+        continue-on-error: true
+
+      - name: Aggregate Results
+        id: aggregate
+        shell: bash
+        run: |
+          mkdir -p final-report
+
+          total_rust_errors=0
+          total_rust_warnings=0
+          total_ts_errors=0
+          has_errors="false"
+
+          # Collect Rust errors
+          if [ "${{ needs.rust-error-detection.outputs.total_errors }}" != "" ]; then
+            total_rust_errors=${{ needs.rust-error-detection.outputs.total_errors }}
+          fi
+          if [ "${{ needs.rust-error-detection.outputs.total_warnings }}" != "" ]; then
+            total_rust_warnings=${{ needs.rust-error-detection.outputs.total_warnings }}
+          fi
+          if [ "${{ needs.rust-error-detection.outputs.has_errors }}" == "true" ]; then
+            has_errors="true"
+          fi
+
+          # Collect TypeScript errors
+          if [ "${{ needs.typescript-error-detection.outputs.total_errors }}" != "" ]; then
+            total_ts_errors=${{ needs.typescript-error-detection.outputs.total_errors }}
+          fi
+          if [ "${{ needs.typescript-error-detection.outputs.has_errors }}" == "true" ]; then
+            has_errors="true"
+          fi
+
+          total_errors=$((total_rust_errors + total_ts_errors))
+
+          # Generate JSON report
+          cat > final-report/error-detection-report.json << EOF
+          {
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "commit": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "actor": "${{ github.actor }}",
+            "summary": {
+              "total_errors": $total_errors,
+              "total_warnings": $total_rust_warnings,
+              "rust_errors": $total_rust_errors,
+              "typescript_errors": $total_ts_errors
+            },
+            "rust": {
+              "has_errors": ${{ needs.rust-error-detection.outputs.has_errors || 'false' }},
+              "total_errors": $total_rust_errors,
+              "total_warnings": $total_rust_warnings
+            },
+            "typescript": {
+              "has_errors": ${{ needs.typescript-error-detection.outputs.has_errors || 'false' }},
+              "total_errors": $total_ts_errors
+            }
+          }
+          EOF
+
+          # Generate Markdown report
+          cat > final-report/error-detection-report.md << 'EOF'
+          # CI Error Detection Report
+
+          **Workflow:** ${{ github.workflow }}
+          **Run:** ${{ github.run_id }}
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          **Actor:** ${{ github.actor }}
+          **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          ## Summary
+
+          | Component | Errors | Warnings | Status |
+          |-----------|--------|----------|--------|
+          EOF
+
+          rust_status=$([ $total_rust_errors -eq 0 ] && echo "✅ Pass" || echo "❌ Fail")
+          ts_status=$([ $total_ts_errors -eq 0 ] && echo "✅ Pass" || echo "❌ Fail")
+
+          echo "| Rust | $total_rust_errors | $total_rust_warnings | $rust_status |" >> final-report/error-detection-report.md
+          echo "| TypeScript | $total_ts_errors | - | $ts_status |" >> final-report/error-detection-report.md
+          echo "| **Total** | **$total_errors** | **$total_rust_warnings** | |" >> final-report/error-detection-report.md
+
+          cat >> final-report/error-detection-report.md << 'EOF'
+
+          ## Details
+
+          ### Rust Error Detection
+          - Platforms: Ubuntu, Windows, macOS
+          - Versions: Lite, Standard, Pro
+          - Checks: Build, Test, Clippy
+
+          ### TypeScript Error Detection
+          - Type checking with tsc
+          - ESLint validation
+
+          ## Artifacts
+
+          All build logs and detailed reports are available as artifacts.
+
+          ## Action Required
+
+          EOF
+
+          if [ $total_errors -eq 0 ]; then
+            echo "✅ No errors detected!" >> final-report/error-detection-report.md
+          else
+            echo "❌ **$total_errors errors detected** - Please review the logs and fix before merging." >> final-report/error-detection-report.md
+          fi
+
+          echo "has_errors=$has_errors" >> $GITHUB_OUTPUT
+          echo "report_path=final-report/error-detection-report.json" >> $GITHUB_OUTPUT
+
+      - name: Upload Final Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-detection-report
+          path: final-report/
+          retention-days: 30
+
+      - name: Add to Step Summary
+        run: |
+          cat final-report/error-detection-report.md >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Create GitHub Issues for New Errors
+  # ============================================================================
+  create-issues:
+    name: Create Issues for Errors
+    needs: aggregate-report
+    if: ${{ needs.aggregate-report.outputs.has_errors == 'true' && (github.event.inputs.create_issues == 'true' || github.event_name == 'schedule') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Download Report
+        uses: actions/download-artifact@v4
+        with:
+          name: error-detection-report
+          path: report
+
+      - name: Create Error Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('report/error-detection-report.json', 'utf8'));
+
+            const title = `CI Error Detection: ${report.summary.total_errors} errors found`;
+            const body = `
+            ## Automated CI Error Report
+
+            **Commit:** ${report.commit}
+            **Branch:** ${report.ref}
+            **Detected at:** ${report.timestamp}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ### Error Summary
+
+            | Component | Errors | Warnings |
+            |-----------|--------|----------|
+            | Rust | ${report.rust.total_errors} | ${report.rust.total_warnings} |
+            | TypeScript | ${report.typescript.total_errors} | - |
+            | **Total** | **${report.summary.total_errors}** | **${report.summary.total_warnings}** |
+
+            ### Details
+
+            Please check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed logs.
+
+            ### Recommended Actions
+
+            1. Review the error detection report artifact
+            2. Check platform-specific build logs
+            3. Fix the identified issues
+            4. Re-run the CI to verify
+
+            ---
+            *This issue was created automatically by the Error Detection workflow.*
+            `;
+
+            // Search for existing open issues with similar title
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ci-error'
+            });
+
+            const existingIssue = issues.data.find(issue => issue.title.includes('CI Error Detection'));
+
+            if (existingIssue) {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `Updated error report at ${report.timestamp}:\n\nSame commit still has ${report.summary.total_errors} errors.`
+              });
+              console.log(`Updated existing issue #${existingIssue.number}`);
+            } else {
+              // Create new issue
+              const newIssue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['ci-error', 'automated', 'bug'],
+                assignees: []
+              });
+              console.log(`Created issue #${newIssue.data.number}`);
+            }
+
+  # ============================================================================
+  # Slack Notification
+  # ============================================================================
+  notify-slack:
+    name: Slack Notification
+    needs: aggregate-report
+    if: ${{ (needs.aggregate-report.outputs.has_errors == 'true' || github.event.inputs.notify_slack == 'true') && secrets.SLACK_WEBHOOK_URL != '' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Report
+        uses: actions/download-artifact@v4
+        with:
+          name: error-detection-report
+          path: report
+
+      - name: Send Slack Notification
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "CI Error Detection Report",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🚨 CI Error Detection Report"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n${{ github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n${{ github.sha }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:*\n${{ needs.aggregate-report.outputs.has_errors == 'true' && '❌ Errors Found' || '✅ Clean' }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
+
+  # ============================================================================
+  # Email Notification
+  # ============================================================================
+  notify-email:
+    name: Email Notification
+    needs: aggregate-report
+    if: ${{ needs.aggregate-report.outputs.has_errors == 'true' && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Report
+        uses: actions/download-artifact@v4
+        with:
+          name: error-detection-report
+          path: report
+
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.EMAIL_SERVER }}
+          server_port: ${{ secrets.EMAIL_PORT }}
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "[EasySSH] CI Errors Detected - ${{ github.ref_name }}"
+          to: ${{ secrets.EMAIL_RECIPIENTS }}
+          from: ci@easyssh.dev
+          html_body: |
+            <h2>CI Error Detection Report</h2>
+            <p><strong>Repository:</strong> ${{ github.repository }}</p>
+            <p><strong>Branch:</strong> ${{ github.ref_name }}</p>
+            <p><strong>Commit:</strong> ${{ github.sha }}</p>
+            <p><strong>Status:</strong> ${{ needs.aggregate-report.outputs.has_errors == 'true' && '❌ Errors Found' || '✅ Clean' }}</p>
+            <p><a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a></p>
+        continue-on-error: true
+
+  # ============================================================================
+  # Final Status
+  # ============================================================================
+  final-status:
+    name: Final Status
+    needs: [rust-error-detection, typescript-error-detection, aggregate-report]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check Status
+        run: |
+          echo "# Error Detection Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          rust_status="${{ needs.rust-error-detection.result }}"
+          ts_status="${{ needs.typescript-error-detection.result }}"
+          aggregate_status="${{ needs.aggregate-report.result }}"
+
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Detection | $rust_status |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript Detection | $ts_status |" >> $GITHUB_STEP_SUMMARY
+          echo "| Aggregate Report | $aggregate_status |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$rust_status" == "success" && "$ts_status" != "failure" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Error detection completed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Some error detection jobs had issues" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Fail if errors were found and fail_on_warning is true
+          if [[ "${{ github.event.inputs.fail_on_warning }}" == "true" && "${{ needs.aggregate-report.outputs.has_errors }}" == "true" ]]; then
+            echo "Failing due to errors found (fail_on_warning=true)"
+            exit 1
+          fi

@@ -1,0 +1,753 @@
+name: CI Nightly Check
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Daily at 3 AM UTC
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch:
+    inputs:
+      full_check:
+        description: 'Run full comprehensive check'
+        required: false
+        default: true
+        type: boolean
+      notify_on_success:
+        description: 'Send notification even on success'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ============================================================================
+  # Repository Health Check
+  # ============================================================================
+  health-check:
+    name: Repository Health
+    runs-on: ubuntu-latest
+    outputs:
+      timestamp: ${{ steps.info.outputs.timestamp }}
+      commit_count_24h: ${{ steps.stats.outputs.commit_count_24h }}
+      open_issues: ${{ steps.stats.outputs.open_issues }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gather Info
+        id: info
+        run: |
+          echo "timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+
+      - name: Repository Statistics
+        id: stats
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get commits in last 24 hours
+            const since = new Date();
+            since.setDate(since.getDate() - 1);
+
+            const commits = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              since: since.toISOString(),
+              per_page: 100
+            });
+
+            // Get open issues
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            core.setOutput('commit_count_24h', commits.data.length);
+            core.setOutput('open_issues', issues.data.length);
+
+            console.log(`Commits in last 24h: ${commits.data.length}`);
+            console.log(`Open issues: ${issues.data.length}`);
+
+  # ============================================================================
+  # Dependency Check
+  # ============================================================================
+  dependency-check:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    outputs:
+      has_vulnerabilities: ${{ steps.audit.outputs.has_vulnerabilities }}
+      outdated_count: ${{ steps.outdated.outputs.count }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Install cargo-outdated
+        uses: taiki-e/install-action@cargo-outdated
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Security Audit
+        id: audit
+        run: |
+          cargo audit --json 2>/dev/null | tee audit-report.json || true
+          if [ -f audit-report.json ]; then
+            vulnerabilities=$(jq '.vulnerabilities.count // 0' audit-report.json)
+            echo "vulnerabilities=$vulnerabilities" >> $GITHUB_OUTPUT
+            echo "has_vulnerabilities=$([ $vulnerabilities -gt 0 ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+          else
+            echo "vulnerabilities=0" >> $GITHUB_OUTPUT
+            echo "has_vulnerabilities=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Outdated Dependencies
+        id: outdated
+        run: |
+          cargo outdated --all --depth 1 --format json 2>/dev/null | tee outdated-report.json || true
+          if [ -f outdated-report.json ]; then
+            count=$(jq 'length' outdated-report.json)
+            echo "count=$count" >> $GITHUB_OUTPUT
+          else
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Audit Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit
+          path: |
+            audit-report.json
+            outdated-report.json
+          retention-days: 30
+
+  # ============================================================================
+  # Full Build Matrix Check
+  # ============================================================================
+  build-matrix:
+    name: Build Matrix
+    needs: health-check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            version: lite
+            profile: release-lite
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            version: standard
+            profile: release-standard
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            version: pro
+            profile: release-pro
+          # Linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            version: lite
+            profile: release-lite
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            version: standard
+            profile: release-standard
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            version: pro
+            profile: release-pro
+          # macOS
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            version: lite
+            profile: release-lite
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            version: standard
+            profile: release-standard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config libssl-dev
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-full-${{ matrix.os }}-${{ matrix.version }}
+
+      - name: Build Core
+        working-directory: crates/easyssh-core
+        run: |
+          cargo build --profile ${{ matrix.profile }} --features ${{ matrix.version }} 2>&1 | tee ../../build-core-${{ matrix.os }}-${{ matrix.version }}.log || true
+        continue-on-error: true
+
+      - name: Build TUI
+        working-directory: crates/easyssh-tui
+        run: |
+          cargo build --profile ${{ matrix.profile }} --features ${{ matrix.version }} --no-default-features 2>&1 | tee ../../build-tui-${{ matrix.os }}-${{ matrix.version }}.log || true
+        continue-on-error: true
+
+      - name: Build Windows UI
+        if: matrix.os == 'windows-latest'
+        working-directory: crates/easyssh-platforms/windows/easyssh-winui
+        run: |
+          cargo build --profile ${{ matrix.profile }} --features ${{ matrix.version }} --no-default-features 2>&1 | tee ../../../../build-winui-${{ matrix.version }}.log || true
+        continue-on-error: true
+
+      - name: Build Linux GTK4
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: crates/easyssh-platforms/linux/easyssh-gtk4
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 3
+          cargo build --profile ${{ matrix.profile }} --features easyssh-core/${{ matrix.version }} --no-default-features 2>&1 | tee ../../../../build-gtk4-${{ matrix.version }}.log || true
+        continue-on-error: true
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-build-${{ matrix.os }}-${{ matrix.version }}
+          path: '*.log'
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ============================================================================
+  # Test Suite (Full)
+  # ============================================================================
+  test-suite:
+    name: Full Test Suite
+    needs: build-matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        version: [lite, standard, pro]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-test-${{ matrix.os }}-${{ matrix.version }}
+
+      - name: Run Tests
+        working-directory: crates/easyssh-core
+        run: |
+          cargo test --features ${{ matrix.version }} -- --test-threads=2 2>&1 | tee ../../test-full-${{ matrix.os }}-${{ matrix.version }}.log
+        continue-on-error: true
+
+      - name: Upload Test Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-test-${{ matrix.os }}-${{ matrix.version }}
+          path: '*.log'
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ============================================================================
+  # Error Analysis
+  # ============================================================================
+  error-analysis:
+    name: Error Analysis
+    needs: [build-matrix, test-suite]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      total_errors: ${{ steps.analyze.outputs.total_errors }}
+      has_errors: ${{ steps.analyze.outputs.has_errors }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Build Logs
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: "nightly-build-*"
+
+      - name: Download Test Logs
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: "nightly-test-*"
+
+      - name: Analyze Errors
+        id: analyze
+        run: |
+          total_errors=0
+          total_warnings=0
+
+          # Count errors in all log files
+          for log in artifacts/**/*.log; do
+            if [ -f "$log" ]; then
+              errors=$(grep -c "^error\[" "$log" 2>/dev/null || echo "0")
+              warnings=$(grep -c "^warning:" "$log" 2>/dev/null || echo "0")
+              test_failures=$(grep -c "^test.*FAILED" "$log" 2>/dev/null || echo "0")
+
+              total_errors=$((total_errors + errors + test_failures))
+              total_warnings=$((total_warnings + warnings))
+
+              if [ $errors -gt 0 ] || [ $test_failures -gt 0 ]; then
+                echo "Found errors in $log: errors=$errors, test_failures=$test_failures"
+              fi
+            fi
+          done
+
+          echo "total_errors=$total_errors" >> $GITHUB_OUTPUT
+          echo "total_warnings=$total_warnings" >> $GITHUB_OUTPUT
+          echo "has_errors=$([ $total_errors -gt 0 ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+
+          # Generate error breakdown
+          mkdir -p analysis-report
+          cat > analysis-report/error-summary.json << EOF
+          {
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "total_errors": $total_errors,
+            "total_warnings": $total_warnings,
+            "has_errors": $([ $total_errors -gt 0 ] && echo 'true' || echo 'false')
+          }
+          EOF
+
+      - name: Upload Analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-analysis
+          path: analysis-report/
+          retention-days: 30
+
+  # ============================================================================
+  # Performance Benchmark
+  # ============================================================================
+  performance-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    outputs:
+      binary_size_lite: ${{ steps.size.outputs.lite_size }}
+      binary_size_standard: ${{ steps.size.outputs.standard_size }}
+      binary_size_pro: ${{ steps.size.outputs.pro_size }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build for Size Analysis
+        run: |
+          cd crates/easyssh-core
+          cargo build --profile release-lite --features lite 2>&1 | tee ../../build-lite-size.log || true
+          cargo build --profile release-standard --features standard 2>&1 | tee ../../build-std-size.log || true
+          cargo build --profile release-pro --features pro 2>&1 | tee ../../build-pro-size.log || true
+
+      - name: Analyze Binary Sizes
+        id: size
+        run: |
+          lite_size=$(stat -c%s target/*/release*/libeasyssh_core*.rlib 2>/dev/null || echo "0")
+          standard_size=$(stat -c%s target/*/release*/libeasyssh_core*.rlib 2>/dev/null || echo "0")
+          pro_size=$(stat -c%s target/*/release*/libeasyssh_core*.rlib 2>/dev/null || echo "0")
+
+          echo "lite_size=$lite_size" >> $GITHUB_OUTPUT
+          echo "standard_size=$standard_size" >> $GITHUB_OUTPUT
+          echo "pro_size=$pro_size" >> $GITHUB_OUTPUT
+
+          echo "Binary sizes - Lite: $lite_size, Standard: $standard_size, Pro: $pro_size"
+
+  # ============================================================================
+  # Generate Comprehensive Report
+  # ============================================================================
+  generate-report:
+    name: Generate Nightly Report
+    needs: [health-check, dependency-check, build-matrix, test-suite, error-analysis, performance-check]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: Generate Report
+        id: report
+        run: |
+          mkdir -p nightly-report
+
+          timestamp="${{ needs.health-check.outputs.timestamp }}"
+          commit_count="${{ needs.health-check.outputs.commit_count_24h }}"
+          open_issues="${{ needs.health-check.outputs.open_issues }}"
+          has_vulns="${{ needs.dependency-check.outputs.has_vulnerabilities }}"
+          outdated="${{ needs.dependency-check.outputs.outdated_count }}"
+          total_errors="${{ needs.error-analysis.outputs.total_errors }}"
+          has_errors="${{ needs.error-analysis.outputs.has_errors }}"
+          lite_size="${{ needs.performance-check.outputs.binary_size_lite }}"
+          std_size="${{ needs.performance-check.outputs.binary_size_standard }}"
+          pro_size="${{ needs.performance-check.outputs.binary_size_pro }}"
+
+          # JSON Report
+          cat > nightly-report/nightly-check-report.json << EOF
+          {
+            "timestamp": "$timestamp",
+            "repository": "${{ github.repository }}",
+            "commit": "${{ github.sha }}",
+            "run_id": "${{ github.run_id }}",
+            "health": {
+              "commits_24h": $commit_count,
+              "open_issues": $open_issues
+            },
+            "dependencies": {
+              "has_vulnerabilities": $has_vulns,
+              "outdated_count": $outdated
+            },
+            "build": {
+              "has_errors": $has_errors,
+              "total_errors": $total_errors
+            },
+            "performance": {
+              "binary_sizes": {
+                "lite": $lite_size,
+                "standard": $std_size,
+                "pro": $pro_size
+              }
+            }
+          }
+          EOF
+
+          # Markdown Report
+          cat > nightly-report/nightly-check-report.md << EOF
+          # EasySSH Nightly CI Check Report
+
+          **Generated:** $timestamp
+          **Commit:** ${{ github.sha }}
+          **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ## Repository Health
+
+          | Metric | Value |
+          |--------|-------|
+          | Commits (24h) | $commit_count |
+          | Open Issues | $open_issues |
+
+          ## Dependency Status
+
+          | Check | Status |
+          |-------|--------|
+          | Security Vulnerabilities | $([ "$has_vulns" == "true" ] && echo "❌ Found" || echo "✅ None") |
+          | Outdated Dependencies | $outdated |
+
+          ## Build Status
+
+          | Status | Details |
+          |--------|---------|
+          | Errors | $([ "$has_errors" == "true" ] && echo "❌ $total_errors errors" || echo "✅ Clean") |
+
+          ## Performance Metrics
+
+          | Version | Binary Size (bytes) |
+          |---------|---------------------|
+          | Lite | $lite_size |
+          | Standard | $std_size |
+          | Pro | $pro_size |
+
+          ## Summary
+
+          EOF
+
+          if [ "$has_errors" == "false" ] && [ "$has_vulns" == "false" ]; then
+            echo "✅ Nightly check passed - No critical issues found!" >> nightly-report/nightly-check-report.md
+          else
+            echo "⚠️ Nightly check found issues that need attention." >> nightly-report/nightly-check-report.md
+          fi
+
+          echo "" >> nightly-report/nightly-check-report.md
+          echo "---" >> nightly-report/nightly-check-report.md
+          echo "*Automated nightly CI check report*" >> nightly-report/nightly-check-report.md
+
+          cat nightly-report/nightly-check-report.md
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-check-report
+          path: nightly-report/
+          retention-days: 90
+
+      - name: Add to Step Summary
+        run: |
+          cat nightly-report/nightly-check-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Issue if Errors Found
+        if: ${{ needs.error-analysis.outputs.has_errors == 'true' || needs.dependency-check.outputs.has_vulnerabilities == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('nightly-report/nightly-check-report.json', 'utf8'));
+
+            const title = `Nightly CI Check Alert - ${new Date().toISOString().split('T')[0]}`;
+            const body = `
+            ## Nightly CI Check Found Issues
+
+            **Timestamp:** ${report.timestamp}
+            **Commit:** ${report.commit}
+            **Run:** https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${report.run_id}
+
+            ### Issues Summary
+
+            ${report.build.has_errors ? `❌ **${report.build.total_errors} build errors detected**` : '✅ No build errors'}
+            ${report.dependencies.has_vulnerabilities ? '❌ **Security vulnerabilities found**' : '✅ No security vulnerabilities'}
+            ${report.dependencies.outdated_count > 0 ? `⚠️ **${report.dependencies.outdated_count} outdated dependencies**` : '✅ All dependencies up to date'}
+
+            ### Repository Health
+            - Commits in last 24h: ${report.health.commits_24h}
+            - Open issues: ${report.health.open_issues}
+
+            ### Recommended Actions
+
+            1. Check the [nightly workflow run](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${report.run_id})
+            2. Review the error analysis artifacts
+            3. Address any security vulnerabilities immediately
+            4. Update outdated dependencies as needed
+
+            ---
+            *This issue was created automatically by the nightly CI check workflow.*
+            `;
+
+            // Check for existing nightly issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'nightly-check'
+            });
+
+            const existingIssue = issues.data.find(issue => issue.title.includes('Nightly CI Check Alert'));
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `Updated alert for ${report.timestamp}\n\n${report.build.has_errors ? 'Errors still present.' : 'All clear now.'}`
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['nightly-check', 'automated', 'ci'],
+              });
+            }
+
+  # ============================================================================
+  # Notification
+  # ============================================================================
+  notify:
+    name: Send Notifications
+    needs: [generate-report, error-analysis, dependency-check]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Report
+        uses: actions/download-artifact@v4
+        with:
+          name: nightly-check-report
+          path: report
+
+      - name: Slack Notification (on failure)
+        if: ${{ (needs.error-analysis.outputs.has_errors == 'true' || needs.dependency-check.outputs.has_vulnerabilities == 'true') && secrets.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "EasySSH Nightly CI Check Alert",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🚨 Nightly CI Check Alert"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Issues detected in nightly CI check for *${{ github.repository }}*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Errors:*\n${{ needs.error-analysis.outputs.has_errors == 'true' && '❌ ' + needs.error-analysis.outputs.total_errors + ' errors' || '✅ None' }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Vulnerabilities:*\n${{ needs.dependency-check.outputs.has_vulnerabilities == 'true' && '❌ Found' || '✅ None' }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Report"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
+
+      - name: Slack Notification (on success)
+        if: ${{ github.event.inputs.notify_on_success == 'true' && needs.error-analysis.outputs.has_errors == 'false' && needs.dependency-check.outputs.has_vulnerabilities == 'false' && secrets.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "EasySSH Nightly CI Check Passed",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ Nightly CI Check Passed"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "All checks passed for *${{ github.repository }}*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:*\nAll systems green"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n${{ github.sha }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
+
+  # ============================================================================
+  # Summary
+  # ============================================================================
+  summary:
+    name: Nightly Check Summary
+    needs: [health-check, dependency-check, build-matrix, test-suite, error-analysis, generate-report]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Print Summary
+        run: |
+          echo "# Nightly CI Check Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+
+          health="${{ needs.health-check.result }}"
+          deps="${{ needs.dependency-check.result }}"
+          build="${{ needs.build-matrix.result }}"
+          test="${{ needs.test-suite.result }}"
+          analysis="${{ needs.error-analysis.result }}"
+          report="${{ needs.generate-report.result }}"
+
+          echo "| Health Check | $health |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Check | $deps |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Matrix | $build |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | $test |" >> $GITHUB_STEP_SUMMARY
+          echo "| Error Analysis | $analysis |" >> $GITHUB_STEP_SUMMARY
+          echo "| Report Generation | $report |" >> $GITHUB_STEP_SUMMARY
+
+          has_errors="${{ needs.error-analysis.outputs.has_errors }}"
+          has_vulns="${{ needs.dependency-check.outputs.has_vulnerabilities }}"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "$has_errors" == "false" && "$has_vulns" == "false" ]]; then
+            echo "## ✅ Nightly Check Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Nightly Check Found Issues" >> $GITHUB_STEP_SUMMARY
+            if [[ "$has_errors" == "true" ]]; then
+              echo "- Build errors detected: ${{ needs.error-analysis.outputs.total_errors }}" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [[ "$has_vulns" == "true" ]]; then
+              echo "- Security vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
