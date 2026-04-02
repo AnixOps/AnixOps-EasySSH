@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "core",
-    "tui",
-    "platforms/windows/easyssh-winui",
-    "platforms/linux/easyssh-gtk4",
-    "pro-server",
-    "api-tester/api-core",
-    "tools/foreground_monitor"
+    "crates/easyssh-core",
+    "crates/easyssh-tui",
+    "crates/easyssh-platforms/windows/easyssh-winui",
+    "crates/easyssh-platforms/linux/easyssh-gtk4",
+    "crates/easyssh-pro-server",
+    "crates/easyssh-api-tester/api-core",
+    "crates/easyssh-tools/foreground_monitor"
 ]
 
 [workspace.package]
