@@ -154,7 +154,7 @@ openidconnect = { version = "4.0", features = ["reqwest"] }
 samael = { version = "0.0.20", features = ["xmlsec"] }
 
 # Rate limiting
-governor = "0.6"
+governor = "0.10"
 
 # Email
 lettre = { version = "0.11", features = ["tokio1-native-tls", "smtp-transport"] }
