@@ -1,6 +1,8 @@
 # 文档归档目录
 
-本目录用于归档历史报告和临时文件，保持根目录整洁。
+本目录用于归档历史报告、已实现功能文档和过时文件，保持主文档目录整洁。
+
+---
 
 ## 目录结构
 
@@ -11,19 +13,46 @@ docs/archives/
 │   ├── ACHIEVEMENTS.md
 │   ├── AGENT_STATISTICS.md
 │   └── ... (其他历史报告)
+├── implemented/              # 已实现的功能规格文档
+│   ├── auto-update-*.md
+│   ├── telemetry-implementation-summary.md
+│   ├── SESSION_RECORDING.md
+│   └── ...
+├── deprecated/               # 废弃的方案和过时文档
+│   └── AUTONOMOUS_DEV.md
 └── README.md                 # 本文件
 ```
 
+---
+
 ## 归档规则
 
-1. **自动归档**: 所有以 `_REPORT.md`, `_SUMMARY.md`, `_STATISTICS.md`, `_COMPLETE.md` 结尾的文件
-2. **保留期限**: 报告文件保留1年后可清理
-3. **禁止归档**: 以下文件保留在根目录
-   - README.md (项目介绍)
-   - CLAUDE.md (项目总览)
-   - CHANGELOG.md (变更日志)
-   - LICENSE (许可证)
-   - CONTRIBUTING.md (贡献指南)
+### 自动归档
+以下文件类型会自动归档到对应目录：
+
+| 文件类型 | 归档目录 | 示例 |
+|----------|----------|------|
+| `*_REPORT.md` | `2026-04-reports/` | 测试报告、分析报告 |
+| `*_SUMMARY.md` | `2026-04-reports/` 或 `implemented/` | 实现总结 |
+| `*_IMPLEMENTATION.md` | `implemented/` | 功能实现文档 |
+| 废弃方案 | `deprecated/` | 过时的规划文档 |
+
+### 保留期限
+- 报告文件：保留1年后可清理
+- 实现文档：永久保留（历史参考）
+- 废弃方案：保留6个月后清理
+
+### 禁止归档
+以下文件保留在项目根目录或主docs目录：
+- `README.md` (项目介绍)
+- `CLAUDE.md` (项目总览)
+- `CHANGELOG.md` (变更日志)
+- `LICENSE` (许可证)
+- `CONTRIBUTING.md` (贡献指南)
+- `docs/INDEX.md` (文档索引)
+- 版本规划文档 (`easyssh-*-planning.md`)
+
+---
 
 ## 2026-04-reports 归档内容
 
@@ -94,6 +123,32 @@ docs/archives/
 
 ---
 
+## implemented 归档内容
+
+已完成功能的实现文档：
+
+- AI_ASSISTANT_IMPLEMENTATION.md - AI助手实现
+- auto-update-*.md - 自动更新系统文档
+- CROSS_PLATFORM_COMPATIBILITY_REPORT.md - 跨平台兼容性报告
+- debug-access-*.md - 调试访问实现
+- DEPENDENCY_* - 依赖优化报告系列
+- enterprise-vault.md - 企业密钥库
+- grafana-dashboard.json - Grafana仪表板配置
+- SESSION_RECORDING.md - 会话录制功能
+- startup-optimization-report.md - 启动优化报告
+- telemetry-implementation-summary.md - 遥测实现总结
+- VERSION*.md - 版本管理实现
+
+---
+
+## deprecated 归档内容
+
+已废弃的实验性方案和过时文档：
+
+- AUTONOMOUS_DEV.md - 早期自主开发模式方案
+
+---
+
 **归档日期**: 2026-04-02
-**归档操作**: 清理根目录报告文件
-**保留的核心文件**: README.md, CLAUDE.md, CHANGELOG.md, LICENSE, CONTRIBUTING.md
+**最新清理操作**: 删除重复架构文档，归档已实现功能文档
+**保留的核心文件**: README.md, CLAUDE.md, CHANGELOG.md, LICENSE, CONTRIBUTING.md, docs/INDEX.md
