@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Apple Design System - Global Styles */
+
+@layer base {
+  :root {
+    /* Safe area insets for modern devices */
+    --sat: env(safe-area-inset-top);
+    --sar: env(safe-area-inset-right);
+    --sab: env(safe-area-inset-bottom);
+    --sal: env(safe-area-inset-left);
+
+    /* Color Scheme */
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-apple-border;
+  }
+
+  html {
+    @apply antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-apple-bg-primary text-apple-text-primary font-sans;
+    @apply text-apple-base;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  #root {
+    @apply h-screen w-screen overflow-hidden;
+    contain: strict;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-apple-accent-blue/30;
+  }
+
+  /* Focus Visible */
+  :focus-visible {
+    @apply outline-none ring-2 ring-apple-accent-blue/50 ring-offset-2 ring-offset-apple-bg-primary;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@layer components {
+  /* Button Base */
+  .btn {
+    @apply inline-flex items-center justify-center;
+    @apply px-apple-3 py-apple-2;
+    @apply rounded-apple-md;
+    @apply text-apple-sm font-medium;
+    @apply transition-all duration-150 ease-apple-ease;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-apple-accent-blue/50;
+  }
+
+  .btn-primary {
+    @apply btn;
+    @apply bg-apple-accent-blue text-white;
+    @apply hover:bg-apple-accent-blue/90;
+    @apply active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn;
+    @apply bg-apple-bg-tertiary text-apple-text-primary;
+    @apply hover:bg-apple-bg-quaternary;
+    @apply active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply btn;
+    @apply bg-transparent text-apple-text-secondary;
+    @apply hover:bg-apple-bg-tertiary hover:text-apple-text-primary;
+    @apply active:scale-[0.98];
+  }
+
+  /* Input Base */
+  .input {
+    @apply w-full;
+    @apply px-apple-3 py-apple-2;
+    @apply bg-apple-bg-secondary;
+    @apply border border-apple-border;
+    @apply rounded-apple-md;
+    @apply text-apple-text-primary;
+    @apply placeholder:text-apple-text-tertiary;
+    @apply transition-all duration-150 ease-apple-ease;
+    @apply focus:outline-none focus:border-apple-accent-blue/50 focus:ring-2 focus:ring-apple-accent-blue/20;
+  }
+
+  /* Card Base */
+  .card {
+    @apply bg-apple-bg-secondary;
+    @apply border border-apple-border;
+    @apply rounded-apple-lg;
+    @apply shadow-apple-sm;
+    @apple-contain;
+  }
+
+  /* List Item */
+  .list-item {
+    @apply flex items-center gap-apple-3;
+    @apply px-apple-3 py-apple-2;
+    @apply rounded-apple-md;
+    @apply text-apple-text-primary;
+    @apply transition-all duration-100 ease-apple-ease;
+    @apply cursor-pointer;
+    @apply hover:bg-apple-accent-blue/10;
+  }
+
+  .list-item.active {
+    @apply bg-apple-accent-blue/20;
+  }
+
+  /* Divider */
+  .divider {
+    @apply h-px w-full bg-apple-border;
+  }
+
+  .divider-vertical {
+    @apply w-px h-full bg-apple-border;
+  }
+}
+
+@layer utilities {
+  /* CSS Containment */
+  .contain-layout {
+    contain: layout;
+  }
+
+  .contain-style {
+    contain: style;
+  }
+
+  .contain-paint {
+    contain: paint;
+  }
+
+  .contain-strict {
+    contain: strict;
+  }
+
+  .contain-content {
+    contain: content;
+  }
+
+  /* GPU Acceleration */
+  .gpu {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* Prevent Text Selection */
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Draggable Region for Tauri */
+  .tauri-drag {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  .tauri-no-drag {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+}
