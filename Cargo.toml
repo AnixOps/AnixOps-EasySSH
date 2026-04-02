@@ -209,7 +209,7 @@ actix-web = { version = "4" }
 clap = { version = "4", features = ["derive", "env"] }
 
 # XML
-xml-rs = "0.8"
+xml-rs = "1.0"
 
 # Whoami
 whoami = "1.5"
