@@ -68,19 +68,22 @@ pub enum LogLevel {
     Trace = 5,
 }
 
-impl LogLevel {
-    /// Convert from string representation
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for LogLevel {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "error" => Some(LogLevel::Error),
-            "warn" | "warning" => Some(LogLevel::Warn),
-            "info" => Some(LogLevel::Info),
-            "debug" => Some(LogLevel::Debug),
-            "trace" => Some(LogLevel::Trace),
-            _ => None,
+            "error" => Ok(LogLevel::Error),
+            "warn" | "warning" => Ok(LogLevel::Warn),
+            "info" => Ok(LogLevel::Info),
+            "debug" => Ok(LogLevel::Debug),
+            "trace" => Ok(LogLevel::Trace),
+            _ => Err(()),
         }
     }
+}
 
+impl LogLevel {
     /// Get string representation
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -623,7 +626,6 @@ impl Logger {
                 match OpenOptions::new()
                     .create(true)
                     .append(true)
-                    .truncate(true)
                     .open(path)
                 {
                     Ok(file) => {
@@ -816,7 +818,7 @@ pub fn init_from_env() -> io::Result<Logger> {
 
     let level = env::var("EASYSSH_LOG_LEVEL")
         .ok()
-        .and_then(|s| LogLevel::from_str(&s))
+        .and_then(|s| s.parse().ok())
         .unwrap_or(LogLevel::Info);
 
     let mut builder = Logger::builder().with_level(level);
@@ -851,12 +853,12 @@ mod tests {
 
     #[test]
     fn test_log_level_from_str() {
-        assert_eq!(LogLevel::from_str("error"), Some(LogLevel::Error));
-        assert_eq!(LogLevel::from_str("WARN"), Some(LogLevel::Warn));
-        assert_eq!(LogLevel::from_str("Info"), Some(LogLevel::Info));
-        assert_eq!(LogLevel::from_str("debug"), Some(LogLevel::Debug));
-        assert_eq!(LogLevel::from_str("trace"), Some(LogLevel::Trace));
-        assert_eq!(LogLevel::from_str("invalid"), None);
+        assert_eq!("error".parse(), Ok(LogLevel::Error));
+        assert_eq!("WARN".parse(), Ok(LogLevel::Warn));
+        assert_eq!("Info".parse(), Ok(LogLevel::Info));
+        assert_eq!("debug".parse(), Ok(LogLevel::Debug));
+        assert_eq!("trace".parse(), Ok(LogLevel::Trace));
+        assert!(matches!("invalid".parse::<LogLevel>(), Err(())));
     }
 
     #[test]

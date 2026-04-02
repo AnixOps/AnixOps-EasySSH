@@ -1514,10 +1514,15 @@ pub struct GroupRecord {
     pub updated_at: String,
 }
 
+fn default_group_color() -> String {
+    "#4A90D9".to_string()
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct NewGroup {
     pub id: String,
     pub name: String,
+    #[serde(default = "default_group_color")]
     pub color: String,
 }
 

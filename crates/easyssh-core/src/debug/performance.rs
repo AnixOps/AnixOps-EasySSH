@@ -233,7 +233,7 @@ impl Profiler {
             report.push_str(&format!("{}: {}ms\n", record.name, record.duration_ms));
         }
 
-        report.push_str("\n");
+        report.push('\n');
         report.push_str(&format!("Average: {}ms\n", self.average_duration()));
         report.push_str(&format!("Max: {}ms\n", self.max_duration()));
         report.push_str(&format!("Min: {}ms\n", self.min_duration()));

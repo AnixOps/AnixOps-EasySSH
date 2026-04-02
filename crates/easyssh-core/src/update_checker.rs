@@ -58,18 +58,15 @@ pub enum UpdateCheckError {
 
 /// 更新检查通道
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum UpdateChannel {
     /// 稳定版 - 只检查正式发布的版本
+    #[default]
     Stable,
     /// 预览版 - 包括预发布版本（beta, rc）
     Preview,
 }
 
-impl Default for UpdateChannel {
-    fn default() -> Self {
-        UpdateChannel::Stable
-    }
-}
 
 impl std::fmt::Display for UpdateChannel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -291,11 +288,6 @@ impl UpdateChecker {
             config: Arc::new(RwLock::new(config)),
             current_version: CURRENT_VERSION.to_string(),
         }
-    }
-
-    /// 使用默认配置创建
-    pub fn default() -> Self {
-        Self::new(UpdateCheckerConfig::default())
     }
 
     /// 获取当前配置
@@ -528,6 +520,12 @@ impl UpdateChecker {
     }
 }
 
+impl Default for UpdateChecker {
+    fn default() -> Self {
+        Self::new(UpdateCheckerConfig::default())
+    }
+}
+
 /// 比较两个版本号
 ///
 /// 支持语义化版本格式: major.minor.patch[-prerelease]
@@ -675,10 +673,7 @@ pub async fn check_update() -> UpdateCheckResult {
 
 /// 快速检查是否有更新（仅返回布尔值）
 pub async fn has_update() -> bool {
-    match check_update().await {
-        UpdateCheckResult::UpdateAvailable(_) => true,
-        _ => false,
-    }
+    matches!(check_update().await, UpdateCheckResult::UpdateAvailable(_))
 }
 
 #[cfg(test)]

@@ -39,10 +39,11 @@ use super::{
 /// Connection status
 ///
 /// Tracks the lifecycle of a connection from initial connection through disconnection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectionStatus {
     /// Connection is being established
+    #[default]
     Connecting,
     /// Connection is active and established
     Connected,
@@ -54,12 +55,6 @@ pub enum ConnectionStatus {
     Failed,
     /// Connection timed out
     Timeout,
-}
-
-impl Default for ConnectionStatus {
-    fn default() -> Self {
-        ConnectionStatus::Connecting
-    }
 }
 
 impl fmt::Display for ConnectionStatus {
@@ -129,7 +124,7 @@ impl ConnectionStatus {
     }
 
     /// Parse from string
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_status_str(s: &str) -> Self {
         match s {
             "connecting" => ConnectionStatus::Connecting,
             "connected" => ConnectionStatus::Connected,
@@ -1224,27 +1219,27 @@ mod tests {
     #[test]
     fn test_connection_status_from_str() {
         assert!(matches!(
-            ConnectionStatus::from_str("connecting"),
+            ConnectionStatus::from_status_str("connecting"),
             ConnectionStatus::Connecting
         ));
         assert!(matches!(
-            ConnectionStatus::from_str("connected"),
+            ConnectionStatus::from_status_str("connected"),
             ConnectionStatus::Connected
         ));
         assert!(matches!(
-            ConnectionStatus::from_str("disconnected"),
+            ConnectionStatus::from_status_str("disconnected"),
             ConnectionStatus::Disconnected
         ));
         assert!(matches!(
-            ConnectionStatus::from_str("failed"),
+            ConnectionStatus::from_status_str("failed"),
             ConnectionStatus::Failed
         ));
         assert!(matches!(
-            ConnectionStatus::from_str("timeout"),
+            ConnectionStatus::from_status_str("timeout"),
             ConnectionStatus::Timeout
         ));
         assert!(matches!(
-            ConnectionStatus::from_str("invalid"),
+            ConnectionStatus::from_status_str("invalid"),
             ConnectionStatus::Connecting
         ));
     }

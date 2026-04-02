@@ -26,6 +26,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 # GTK4 + libadwaita for modern GNOME-style UI
+glib = "0.20"       # RUSTSEC-2024-0429: minimum version required
 gtk4 = { version = "0.8", features = ["v4_12"] }
 libadwaita = { version = "0.6", features = ["v1_5"] }
 cairo-rs = { version = "0.19", features = ["png"] }

@@ -76,6 +76,7 @@ impl<T: Clone> LazyInitializer<T> {
 
 /// Async lazy initializer
 pub struct AsyncLazyInitializer<T> {
+    #[allow(clippy::type_complexity)]
     initializer: Mutex<
         Option<Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = Result<T, LiteError>>>> + Send>>,
     >,
@@ -485,6 +486,7 @@ impl StartupReport {
 /// Deferred loading manager
 #[allow(dead_code)]
 pub struct DeferredLoader {
+    #[allow(clippy::type_complexity)]
     tasks: Mutex<Vec<Box<dyn FnOnce() -> Result<(), LiteError> + Send>>>,
     loaded: Mutex<Vec<String>>,
 }

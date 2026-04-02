@@ -15,20 +15,15 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Terminal preference settings with persistence support
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum TerminalPreference {
     /// Auto-detect the best available terminal
+    #[default]
     Auto,
     /// Specific terminal by type
     Specific(TerminalType),
     /// Custom terminal command path
     Custom(String),
-}
-
-impl Default for TerminalPreference {
-    fn default() -> Self {
-        TerminalPreference::Auto
-    }
 }
 
 /// Supported terminal emulators across all platforms
@@ -552,7 +547,7 @@ impl TerminalLauncher {
                 Ok(available[0].terminal_type)
             }
             TerminalPreference::Specific(terminal_type) => {
-                if let Some(_) = self.detect_terminal(*terminal_type) {
+                if self.detect_terminal(*terminal_type).is_some() {
                     Ok(*terminal_type)
                 } else {
                     Err(TerminalError::PreferredNotFound {
@@ -1016,13 +1011,7 @@ fn find_windows_terminal(terminal_type: TerminalType) -> Option<PathBuf> {
         _ => return None,
     };
 
-    for path in common_paths {
-        if path.exists() {
-            return Some(path);
-        }
-    }
-
-    None
+    common_paths.into_iter().find(|path| path.exists())
 }
 
 /// Find in directory with pattern

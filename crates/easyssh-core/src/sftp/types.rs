@@ -304,3 +304,51 @@ impl FilePermission {
         self.0
     }
 }
+
+/// SFTP条目信息 (用于兼容旧API)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SftpEntry {
+    pub name: String,
+    pub path: String,
+    pub file_type: String,
+    pub size: i64,
+    pub mtime: i64,
+    pub permissions: Option<u32>,
+}
+
+impl From<FileInfo> for SftpEntry {
+    fn from(info: FileInfo) -> Self {
+        let file_type = match info.file_type {
+            FileType::File => "file",
+            FileType::Directory => "directory",
+            FileType::Symlink => "symlink",
+            FileType::Special => "special",
+            FileType::Unknown => "unknown",
+        }
+        .to_string();
+
+        SftpEntry {
+            name: info.name,
+            path: info.path.to_string_lossy().to_string(),
+            file_type,
+            size: info.size as i64,
+            mtime: info.modified.timestamp(),
+            permissions: Some(info.permissions),
+        }
+    }
+}
+
+impl SftpEntry {
+    /// 格式化文件大小显示
+    pub fn size_display(&self) -> String {
+        format_size(self.size as u64)
+    }
+
+    /// 格式化修改时间显示
+    pub fn mtime_display(&self) -> String {
+        use chrono::{DateTime, Utc};
+        let datetime = DateTime::from_timestamp(self.mtime, 0)
+            .unwrap_or_else(|| DateTime::from_timestamp(0, 0).unwrap());
+        datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+}

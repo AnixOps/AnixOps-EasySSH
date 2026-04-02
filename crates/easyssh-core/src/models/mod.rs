@@ -488,7 +488,7 @@ pub fn is_valid_host(host: &str) -> bool {
 /// assert!(!is_valid_port(65536));
 /// ```
 pub fn is_valid_port(port: u16) -> bool {
-    port > 0 && port <= MAX_PORT
+    port > 0
 }
 
 /// Validates a hex color string

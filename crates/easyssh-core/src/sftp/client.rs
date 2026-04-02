@@ -212,11 +212,24 @@ impl ClientPool {
         id
     }
 
+    /// Insert a client with a specific ID (for compatibility with old API)
+    pub fn insert(&mut self, id: &str, client: SftpClient) {
+        self.clients.insert(
+            id.to_string(),
+            Arc::new(RwLock::new(client)),
+        );
+    }
+
     pub async fn get(&self, id: &str) -> Result<Arc<RwLock<SftpClient>>, LiteError> {
         self.clients
             .get(id)
             .cloned()
             .ok_or_else(|| LiteError::Ssh(format!("SFTP客户端不存在: {}", id)))
+    }
+
+    /// Get all client IDs (synchronous)
+    pub fn keys_sync(&self) -> Vec<String> {
+        self.clients.keys().cloned().collect()
     }
 
     pub async fn remove(&mut self, id: &str) {

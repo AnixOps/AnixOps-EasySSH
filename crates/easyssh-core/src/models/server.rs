@@ -37,13 +37,14 @@ use crate::models::validation::{is_valid_ssh_key_path, is_valid_ssh_username};
 ///
 /// Represents the different ways to authenticate with an SSH server.
 /// Each variant contains the necessary credentials for that method.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum AuthMethod {
     /// SSH Agent authentication
     ///
     /// Uses the local SSH agent to provide authentication.
     /// No credentials are stored.
+    #[default]
     Agent,
 
     /// Password authentication
@@ -163,19 +164,12 @@ impl AuthMethod {
     }
 }
 
-impl Default for AuthMethod {
-    fn default() -> Self {
-        AuthMethod::Agent
-    }
-}
-
 /// Server connection status
-///
-/// Tracks the current connectivity state of a server.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ServerStatus {
     /// Server status unknown (default state)
+    #[default]
     Unknown,
     /// Server is online and reachable
     Online,
@@ -212,7 +206,7 @@ impl ServerStatus {
     }
 
     /// Parse from string
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_status_str(s: &str) -> Self {
         match s {
             "online" => ServerStatus::Online,
             "offline" => ServerStatus::Offline,
@@ -233,12 +227,6 @@ impl ServerStatus {
     /// Check if the server is in an active connecting state
     pub fn is_connecting(&self) -> bool {
         matches!(self, ServerStatus::Connecting)
-    }
-}
-
-impl Default for ServerStatus {
-    fn default() -> Self {
-        ServerStatus::Unknown
     }
 }
 
@@ -1151,8 +1139,8 @@ mod tests {
     #[test]
     fn test_server_status() {
         assert_eq!(ServerStatus::Online.as_str(), "online");
-        assert_eq!(ServerStatus::from_str("online"), ServerStatus::Online);
-        assert_eq!(ServerStatus::from_str("invalid"), ServerStatus::Unknown);
+        assert_eq!(ServerStatus::from_status_str("online"), ServerStatus::Online);
+        assert_eq!(ServerStatus::from_status_str("invalid"), ServerStatus::Unknown);
 
         assert!(ServerStatus::Unknown.is_connectable());
         assert!(ServerStatus::Online.is_connectable());

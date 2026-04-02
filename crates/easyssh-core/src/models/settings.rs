@@ -796,15 +796,13 @@ impl Validatable for SecuritySettings {
         let mut errors = Vec::new();
 
         // Validate auto-lock timeout
-        if self.auto_lock {
-            if self.auto_lock_timeout == 0 || self.auto_lock_timeout > 60 {
-                errors.push(ValidationError::out_of_range(
-                    "security.auto_lock_timeout",
-                    1,
-                    60,
-                    self.auto_lock_timeout as i64,
-                ));
-            }
+        if self.auto_lock && (self.auto_lock_timeout == 0 || self.auto_lock_timeout > 60) {
+            errors.push(ValidationError::out_of_range(
+                "security.auto_lock_timeout",
+                1,
+                60,
+                self.auto_lock_timeout as i64,
+            ));
         }
 
         // Validate clipboard timeout
@@ -975,15 +973,13 @@ impl Validatable for BackupSettings {
         let mut errors = Vec::new();
 
         // Validate backup interval if auto backup is enabled
-        if self.auto_backup {
-            if self.backup_interval_hours == 0 || self.backup_interval_hours > 168 {
-                errors.push(ValidationError::out_of_range(
-                    "backup.backup_interval_hours",
-                    1,
-                    168,
-                    self.backup_interval_hours as i64,
-                ));
-            }
+        if self.auto_backup && (self.backup_interval_hours == 0 || self.backup_interval_hours > 168) {
+            errors.push(ValidationError::out_of_range(
+                "backup.backup_interval_hours",
+                1,
+                168,
+                self.backup_interval_hours as i64,
+            ));
         }
 
         // Validate max backups

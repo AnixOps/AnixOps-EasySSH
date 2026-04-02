@@ -316,28 +316,42 @@ pub fn debug_test_crypto() -> Result<DebugTestReport, String> {
 
     // 测试2: 主密码初始化
     let test_name = "master_password_init";
-    let mut crypto_guard = crate::crypto::CRYPTO_STATE.write().unwrap();
-    let init_result = crypto_guard.initialize("test_password_123");
-    drop(crypto_guard); // 显式释放锁
+    match crate::crypto::CRYPTO_STATE.write() {
+        Ok(mut crypto_guard) => {
+            let init_result = crypto_guard.initialize("test_password_123");
+            drop(crypto_guard); // 显式释放锁
 
-    match init_result {
-        Ok(_) => {
-            results.push(DebugTestResult {
-                name: test_name.to_string(),
-                category: "crypto".to_string(),
-                passed: true,
-                message: "主密码初始化成功".to_string(),
-                details: None,
-                duration_ms: None,
-            });
-            passed += 1;
+            match init_result {
+                Ok(_) => {
+                    results.push(DebugTestResult {
+                        name: test_name.to_string(),
+                        category: "crypto".to_string(),
+                        passed: true,
+                        message: "主密码初始化成功".to_string(),
+                        details: None,
+                        duration_ms: None,
+                    });
+                    passed += 1;
+                }
+                Err(e) => {
+                    results.push(DebugTestResult {
+                        name: test_name.to_string(),
+                        category: "crypto".to_string(),
+                        passed: false,
+                        message: format!("主密码初始化失败: {}", e),
+                        details: None,
+                        duration_ms: None,
+                    });
+                    failed += 1;
+                }
+            }
         }
         Err(e) => {
             results.push(DebugTestResult {
                 name: test_name.to_string(),
                 category: "crypto".to_string(),
                 passed: false,
-                message: format!("主密码初始化失败: {}", e),
+                message: format!("获取加密状态锁失败: {}", e),
                 details: None,
                 duration_ms: None,
             });

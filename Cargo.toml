@@ -91,7 +91,7 @@ zstd = "0.13"
 xz2 = "0.1"
 
 # Caching
-lru = "0.12"
+lru = "0.16"
 parking_lot = "0.12"
 
 # Validation

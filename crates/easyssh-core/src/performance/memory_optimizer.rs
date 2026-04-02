@@ -44,7 +44,7 @@ impl<T> ObjectPool<T> {
 
         Ok(PooledObject {
             obj: Some(obj),
-            pool: Arc::new(self),
+            pool: self,
         })
     }
 
@@ -85,7 +85,7 @@ impl<T> ObjectPool<T> {
 /// Pooled object that returns to pool when dropped
 pub struct PooledObject<'a, T> {
     obj: Option<T>,
-    pool: Arc<&'a ObjectPool<T>>,
+    pool: &'a ObjectPool<T>,
 }
 
 impl<'a, T> std::ops::Deref for PooledObject<'a, T> {

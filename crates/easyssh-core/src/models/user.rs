@@ -27,10 +27,11 @@ pub type UserId = String;
 /// User account status
 ///
 /// Controls whether a user can log in and what operations they can perform.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum UserStatus {
     /// User is active and can log in normally
+    #[default]
     Active,
     /// User is inactive (suspended or disabled)
     /// Cannot log in until reactivated by an administrator.
@@ -38,12 +39,6 @@ pub enum UserStatus {
     /// User is pending approval/activation
     /// Account created but not yet confirmed/approved.
     Pending,
-}
-
-impl Default for UserStatus {
-    fn default() -> Self {
-        UserStatus::Active
-    }
 }
 
 impl UserStatus {

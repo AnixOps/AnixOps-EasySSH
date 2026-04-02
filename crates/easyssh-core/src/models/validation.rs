@@ -11,9 +11,10 @@ use std::path::Path;
 pub type ValidationResult<T> = Result<T, crate::models::ValidationError>;
 
 /// Password strength levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PasswordStrength {
     /// Very weak password (easily guessable)
+    #[default]
     VeryWeak = 0,
     /// Weak password (some complexity but still vulnerable)
     Weak = 1,
@@ -45,12 +46,6 @@ impl PasswordStrength {
     /// Check if the password is strong (strong or better)
     pub fn is_strong(&self) -> bool {
         *self as u8 >= PasswordStrength::Strong as u8
-    }
-}
-
-impl Default for PasswordStrength {
-    fn default() -> Self {
-        PasswordStrength::VeryWeak
     }
 }
 

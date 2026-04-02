@@ -498,6 +498,7 @@ pub struct SearchService {
     /// Case insensitive regex cache
     fuzzy_regex_cache: Arc<Mutex<HashMap<String, Regex>>>,
     /// Search result cache for repeated queries
+    #[allow(clippy::type_complexity)]
     result_cache: Arc<Mutex<HashMap<String, (Vec<SearchResult>, Instant)>>>,
     /// Cache TTL
     cache_ttl: Duration,
@@ -805,7 +806,7 @@ impl SearchService {
         // Word boundary match (for multi-word queries)
         let words: Vec<String> = keyword_lower
             .split_whitespace()
-            .map(|w| regex::escape(w))
+            .map(regex::escape)
             .collect();
         if words.len() > 1 {
             let word_boundary_pattern = words.join(".*");
@@ -875,8 +876,8 @@ impl SearchService {
 
         let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
-        for i in 0..=len1 {
-            matrix[i][0] = i;
+        for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
+            row[0] = i;
         }
         for j in 0..=len2 {
             matrix[0][j] = j;
@@ -971,6 +972,7 @@ impl SearchService {
     }
 
     /// Calculate match score using enhanced fuzzy matching with pinyin support
+    #[allow(clippy::type_complexity)]
     fn calculate_match_score(
         &self,
         entry: &SearchIndexEntry,
@@ -981,7 +983,7 @@ impl SearchService {
         let mut highlights = HashMap::new();
         let mut matched_fields = Vec::new();
 
-        if let Some(ref kw) = keyword {
+        if let Some(kw) = keyword {
             let kw_lower = kw.to_lowercase();
 
             // Check name (highest weight)
@@ -1122,7 +1124,7 @@ impl SearchService {
         }
 
         // Add remaining text
-        while let Some(tc) = text_chars.next() {
+        for tc in text_chars {
             result.push(tc);
         }
 
@@ -1342,7 +1344,7 @@ impl SearchService {
         partial: &str,
         limit: usize,
     ) -> Result<Vec<SearchSuggestion>, LiteError> {
-        if partial.len() < 1 {
+        if partial.is_empty() {
             // Return recent history and popular searches when no input
             return self.get_default_suggestions(limit);
         }
@@ -1365,44 +1367,40 @@ impl SearchService {
 
         // 1. Search from history (highest priority for exact matches)
         for entry in history.iter() {
-            if entry.query.to_lowercase().starts_with(&partial_lower) {
-                if seen.insert(entry.query.clone()) {
-                    suggestions.push(SearchSuggestion {
-                        text: entry.query.clone(),
-                        suggestion_type: SuggestionType::History,
-                        score: 1.0,
-                        frequency: 1,
-                    });
-                }
+            if entry.query.to_lowercase().starts_with(&partial_lower)
+                && seen.insert(entry.query.clone()) {
+                suggestions.push(SearchSuggestion {
+                    text: entry.query.clone(),
+                    suggestion_type: SuggestionType::History,
+                    score: 1.0,
+                    frequency: 1,
+                });
             }
         }
 
         // 2. Search from host names
         for entry in index.iter() {
             let name_score = self.calculate_fuzzy_score(&entry.name, &partial_lower);
-            if name_score > 0.6 {
-                if seen.insert(entry.name.clone()) {
-                    suggestions.push(SearchSuggestion {
-                        text: entry.name.clone(),
-                        suggestion_type: SuggestionType::HostName,
-                        score: name_score * 0.9,
-                        frequency: 0,
-                    });
-                }
+            if name_score > 0.6 && seen.insert(entry.name.clone()) {
+                suggestions.push(SearchSuggestion {
+                    text: entry.name.clone(),
+                    suggestion_type: SuggestionType::HostName,
+                    score: name_score * 0.9,
+                    frequency: 0,
+                });
             }
         }
 
         // 3. Search from host addresses
         for entry in index.iter() {
-            if entry.host.to_lowercase().contains(&partial_lower) {
-                if seen.insert(entry.host.clone()) {
-                    suggestions.push(SearchSuggestion {
-                        text: entry.host.clone(),
-                        suggestion_type: SuggestionType::HostAddress,
-                        score: 0.8,
-                        frequency: 0,
-                    });
-                }
+            if entry.host.to_lowercase().contains(&partial_lower)
+                && seen.insert(entry.host.clone()) {
+                suggestions.push(SearchSuggestion {
+                    text: entry.host.clone(),
+                    suggestion_type: SuggestionType::HostAddress,
+                    score: 0.8,
+                    frequency: 0,
+                });
             }
         }
 
@@ -1410,15 +1408,13 @@ impl SearchService {
         for entry in index.iter() {
             for tag in &entry.tags {
                 let tag_score = self.calculate_fuzzy_score(tag, &partial_lower);
-                if tag_score > 0.7 {
-                    if seen.insert(tag.clone()) {
-                        suggestions.push(SearchSuggestion {
-                            text: tag.clone(),
-                            suggestion_type: SuggestionType::Tag,
-                            score: tag_score * 0.85,
-                            frequency: 0,
-                        });
-                    }
+                if tag_score > 0.7 && seen.insert(tag.clone()) {
+                    suggestions.push(SearchSuggestion {
+                        text: tag.clone(),
+                        suggestion_type: SuggestionType::Tag,
+                        score: tag_score * 0.85,
+                        frequency: 0,
+                    });
                 }
             }
         }
@@ -1588,7 +1584,7 @@ impl SearchService {
         partial: &str,
         limit: usize,
     ) -> Result<Vec<SearchResult>, LiteError> {
-        if partial.len() < 1 {
+        if partial.is_empty() {
             return Ok(Vec::new());
         }
 

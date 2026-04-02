@@ -243,6 +243,7 @@ pub struct PortForwardManager {
     /// Rule templates
     templates: Arc<RwLock<HashMap<String, ForwardRuleTemplate>>>,
     /// Callback for status changes
+    #[allow(clippy::type_complexity)]
     status_callback: Option<Box<dyn Fn(&str, ForwardStatus) + Send + Sync>>,
 }
 
@@ -451,21 +452,20 @@ impl PortForwardManager {
                         let stats_inner = stats_clone.clone();
                         let stop_inner = stop_signal_clone.clone();
                         let host = remote_host.clone();
-                        let port = remote_port;
                         let rule_id_inner = rule_id.clone();
 
                         // Spawn handler for this connection
                         tokio::spawn(async move {
-                            handle_local_forward_connection(
-                                stream,
+                            handle_local_forward_connection(LocalForwardContext {
+                                local_stream: stream,
                                 peer_addr,
-                                ssh_session_clone,
-                                &host,
-                                port,
-                                stats_inner,
-                                stop_inner,
-                                &rule_id_inner,
-                            )
+                                ssh_session: ssh_session_clone,
+                                remote_host: host,
+                                remote_port,
+                                stats: stats_inner,
+                                stop_signal: stop_inner,
+                                rule_id: rule_id_inner,
+                            })
                             .await;
                         });
                     }
@@ -901,25 +901,29 @@ impl Default for PortForwardManager {
     }
 }
 
-/// Handle a local forward connection
-async fn handle_local_forward_connection(
-    _local_stream: TokioTcpStream,
-    _peer_addr: SocketAddr,
+/// Context for local forward connection handling
+#[allow(dead_code)]
+struct LocalForwardContext {
+    local_stream: TokioTcpStream,
+    peer_addr: SocketAddr,
     ssh_session: Arc<tokio::sync::Mutex<Session>>,
-    remote_host: &str,
+    remote_host: String,
     remote_port: u16,
     stats: Arc<Mutex<TrafficStats>>,
     stop_signal: Arc<AtomicBool>,
-    _rule_id: &str,
-) {
+    rule_id: String,
+}
+
+/// Handle a local forward connection
+async fn handle_local_forward_connection(ctx: LocalForwardContext) {
     // Open a channel through the SSH session
     let result = tokio::task::spawn_blocking({
-        let ssh_session = ssh_session.clone();
-        let remote_host = remote_host.to_string();
+        let ssh_session = ctx.ssh_session.clone();
+        let remote_host = ctx.remote_host.clone();
         move || {
             let session = ssh_session.blocking_lock();
             session
-                .channel_direct_tcpip(&remote_host, remote_port, None)
+                .channel_direct_tcpip(&remote_host, ctx.remote_port, None)
                 .map_err(|e| LiteError::Ssh(format!("Direct TCP/IP failed: {}", e)))
         }
     })
@@ -928,8 +932,8 @@ async fn handle_local_forward_connection(
     match result {
         Ok(Ok(mut channel)) => {
             // Run the forwarding in a blocking task since SSH channels are blocking
-            let _stats_clone = stats.clone();
-            let stop_clone = stop_signal.clone();
+            let _stats_clone = ctx.stats.clone();
+            let stop_clone = ctx.stop_signal.clone();
 
             tokio::task::spawn_blocking(move || {
                 let _local_read_buf = [0u8; 8192];
@@ -967,7 +971,7 @@ async fn handle_local_forward_connection(
 
     // Decrement active connections
     {
-        let mut s = stats.lock().unwrap();
+        let mut s = ctx.stats.lock().unwrap();
         if s.connections_active > 0 {
             s.connections_active -= 1;
         }

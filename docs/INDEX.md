@@ -40,7 +40,7 @@
 
 ### Reference
 - [Glossary](./GLOSSARY.md) (To create)
-- [FAQ](./FAQ.md) (To create)
+- [FAQ](./faq.md) - Frequently asked questions / 常见问题解答 ✅
 - [Troubleshooting](./developers/TROUBLESHOOTING.md)
 
 ---
@@ -248,7 +248,7 @@ Feature implementation documents are archived in `docs/archives/implemented/` di
 
 ### 参考文档
 - [术语表](./GLOSSARY.md) (待创建)
-- [FAQ](./FAQ.md) (待创建)
+- [FAQ](./faq.md) - 常见问题解答 ✅
 - [故障排查](./developers/TROUBLESHOOTING.md)
 
 ---
@@ -417,15 +417,16 @@ Feature implementation documents are archived in `docs/archives/implemented/` di
 - [ ] `USER_GUIDE.md` - 功能手册
 
 #### 安全与合规
-- [ ] `security/audit-report.md` - 安全白皮书
-- [ ] `COMPLIANCE.md` - 合规指南
+- [ ] `security/audit-report.md` - 安全白皮书 (待创建)
+- [x] `security/patch-guide.md` - 安全补丁指南 ✅
+- [ ] `COMPLIANCE.md` - 合规指南 (待创建)
 
 #### 规范标准
-- [ ] `branding/version-identification-spec.md` - 版本标识规范
+- [ ] `branding/version-identification-spec.md` - 版本标识规范 (待创建)
 
 #### 参考文档
-- [ ] `GLOSSARY.md` - 术语表
-- [ ] `FAQ.md` - FAQ
+- [ ] `GLOSSARY.md` - 术语表 (待创建)
+- [x] `faq.md` - 常见问题解答 ✅
 
 ---
 

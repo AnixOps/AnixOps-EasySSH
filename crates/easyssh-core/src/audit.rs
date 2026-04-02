@@ -326,7 +326,9 @@ impl AuditEntry {
 
         // Sign if key provided
         if let Some(key) = signing_key {
-            self.signature = Some(Self::sign_hash(&hash, key));
+            if let Some(sig) = Self::sign_hash(&hash, key) {
+                self.signature = Some(sig);
+            }
         }
 
         self
@@ -353,8 +355,7 @@ impl AuditEntry {
         }
 
         // 如果有签名,验证签名
-        if let Some(ref sig) = self.signature {
-            let hash = self.entry_hash.as_ref().unwrap();
+        if let (Some(ref sig), Some(ref hash)) = (&self.signature, &self.entry_hash) {
             return Self::verify_signature(hash, sig, key);
         }
 
@@ -362,17 +363,17 @@ impl AuditEntry {
     }
 
     /// 签名哈希 (simplified HMAC for demo, should use proper key pair in production)
-    fn sign_hash(hash: &str, key: &[u8]) -> String {
+    fn sign_hash(hash: &str, key: &[u8]) -> Option<String> {
         use hmac::{Hmac, Mac};
         use sha2::Sha256;
 
         type HmacSha256 = Hmac<Sha256>;
 
-        let mut mac = HmacSha256::new_from_slice(key).expect("HMAC can take key of any size");
+        let mut mac = HmacSha256::new_from_slice(key).ok()?;
         mac.update(hash.as_bytes());
 
         let result = mac.finalize();
-        hex::encode(result.into_bytes())
+        Some(hex::encode(result.into_bytes()))
     }
 
     /// 验证签名
@@ -388,8 +389,7 @@ impl AuditEntry {
         };
         mac.update(hash.as_bytes());
 
-        let expected = Self::sign_hash(hash, key);
-        signature == expected
+        Self::sign_hash(hash, key).map_or(false, |expected| signature == expected)
     }
 
     /// 添加详情

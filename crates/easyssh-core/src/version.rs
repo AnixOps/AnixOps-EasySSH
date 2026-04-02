@@ -129,7 +129,7 @@ impl FullBuildInfo {
     /// 使用OnceLock确保只初始化一次
     pub fn current() -> &'static Self {
         static INFO: OnceLock<FullBuildInfo> = OnceLock::new();
-        INFO.get_or_init(|| Self::collect())
+        INFO.get_or_init(Self::collect)
     }
 
     /// 收集构建信息

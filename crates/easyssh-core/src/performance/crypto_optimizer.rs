@@ -6,7 +6,6 @@
 //! - AES-NI detection and optimization hints
 //! - Memory pre-allocation for encryption buffers
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -42,6 +41,7 @@ impl<T> CacheEntry<T> {
 #[allow(dead_code)]
 pub struct KeyDerivationCache {
     /// Maps password hash to (salt, key) pair
+    #[allow(clippy::type_complexity)]
     cache: Mutex<HashMap<String, (Vec<u8>, Vec<u8>)>>,
     default_ttl: Duration,
     max_entries: usize,
@@ -68,6 +68,7 @@ impl KeyDerivationCache {
 
     /// Get cached key derivation info or return None
     /// Caller must still create their own CryptoState
+    #[allow(clippy::type_complexity)]
     pub fn get_cached_derivation(
         &self,
         password: &str,
@@ -140,9 +141,9 @@ impl Default for KeyDerivationCache {
 
 /// Pre-allocated buffer pool for encryption operations
 pub struct EncryptionBufferPool {
-    small_buffers: RefCell<Vec<Vec<u8>>>,
-    medium_buffers: RefCell<Vec<Vec<u8>>>,
-    large_buffers: RefCell<Vec<Vec<u8>>>,
+    small_buffers: Mutex<Vec<Vec<u8>>>,
+    medium_buffers: Mutex<Vec<Vec<u8>>>,
+    large_buffers: Mutex<Vec<Vec<u8>>>,
     max_pool_size: usize,
 }
 
@@ -157,9 +158,9 @@ impl EncryptionBufferPool {
     /// Create a new buffer pool
     pub fn new() -> Self {
         Self {
-            small_buffers: RefCell::new(Vec::new()),
-            medium_buffers: RefCell::new(Vec::new()),
-            large_buffers: RefCell::new(Vec::new()),
+            small_buffers: Mutex::new(Vec::new()),
+            medium_buffers: Mutex::new(Vec::new()),
+            large_buffers: Mutex::new(Vec::new()),
             max_pool_size: 5,
         }
     }
@@ -168,17 +169,20 @@ impl EncryptionBufferPool {
     pub fn get_buffer(&self, size: usize) -> Vec<u8> {
         if size <= Self::SMALL_SIZE {
             self.small_buffers
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .pop()
                 .unwrap_or_else(|| vec![0u8; Self::SMALL_SIZE])
         } else if size <= Self::MEDIUM_SIZE {
             self.medium_buffers
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .pop()
                 .unwrap_or_else(|| vec![0u8; Self::MEDIUM_SIZE])
         } else if size <= Self::LARGE_SIZE {
             self.large_buffers
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .pop()
                 .unwrap_or_else(|| vec![0u8; Self::LARGE_SIZE])
         } else {
@@ -191,19 +195,19 @@ impl EncryptionBufferPool {
         buffer.clear();
         let capacity = buffer.capacity();
 
-        if capacity >= Self::LARGE_SIZE && self.large_buffers.borrow().len() < self.max_pool_size {
+        if capacity >= Self::LARGE_SIZE && self.large_buffers.lock().unwrap().len() < self.max_pool_size {
             buffer.resize(Self::LARGE_SIZE, 0);
-            self.large_buffers.borrow_mut().push(buffer);
+            self.large_buffers.lock().unwrap().push(buffer);
         } else if capacity >= Self::MEDIUM_SIZE
-            && self.medium_buffers.borrow().len() < self.max_pool_size
+            && self.medium_buffers.lock().unwrap().len() < self.max_pool_size
         {
             buffer.resize(Self::MEDIUM_SIZE, 0);
-            self.medium_buffers.borrow_mut().push(buffer);
+            self.medium_buffers.lock().unwrap().push(buffer);
         } else if capacity >= Self::SMALL_SIZE
-            && self.small_buffers.borrow().len() < self.max_pool_size
+            && self.small_buffers.lock().unwrap().len() < self.max_pool_size
         {
             buffer.resize(Self::SMALL_SIZE, 0);
-            self.small_buffers.borrow_mut().push(buffer);
+            self.small_buffers.lock().unwrap().push(buffer);
         }
         // Otherwise, let it drop
     }
@@ -211,17 +215,17 @@ impl EncryptionBufferPool {
     /// Get pool statistics
     pub fn stats(&self) -> (usize, usize, usize) {
         (
-            self.small_buffers.borrow().len(),
-            self.medium_buffers.borrow().len(),
-            self.large_buffers.borrow().len(),
+            self.small_buffers.lock().unwrap().len(),
+            self.medium_buffers.lock().unwrap().len(),
+            self.large_buffers.lock().unwrap().len(),
         )
     }
 
     /// Clear all pools
     pub fn clear(&self) {
-        self.small_buffers.borrow_mut().clear();
-        self.medium_buffers.borrow_mut().clear();
-        self.large_buffers.borrow_mut().clear();
+        self.small_buffers.lock().unwrap().clear();
+        self.medium_buffers.lock().unwrap().clear();
+        self.large_buffers.lock().unwrap().clear();
     }
 }
 

@@ -494,6 +494,7 @@ pub fn test_pro() -> Result<DebugTestReport, String> {
 }
 
 /// 全量测试 - 所有模块
+#[allow(clippy::type_complexity)]
 pub fn test_all() -> Result<DebugTestReport, String> {
     let mut all_results = Vec::new();
     let mut total_passed = 0;

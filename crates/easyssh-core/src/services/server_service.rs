@@ -761,7 +761,7 @@ impl ServerService {
         };
 
         let exports: Vec<ServerExport> =
-            servers.iter().map(|s| Self::server_to_export(s)).collect();
+            servers.iter().map(Self::server_to_export).collect();
 
         serde_json::to_string_pretty(&exports)
             .map_err(|e| ServerServiceError::ImportExport(e.to_string()))
@@ -1114,7 +1114,7 @@ impl ServerService {
             username: record.username,
             auth_method,
             group_id: record.group_id,
-            status: ServerStatus::from_str(&record.status),
+            status: ServerStatus::from_status_str(&record.status),
             created_at,
             updated_at,
             schema_version: 1,
@@ -1300,12 +1300,9 @@ mod tests {
     use super::*;
     use crate::models::server::ServerBuilder;
     use std::time::Duration;
-    use tempfile::tempdir;
 
     fn create_test_db() -> Arc<Mutex<Database>> {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-        let db = Database::new(db_path).unwrap();
+        let db = Database::new_in_memory().unwrap();
         db.init().unwrap();
         Arc::new(Mutex::new(db))
     }

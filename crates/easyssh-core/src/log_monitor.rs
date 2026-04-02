@@ -1612,12 +1612,12 @@ mod tests {
 
     #[test]
     fn test_log_level_from_str() {
-        assert_eq!(LogLevel::from_str("ERROR"), LogLevel::ERROR);
-        assert_eq!(LogLevel::from_str("error"), LogLevel::ERROR);
-        assert_eq!(LogLevel::from_str("WARN"), LogLevel::WARN);
-        assert_eq!(LogLevel::from_str("warning"), LogLevel::WARN);
-        assert_eq!(LogLevel::from_str("INFO"), LogLevel::INFO);
-        assert_eq!(LogLevel::from_str("DEBUG"), LogLevel::DEBUG);
+        assert_eq!("ERROR".parse(), Ok(LogLevel::ERROR));
+        assert_eq!("error".parse(), Ok(LogLevel::ERROR));
+        assert_eq!("WARN".parse(), Ok(LogLevel::WARN));
+        assert_eq!("warning".parse(), Ok(LogLevel::WARN));
+        assert_eq!("INFO".parse(), Ok(LogLevel::INFO));
+        assert_eq!("DEBUG".parse(), Ok(LogLevel::DEBUG));
     }
 
     #[test]

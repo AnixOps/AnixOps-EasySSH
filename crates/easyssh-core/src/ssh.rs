@@ -588,8 +588,7 @@ impl SshSessionManager {
         let host = host.to_string();
         let username = username.to_string();
         let auth = auth.clone();
-        let timeout = timeout.clone();
-        let compression = compression;
+        let timeout = *timeout;
 
         tokio::task::spawn_blocking(move || {
             let addr = format!("{}:{}", host, port);
@@ -822,7 +821,7 @@ impl SshSessionManager {
             port: jump_host.port,
             username: jump_host.username.clone(),
             auth: jump_host.auth.clone(),
-            timeout: target_config.timeout.clone(),
+            timeout: target_config.timeout,
             known_hosts_path: target_config.known_hosts_path.clone(),
             compression: target_config.compression,
             preferred_cipher: target_config.preferred_cipher.clone(),
@@ -868,7 +867,7 @@ impl SshSessionManager {
         let auth_method_str = config.auth.display_name().to_string();
         let username = config.username.clone();
         let auth = config.auth.clone();
-        let timeout = config.timeout.clone();
+        let timeout = config.timeout;
         let compression = config.compression;
 
         let result = tokio::task::spawn_blocking(move || {
@@ -2784,7 +2783,7 @@ impl KeyPair {
 
         // Use ssh-keygen to generate public key
         let output = std::process::Command::new("ssh-keygen")
-            .args(&["-y", "-f", self.private_path.to_str().unwrap_or("")])
+            .args(["-y", "-f", self.private_path.to_str().unwrap_or("")])
             .output()
             .map_err(|e| LiteError::InvalidKey(format!("Failed to generate public key: {}", e)))?;
 
@@ -2860,12 +2859,11 @@ impl KeyManager {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
-                    if ext == "pem" || ext == "key" {
-                        if !self.keys.iter().any(|k| k.private_path == path) {
-                            match KeyPair::from_private_path(&path) {
-                                Ok(keypair) => self.keys.push(keypair),
-                                Err(e) => log::debug!("Skipping key {}: {}", path.display(), e),
-                            }
+                    if (ext == "pem" || ext == "key")
+                        && !self.keys.iter().any(|k| k.private_path == path) {
+                        match KeyPair::from_private_path(&path) {
+                            Ok(keypair) => self.keys.push(keypair),
+                            Err(e) => log::debug!("Skipping key {}: {}", path.display(), e),
                         }
                     }
                 }
@@ -3316,8 +3314,8 @@ impl HostKeyEntry {
             return None;
         }
 
-        let (revoked, content) = if trimmed.starts_with("@revoked ") {
-            (true, &trimmed[9..])
+        let (revoked, content) = if let Some(stripped) = trimmed.strip_prefix("@revoked ") {
+            (true, stripped)
         } else {
             (false, trimmed)
         };
@@ -3383,10 +3381,9 @@ impl HostKeyEntry {
                 return true;
             }
 
-            if host.contains('*') || host.contains('?') {
-                if Self::wildcard_match(host, hostname) {
-                    return true;
-                }
+            if (host.contains('*') || host.contains('?'))
+                && Self::wildcard_match(host, hostname) {
+                return true;
             }
         }
 
@@ -3415,12 +3412,10 @@ impl HostKeyEntry {
                 text_remaining = &text_remaining[part.len()..];
             } else if i == pattern_parts.len() - 1 {
                 return text_remaining.ends_with(part);
+            } else if let Some(pos) = text_remaining.find(part) {
+                text_remaining = &text_remaining[pos + part.len()..];
             } else {
-                if let Some(pos) = text_remaining.find(part) {
-                    text_remaining = &text_remaining[pos + part.len()..];
-                } else {
-                    return false;
-                }
+                return false;
             }
         }
 
@@ -3724,7 +3719,7 @@ impl SshAgent {
             if std::env::var("SSH_AGENT_LAUNCHER").is_ok() {
                 return Ok(PathBuf::from("\\\\.\\pipe\\openssh-ssh-agent"));
             }
-            return Ok(PathBuf::from("pageant"));
+            Ok(PathBuf::from("pageant"))
         }
 
         #[cfg(target_os = "macos")]
@@ -3803,7 +3798,7 @@ impl SshAgent {
 
         // Try to list keys using ssh-add -L
         let output = tokio::process::Command::new("ssh-add")
-            .args(&["-L"])
+            .args(["-L"])
             .output()
             .await
             .map_err(|e| SshAgentError::Io(e.to_string()))?;
@@ -3907,7 +3902,7 @@ impl SshAgent {
         }
 
         let output = tokio::process::Command::new("ssh-add")
-            .args(&["-d", key_path.to_str().unwrap_or("")])
+            .args(["-d", key_path.to_str().unwrap_or("")])
             .output()
             .await
             .map_err(|e| SshAgentError::Io(e.to_string()))?;
@@ -3949,7 +3944,7 @@ impl SshAgent {
         }
 
         let _output = tokio::process::Command::new("ssh-add")
-            .args(&["-x"])
+            .args(["-x"])
             .stdin(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| SshAgentError::Io(e.to_string()))?;

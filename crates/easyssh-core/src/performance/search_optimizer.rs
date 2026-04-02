@@ -53,7 +53,7 @@ impl InvertedIndex {
             .map_err(|_| LiteError::Internal("Failed to lock index".to_string()))?;
 
         // Tokenize each field and add to index
-        for (_field_name, field_value) in fields {
+        for field_value in fields.values() {
             let tokens = Self::tokenize(field_value);
 
             for token in tokens {
@@ -379,8 +379,7 @@ impl SearchOptimizer {
         let mut results: Vec<_> = doc_ids
             .iter()
             .filter_map(|id| data.get(id))
-            .cloned()
-            .take(limit)
+            .take(limit).cloned()
             .collect();
 
         // Sort by name for consistent results
@@ -415,8 +414,7 @@ impl SearchOptimizer {
         let results: Vec<_> = doc_ids
             .iter()
             .filter_map(|id| data.get(id))
-            .cloned()
-            .take(limit)
+            .take(limit).cloned()
             .collect();
 
         let elapsed = start.elapsed();

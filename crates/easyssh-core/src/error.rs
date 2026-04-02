@@ -407,10 +407,10 @@ impl Clone for EasySSHErrors {
             EasySSHErrors::Validation(s) => EasySSHErrors::Validation(s.clone()),
             EasySSHErrors::UserCancelled => EasySSHErrors::UserCancelled,
             EasySSHErrors::Serialization(_e) => {
-                // Can't clone serde_json::Error directly, convert to string
-                EasySSHErrors::Serialization(
-                    serde_json::from_str::<serde_json::Value>("null").unwrap_err(),
-                )
+                // Can't clone serde_json::Error directly, create a placeholder error
+                // This is a workaround since serde_json::Error doesn't implement Clone
+                let msg = "序列化错误无法克隆".to_string();
+                EasySSHErrors::Internal(format!("原始序列化错误: {}", msg))
             }
             EasySSHErrors::Network(s) => EasySSHErrors::Network(s.clone()),
             EasySSHErrors::Authentication(s) => EasySSHErrors::Authentication(s.clone()),
@@ -1002,7 +1002,12 @@ trait CustomJsonError {
 
 impl CustomJsonError for serde_json::Error {
     fn custom<T: fmt::Display>(_msg: T) -> Self {
-        serde_json::from_str::<serde_json::Value>("").unwrap_err()
+        // 使用无效JSON来创建一个错误
+        // 这是一个workaround，因为serde_json::Error没有公共构造函数
+        match serde_json::from_str::<serde_json::Value>("invalid json {{") {
+            Ok(_) => unreachable!(),
+            Err(e) => e,
+        }
     }
 }
 

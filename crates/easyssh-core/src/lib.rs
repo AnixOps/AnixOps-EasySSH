@@ -957,7 +957,7 @@ pub use sftp::{
     ChunkConfig, ConnectionState, ContentType, FileInfo, FilePermission, FileSystemWatcher,
     FileTransfer, FileType, ProgressCallback, ProgressSnapshot, ProgressTracker, QueueConfig,
     QueueEvent, QueueStats, RemoteDir, RemoteFile, RemoteFs, SftpClient, SftpClientConfig,
-    SftpManager, SpeedCalculator, TransferDirection, TransferError, TransferHandle,
+    SftpEntry, SftpManager, SpeedCalculator, TransferDirection, TransferError, TransferHandle,
     TransferOptions, TransferQueue, TransferResult, TransferStats, TransferStatus, TransferTask,
 };
 #[cfg(feature = "sync")]
@@ -1235,28 +1235,31 @@ pub fn get_db_path() -> std::path::PathBuf {
 
 /// Get all servers
 pub fn get_servers(state: &AppState) -> std::result::Result<Vec<ServerRecord>, LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.get_servers()
 }
 
 /// Get single server
 pub fn get_server(state: &AppState, id: &str) -> std::result::Result<ServerRecord, LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.get_server(id)
 }
 
 /// Add server
 pub fn add_server(state: &AppState, server: &NewServer) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.add_server(server)
 }
 
@@ -1265,55 +1268,61 @@ pub fn update_server(
     state: &AppState,
     server: &UpdateServer,
 ) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.update_server(server)
 }
 
 /// Delete server
 pub fn delete_server(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.delete_server(id)
 }
 
 /// Get all groups
 pub fn get_groups(state: &AppState) -> std::result::Result<Vec<GroupRecord>, LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.get_groups()
 }
 
 /// Add group
 pub fn add_group(state: &AppState, group: &NewGroup) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.add_group(group)
 }
 
 /// Update group
 pub fn update_group(state: &AppState, group: &UpdateGroup) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.update_group(group)
 }
 
 /// Delete group
 pub fn delete_group(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
     db.delete_group(id)
 }
 
@@ -1337,14 +1346,15 @@ pub fn delete_group(state: &AppState, id: &str) -> std::result::Result<(), LiteE
 /// use easyssh_core::{AppState, init_database};
 ///
 /// let state = AppState::new();
-/// init_database(&state).expect("Failed to initialize database");
+/// init_database(&state).expect("初始化数据库失败");
 /// ```
 pub fn init_database(state: &AppState) -> std::result::Result<(), LiteError> {
     let db_path = get_db_path();
     let db = db::Database::new(db_path)?;
     db.init()?;
 
-    let mut db_lock = state.db.lock().unwrap();
+    let mut db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned".to_string()))?;
     *db_lock = Some(db);
 
     Ok(())
@@ -1352,10 +1362,11 @@ pub fn init_database(state: &AppState) -> std::result::Result<(), LiteError> {
 
 /// Open native terminal and connect (Lite mode)
 pub fn connect_server(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock().unwrap();
+    let db_lock = state.db.lock()
+        .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
-        .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+        .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
 
     let server = db.get_server(id)?;
     terminal::open_native_terminal(
@@ -1404,10 +1415,11 @@ pub async fn ssh_connect(
     password: Option<&str>,
 ) -> std::result::Result<SessionMetadata, LiteError> {
     let (host, port, username): (String, u16, String) = {
-        let db_lock = state.db.lock().unwrap();
+        let db_lock = state.db.lock()
+            .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
         let db = db_lock
             .as_ref()
-            .ok_or(LiteError::Config("Database not initialized".to_string()))?;
+            .ok_or(LiteError::Config("数据库未初始化".to_string()))?;
         let server = db.get_server(id)?;
         (
             server.host.clone(),
