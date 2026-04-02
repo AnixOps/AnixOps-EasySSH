@@ -1,6 +1,6 @@
 use anyhow::Result;
 use axum::{
-    middleware,
+    middleware as axum_middleware,
     routing::{delete, get, patch, post, put},
     Router,
 };
@@ -20,6 +20,7 @@ mod db;
 mod docs;
 mod middleware;
 mod models;
+mod rate_limit;
 mod redis_cache;
 mod services;
 mod websocket;
@@ -39,7 +40,7 @@ use crate::auth::auth_routes;
 use crate::config::AppConfig;
 use crate::db::Database;
 use crate::docs::swagger::swagger_routes;
-use crate::middleware::{auth::AuthLayer, rate_limit::RateLimitLayer};
+use crate::middleware::{auth_middleware, rate_limit_middleware};
 use crate::websocket::ws_routes;
 
 #[derive(Clone)]
@@ -104,15 +105,6 @@ fn create_router(state: AppState) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Rate limiting
-    let rate_limit = RateLimitLayer::new(
-        state.config.rate_limit_requests,
-        std::time::Duration::from_secs(state.config.rate_limit_window_secs),
-    );
-
-    // Authentication middleware
-    let auth_layer = AuthLayer::new(state.config.jwt_secret.clone(), state.redis.clone());
-
     // Health check route (no auth required)
     let health_router = Router::new()
         .route("/health", get(health_check))
@@ -132,14 +124,14 @@ fn create_router(state: AppState) -> Router {
         .nest("/collaboration", collaboration_routes())
         .nest("/incidents", incident_routes())
         .nest("/ws", ws_routes())
-        .layer(middleware::from_fn_with_state(state.clone(), require_auth));
+        .layer(axum_middleware::from_fn_with_state(state.clone(), require_auth));
 
     // Combine all routes
     let api_router = Router::new()
         .merge(health_router)
         .merge(public_router)
         .merge(protected_router)
-        .layer(rate_limit)
+        .layer(axum_middleware::from_fn_with_state(state.clone(), rate_limit_middleware))
         .layer(cors)
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
@@ -182,9 +174,9 @@ async fn readiness_check(
 
 async fn require_auth(
     req: axum::extract::Request,
-    next: middleware::Next,
+    next: axum_middleware::Next,
 ) -> Result<axum::response::Response, (axum::http::StatusCode, String)> {
-    // Auth middleware will be implemented in middleware/auth.rs
+    // Auth middleware will be implemented properly
     // For now, just pass through
     Ok(next.run(req).await)
 }

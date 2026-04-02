@@ -143,7 +143,7 @@ impl RunbookService {
         "#
         .to_string();
 
-        let mut params: Vec<Box<dyn sqlx::Type<sqlx::Any> + Send + Sync>> = vec![];
+        // let mut params: Vec<Box<dyn sqlx::Type<sqlx::Any> + Send + Sync>> = vec![];
 
         if incident_type.is_some() {
             query.push_str(" AND incident_types LIKE ?");

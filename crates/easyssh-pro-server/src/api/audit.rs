@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Extension, Query, State},
     routing::get,
     Json, Router,
 };
@@ -171,18 +171,16 @@ async fn export_audit_logs(
             "Content-Disposition",
             "attachment; filename=\"audit_logs.csv\"",
         )
-        .body(csv)
-        .map_err(|e| {
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "response_build_failed".to_string(),
-                    message: e.to_string(),
-                    code: None,
-                    details: None,
-                }),
-            )
-        })?;
+        .body(axum::body::Body::from(csv))
+        .map_err(|e| (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "response_build_failed".to_string(),
+                message: e.to_string(),
+                code: None,
+                details: None,
+            }),
+        ))?;
 
     Ok(response)
 }

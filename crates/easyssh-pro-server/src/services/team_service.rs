@@ -1,16 +1,16 @@
 use crate::{models::*, redis_cache::RedisCache};
 use anyhow::Result;
 use chrono::Utc;
-use sqlx::AnyPool;
+use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 
 pub struct TeamService {
-    db: AnyPool,
+    db: Pool<Sqlite>,
     redis: std::sync::Arc<RedisCache>,
 }
 
 impl TeamService {
-    pub fn new(db: AnyPool, redis: std::sync::Arc<RedisCache>) -> Self {
+    pub fn new(db: Pool<Sqlite>, redis: std::sync::Arc<RedisCache>) -> Self {
         Self { db, redis }
     }
 
@@ -336,13 +336,13 @@ impl TeamService {
     }
 
     pub async fn get_team_settings(&self, team_id: &str) -> Result<serde_json::Value> {
-        let settings =
+        let settings: serde_json::Value =
             sqlx::query_scalar::<_, serde_json::Value>("SELECT settings FROM teams WHERE id = ?")
                 .bind(team_id)
                 .fetch_one(&self.db)
                 .await?;
 
-        Ok(settings.unwrap_or(serde_json::Value::Object(serde_json::Map::new())))
+        Ok(settings)
     }
 
     pub async fn update_team_settings(

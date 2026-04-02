@@ -397,17 +397,17 @@ impl ConfigManager {
                         // Update existing server
                         let update = crate::db::UpdateServer {
                             id: existing.id.clone(),
-                            name: record.name.clone(),
-                            host: record.host.clone(),
-                            port: record.port,
-                            username: record.username.clone(),
-                            auth_type: record.auth_type.clone(),
+                            name: Some(record.name.clone()),
+                            host: Some(record.host.clone()),
+                            port: Some(record.port),
+                            username: Some(record.username.clone()),
+                            auth_type: Some(record.auth_type.clone()),
                             identity_file: record.identity_file.clone(),
                             group_id: record
                                 .group
                                 .as_ref()
                                 .and_then(|g| group_name_to_id.get(g).cloned()),
-                            status: "active".to_string(),
+                            status: Some("active".to_string()),
                         };
                         if let Err(e) = db.update_server(&update) {
                             result
@@ -505,17 +505,17 @@ impl ConfigManager {
                     ConflictResolution::Overwrite => {
                         let update = crate::db::UpdateServer {
                             id: existing.id.clone(),
-                            name: host.name.clone(),
-                            host: host.host.clone(),
-                            port: host.port,
-                            username: host.username.clone(),
-                            auth_type: host.auth_type.clone(),
+                            name: Some(host.name.clone()),
+                            host: Some(host.host.clone()),
+                            port: Some(host.port),
+                            username: Some(host.username.clone()),
+                            auth_type: Some(host.auth_type.clone()),
                             identity_file: host.identity_file.clone(),
                             group_id: host
                                 .group_name
                                 .as_ref()
                                 .and_then(|g| group_name_to_id.get(g).cloned()),
-                            status: "active".to_string(),
+                            status: Some("active".to_string()),
                         };
                         if let Err(e) = db.update_server(&update) {
                             result
@@ -775,17 +775,17 @@ impl ConfigManager {
                         {
                             let update = crate::db::UpdateServer {
                                 id: existing.id.clone(),
-                                name: server.name,
-                                host: server.host,
-                                port: server.port,
-                                username: server.username,
-                                auth_type: server.auth_type,
+                                name: Some(server.name),
+                                host: Some(server.host),
+                                port: Some(server.port),
+                                username: Some(server.username),
+                                auth_type: Some(server.auth_type),
                                 identity_file: server.identity_file,
                                 group_id: server
                                     .group_id
                                     .as_ref()
                                     .and_then(|id| group_id_mapping.get(id).cloned()),
-                                status: server.status,
+                                status: Some(server.status),
                             };
                             if let Err(e) = db.update_server(&update) {
                                 result

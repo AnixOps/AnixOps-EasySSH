@@ -1,29 +1,194 @@
-/* EasySSH GTK4 Styles */
+/* EasySSH GTK4 Styles - Adwaita Theme */
+
+/* Server list styling */
+.server-list {
+    background: transparent;
+}
 
 .server-list row {
     border-radius: 6px;
     margin: 2px 6px;
+    padding: 6px;
 }
 
 .server-list row:selected {
-    background-color: @accent_bg_color;
-    color: @accent_fg_color;
+    background: alpha(@accent_color, 0.15);
+    color: @accent_color;
 }
 
-.connection-button {
-    min-width: 120px;
+.server-list row:hover {
+    background: alpha(@window_fg_color, 0.05);
 }
 
+.server-list row:selected:hover {
+    background: alpha(@accent_color, 0.2);
+}
+
+/* Sidebar styling */
+.sidebar {
+    background: @sidebar_bg_color;
+}
+
+.sidebar row {
+    border-radius: 6px;
+    margin: 2px 8px;
+}
+
+.sidebar row:selected {
+    background: @selected_bg_color;
+    color: @selected_fg_color;
+}
+
+/* Status colors */
+.success {
+    color: @success_color;
+}
+
+.error {
+    color: @error_color;
+}
+
+.warning {
+    color: @warning_color;
+}
+
+/* Status page icon size */
+statuspage > image {
+    icon-size: 96px;
+}
+
+/* Dialog styling */
+dialog headerbar {
+    border-bottom: none;
+}
+
+/* Entry focus styling */
+entry:focus {
+    border-color: @accent_color;
+}
+
+/* Button hover effects */
+button.suggested-action:hover {
+    filter: brightness(1.1);
+}
+
+button.destructive-action:hover {
+    filter: brightness(1.1);
+}
+
+/* Scrolled window styling */
+scrolledwindow {
+    border: none;
+}
+
+/* Separator styling */
+separator {
+    background: alpha(@borders, 0.5);
+}
+
+/* Tooltip styling */
+tooltip {
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+/* Paned styling */
+paned > separator {
+    background: transparent;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+paned > separator.wide {
+    min-width: 6px;
+    min-height: 6px;
+}
+
+/* Header bar styling */
+headerbar {
+    background: @headerbar_bg_color;
+    color: @headerbar_fg_color;
+}
+
+/* Preferences group styling */
+preferencesgroup {
+    margin: 12px 0;
+}
+
+/* Card-like containers */
+.card {
+    background: @card_bg_color;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Monospace text */
+.monospace {
+    font-family: monospace;
+}
+
+/* Compact list rows */
+.compact row {
+    min-height: 32px;
+    padding: 4px 12px;
+}
+
+/* Connection status indicators */
 .status-connected {
     color: @success_color;
 }
 
 .status-disconnected {
-    color: @warning_color;
+    color: @insensitive_fg_color;
 }
 
 .status-error {
     color: @error_color;
+}
+
+/* Search entry styling */
+searchentry {
+    border-radius: 999px;
+}
+
+/* Popover menu styling */
+popover.menu {
+    padding: 6px;
+}
+
+popover.menu modelbutton {
+    border-radius: 6px;
+    padding: 6px 12px;
+}
+
+/* Toast notification styling */
+toast {
+    border-radius: 12px;
+    margin: 12px;
+}
+
+/* Responsive breakpoints styling */
+@media (max-width: 800px) {
+    .sidebar {
+        min-width: 200px;
+    }
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+    .server-list row:hover {
+        background: alpha(@window_fg_color, 0.08);
+    }
+
+    .card {
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* Legacy compatibility styles */
+.connection-button {
+    min-width: 120px;
 }
 
 .terminal-container {
@@ -37,8 +202,6 @@
     border-radius: 12px;
     margin: 8px;
 }
-
-/* Additional styles */
 
 .server-sidebar {
     background-color: @sidebar_bg_color;
@@ -69,22 +232,6 @@
 /* Status indicators */
 .status-unknown {
     color: alpha(@window_fg_color, 0.4);
-}
-
-/* Terminal styling */
-.terminal-view {
-    background-color: #1a1d23;
-    color: #d0d5e0;
-    font-family: "Monospace", "Consolas", monospace;
-    font-size: 13px;
-    padding: 12px;
-    border-radius: 6px;
-}
-
-.terminal-output {
-    font-family: "Monospace", "Consolas", monospace;
-    font-size: 13px;
-    line-height: 1.4;
 }
 
 /* Monitor panel */

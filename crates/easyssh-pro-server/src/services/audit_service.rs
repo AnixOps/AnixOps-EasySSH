@@ -1,15 +1,15 @@
 use crate::models::*;
 use anyhow::Result;
 use chrono::Utc;
-use sqlx::AnyPool;
+use sqlx::{Pool, Row, Sqlite};
 use uuid::Uuid;
 
 pub struct AuditService {
-    db: AnyPool,
+    db: Pool<Sqlite>,
 }
 
 impl AuditService {
-    pub fn new(db: AnyPool) -> Self {
+    pub fn new(db: Pool<Sqlite>) -> Self {
         Self { db }
     }
 

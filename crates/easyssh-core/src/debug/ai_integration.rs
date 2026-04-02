@@ -336,10 +336,10 @@ pub async fn build(target: Option<String>) -> Result<BuildResult, String> {
 
     let start = std::time::Instant::now();
 
-    let mut args = vec!["build"];
+    let mut args: Vec<String> = vec!["build".to_string()];
     if let Some(t) = target {
-        args.push("--target");
-        args.push(&t);
+        args.push("--target".to_string());
+        args.push(t.to_string());
     }
 
     let output = tokio::process::Command::new("cargo")

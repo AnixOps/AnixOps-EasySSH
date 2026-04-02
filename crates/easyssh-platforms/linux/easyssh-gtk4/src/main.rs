@@ -3,50 +3,42 @@ use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::sync::Arc;
 
-mod app;
-mod bridge;
-mod enhanced_app;
+mod application;
+mod window;
+mod sidebar;
+mod server_list;
+mod server_detail;
+mod terminal_launcher;
+mod dialogs;
 mod models;
 mod views;
 mod widgets;
+mod app;
+mod enhanced_app;
+mod bridge;
 
-use app::EasySSHApp;
+use application::EasySSHApplication;
 
 const APP_ID: &str = "com.easyssh.EasySSH";
+const VERSION: &str = "0.3.0";
 
 fn main() -> glib::ExitCode {
     // Initialize logging
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter("easyssh_gtk4=debug")
+        .init();
 
-    tracing::info!("Starting EasySSH GTK4");
+    tracing::info!("Starting EasySSH Lite GTK4 v{}", VERSION);
 
-    // Initialize GTK/libadwaita
+    // Initialize GTK and libadwaita
     gtk4::init().expect("Failed to initialize GTK");
     libadwaita::init();
 
     // Load CSS styles
     load_css();
 
-    // Create and run app
-    let app = adw::Application::builder().application_id(APP_ID).build();
-
-    // Store EasySSHApp instance for shutdown handling
-    let easy_app_ref: RefCell<Option<Arc<EasySSHApp>>> = RefCell::new(None);
-
-    app.connect_activate(glib::clone!(@strong easy_app_ref => move |app| {
-        let easy_app = Arc::new(EasySSHApp::new(app));
-        easy_app.present();
-        easy_app_ref.replace(Some(easy_app));
-    }));
-
-    // Handle graceful shutdown when the application is about to quit
-    app.connect_shutdown(glib::clone!(@strong easy_app_ref => move |_| {
-        tracing::info!("Application shutting down...");
-        if let Some(easy_app) = easy_app_ref.borrow().as_ref() {
-            easy_app.shutdown();
-        }
-        tracing::info!("Application shutdown complete");
-    }));
+    // Create and run application
+    let app = EasySSHApplication::new();
 
     app.run()
 }
@@ -54,7 +46,6 @@ fn main() -> glib::ExitCode {
 fn load_css() {
     let provider = gtk4::CssProvider::new();
 
-    // Load CSS from resources file or fallback to embedded CSS
     let css_data = include_str!("styles.css");
     provider.load_from_data(css_data);
 

@@ -10,6 +10,18 @@ use tokio::sync::mpsc;
 use tracing::{error, info};
 use uuid::Uuid;
 
+// === Lite Version Modules (simplified UI) ===
+#[cfg(feature = "lite")]
+mod app;
+#[cfg(feature = "lite")]
+mod dialogs;
+#[cfg(feature = "lite")]
+mod detail_panel;
+#[cfg(feature = "lite")]
+mod sidebar;
+#[cfg(feature = "lite")]
+mod terminal_launcher;
+
 #[cfg(feature = "code-editor")]
 mod code_editor;
 #[cfg(feature = "code-editor")]
@@ -149,6 +161,59 @@ use docker_ui::{render_docker_panel, DockerManagerUI};
 use kubernetes_ui::{render_kubernetes_panel, KubernetesManagerUI};
 
 fn main() -> eframe::Result {
+    // === Lite Version Entry Point ===
+    #[cfg(feature = "lite")]
+    return run_lite_app();
+
+    // === Standard/Pro Version Entry Point ===
+    #[cfg(not(feature = "lite"))]
+    return run_standard_app();
+}
+
+/// Run the Lite version of EasySSH
+#[cfg(feature = "lite")]
+fn run_lite_app() -> eframe::Result {
+    use app::EasySshApp;
+
+    tracing_subscriber::fmt::init();
+    info!("Starting EasySSH Lite");
+
+    // Initialize view model
+    let view_model = match AppViewModel::new() {
+        Ok(vm) => Arc::new(Mutex::new(vm)),
+        Err(e) => {
+            error!("Failed to initialize: {}", e);
+            return Err(eframe::Error::AppCreation(format!(
+                "Failed to initialize: {}",
+                e
+            )));
+        }
+    };
+
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1024.0, 768.0])
+            .with_min_inner_size([800.0, 600.0])
+            .with_title("EasySSH Lite"),
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "EasySSH Lite",
+        options,
+        Box::new(move |_cc| match EasySshApp::new(view_model) {
+            Ok(app) => Ok(Box::new(app)),
+            Err(e) => Err(eframe::Error::AppCreation(format!(
+                "Failed to create app: {}",
+                e
+            ))),
+        }),
+    )
+}
+
+/// Run the Standard/Pro version of EasySSH
+#[cfg(not(feature = "lite"))]
+fn run_standard_app() -> eframe::Result {
     // Start global startup profiler
     let profiler = global_profiler();
     let _main_phase = profiler.lock().unwrap().start_phase("total");

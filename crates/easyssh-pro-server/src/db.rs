@@ -1,14 +1,24 @@
 use anyhow::Result;
-use sqlx::{migrate::Migrator, Any, AnyPool, Pool, Row};
+use sqlx::{migrate::Migrator, sqlite::SqlitePoolOptions, Pool, Row, Sqlite};
 use std::path::Path;
 
 pub struct Database {
-    pool: Pool<Any>,
+    pool: Pool<Sqlite>,
 }
 
 impl Database {
     pub async fn new(database_url: &str) -> Result<Self> {
-        let pool = AnyPool::connect(database_url).await?;
+        let pool = if database_url.starts_with("sqlite:") {
+            SqlitePoolOptions::new()
+                .max_connections(5)
+                .connect(database_url)
+                .await?
+        } else {
+            SqlitePoolOptions::new()
+                .max_connections(5)
+                .connect(&format!("sqlite:{}", database_url))
+                .await?
+        };
 
         // Run migrations
         let migrator = Migrator::new(Path::new("./migrations")).await?;
@@ -17,7 +27,7 @@ impl Database {
         Ok(Self { pool })
     }
 
-    pub fn pool(&self) -> &Pool<Any> {
+    pub fn pool(&self) -> &Pool<Sqlite> {
         &self.pool
     }
 

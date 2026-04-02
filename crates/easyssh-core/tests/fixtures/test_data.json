@@ -1,0 +1,89 @@
+{
+  "servers": [
+    {
+      "id": "srv-001",
+      "name": "Test Server 1",
+      "host": "192.168.1.100",
+      "port": 22,
+      "username": "admin",
+      "auth_type": "password",
+      "password": "test_password_123",
+      "group_id": "grp-001",
+      "tags": ["production", "web"]
+    },
+    {
+      "id": "srv-002",
+      "name": "Test Server 2",
+      "host": "192.168.1.101",
+      "port": 2222,
+      "username": "root",
+      "auth_type": "key",
+      "identity_file": "~/.ssh/id_rsa",
+      "group_id": "grp-001",
+      "tags": ["production", "database"]
+    },
+    {
+      "id": "srv-003",
+      "name": "Development Server",
+      "host": "dev.local",
+      "port": 22,
+      "username": "developer",
+      "auth_type": "agent",
+      "group_id": "grp-002",
+      "tags": ["development"]
+    }
+  ],
+  "groups": [
+    {
+      "id": "grp-001",
+      "name": "Production Servers",
+      "color": "#ff0000"
+    },
+    {
+      "id": "grp-002",
+      "name": "Development",
+      "color": "#00ff00"
+    },
+    {
+      "id": "grp-003",
+      "name": "Testing",
+      "color": "#0000ff"
+    }
+  ],
+  "identities": [
+    {
+      "id": "id-001",
+      "name": "Personal Key",
+      "private_key_path": "~/.ssh/id_rsa",
+      "auth_type": "key"
+    },
+    {
+      "id": "id-002",
+      "name": "Work Key",
+      "private_key_path": "~/.ssh/id_ed25519",
+      "passphrase": "work_key_pass",
+      "auth_type": "key"
+    }
+  ],
+  "ssh_configs": [
+    {
+      "host": "github.com",
+      "hostname": "github.com",
+      "user": "git",
+      "port": 22,
+      "identity_file": "~/.ssh/id_github"
+    },
+    {
+      "host": "gitlab",
+      "hostname": "gitlab.company.com",
+      "user": "git",
+      "port": 22,
+      "identity_file": "~/.ssh/id_gitlab"
+    }
+  ],
+  "test_credentials": {
+    "master_password": "TestMasterPass123!",
+    "wrong_password": "WrongPass456!",
+    "test_data": "This is test data for encryption testing"
+  }
+}

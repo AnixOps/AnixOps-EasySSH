@@ -1,15 +1,16 @@
+use sha2::{Digest, Sha256};
+
+pub use crate::rate_limit::rate_limit_middleware;
+
 use axum::{
     extract::{Request, State},
     http::{header, StatusCode},
     middleware::Next,
     response::Response,
 };
-use std::sync::Arc;
+use tower::Layer;
 
-use crate::{auth::decode_token, models::ErrorResponse, redis_cache::RedisCache, AppState};
-
-pub mod auth;
-pub mod rate_limit;
+use crate::{auth::decode_token, models::ErrorResponse, AppState};
 
 // Authentication middleware
 pub async fn auth_middleware(
@@ -45,7 +46,7 @@ pub async fn auth_middleware(
     match decode_token(token, &state.config.jwt_secret) {
         Ok(claims) => {
             // Check if token is revoked
-            let jti_hash = format!("{:x}", sha256::digest(token));
+            let jti_hash = format!("{:x}", Sha256::digest(token));
             if let Ok(Some(_)) = state.redis.get(&format!("revoked:{}", jti_hash)).await {
                 return Err((
                     StatusCode::UNAUTHORIZED,
@@ -64,7 +65,7 @@ pub async fn auth_middleware(
         }
         Err(_) => {
             // Try API Key authentication
-            let key_hash = format!("{:x}", sha256::digest(token));
+            let key_hash = format!("{:x}", Sha256::digest(token));
             match state.redis.get_api_key_user(&key_hash).await {
                 Ok(Some(user_id)) => {
                     // Add user info to request extensions
@@ -75,6 +76,7 @@ pub async fn auth_middleware(
                         iat: 0,
                         jti: key_hash,
                         scopes: vec!["api".to_string()],
+                        is_admin: false,
                     });
                     Ok(next.run(request).await)
                 }
@@ -92,16 +94,14 @@ pub async fn auth_middleware(
     }
 }
 
-use sha256;
-
 // RBAC middleware factory
 pub fn require_permission(
-    resource_type: &'static str,
-    action: &'static str,
-) -> impl axum::middleware::Layer {
+    _resource_type: &'static str,
+    _action: &'static str,
+) -> impl Layer<axum::Router<AppState>> {
     // This would check permissions based on the user's role
     // Implementation depends on your RBAC service
-    axum::middleware::from_fn(move |req: Request, next: Next| async move {
+    axum::middleware::from_fn::<_, AppState>(move |req: Request, next: Next| async move {
         // Check permission logic here
         next.run(req).await
     })
@@ -120,5 +120,3 @@ pub async fn error_handling_middleware(req: Request, next: Next) -> Response {
 
     response
 }
-
-use sha256;

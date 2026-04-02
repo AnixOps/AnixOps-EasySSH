@@ -344,11 +344,13 @@ impl DockerManager {
             .get_sftp_session_arc(ssh_session_id)
             .ok_or_else(|| crate::error::LiteError::SshSessionNotFound(ssh_session_id.to_string()))?;
 
-        let container_id = container_id.to_string();
+        let container_id_clone = container_id.to_string();
+        let container_id_for_logs = container_id.to_string();
         let session_id = ssh_session_id.to_string();
 
         let handle = tokio::spawn(async move {
             let tx_clone = tx.clone();
+            let container_id_inner = container_id_clone;
             let _result = tokio::task::spawn_blocking(move || {
                 let session_guard = session_arc.blocking_lock();
 
@@ -383,14 +385,14 @@ impl DockerManager {
             })
             .await;
 
-            log::info!("Log stream ended for container {}", container_id);
+            log::info!("Log stream ended for container {}", container_id_inner);
         });
 
         let mut active_logs = self.active_logs.write().await;
-        active_logs.insert(format!("{}_{}", session_id, container_id), handle);
+        active_logs.insert(format!("{}_{}", session_id, container_id_for_logs), handle);
 
         let mut log_channels = self.log_channels.write().await;
-        log_channels.insert(format!("{}_{}", session_id, container_id), tx_for_insert);
+        log_channels.insert(format!("{}_{}", session_id, container_id_for_logs), tx_for_insert);
 
         Ok(rx)
     }
@@ -411,7 +413,7 @@ impl DockerManager {
     }
 
     /// Parse container inspect JSON
-    fn parse_container_inspect_json(&self, value: serde_json::Value) -> Result<ContainerInfo, LiteError> {
+    pub fn parse_container_inspect_json(&self, value: serde_json::Value) -> Result<ContainerInfo, LiteError> {
         // Extract basic info from inspect output
         let config = value.get("Config").and_then(|v| v.as_object());
         let host_config = value.get("HostConfig").and_then(|v| v.as_object());
@@ -540,5 +542,110 @@ impl DockerManager {
             },
             mounts: Vec::new(),
         })
+    }
+
+    // Stub implementations for methods used by UI
+    pub async fn list_networks(&self, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<Vec<super::types::NetworkInfo>, LiteError> {
+        Ok(Vec::new())
+    }
+
+    pub async fn list_volumes(&self, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<Vec<super::types::VolumeInfo>, LiteError> {
+        Ok(Vec::new())
+    }
+
+    pub async fn exec_in_container(&self, _container_id: &str, _command: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<String, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn list_compose_projects(&self, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<Vec<super::types::ComposeProject>, LiteError> {
+        Ok(Vec::new())
+    }
+
+    pub async fn compose_up(&self, _project_path: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<String, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn compose_down(&self, _project_path: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<String, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn build_image_stream(&self, _dockerfile_path: &str, _tag: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<mpsc::UnboundedReceiver<String>, LiteError> {
+        let (tx, rx) = mpsc::unbounded_channel();
+        let _ = tx.send("Not implemented".to_string());
+        Ok(rx)
+    }
+
+    pub async fn stream_stats(&self, _container_id: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<mpsc::UnboundedReceiver<ContainerStats>, LiteError> {
+        let (_, rx) = mpsc::unbounded_channel();
+        Ok(rx)
+    }
+
+    pub async fn stop_stats_stream(&self, _container_id: &str) -> Result<(), LiteError> {
+        Ok(())
+    }
+
+    pub async fn export_container(&self, _container_id: &str, _output_path: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn import_image(&self, _input_path: &str, _repository: &str, _tag: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn save_image(&self, _image_id: &str, _output_path: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn load_image(&self, _input_path: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn copy_from_container(&self, _container_id: &str, _container_path: &str, _local_path: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn copy_to_container(&self, _container_id: &str, _local_path: &str, _container_path: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn get_system_info(&self, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<super::types::DockerSystemInfo, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn stream_events(&self, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<mpsc::UnboundedReceiver<super::types::DockerEvent>, LiteError> {
+        let (_, rx) = mpsc::unbounded_channel();
+        Ok(rx)
+    }
+
+    pub async fn stop_events_stream(&self) -> Result<(), LiteError> {
+        Ok(())
+    }
+
+    pub async fn top(&self, _container_id: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<String, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn wait(&self, _container_id: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<i32, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn rename_container(&self, _container_id: &str, _new_name: &str, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn update_container(&self, _container_id: &str, _config: &super::types::HostConfig, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<(), LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn run_container(&self, _image: &str, _name: Option<&str>, _command: Option<&str>, _ports: Vec<&str>, _volumes: Vec<&str>, _env: Vec<&str>, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<String, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn get_disk_usage(&self, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<super::types::DiskUsage, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
+    }
+
+    pub async fn system_prune(&self, _ssh_manager: &SshSessionManager, _ssh_session_id: &str) -> Result<super::types::SystemPruneResult, LiteError> {
+        Err(LiteError::Docker("Not implemented".to_string()))
     }
 }

@@ -26,8 +26,8 @@ struct ExecSession {
 /// Docker manager
 pub struct DockerManager {
     connections: RwLock<HashMap<String, DockerConnection>>,
-    active_logs: RwLock<HashMap<String, JoinHandle<()>>>,
-    log_channels: RwLock<HashMap<String, mpsc::UnboundedSender<String>>>,
+    pub active_logs: RwLock<HashMap<String, JoinHandle<()>>>,
+    pub log_channels: RwLock<HashMap<String, mpsc::UnboundedSender<String>>>,
     exec_sessions: RwLock<HashMap<String, ExecSession>>,
 }
 
@@ -63,7 +63,7 @@ impl DockerManager {
     }
 
     /// Parse container JSON from docker ps output
-    fn parse_container_json(&self, value: serde_json::Value) -> Result<ContainerInfo, LiteError> {
+    pub fn parse_container_json(&self, value: serde_json::Value) -> Result<ContainerInfo, LiteError> {
         Ok(ContainerInfo {
             id: value.get("ID").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             names: value
@@ -139,7 +139,7 @@ impl DockerManager {
     }
 
     /// Parse ports from JSON
-    fn parse_ports_json(&self, value: Option<&serde_json::Value>) -> Vec<PortMapping> {
+    pub fn parse_ports_json(&self, value: Option<&serde_json::Value>) -> Vec<PortMapping> {
         value
             .and_then(|v| v.as_array())
             .map(|arr| {
@@ -163,7 +163,7 @@ impl DockerManager {
     }
 
     /// Parse ports from string
-    fn parse_ports(&self, ports_str: Option<&&str>) -> Vec<PortMapping> {
+    pub fn parse_ports(&self, ports_str: Option<&str>) -> Vec<PortMapping> {
         ports_str
             .map(|s| {
                 s.split(", ")
@@ -189,7 +189,7 @@ impl DockerManager {
     }
 
     /// Parse status string
-    fn parse_status(&self, status: &str) -> ContainerStatus {
+    pub fn parse_status(&self, status: &str) -> ContainerStatus {
         if status.starts_with("Up") {
             ContainerStatus::Running
         } else if status.starts_with("Exited") {
@@ -204,7 +204,7 @@ impl DockerManager {
     }
 
     /// Parse image JSON
-    fn parse_image_json(&self, value: serde_json::Value) -> Result<ImageInfo, LiteError> {
+    pub fn parse_image_json(&self, value: serde_json::Value) -> Result<ImageInfo, LiteError> {
         Ok(ImageInfo {
             id: value.get("ID").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             repo_tags: value
@@ -261,7 +261,7 @@ impl DockerManager {
     }
 
     /// Parse network JSON
-    fn parse_network_json(&self, value: serde_json::Value) -> Result<NetworkInfo, LiteError> {
+    pub fn parse_network_json(&self, value: serde_json::Value) -> Result<NetworkInfo, LiteError> {
         Ok(NetworkInfo {
             id: value.get("Id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             name: value
@@ -293,7 +293,7 @@ impl DockerManager {
     }
 
     /// Parse volume JSON
-    fn parse_volume_json(&self, value: serde_json::Value) -> Result<VolumeInfo, LiteError> {
+    pub fn parse_volume_json(&self, value: serde_json::Value) -> Result<VolumeInfo, LiteError> {
         Ok(VolumeInfo {
             name: value.get("Name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             driver: value
@@ -324,7 +324,7 @@ impl DockerManager {
     }
 
     /// Parse size string like "1.23MB" to bytes
-    fn parse_size(&self, size_str: &str) -> i64 {
+    pub fn parse_size(&self, size_str: &str) -> i64 {
         let size_str = size_str.trim();
         let num: f64 = size_str
             .chars()

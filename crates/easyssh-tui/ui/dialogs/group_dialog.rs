@@ -1,0 +1,286 @@
+//! Group Dialog
+//!
+//! Form dialog for creating or editing groups.
+//! Fields:
+//! - Name (required)
+//! - Color (hex color code)
+
+use super::{Dialog, DialogResult, GroupData};
+use crate::ui::dialogs::handle_text_input;
+use crossterm::event::{KeyCode, KeyEvent};
+use easyssh_core::GroupRecord;
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, Paragraph},
+    Frame,
+};
+
+/// Fields in the group dialog
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Field {
+    Name,
+    Color,
+}
+
+/// Group creation/editing dialog
+pub struct GroupDialog {
+    title: String,
+    data: GroupData,
+    focused_field: Field,
+    cursor_name: usize,
+    cursor_color: usize,
+    preset_colors: Vec<&'static str>,
+}
+
+impl GroupDialog {
+    pub fn new(title: String, group: Option<GroupRecord>) -> Self {
+        let data = if let Some(group) = group {
+            GroupData {
+                id: group.id,
+                name: group.name,
+                color: "#4A90D9".to_string(), // Default color
+            }
+        } else {
+            GroupData::default()
+        };
+
+        Self {
+            title,
+            data,
+            focused_field: Field::Name,
+            cursor_name: 0,
+            cursor_color: 0,
+            preset_colors: vec![
+                "#EF4444", // Red
+                "#F97316", // Orange
+                "#F59E0B", // Amber
+                "#84CC16", // Lime
+                "#22C55E", // Green
+                "#10B981", // Emerald
+                "#14B8A6", // Teal
+                "#06B6D4", // Cyan
+                "#0EA5E9", // Sky
+                "#3B82F6", // Blue
+                "#6366F1", // Indigo
+                "#8B5CF6", // Violet
+                "#A855F7", // Purple
+                "#D946EF", // Fuchsia
+                "#EC4899", // Pink
+                "#F43F5E", // Rose
+                "#6B7280", // Gray
+            ],
+        }
+    }
+
+    fn is_valid_color(&self) -> bool {
+        let color = &self.data.color;
+        color.starts_with('#')
+            && (color.len() == 4 || color.len() == 7)
+            && color[1..].chars().all(|c| c.is_ascii_hexdigit())
+    }
+}
+
+impl Dialog for GroupDialog {
+    fn handle_key(&mut self, key: KeyEvent) -> DialogResult {
+        // Handle dialog navigation
+        match key.code {
+            KeyCode::Tab => {
+                self.focused_field = match self.focused_field {
+                    Field::Name => Field::Color,
+                    Field::Color => Field::Name,
+                };
+                return DialogResult::Continue;
+            }
+            KeyCode::BackTab => {
+                self.focused_field = match self.focused_field {
+                    Field::Name => Field::Color,
+                    Field::Color => Field::Name,
+                };
+                return DialogResult::Continue;
+            }
+            KeyCode::Esc => return DialogResult::Cancel,
+            KeyCode::Enter => {
+                if self.is_valid() {
+                    return DialogResult::GroupData(self.data.clone());
+                }
+            }
+            _ => {}
+        }
+
+        // Handle field-specific input
+        match self.focused_field {
+            Field::Name => {
+                handle_text_input(key, &mut self.data.name, &mut self.cursor_name);
+            }
+            Field::Color => {
+                // Check for number keys to select preset colors
+                match key.code {
+                    KeyCode::Char(c) if c.is_ascii_digit() => {
+                        let idx = (c.to_digit(10).unwrap() as usize)
+                            .min(self.preset_colors.len() - 1);
+                        if let Some(&color) = self.preset_colors.get(idx) {
+                            self.data.color = color.to_string();
+                            self.cursor_color = self.data.color.len();
+                        }
+                    }
+                    _ => {
+                        handle_text_input(key, &mut self.data.color, &mut self.cursor_color);
+                    }
+                }
+            }
+        }
+
+        DialogResult::Continue
+    }
+
+    fn render(&self, frame: &mut Frame, area: Rect) {
+        frame.render_widget(Clear, area);
+
+        let block = Block::default()
+            .title(self.title.as_str())
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints([
+                Constraint::Length(3), // Name
+                Constraint::Length(5), // Color + presets
+                Constraint::Length(2), // Help
+            ])
+            .split(inner);
+
+        // Helper function to render field
+        fn render_field(
+            frame: &mut Frame,
+            area: Rect,
+            label: &str,
+            value: &str,
+            is_focused: bool,
+            cursor_pos: usize,
+        ) {
+            let style = if is_focused {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::White)
+            } else {
+                Style::default()
+            };
+
+            let text = if is_focused {
+                Line::from(vec![
+                    Span::styled(label, Style::default().add_modifier(Modifier::BOLD)),
+                    Span::raw(" "),
+                    Span::styled(value, style),
+                ])
+            } else {
+                Line::from(vec![
+                    Span::styled(label, Style::default().add_modifier(Modifier::BOLD)),
+                    Span::raw(" "),
+                    Span::raw(value),
+                ])
+            };
+
+            let para = Paragraph::new(text);
+            frame.render_widget(para, area);
+
+            if is_focused {
+                frame.set_cursor(
+                    area.x + label.len() as u16 + 1 + cursor_pos as u16,
+                    area.y,
+                );
+            }
+        }
+
+        // Name field
+        render_field(
+            frame,
+            chunks[0],
+            "Name:",
+            &self.data.name,
+            self.focused_field == Field::Name,
+            self.cursor_name,
+        );
+
+        // Color field with preview
+        let color_style = if self.focused_field == Field::Color {
+            Style::default().fg(Color::Black).bg(Color::White)
+        } else {
+            Style::default()
+        };
+
+        let color_rgb = if self.is_valid_color() {
+            parse_hex_color(&self.data.color)
+        } else {
+            (128, 128, 128)
+        };
+
+        let color_preview = Span::styled(
+            "  ",
+            Style::default().bg(Color::Rgb(color_rgb.0, color_rgb.1, color_rgb.2)),
+        );
+
+        let color_line = Line::from(vec![
+            Span::styled("Color:", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(format!(" {} ", self.data.color), color_style),
+            color_preview,
+        ]);
+
+        let color_para = Paragraph::new(color_line);
+        frame.render_widget(color_para, chunks[1]);
+
+        // Preset colors
+        let mut preset_spans = vec![Span::styled(
+            "Presets: ",
+            Style::default().fg(Color::Gray),
+        )];
+
+        for (idx, &color) in [
+            "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#0EA5E9", "#3B82F6",
+            "#A855F7", "#EC4899", "#6B7280",
+        ]
+        .iter()
+        .enumerate()
+        {
+            let rgb = parse_hex_color(color);
+            preset_spans.push(Span::styled(
+                format!("{}  ", idx),
+                Style::default().bg(Color::Rgb(rgb.0, rgb.1, rgb.2)).fg(Color::White),
+            ));
+        }
+
+        let presets_para = Paragraph::new(Line::from(preset_spans));
+        frame.render_widget(presets_para, chunks[1]); // Overlay on color area
+
+        // Help text
+        let help_para = Paragraph::new("0-8: Select preset  |  Enter: Save  |  Esc: Cancel")
+            .style(Style::default().fg(Color::Gray));
+        frame.render_widget(help_para, chunks[2]);
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.data.name.trim().is_empty() && self.is_valid_color()
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+}
+
+/// Parse hex color to RGB tuple
+fn parse_hex_color(hex: &str) -> (u8, u8, u8) {
+    if hex.len() >= 7 && hex.starts_with('#') {
+        let r = u8::from_str_radix(&hex[1..3], 16).unwrap_or(128);
+        let g = u8::from_str_radix(&hex[3..5], 16).unwrap_or(128);
+        let b = u8::from_str_radix(&hex[5..7], 16).unwrap_or(128);
+        (r, g, b)
+    } else {
+        (128, 128, 128)
+    }
+}

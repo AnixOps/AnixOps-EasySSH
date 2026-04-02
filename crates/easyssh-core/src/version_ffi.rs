@@ -45,14 +45,20 @@ pub struct CFullBuildInfo {
 pub extern "C" fn version_get_platform_info() -> *mut CPlatformInfo {
     let platform = PlatformInfo::current();
 
+    // Compute boolean flags before moving platform fields
+    let is_windows = platform.is_windows();
+    let is_macos = platform.is_macos();
+    let is_linux = platform.is_linux();
+    let is_64bit = platform.is_64bit();
+
     let c_info = CPlatformInfo {
         os: CString::new(platform.os).unwrap().into_raw(),
         arch: CString::new(platform.arch).unwrap().into_raw(),
         family: CString::new(platform.family).unwrap().into_raw(),
-        is_windows: if platform.is_windows() { 1 } else { 0 },
-        is_macos: if platform.is_macos() { 1 } else { 0 },
-        is_linux: if platform.is_linux() { 1 } else { 0 },
-        is_64bit: if platform.is_64bit() { 1 } else { 0 },
+        is_windows: if is_windows { 1 } else { 0 },
+        is_macos: if is_macos { 1 } else { 0 },
+        is_linux: if is_linux { 1 } else { 0 },
+        is_64bit: if is_64bit { 1 } else { 0 },
     };
 
     Box::into_raw(Box::new(c_info))

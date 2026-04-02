@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{models::*, redis_cache::RedisCache, services::auth_service::AuthService, AppState};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String, // User ID
     pub email: String,
@@ -20,6 +20,7 @@ pub struct Claims {
     pub iat: i64,    // Issued at timestamp
     pub jti: String, // JWT ID (for revocation)
     pub scopes: Vec<String>,
+    pub is_admin: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,6 +48,7 @@ pub fn create_access_token(
         iat: now.timestamp(),
         jti: jti.clone(),
         scopes,
+        is_admin: false, // Default to false, should be fetched from user data
     };
 
     let token = encode(
@@ -103,17 +105,17 @@ pub fn verify_password(password: &str, hash: &str) -> anyhow::Result<bool> {
     Ok(valid)
 }
 
-pub fn generate_api_key() -> (String, String) {
+use sha2::{Sha256, Digest};
+
+pub fn generate_api_key() -> (String, String, String) {
     let key = format!("esk_{}", Uuid::new_v4().to_string().replace("-", ""));
-    let hash = format!("{:x}", sha256::digest(&key));
+    let hash = format!("{:x}", Sha256::digest(&key));
     let prefix = key[..11].to_string(); // "esk_" + first 7 chars
     (key, hash, prefix)
 }
 
-use sha256;
-
 pub fn hash_api_key(key: &str) -> String {
-    format!("{:x}", sha256::digest(key))
+    format!("{:x}", Sha256::digest(key))
 }
 
 pub fn auth_routes() -> Router<AppState> {
@@ -125,7 +127,7 @@ pub fn auth_routes() -> Router<AppState> {
         .route("/me", get(get_current_user))
         .route("/api-keys", post(create_api_key))
         .route("/api-keys", get(list_api_keys))
-        .route("/api-keys/:id", delete(revoke_api_key))
+        .route("/api-keys/{id}", delete(revoke_api_key))
 }
 
 async fn register(

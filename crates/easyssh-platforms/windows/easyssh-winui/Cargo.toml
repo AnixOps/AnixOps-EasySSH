@@ -1,10 +1,11 @@
 [package]
 name = "easyssh-winui"
-version = "0.3.0"
-edition = "2021"
-authors = ["EasySSH Team"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "EasySSH native client for Windows with WebSocket control API"
-license = "MIT"
+rust-version.workspace = true
 
 [[bin]]
 name = "EasySSH"
@@ -14,12 +15,124 @@ path = "src/main.rs"
 name = "EasySSH-Debug"
 path = "src/main_debug.rs"
 
+[dependencies]
+# Core dependency
+easyssh-core = { path = "../../../easyssh-core", default-features = false }
+
+# Workspace dependencies - async
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+dirs = { workspace = true }
+
+# UI Framework - egui
+eframe = { version = "0.28", features = ["default", "wgpu"] }
+egui = "0.28"
+egui-wgpu = "0.28"
+wgpu = "0.20"
+rfd = "0.14"
+raw-window-handle = "0.6"
+
+# WebSocket
+futures-util = { workspace = true }
+tokio-tungstenite = { workspace = true }
+
+# WebView for embedded terminal
+wry = { version = "0.46", default-features = false, features = ["protocol", "devtools"] }
+webview2-com = "0.33"
+
+# HTTP server for API
+tiny_http = "0.12"
+webbrowser = "1"
+
+# GPU acceleration
+bytemuck = { version = "1", features = ["derive"] }
+pollster = "0.3"
+
+# AI terminal dependencies (optional)
+reqwest = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+
+# Performance
+num_cpus = "1.16"
+parking_lot = { workspace = true }
+lru = { workspace = true }
+log = { workspace = true }
+
+# Clipboard
+arboard = { version = "3.4", features = ["wayland-data-control"] }
+
+# Security
+zeroize = { workspace = true }
+
+# File open
+open = "5.0"
+
+# Windows-specific
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.59", features = [
+    "Foundation_Metadata", "Win32_System_Registry",
+    "Win32_Foundation", "Win32_Graphics_Direct2D", "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Direct3D", "Win32_Graphics_Gdi",
+    "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging",
+    "UI_Notifications", "Data_Xml_Dom"
+] }
+
 [features]
 default = ["standard"]
-lite = ["easyssh-core/lite", "sftp"]
-standard = ["easyssh-core/standard", "sftp", "ai-terminal", "remote-desktop", "workflow", "code-editor", "monitoring", "team", "file-preview", "docker"]
-pro = ["easyssh-core/pro", "standard", "enterprise", "backup", "sync", "team", "database-client", "kubernetes"]
-enterprise = ["easyssh-core/team", "easyssh-core/audit", "easyssh-core/sso", "easyssh-core/sync"]
+
+# ===== Version Features =====
+lite = [
+    "easyssh-core/lite",
+    "sftp",
+    "key-manager",
+    "session-manager",
+    "port-forwarding"
+]
+
+standard = [
+    "easyssh-core/standard",
+    "lite",
+    "ai-terminal",
+    "remote-desktop",
+    "workflow",
+    "code-editor",
+    "monitoring",
+    "team",
+    "file-preview",
+    "proxy-jump",
+    "connection-pool-manager",
+    "transfer-queue",
+]
+
+pro = [
+    "easyssh-core/pro",
+    "standard",
+    "enterprise",
+    "backup",
+    "sync",
+    "cloud-sync",
+    "kubernetes",
+    "advanced-snippet-sharing",
+    "rbac"
+]
+
+# ===== Functional Features =====
+enterprise = [
+    "easyssh-core/team",
+    "easyssh-core/audit",
+    "easyssh-core/sso",
+    "easyssh-core/sync",
+    "advanced-permissions"
+]
+
 ai-terminal = ["dep:reqwest", "dep:async-trait", "dep:regex"]
 remote-desktop = ["easyssh-core/remote-desktop"]
 workflow = ["easyssh-core/workflow"]
@@ -32,6 +145,7 @@ backup = ["easyssh-core/backup"]
 search-enhanced = []
 audit = ["easyssh-core/audit"]
 sso = ["easyssh-core/sso"]
+saml-sso = ["easyssh-core/saml-sso"]
 macro-recorder = ["easyssh-core/workflow"]
 sftp = ["easyssh-core/sftp"]
 team = []
@@ -43,62 +157,15 @@ session-manager = []
 connection-pool-manager = []
 proxy-jump = []
 key-manager = []
-cloud-sync = []
+cloud-sync = ["sync"]
+rbac = ["team"]
+advanced-permissions = []
+advanced-snippet-sharing = ["team"]
 
-[dependencies]
-easyssh-core = { path = "../../../core" }
-eframe = { version = "0.28", features = ["default", "wgpu"] }
-egui = "0.28"
-egui-wgpu = "0.28"
-wgpu = "0.20"
-chrono = { version = "0.4", features = ["serde", "clock", "std"] }
-rfd = "0.14"
-raw-window-handle = "0.6"
-uuid = { version = "1", features = ["v4"] }
-tokio = { version = "1", features = ["full"] }
-tokio-tungstenite = "0.24"
-futures-util = "0.3"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-anyhow = "1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tiny_http = "0.12"
-webbrowser = "1"
-
-# High-performance terminal rendering - xterm.js WebGL integration
-wry = { version = "0.46", default-features = false, features = ["protocol", "devtools"] }
-webview2-com = "0.33"
-
-# GPU acceleration and offscreen rendering
-bytemuck = { version = "1", features = ["derive"] }
-pollster = "0.3"
-
-# AI and HTTP client dependencies
-reqwest = { version = "0.12", features = ["json"], optional = true }
-async-trait = { version = "0.1", optional = true }
-regex = { version = "1.10", optional = true }
-dirs = "5.0"
-open = "5.0"
-
-# Performance optimizations
-num_cpus = "1.16"
-parking_lot = "0.12"
-lru = "0.12"
-log = "0.4"
-
-# Clipboard support for terminal copy-paste
-arboard = { version = "3.4", features = ["wayland-data-control"] }
-
-# Security dependencies
-zeroize = { version = "1.7", features = ["derive"] }
-
-# Windows API for accessibility features (high contrast, reduced motion detection)
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.59", features = ["UI_ViewManagement", "Foundation_Metadata", "Win32_System_Registry", "Win32_Foundation", "Win32_Graphics_Direct2D", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Direct3D11", "Win32_Graphics_Direct3D", "Win32_Graphics_Gdi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "UI_Notifications", "Data_Xml_Dom"] }
+# Debug feature
+dev-tools = ["easyssh-core/dev-tools"]
 
 [dev-dependencies]
-# Testing
 mockall = "0.12"
-tempfile = "3"
+tempfile = { workspace = true }
 serial_test = "3"

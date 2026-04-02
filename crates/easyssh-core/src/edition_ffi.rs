@@ -135,16 +135,16 @@ pub unsafe extern "C" fn edition_free_version_info(info: *mut CVersionInfo) {
 pub extern "C" fn edition_get_app_identity() -> *mut CAppIdentity {
     let identity = AppIdentity::current();
 
+    // Get paths before moving identity fields
+    let data_dir = identity.data_dir().to_string_lossy().to_string();
+    let config_path = identity.config_path().to_string_lossy().to_string();
+
     let c_identity = CAppIdentity {
         app_name: CString::new(identity.app_name).unwrap().into_raw(),
         bundle_id: CString::new(identity.bundle_id).unwrap().into_raw(),
         vendor: CString::new(identity.vendor).unwrap().into_raw(),
-        data_dir: CString::new(identity.data_dir().to_string_lossy().to_string())
-            .unwrap()
-            .into_raw(),
-        config_path: CString::new(identity.config_path().to_string_lossy().to_string())
-            .unwrap()
-            .into_raw(),
+        data_dir: CString::new(data_dir).unwrap().into_raw(),
+        config_path: CString::new(config_path).unwrap().into_raw(),
     };
 
     Box::into_raw(Box::new(c_identity))

@@ -1,28 +1,50 @@
 [package]
 name = "easyssh-tui"
-version = "0.3.0"
-edition = "2021"
-authors = ["EasySSH Team"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "EasySSH terminal user interface (TUI) - cross-platform native SSH client"
-license = "MIT"
+rust-version.workspace = true
 
 [[bin]]
 name = "easyssh"
 path = "main.rs"
 
 [dependencies]
-easyssh-core = { path = "../core" }
-uuid = { version = "1", features = ["v4"] }
-whoami = "1.5"
-dirs = "5"
-env_logger = "0.11"
+# Core dependency
+easyssh-core = { path = "../easyssh-core", default-features = false }
 
-[dependencies.tokio]
-version = "1"
-features = ["full"]
+# Workspace dependencies
+uuid = { workspace = true }
+whoami = { workspace = true }
+dirs = { workspace = true }
+env_logger = { workspace = true }
+tokio = { workspace = true }
+
+# TUI dependencies
+ratatui = { version = "0.26", features = ["crossterm"] }
+crossterm = { version = "0.27", features = ["event-stream"] }
 
 [features]
 default = ["lite"]
+
+# Version features - 通过easyssh-core链式传递
 lite = ["easyssh-core/lite"]
 standard = ["easyssh-core/standard"]
 pro = ["easyssh-core/pro"]
+
+# Individual functional features (for fine-grained control)
+embedded-terminal = ["easyssh-core/embedded-terminal"]
+database = ["easyssh-core/database"]
+monitoring = ["easyssh-core/monitoring"]
+sftp = ["easyssh-core/sftp"]
+snippets = ["easyssh-core/snippets"]
+port-forwarding = ["easyssh-core/port-forwarding"]
+team = ["easyssh-core/team"]
+audit = ["easyssh-core/audit"]
+sso = ["easyssh-core/sso"]
+workflow = ["easyssh-core/workflow"]
+
+# Debug feature
+dev-tools = ["easyssh-core/dev-tools"]

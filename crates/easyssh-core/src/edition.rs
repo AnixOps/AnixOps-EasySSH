@@ -617,6 +617,7 @@ macro_rules! edition_match {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::check_feature;
 
     #[test]
     fn test_edition_variants() {

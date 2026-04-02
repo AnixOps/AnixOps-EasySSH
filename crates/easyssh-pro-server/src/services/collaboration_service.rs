@@ -12,7 +12,7 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -23,6 +23,298 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::{auth::decode_token, models::*, AppState};
+
+// ============ 本地协作类型定义 ============
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CollaborationState {
+    Active,
+    Paused,
+    Ended,
+    Recording,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CollaborationRole {
+    Observer,
+    Operator,
+    Admin,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AnnotationType {
+    Draw,
+    Highlight,
+    Arrow,
+    Text,
+    Circle,
+    Rectangle,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ClipboardContentType {
+    Text,
+    Code,
+    Url,
+    Command,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CollaborationActionType {
+    Join,
+    Leave,
+    ExecuteCommand,
+    Input,
+    RoleChange,
+    VoiceStart,
+    VoiceEnd,
+    Annotate,
+    Comment,
+    ClipboardSync,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollaborationSession {
+    pub id: String,
+    pub host_id: String,
+    pub host_username: String,
+    pub team_id: String,
+    pub server_id: String,
+    pub server_name: String,
+    pub state: CollaborationState,
+    pub share_link: String,
+    pub created_at: DateTime<Utc>,
+    pub ended_at: Option<DateTime<Utc>>,
+    pub settings: CollaborationSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CollaborationSettings {
+    pub allow_observers: bool,
+    pub require_approval: bool,
+    pub record_session: bool,
+    pub enable_voice: bool,
+    pub enable_annotations: bool,
+    pub max_participants: i32,
+    pub allow_clipboard_sync: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollaborationParticipant {
+    pub id: String,
+    pub session_id: String,
+    pub user_id: String,
+    pub username: String,
+    pub avatar_url: Option<String>,
+    pub role: CollaborationRole,
+    pub joined_at: DateTime<Utc>,
+    pub last_active_at: DateTime<Utc>,
+    pub is_voice_active: bool,
+    pub cursor_position: Option<CursorPosition>,
+    pub is_online: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CursorPosition {
+    pub row: u32,
+    pub col: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Annotation {
+    pub id: String,
+    pub session_id: String,
+    pub author_id: String,
+    pub author_name: String,
+    pub annotation_type: AnnotationType,
+    pub position: AnnotationPosition,
+    pub content: String,
+    pub color: String,
+    pub created_at: DateTime<Utc>,
+    pub resolved_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnnotationPosition {
+    pub x: f64,
+    pub y: f64,
+    pub width: Option<f64>,
+    pub height: Option<f64>,
+    pub points: Option<Vec<(f64, f64)>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Comment {
+    pub id: String,
+    pub session_id: String,
+    pub author_id: String,
+    pub author_name: String,
+    pub line_number: u32,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub replies: Vec<CommentReply>,
+    pub resolved: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommentReply {
+    pub id: String,
+    pub author_id: String,
+    pub author_name: String,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SharedClipboardItem {
+    pub id: String,
+    pub session_id: String,
+    pub author_id: String,
+    pub author_name: String,
+    pub content: String,
+    pub content_type: ClipboardContentType,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollaborationHistory {
+    pub id: String,
+    pub session_id: String,
+    pub participant_id: String,
+    pub participant_name: String,
+    pub action_type: CollaborationActionType,
+    pub command: Option<String>,
+    pub output_preview: Option<String>,
+    pub timestamp: DateTime<Utc>,
+}
+
+// Helper functions to create instances
+pub fn create_collaboration_session(
+    host_id: &str,
+    host_username: &str,
+    team_id: &str,
+    server_id: &str,
+    server_name: &str,
+) -> CollaborationSession {
+    CollaborationSession {
+        id: Uuid::new_v4().to_string(),
+        host_id: host_id.to_string(),
+        host_username: host_username.to_string(),
+        team_id: team_id.to_string(),
+        server_id: server_id.to_string(),
+        server_name: server_name.to_string(),
+        state: CollaborationState::Active,
+        share_link: format!("share-{}", Uuid::new_v4().to_string()[..8].to_string()),
+        created_at: Utc::now(),
+        ended_at: None,
+        settings: CollaborationSettings::default(),
+    }
+}
+
+pub fn create_participant(
+    session_id: &str,
+    user_id: &str,
+    username: &str,
+    role: CollaborationRole,
+) -> CollaborationParticipant {
+    let now = Utc::now();
+    CollaborationParticipant {
+        id: Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
+        user_id: user_id.to_string(),
+        username: username.to_string(),
+        avatar_url: None,
+        role,
+        joined_at: now,
+        last_active_at: now,
+        is_voice_active: false,
+        cursor_position: None,
+        is_online: true,
+    }
+}
+
+pub fn create_annotation_helper(
+    session_id: &str,
+    author_id: &str,
+    author_name: &str,
+    annotation_type: AnnotationType,
+    position: AnnotationPosition,
+    content: &str,
+    color: &str,
+) -> Annotation {
+    Annotation {
+        id: Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
+        author_id: author_id.to_string(),
+        author_name: author_name.to_string(),
+        annotation_type,
+        position,
+        content: content.to_string(),
+        color: color.to_string(),
+        created_at: Utc::now(),
+        resolved_at: None,
+    }
+}
+
+pub fn create_comment_helper(
+    session_id: &str,
+    author_id: &str,
+    author_name: &str,
+    line_number: u32,
+    content: &str,
+) -> Comment {
+    Comment {
+        id: Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
+        author_id: author_id.to_string(),
+        author_name: author_name.to_string(),
+        line_number,
+        content: content.to_string(),
+        created_at: Utc::now(),
+        updated_at: None,
+        replies: Vec::new(),
+        resolved: false,
+    }
+}
+
+pub fn create_clipboard_item(
+    session_id: &str,
+    author_id: &str,
+    author_name: &str,
+    content: &str,
+    content_type: ClipboardContentType,
+) -> SharedClipboardItem {
+    SharedClipboardItem {
+        id: Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
+        author_id: author_id.to_string(),
+        author_name: author_name.to_string(),
+        content: content.to_string(),
+        content_type,
+        created_at: Utc::now(),
+    }
+}
+
+pub fn create_history_entry(
+    session_id: &str,
+    participant_id: &str,
+    participant_name: &str,
+    action_type: CollaborationActionType,
+    command: Option<&str>,
+    output_preview: Option<&str>,
+) -> CollaborationHistory {
+    CollaborationHistory {
+        id: Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
+        participant_id: participant_id.to_string(),
+        participant_name: participant_name.to_string(),
+        action_type,
+        command: command.map(|s| s.to_string()),
+        output_preview: output_preview.map(|s| s.to_string()),
+        timestamp: Utc::now(),
+    }
+}
 
 // ============ 协作会话管理 ============
 
@@ -176,52 +468,52 @@ pub fn collaboration_routes() -> Router<AppState> {
     Router::new()
         .route("/sessions", post(create_session))
         .route(
-            "/sessions/:session_id",
+            "/sessions/{session_id}",
             get(get_session).delete(end_session),
         )
-        .route("/sessions/:session_id/join", post(join_session))
-        .route("/sessions/:session_id/leave", post(leave_session))
-        .route("/sessions/:session_id/participants", get(list_participants))
+        .route("/sessions/{session_id}/join", post(join_session))
+        .route("/sessions/{session_id}/leave", post(leave_session))
+        .route("/sessions/{session_id}/participants", get(list_participants))
         .route(
-            "/sessions/:session_id/participants/:user_id/role",
+            "/sessions/{session_id}/participants/{user_id}/role",
             post(change_role),
         )
         .route(
-            "/sessions/:session_id/annotations",
-            get(list_annotations).post(create_annotation),
+            "/sessions/{session_id}/annotations",
+            get(list_annotations).post(annotation_create_handler),
         )
         .route(
-            "/sessions/:session_id/annotations/:annotation_id",
+            "/sessions/{session_id}/annotations/{annotation_id}",
             delete(delete_annotation),
         )
         .route(
-            "/sessions/:session_id/annotations/:annotation_id/resolve",
+            "/sessions/{session_id}/annotations/{annotation_id}/resolve",
             post(resolve_annotation),
         )
         .route(
-            "/sessions/:session_id/comments",
-            get(list_comments).post(create_comment),
+            "/sessions/{session_id}/comments",
+            get(list_comments).post(comment_create_handler),
         )
         .route(
-            "/sessions/:session_id/comments/:comment_id/replies",
+            "/sessions/{session_id}/comments/{comment_id}/replies",
             post(add_reply),
         )
         .route(
-            "/sessions/:session_id/comments/:comment_id/resolve",
+            "/sessions/{session_id}/comments/{comment_id}/resolve",
             post(resolve_comment),
         )
         .route(
-            "/sessions/:session_id/clipboard",
+            "/sessions/{session_id}/clipboard",
             get(list_clipboard).post(add_clipboard),
         )
-        .route("/sessions/:session_id/history", get(get_history))
+        .route("/sessions/{session_id}/history", get(get_history))
         .route(
-            "/sessions/:session_id/recording/start",
+            "/sessions/{session_id}/recording/start",
             post(start_recording),
         )
-        .route("/sessions/:session_id/recording/stop", post(stop_recording))
-        .route("/join/:share_link", get(join_by_link))
-        .route("/ws/:session_id", get(websocket_handler))
+        .route("/sessions/{session_id}/recording/stop", post(stop_recording))
+        .route("/join/{share_link}", get(join_by_link))
+        .route("/ws/{session_id}", get(websocket_handler))
 }
 
 // ============ 请求/响应类型 ============
@@ -288,7 +580,7 @@ async fn create_session(
     let mut settings = req.settings.unwrap_or_default();
     settings.max_participants = settings.max_participants.min(20); // 限制最大参与者
 
-    let session = easyssh_core::collaboration::create_collaboration_session(
+    let session = create_collaboration_session(
         &user_id,
         &username,
         &req.team_id,
@@ -306,11 +598,11 @@ async fn create_session(
     }
 
     // 创建参与者
-    let participant = easyssh_core::collaboration::create_participant(
+    let participant = create_participant(
         &session.id,
         &user_id,
         &username,
-        easyssh_core::collaboration::CollaborationRole::Admin,
+        CollaborationRole::Admin,
     );
 
     if let Err(e) = store_participant(&state.db, &participant).await {
@@ -368,16 +660,16 @@ async fn join_session(
     let username = "current_user".to_string();
 
     let role = match req.role.as_deref() {
-        Some("operator") => easyssh_core::collaboration::CollaborationRole::Operator,
-        Some("admin") => easyssh_core::collaboration::CollaborationRole::Admin,
-        _ => easyssh_core::collaboration::CollaborationRole::Observer,
+        Some("operator") => CollaborationRole::Operator,
+        Some("admin") => CollaborationRole::Admin,
+        _ => CollaborationRole::Observer,
     };
 
     // 检查会话是否存在且活跃
     match get_session_from_db(&state.db, &session_id).await {
         Ok(Some(session)) => {
-            if session.state != easyssh_core::collaboration::CollaborationState::Active
-                && session.state != easyssh_core::collaboration::CollaborationState::Recording
+            if session.state != CollaborationState::Active
+                && session.state != CollaborationState::Recording
             {
                 return (
                     StatusCode::CONFLICT,
@@ -385,7 +677,7 @@ async fn join_session(
                 );
             }
 
-            let participant = easyssh_core::collaboration::create_participant(
+            let participant = create_participant(
                 &session_id,
                 &user_id,
                 &username,
@@ -401,11 +693,11 @@ async fn join_session(
             }
 
             // 添加到历史记录
-            let history = easyssh_core::collaboration::create_history_entry(
+            let history = create_history_entry(
                 &session_id,
                 &user_id,
                 &username,
-                easyssh_core::collaboration::CollaborationActionType::Join,
+                CollaborationActionType::Join,
                 None,
                 None,
             );
@@ -476,11 +768,11 @@ async fn leave_session(
     }
 
     // 添加历史记录
-    let history = easyssh_core::collaboration::create_history_entry(
+    let history = create_history_entry(
         &session_id,
         &user_id,
         &username,
-        easyssh_core::collaboration::CollaborationActionType::Leave,
+        CollaborationActionType::Leave,
         None,
         None,
     );
@@ -569,11 +861,11 @@ async fn change_role(
             }
 
             // 添加历史记录
-            let history = easyssh_core::collaboration::create_history_entry(
+            let history = create_history_entry(
                 &session_id,
                 &user_id,
                 &user_id,
-                easyssh_core::collaboration::CollaborationActionType::RoleChange,
+                CollaborationActionType::RoleChange,
                 Some(&format!("Role changed to {}", req.new_role)),
                 None,
             );
@@ -617,7 +909,7 @@ async fn list_annotations(
     }
 }
 
-async fn create_annotation(
+async fn annotation_create_handler(
     Path(session_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<CreateAnnotationRequest>,
@@ -626,16 +918,16 @@ async fn create_annotation(
     let username = "current_user".to_string();
 
     let annotation_type = match req.annotation_type.as_str() {
-        "draw" => easyssh_core::collaboration::AnnotationType::Draw,
-        "highlight" => easyssh_core::collaboration::AnnotationType::Highlight,
-        "arrow" => easyssh_core::collaboration::AnnotationType::Arrow,
-        "text" => easyssh_core::collaboration::AnnotationType::Text,
-        "circle" => easyssh_core::collaboration::AnnotationType::Circle,
-        "rectangle" => easyssh_core::collaboration::AnnotationType::Rectangle,
-        _ => easyssh_core::collaboration::AnnotationType::Highlight,
+        "draw" => AnnotationType::Draw,
+        "highlight" => AnnotationType::Highlight,
+        "arrow" => AnnotationType::Arrow,
+        "text" => AnnotationType::Text,
+        "circle" => AnnotationType::Circle,
+        "rectangle" => AnnotationType::Rectangle,
+        _ => AnnotationType::Highlight,
     };
 
-    let annotation = easyssh_core::collaboration::create_annotation(
+    let annotation = create_annotation_helper(
         &session_id,
         &user_id,
         &username,
@@ -703,7 +995,7 @@ async fn list_comments(
     }
 }
 
-async fn create_comment(
+async fn comment_create_handler(
     Path(session_id): Path<String>,
     State(state): State<AppState>,
     Json(req): Json<CreateCommentRequest>,
@@ -711,7 +1003,7 @@ async fn create_comment(
     let user_id = "current_user".to_string();
     let username = "current_user".to_string();
 
-    let comment = easyssh_core::collaboration::create_comment(
+    let comment = create_comment_helper(
         &session_id,
         &user_id,
         &username,
@@ -738,7 +1030,7 @@ async fn add_reply(
     let user_id = "current_user".to_string();
     let username = "current_user".to_string();
 
-    let reply = easyssh_core::collaboration::CommentReply {
+    let reply = CommentReply {
         id: Uuid::new_v4().to_string(),
         author_id: user_id,
         author_name: username,
@@ -798,13 +1090,13 @@ async fn add_clipboard(
     let username = "current_user".to_string();
 
     let content_type = match req.content_type.as_str() {
-        "code" => easyssh_core::collaboration::ClipboardContentType::Code,
-        "url" => easyssh_core::collaboration::ClipboardContentType::Url,
-        "command" => easyssh_core::collaboration::ClipboardContentType::Command,
-        _ => easyssh_core::collaboration::ClipboardContentType::Text,
+        "code" => ClipboardContentType::Code,
+        "url" => ClipboardContentType::Url,
+        "command" => ClipboardContentType::Command,
+        _ => ClipboardContentType::Text,
     };
 
-    let item = easyssh_core::collaboration::create_clipboard_item(
+    let item = create_clipboard_item(
         &session_id,
         &user_id,
         &username,
@@ -1122,6 +1414,7 @@ async fn handle_client_message(
 ) {
     match msg {
         ClientMessage::TerminalOutput { data } => {
+            let data_clone = data.clone();
             let event = CollaborationEvent::TerminalOutput {
                 data,
                 from_user_id: user_id.to_string(),
@@ -1130,13 +1423,13 @@ async fn handle_client_message(
             let _ = service.broadcast(session_id, event).await;
 
             // 记录命令历史（如果是命令）
-            if data.trim().starts_with('$') || data.trim().starts_with('#') {
-                let history = easyssh_core::collaboration::create_history_entry(
+            if data_clone.trim().starts_with('$') || data_clone.trim().starts_with('#') {
+                let history = create_history_entry(
                     session_id,
                     user_id,
                     username,
-                    easyssh_core::collaboration::CollaborationActionType::ExecuteCommand,
-                    Some(&data),
+                    CollaborationActionType::ExecuteCommand,
+                    Some(&data_clone),
                     None,
                 );
                 let _ = store_history(&state.db, &history).await;
@@ -1222,12 +1515,12 @@ async fn handle_client_message(
             color,
         } => {
             // 存储标注
-            let annotation = easyssh_core::collaboration::create_annotation(
+            let annotation = create_annotation_helper(
                 session_id,
                 user_id,
                 username,
-                easyssh_core::collaboration::AnnotationType::Highlight, // 简化处理
-                easyssh_core::collaboration::AnnotationPosition {
+                AnnotationType::Highlight, // 简化处理
+                AnnotationPosition {
                     x: 0.0,
                     y: 0.0,
                     width: None,
@@ -1248,7 +1541,7 @@ async fn handle_client_message(
             line_number,
             content,
         } => {
-            let comment = easyssh_core::collaboration::create_comment(
+            let comment = create_comment_helper(
                 session_id,
                 user_id,
                 username,
@@ -1266,12 +1559,12 @@ async fn handle_client_message(
             content,
             content_type,
         } => {
-            let item = easyssh_core::collaboration::create_clipboard_item(
+            let item = create_clipboard_item(
                 session_id,
                 user_id,
                 username,
                 &content,
-                easyssh_core::collaboration::ClipboardContentType::Text,
+                ClipboardContentType::Text,
             );
             let _ = store_clipboard_item(&state.db, &item).await;
 
@@ -1302,7 +1595,7 @@ async fn handle_binary_message(
 
 async fn store_session(
     db: &crate::db::Database,
-    session: &easyssh_core::collaboration::CollaborationSession,
+    session: &CollaborationSession,
 ) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_sessions
@@ -1328,7 +1621,7 @@ async fn store_session(
 async fn get_session_from_db(
     db: &crate::db::Database,
     session_id: &str,
-) -> Result<Option<easyssh_core::collaboration::CollaborationSession>> {
+) -> Result<Option<CollaborationSession>> {
     let row = sqlx::query_as::<_, CollaborationSessionRow>(
         "SELECT * FROM collaboration_sessions WHERE id = ?",
     )
@@ -1342,7 +1635,7 @@ async fn get_session_from_db(
 async fn get_session_by_link_from_db(
     db: &crate::db::Database,
     share_link: &str,
-) -> Result<Option<easyssh_core::collaboration::CollaborationSession>> {
+) -> Result<Option<CollaborationSession>> {
     let row = sqlx::query_as::<_, CollaborationSessionRow>(
         "SELECT * FROM collaboration_sessions WHERE share_link = ?",
     )
@@ -1369,7 +1662,7 @@ async fn update_session_state(
 
 async fn store_participant(
     db: &crate::db::Database,
-    participant: &easyssh_core::collaboration::CollaborationParticipant,
+    participant: &CollaborationParticipant,
 ) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_participants
@@ -1392,7 +1685,7 @@ async fn store_participant(
 async fn get_participants_from_db(
     db: &crate::db::Database,
     session_id: &str,
-) -> Result<Vec<easyssh_core::collaboration::CollaborationParticipant>> {
+) -> Result<Vec<CollaborationParticipant>> {
     let rows = sqlx::query_as::<_, CollaborationParticipantRow>(
         "SELECT * FROM collaboration_participants WHERE session_id = ? AND is_online = TRUE",
     )
@@ -1407,7 +1700,7 @@ async fn get_participant_from_db(
     db: &crate::db::Database,
     session_id: &str,
     user_id: &str,
-) -> Result<Option<easyssh_core::collaboration::CollaborationParticipant>> {
+) -> Result<Option<CollaborationParticipant>> {
     let row = sqlx::query_as::<_, CollaborationParticipantRow>(
         "SELECT * FROM collaboration_participants WHERE session_id = ? AND user_id = ?",
     )
@@ -1485,7 +1778,7 @@ async fn update_participant_voice_state(
 
 async fn store_annotation(
     db: &crate::db::Database,
-    annotation: &easyssh_core::collaboration::Annotation,
+    annotation: &Annotation,
 ) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_annotations
@@ -1510,7 +1803,7 @@ async fn store_annotation(
 async fn get_annotations_from_db(
     db: &crate::db::Database,
     session_id: &str,
-) -> Result<Vec<easyssh_core::collaboration::Annotation>> {
+) -> Result<Vec<Annotation>> {
     let rows = sqlx::query_as::<_, AnnotationRow>(
         "SELECT * FROM collaboration_annotations WHERE session_id = ? AND resolved_at IS NULL",
     )
@@ -1542,7 +1835,7 @@ async fn resolve_annotation_in_db(db: &crate::db::Database, annotation_id: &str)
 
 async fn store_comment(
     db: &crate::db::Database,
-    comment: &easyssh_core::collaboration::Comment,
+    comment: &Comment,
 ) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_comments
@@ -1566,7 +1859,7 @@ async fn store_comment(
 async fn get_comments_from_db(
     db: &crate::db::Database,
     session_id: &str,
-) -> Result<Vec<easyssh_core::collaboration::Comment>> {
+) -> Result<Vec<Comment>> {
     let rows = sqlx::query_as::<_, CommentRow>(
         "SELECT * FROM collaboration_comments WHERE session_id = ? AND resolved = FALSE ORDER BY line_number"
     )
@@ -1581,7 +1874,7 @@ async fn get_comments_from_db(
 async fn add_reply_to_db(
     db: &crate::db::Database,
     comment_id: &str,
-    reply: &easyssh_core::collaboration::CommentReply,
+    reply: &CommentReply,
 ) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_comment_replies
@@ -1617,7 +1910,7 @@ async fn resolve_comment_in_db(db: &crate::db::Database, comment_id: &str) -> Re
 
 async fn store_clipboard_item(
     db: &crate::db::Database,
-    item: &easyssh_core::collaboration::SharedClipboardItem,
+    item: &SharedClipboardItem,
 ) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_clipboard
@@ -1641,7 +1934,7 @@ async fn get_clipboard_from_db(
     db: &crate::db::Database,
     session_id: &str,
     limit: i64,
-) -> Result<Vec<easyssh_core::collaboration::SharedClipboardItem>> {
+) -> Result<Vec<SharedClipboardItem>> {
     let rows = sqlx::query_as::<_, ClipboardItemRow>(
         "SELECT * FROM collaboration_clipboard WHERE session_id = ? ORDER BY created_at DESC LIMIT ?"
     )
@@ -1655,7 +1948,7 @@ async fn get_clipboard_from_db(
 
 async fn store_history(
     db: &crate::db::Database,
-    entry: &easyssh_core::collaboration::CollaborationHistory,
+    entry: &CollaborationHistory,
 ) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_history
@@ -1680,7 +1973,7 @@ async fn get_history_from_db(
     db: &crate::db::Database,
     session_id: &str,
     limit: i64,
-) -> Result<Vec<easyssh_core::collaboration::CollaborationHistory>> {
+) -> Result<Vec<CollaborationHistory>> {
     let rows = sqlx::query_as::<_, HistoryRow>(
         "SELECT * FROM collaboration_history WHERE session_id = ? ORDER BY timestamp DESC LIMIT ?",
     )
@@ -1708,7 +2001,7 @@ struct CollaborationSessionRow {
     settings: String,
 }
 
-impl From<CollaborationSessionRow> for easyssh_core::collaboration::CollaborationSession {
+impl From<CollaborationSessionRow> for CollaborationSession {
     fn from(row: CollaborationSessionRow) -> Self {
         Self {
             id: row.id,
@@ -1718,11 +2011,11 @@ impl From<CollaborationSessionRow> for easyssh_core::collaboration::Collaboratio
             server_id: row.server_id,
             server_name: row.server_name,
             state: match row.state.as_str() {
-                "Active" => easyssh_core::collaboration::CollaborationState::Active,
-                "Paused" => easyssh_core::collaboration::CollaborationState::Paused,
-                "Ended" => easyssh_core::collaboration::CollaborationState::Ended,
-                "Recording" => easyssh_core::collaboration::CollaborationState::Recording,
-                _ => easyssh_core::collaboration::CollaborationState::Active,
+                "Active" => CollaborationState::Active,
+                "Paused" => CollaborationState::Paused,
+                "Ended" => CollaborationState::Ended,
+                "Recording" => CollaborationState::Recording,
+                _ => CollaborationState::Active,
             },
             share_link: row.share_link,
             created_at: row.created_at,
@@ -1744,7 +2037,7 @@ struct CollaborationParticipantRow {
     is_online: Option<bool>,
 }
 
-impl From<CollaborationParticipantRow> for easyssh_core::collaboration::CollaborationParticipant {
+impl From<CollaborationParticipantRow> for CollaborationParticipant {
     fn from(row: CollaborationParticipantRow) -> Self {
         Self {
             id: row.id,
@@ -1753,10 +2046,10 @@ impl From<CollaborationParticipantRow> for easyssh_core::collaboration::Collabor
             username: row.username,
             avatar_url: None,
             role: match row.role.as_str() {
-                "Observer" => easyssh_core::collaboration::CollaborationRole::Observer,
-                "Operator" => easyssh_core::collaboration::CollaborationRole::Operator,
-                "Admin" => easyssh_core::collaboration::CollaborationRole::Admin,
-                _ => easyssh_core::collaboration::CollaborationRole::Observer,
+                "Observer" => CollaborationRole::Observer,
+                "Operator" => CollaborationRole::Operator,
+                "Admin" => CollaborationRole::Admin,
+                _ => CollaborationRole::Observer,
             },
             joined_at: row.joined_at,
             last_active_at: row.joined_at,
@@ -1781,16 +2074,16 @@ struct AnnotationRow {
     resolved_at: Option<chrono::DateTime<Utc>>,
 }
 
-impl From<AnnotationRow> for easyssh_core::collaboration::Annotation {
+impl From<AnnotationRow> for Annotation {
     fn from(row: AnnotationRow) -> Self {
         Self {
             id: row.id,
             session_id: row.session_id,
             author_id: row.author_id,
             author_name: row.author_name,
-            annotation_type: easyssh_core::collaboration::AnnotationType::Highlight, // 简化
+            annotation_type: AnnotationType::Highlight, // 简化
             position: serde_json::from_str(&row.position).unwrap_or(
-                easyssh_core::collaboration::AnnotationPosition {
+                AnnotationPosition {
                     x: 0.0,
                     y: 0.0,
                     width: None,
@@ -1819,7 +2112,7 @@ struct CommentRow {
     resolved: bool,
 }
 
-impl From<CommentRow> for easyssh_core::collaboration::Comment {
+impl From<CommentRow> for Comment {
     fn from(row: CommentRow) -> Self {
         Self {
             id: row.id,
@@ -1847,7 +2140,7 @@ struct ClipboardItemRow {
     created_at: chrono::DateTime<Utc>,
 }
 
-impl From<ClipboardItemRow> for easyssh_core::collaboration::SharedClipboardItem {
+impl From<ClipboardItemRow> for SharedClipboardItem {
     fn from(row: ClipboardItemRow) -> Self {
         Self {
             id: row.id,
@@ -1855,7 +2148,7 @@ impl From<ClipboardItemRow> for easyssh_core::collaboration::SharedClipboardItem
             author_id: row.author_id,
             author_name: row.author_name,
             content: row.content,
-            content_type: easyssh_core::collaboration::ClipboardContentType::Text,
+            content_type: ClipboardContentType::Text,
             created_at: row.created_at,
         }
     }
@@ -1873,14 +2166,14 @@ struct HistoryRow {
     timestamp: chrono::DateTime<Utc>,
 }
 
-impl From<HistoryRow> for easyssh_core::collaboration::CollaborationHistory {
+impl From<HistoryRow> for CollaborationHistory {
     fn from(row: HistoryRow) -> Self {
         Self {
             id: row.id,
             session_id: row.session_id,
             participant_id: row.participant_id,
             participant_name: row.participant_name,
-            action_type: easyssh_core::collaboration::CollaborationActionType::Join, // 简化
+            action_type: CollaborationActionType::Join, // 简化
             command: row.command,
             output_preview: row.output_preview,
             timestamp: row.timestamp,

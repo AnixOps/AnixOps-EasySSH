@@ -203,6 +203,11 @@ impl DebugAccessLevel {
     pub fn can_access(&self, feature: DebugFeature) -> bool {
         *self >= feature.required_level()
     }
+
+    /// 检查是否允许性能监控
+    pub fn allows_performance_monitoring(&self) -> bool {
+        *self >= DebugAccessLevel::Developer
+    }
 }
 
 /// Debug访问错误

@@ -155,6 +155,7 @@ pub mod ai_programming {
         pub passed: bool,
         pub message: String,
         pub details: Option<String>,
+        pub duration_ms: Option<u64>,
     }
 
     /// 检查AI编程接口是否可用 (通过debug access启用)
@@ -208,6 +209,7 @@ pub mod ai_programming {
                 passed: false,
                 message: "Debug模式未激活，无法运行底层测试".to_string(),
                 details: None,
+                duration_ms: None,
             }],
         })
     }
@@ -227,6 +229,7 @@ pub mod ai_programming {
                 passed: false,
                 message: "Debug模式未激活，无法运行底层测试".to_string(),
                 details: None,
+                duration_ms: None,
             }],
         })
     }
@@ -246,6 +249,7 @@ pub mod ai_programming {
                 passed: false,
                 message: "Debug模式未激活，无法运行底层测试".to_string(),
                 details: None,
+                duration_ms: None,
             }],
         })
     }
@@ -265,6 +269,7 @@ pub mod ai_programming {
                 passed: false,
                 message: "Debug模式未激活，无法运行底层测试".to_string(),
                 details: None,
+                duration_ms: None,
             }],
         })
     }
@@ -284,6 +289,7 @@ pub mod ai_programming {
                 passed: false,
                 message: "Debug模式未激活，无法运行底层测试".to_string(),
                 details: None,
+                duration_ms: None,
             }],
         })
     }
@@ -304,6 +310,7 @@ pub mod ai_programming {
                     passed: false,
                     message: "Debug模式未激活".to_string(),
                     details: None,
+                    duration_ms: None,
                 },
                 DebugTestResult {
                     name: "debug_disabled".to_string(),
@@ -311,6 +318,7 @@ pub mod ai_programming {
                     passed: false,
                     message: "Debug模式未激活".to_string(),
                     details: None,
+                    duration_ms: None,
                 },
                 DebugTestResult {
                     name: "debug_disabled".to_string(),
@@ -318,6 +326,7 @@ pub mod ai_programming {
                     passed: false,
                     message: "Debug模式未激活".to_string(),
                     details: None,
+                    duration_ms: None,
                 },
                 DebugTestResult {
                     name: "debug_disabled".to_string(),
@@ -325,6 +334,7 @@ pub mod ai_programming {
                     passed: false,
                     message: "Debug模式未激活".to_string(),
                     details: None,
+                    duration_ms: None,
                 },
                 DebugTestResult {
                     name: "debug_disabled".to_string(),
@@ -332,6 +342,7 @@ pub mod ai_programming {
                     passed: false,
                     message: "Debug模式未激活".to_string(),
                     details: None,
+                    duration_ms: None,
                 },
             ],
         })
@@ -352,6 +363,7 @@ pub mod ai_programming {
                 passed: true,
                 message: "Debug模式已激活".to_string(),
                 details: None,
+                duration_ms: None,
             }],
         })
     }
@@ -656,10 +668,17 @@ pub use database_client::*;
 pub mod audit;
 #[cfg(feature = "pro")]
 pub mod collaboration;
+pub mod config;
 pub mod config_import_export;
 pub mod connection_pool;
 pub mod crypto;
+#[cfg(feature = "database")]
+pub mod database;
 pub mod db;
+pub mod models;
+pub mod services;
+pub mod version;
+pub mod version_ffi;
 pub mod edition;
 pub mod edition_ffi;
 pub mod error;
@@ -667,8 +686,7 @@ pub mod ffi;
 pub mod i18n;
 pub mod i18n_ffi;
 pub mod keychain;
-pub mod version;
-pub mod version_ffi;
+pub mod logger;
 #[cfg(feature = "split-screen")]
 pub mod layout;
 #[cfg(all(feature = "standard", target_os = "linux"))]
@@ -821,6 +839,28 @@ pub use db::{
     UpdateHost, UpdateIdentity, UpdateLayout, UpdateServer, UpdateSession, UpdateSnippet,
     UpdateSyncState, UpdateTag,
 };
+#[cfg(feature = "database")]
+pub use database::{
+    Database as SqlxDatabase, DatabaseError, ConfigRepository, GroupRepository, ServerRepository,
+    MigrationManager, Migration, MigrationStatus,
+    Server as SqlxServer, NewServer as NewSqlxServer, UpdateServer as UpdateSqlxServer,
+    Group as SqlxGroup, NewGroup as NewSqlxGroup, UpdateGroup as UpdateSqlxGroup, AppConfig,
+    ServerFilters, QueryOptions, ServerWithGroup, GroupWithCount,
+    get_default_db_path, ensure_db_directory, Result as SqlxDatabaseResult,
+};
+pub use models::{
+    AuthMethod, CreateServerDto, Server, ServerBuilder, ServerStatus,
+    UpdateServerDto, ValidationError,
+    Group, GroupId, GroupStats, GroupWithServers, ServerReference,
+    CreateGroupRequest, UpdateGroupRequest, MoveServerRequest,
+    UNGROUPED_ID, UNGROUPED_NAME, UNGROUPED_COLOR,
+    PRESET_GROUPS, DEFAULT_COLOR_PALETTE,
+};
+pub use services::{
+    AsyncServerService, ConnectionTestResult, ServerService, ServerServiceError,
+    SearchAuthMethod, ConnectionStatus as SearchConnectionStatus, SearchHistoryEntry, SearchQuery, SearchQueryBuilder,
+    SearchResult, SearchService, SortBy, SortOrder,
+};
 pub use edition::{Edition, VersionInfo, BuildType, AppIdentity, VersionComparator, VersionComparison};
 pub use edition_ffi::*;
 
@@ -838,7 +878,8 @@ pub use version_ffi::{
 pub use version::{
     FullBuildInfo, PlatformInfo, VersionCompatibility,
 };
-pub use error::LiteError;
+pub use error::{LiteError, EasySSHErrors, CoreCryptoError, CoreDatabaseError, CoreSshError, EasySSHResult, Result, ErrorSeverity, ErrorDisplay};
+pub use logger::{Logger, LogLevel, LogContext, LogEntry, LoggerBuilder, init_global_logger, global_logger, init_from_env};
 pub use i18n::{
     format_date, format_datetime, format_number, get_current_language, get_language_display_name,
     get_rtl_class, get_supported_languages, get_text_direction, init as init_i18n, is_language_rtl,
@@ -855,7 +896,7 @@ pub use linux_service::{
 #[cfg(feature = "log-monitor")]
 pub use log_monitor::{
     Anomaly, ErrorPattern, ExportConfig, LogAlertAction, LogAlertCondition, LogAlertEvent,
-    LogAlertRule, LogAnalysisResult, LogEntry, LogFilter, LogLevel, LogMonitorCenter,
+    LogAlertRule, LogAnalysisResult, LogFilter, LogMonitorCenter,
     LogMonitorWebSocketServer, LogSource, LogStats, LogTrendDirection, LogType, ParserConfig,
     TimeSeriesPoint, Trend,
 };
@@ -950,9 +991,9 @@ pub use docker::{
     Actor, ClusterInfo, ClusterSpec, ComposeProject, ComposeService, ContainerInfo,
     ContainerNetworkInfo, ContainerStats, ContainerStatus, CpuStats, DockerConnection, DockerEvent,
     DockerHostType, DockerManager, DockerSystemInfo, DockerTlsConfig, HostConfig, ImageInfo,
-    IoEntry, IoStats, IpamConfig, IpamSubnetConfig, LogStream, MemoryStats, MountPoint,
+    IoEntry, IoStats, IpamConfig, IpamSubnetConfig, MemoryStats, MountPoint,
     NetworkContainer, NetworkInfo, NetworkSettings, NetworkStats, PidsStats, PluginsInfo,
-    PortMapping, RegistryConfig, RuntimeInfo, SwarmInfo, ThrottlingData, VolumeInfo,
+    PortMapping, RuntimeInfo, SwarmInfo, ThrottlingData, VolumeInfo,
     VolumeUsageData,
 };
 
@@ -1120,7 +1161,7 @@ pub fn get_db_path() -> std::path::PathBuf {
 }
 
 /// Get all servers
-pub fn get_servers(state: &AppState) -> Result<Vec<ServerRecord>, LiteError> {
+pub fn get_servers(state: &AppState) -> std::result::Result<Vec<ServerRecord>, LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1129,7 +1170,7 @@ pub fn get_servers(state: &AppState) -> Result<Vec<ServerRecord>, LiteError> {
 }
 
 /// Get single server
-pub fn get_server(state: &AppState, id: &str) -> Result<ServerRecord, LiteError> {
+pub fn get_server(state: &AppState, id: &str) -> std::result::Result<ServerRecord, LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1138,7 +1179,7 @@ pub fn get_server(state: &AppState, id: &str) -> Result<ServerRecord, LiteError>
 }
 
 /// Add server
-pub fn add_server(state: &AppState, server: &NewServer) -> Result<(), LiteError> {
+pub fn add_server(state: &AppState, server: &NewServer) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1147,7 +1188,7 @@ pub fn add_server(state: &AppState, server: &NewServer) -> Result<(), LiteError>
 }
 
 /// Update server
-pub fn update_server(state: &AppState, server: &UpdateServer) -> Result<(), LiteError> {
+pub fn update_server(state: &AppState, server: &UpdateServer) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1156,7 +1197,7 @@ pub fn update_server(state: &AppState, server: &UpdateServer) -> Result<(), Lite
 }
 
 /// Delete server
-pub fn delete_server(state: &AppState, id: &str) -> Result<(), LiteError> {
+pub fn delete_server(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1165,7 +1206,7 @@ pub fn delete_server(state: &AppState, id: &str) -> Result<(), LiteError> {
 }
 
 /// Get all groups
-pub fn get_groups(state: &AppState) -> Result<Vec<GroupRecord>, LiteError> {
+pub fn get_groups(state: &AppState) -> std::result::Result<Vec<GroupRecord>, LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1174,7 +1215,7 @@ pub fn get_groups(state: &AppState) -> Result<Vec<GroupRecord>, LiteError> {
 }
 
 /// Add group
-pub fn add_group(state: &AppState, group: &NewGroup) -> Result<(), LiteError> {
+pub fn add_group(state: &AppState, group: &NewGroup) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1183,7 +1224,7 @@ pub fn add_group(state: &AppState, group: &NewGroup) -> Result<(), LiteError> {
 }
 
 /// Update group
-pub fn update_group(state: &AppState, group: &UpdateGroup) -> Result<(), LiteError> {
+pub fn update_group(state: &AppState, group: &UpdateGroup) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1192,7 +1233,7 @@ pub fn update_group(state: &AppState, group: &UpdateGroup) -> Result<(), LiteErr
 }
 
 /// Delete group
-pub fn delete_group(state: &AppState, id: &str) -> Result<(), LiteError> {
+pub fn delete_group(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1222,7 +1263,7 @@ pub fn delete_group(state: &AppState, id: &str) -> Result<(), LiteError> {
 /// let state = AppState::new();
 /// init_database(&state).expect("Failed to initialize database");
 /// ```
-pub fn init_database(state: &AppState) -> Result<(), LiteError> {
+pub fn init_database(state: &AppState) -> std::result::Result<(), LiteError> {
     let db_path = get_db_path();
     let db = db::Database::new(db_path)?;
     db.init()?;
@@ -1234,7 +1275,7 @@ pub fn init_database(state: &AppState) -> Result<(), LiteError> {
 }
 
 /// Open native terminal and connect (Lite mode)
-pub fn connect_server(state: &AppState, id: &str) -> Result<(), LiteError> {
+pub fn connect_server(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1285,7 +1326,7 @@ pub async fn ssh_connect(
     state: &AppState,
     id: &str,
     password: Option<&str>,
-) -> Result<SessionMetadata, LiteError> {
+) -> std::result::Result<SessionMetadata, LiteError> {
     let (host, port, username): (String, u16, String) = {
         let db_lock = state.db.lock().unwrap();
         let db = db_lock
@@ -1313,7 +1354,7 @@ pub async fn ssh_execute(
     state: &AppState,
     session_id: &str,
     command: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.execute_with_retry(session_id, command, 2).await
 }
@@ -1323,13 +1364,13 @@ pub async fn ssh_execute_once(
     state: &AppState,
     session_id: &str,
     command: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.execute(session_id, command).await
 }
 
 /// Disconnect SSH session
-pub async fn ssh_disconnect(state: &AppState, session_id: &str) -> Result<(), LiteError> {
+pub async fn ssh_disconnect(state: &AppState, session_id: &str) -> std::result::Result<(), LiteError> {
     let mut ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.disconnect(session_id).await
 }
@@ -1357,7 +1398,7 @@ pub async fn ssh_execute_stream(
     state: &AppState,
     session_id: &str,
     command: &str,
-) -> Result<mpsc::UnboundedReceiver<String>, LiteError> {
+) -> std::result::Result<mpsc::UnboundedReceiver<String>, LiteError> {
     let mut ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.execute_stream(session_id, command).await
 }
@@ -1367,20 +1408,20 @@ pub async fn ssh_write_shell_input(
     state: &AppState,
     session_id: &str,
     input: &[u8],
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.write_shell_input(session_id, input).await
 }
 
 /// Interrupt command (Ctrl+C)
-pub async fn ssh_interrupt(state: &AppState, session_id: &str) -> Result<(), LiteError> {
+pub async fn ssh_interrupt(state: &AppState, session_id: &str) -> std::result::Result<(), LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.interrupt_command(session_id).await
 }
 
 /// Create SFTP session
 #[cfg(feature = "sftp")]
-pub async fn ssh_create_sftp(state: &AppState, session_id: &str) -> Result<ssh2::Sftp, LiteError> {
+pub async fn ssh_create_sftp(state: &AppState, session_id: &str) -> std::result::Result<ssh2::Sftp, LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.create_sftp(session_id).await
 }
@@ -1393,7 +1434,7 @@ pub async fn docker_list_containers(
     state: &AppState,
     ssh_session_id: &str,
     all: bool,
-) -> Result<Vec<ContainerInfo>, LiteError> {
+) -> std::result::Result<Vec<ContainerInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1407,7 +1448,7 @@ pub async fn docker_start_container(
     state: &AppState,
     ssh_session_id: &str,
     container_id: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1422,7 +1463,7 @@ pub async fn docker_stop_container(
     ssh_session_id: &str,
     container_id: &str,
     timeout: Option<u32>,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1437,7 +1478,7 @@ pub async fn docker_restart_container(
     ssh_session_id: &str,
     container_id: &str,
     timeout: Option<u32>,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1453,7 +1494,7 @@ pub async fn docker_remove_container(
     container_id: &str,
     force: bool,
     volumes: bool,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1467,7 +1508,7 @@ pub async fn docker_list_images(
     state: &AppState,
     ssh_session_id: &str,
     all: bool,
-) -> Result<Vec<ImageInfo>, LiteError> {
+) -> std::result::Result<Vec<ImageInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1482,7 +1523,7 @@ pub async fn docker_pull_image(
     ssh_session_id: &str,
     image: &str,
     tag: Option<&str>,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1495,7 +1536,7 @@ pub async fn docker_pull_image(
 pub async fn docker_list_networks(
     state: &AppState,
     ssh_session_id: &str,
-) -> Result<Vec<NetworkInfo>, LiteError> {
+) -> std::result::Result<Vec<NetworkInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1508,7 +1549,7 @@ pub async fn docker_list_networks(
 pub async fn docker_list_volumes(
     state: &AppState,
     ssh_session_id: &str,
-) -> Result<Vec<VolumeInfo>, LiteError> {
+) -> std::result::Result<Vec<VolumeInfo>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1524,7 +1565,7 @@ pub async fn docker_stream_logs(
     container_id: &str,
     follow: bool,
     tail: Option<i64>,
-) -> Result<mpsc::UnboundedReceiver<String>, LiteError> {
+) -> std::result::Result<mpsc::UnboundedReceiver<String>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1539,7 +1580,7 @@ pub async fn docker_exec(
     ssh_session_id: &str,
     container_id: &str,
     command: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1562,7 +1603,7 @@ pub async fn docker_get_stats(
     state: &AppState,
     ssh_session_id: &str,
     container_id: &str,
-) -> Result<ContainerStats, LiteError> {
+) -> std::result::Result<ContainerStats, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1575,7 +1616,7 @@ pub async fn docker_get_stats(
 pub async fn docker_list_compose_projects(
     state: &AppState,
     ssh_session_id: &str,
-) -> Result<Vec<ComposeProject>, LiteError> {
+) -> std::result::Result<Vec<ComposeProject>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1589,7 +1630,7 @@ pub async fn docker_compose_up(
     state: &AppState,
     ssh_session_id: &str,
     project_dir: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1603,7 +1644,7 @@ pub async fn docker_compose_down(
     state: &AppState,
     ssh_session_id: &str,
     project_dir: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1621,7 +1662,7 @@ pub async fn docker_build_image(
     tag: Option<&str>,
     build_args: &[(&str, &str)],
     no_cache: bool,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1647,7 +1688,7 @@ pub async fn docker_build_image_stream(
     tag: Option<&str>,
     build_args: &[(&str, &str)],
     no_cache: bool,
-) -> Result<mpsc::UnboundedReceiver<String>, LiteError> {
+) -> std::result::Result<mpsc::UnboundedReceiver<String>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1669,7 +1710,7 @@ pub async fn docker_stream_stats(
     state: &AppState,
     ssh_session_id: &str,
     container_id: &str,
-) -> Result<mpsc::UnboundedReceiver<ContainerStats>, LiteError> {
+) -> std::result::Result<mpsc::UnboundedReceiver<ContainerStats>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1683,7 +1724,7 @@ pub async fn docker_stop_stats_stream(
     _state: &AppState,
     ssh_session_id: &str,
     container_id: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     docker_manager
         .stop_stats_stream(ssh_session_id, container_id)
@@ -1697,7 +1738,7 @@ pub async fn docker_export_container(
     ssh_session_id: &str,
     container_id: &str,
     output_path: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1713,7 +1754,7 @@ pub async fn docker_import_image(
     input_path: &str,
     repository: Option<&str>,
     tag: Option<&str>,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1728,7 +1769,7 @@ pub async fn docker_save_image(
     ssh_session_id: &str,
     image: &str,
     output_path: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1742,7 +1783,7 @@ pub async fn docker_load_image(
     state: &AppState,
     ssh_session_id: &str,
     input_path: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1758,7 +1799,7 @@ pub async fn docker_copy_from_container(
     container_id: &str,
     container_path: &str,
     host_path: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1780,7 +1821,7 @@ pub async fn docker_copy_to_container(
     host_path: &str,
     container_id: &str,
     container_path: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1799,7 +1840,7 @@ pub async fn docker_copy_to_container(
 pub async fn docker_get_system_info(
     state: &AppState,
     ssh_session_id: &str,
-) -> Result<DockerSystemInfo, LiteError> {
+) -> std::result::Result<DockerSystemInfo, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1815,7 +1856,7 @@ pub async fn docker_stream_events(
     since: Option<i64>,
     until: Option<i64>,
     filters: &[(&str, &str)],
-) -> Result<mpsc::UnboundedReceiver<DockerEvent>, LiteError> {
+) -> std::result::Result<mpsc::UnboundedReceiver<DockerEvent>, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1828,7 +1869,7 @@ pub async fn docker_stream_events(
 pub async fn docker_stop_events_stream(
     _state: &AppState,
     ssh_session_id: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     docker_manager.stop_events_stream(ssh_session_id).await
 }
@@ -1839,7 +1880,7 @@ pub async fn docker_inspect_container(
     state: &AppState,
     ssh_session_id: &str,
     container_id: &str,
-) -> Result<ContainerInfo, LiteError> {
+) -> std::result::Result<ContainerInfo, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1853,7 +1894,7 @@ pub async fn docker_inspect_image(
     state: &AppState,
     ssh_session_id: &str,
     image_id: &str,
-) -> Result<ImageInfo, LiteError> {
+) -> std::result::Result<ImageInfo, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1867,7 +1908,7 @@ pub async fn docker_top(
     state: &AppState,
     ssh_session_id: &str,
     container_id: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1881,7 +1922,7 @@ pub async fn docker_wait(
     state: &AppState,
     ssh_session_id: &str,
     container_id: &str,
-) -> Result<i32, LiteError> {
+) -> std::result::Result<i32, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1896,7 +1937,7 @@ pub async fn docker_rename_container(
     ssh_session_id: &str,
     container_id: &str,
     new_name: &str,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1916,7 +1957,7 @@ pub async fn docker_update_container(
     cpu_period: Option<i64>,
     cpu_quota: Option<i64>,
     restart_policy: Option<&str>,
-) -> Result<(), LiteError> {
+) -> std::result::Result<(), LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1950,7 +1991,7 @@ pub async fn docker_run_container(
     labels: &[(&str, &str)],
     detach: bool,
     auto_remove: bool,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1977,7 +2018,7 @@ pub async fn docker_run_container(
 pub async fn docker_get_disk_usage(
     state: &AppState,
     ssh_session_id: &str,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager
@@ -1992,7 +2033,7 @@ pub async fn docker_system_prune(
     ssh_session_id: &str,
     all: bool,
     volumes: bool,
-) -> Result<String, LiteError> {
+) -> std::result::Result<String, LiteError> {
     let docker_manager = DockerManager::new();
     let ssh_manager = state.ssh_manager.lock().await;
     docker_manager

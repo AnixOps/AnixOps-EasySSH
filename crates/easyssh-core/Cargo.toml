@@ -1,162 +1,202 @@
 [package]
 name = "easyssh-core"
-version = "0.3.0"
-edition = "2021"
-authors = ["EasySSH Team"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "EasySSH cross-platform native SSH client core library"
-license = "MIT"
 build = "build.rs"
-
-[build-dependencies]
-chrono = { workspace = true }
+rust-version.workspace = true
 
 [lib]
 name = "easyssh_core"
 crate-type = ["rlib", "staticlib", "cdylib"]
 
+[build-dependencies]
+chrono = { workspace = true }
+
 [dependencies]
+# Workspace dependencies - core
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true, optional = true }
 rusqlite = { workspace = true }
-keyring = "3"
-argon2 = { version = "0.5", features = ["alloc", "password-hash"] }
-aes-gcm = "0.10"
-rand = "0.8"
+keyring = { workspace = true }
+argon2 = { workspace = true }
+aes-gcm = { workspace = true }
+rand = { workspace = true }
 uuid = { workspace = true }
 tokio = { workspace = true }
-log = "0.4"
-env_logger = "0.11"
+log = { workspace = true }
+env_logger = { workspace = true }
 thiserror = { workspace = true }
-dirs = "5"
+dirs = { workspace = true }
 base64 = { workspace = true }
-serde_yaml = { version = "0.9", optional = true }
-ssh2 = "0.9"
-portable-pty = { version = "0.8", optional = true }
 chrono = { workspace = true }
-lazy_static = "1.5"
-futures-util = "0.3"
-tokio-tungstenite = "0.24"
-whoami = "1.5"
-flate2 = "1.0"
-csv = "1.3"
+lazy_static = { workspace = true }
+futures-util = { workspace = true }
+tokio-tungstenite = { workspace = true }
+whoami = { workspace = true }
+flate2 = { workspace = true }
+csv = { workspace = true }
 tracing = { workspace = true }
 
-# Enterprise Vault dependencies
-sha2 = "0.10"
-hmac = "0.12"
-totp-rs = { version = "5.3", features = ["qr", "zeroize"] }
-zeroize = { version = "1.7", features = ["derive"] }
-reed-solomon-erasure = "6.0"
-regex = "1.10"
-tempfile = "3"
-hex = { version = "0.4", optional = true }
+# Workspace dependencies - security
+sha2 = { workspace = true }
+hmac = { workspace = true }
+totp-rs = { workspace = true }
+zeroize = { workspace = true }
+reed-solomon-erasure = { workspace = true }
+regex = { workspace = true }
+tempfile = { workspace = true }
+hex = { workspace = true, optional = true }
 
-# Auto-update dependencies
-reqwest = { version = "0.12", features = ["json", "stream"], optional = true }
-ed25519-dalek = { version = "2", optional = true }
-semver = { version = "1", optional = true }
-bzip2 = { version = "0.4", optional = true }
-zstd = { version = "0.13", optional = true }
-walkdir = { version = "2", optional = true }
-async-trait = { version = "0.1", optional = true }
-url = "2.5.4"
-urlencoding = "2.1"
-anyhow = { version = "1", optional = true }
+# Workspace dependencies - async/http
+reqwest = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
 
-# Backup system dependencies
-cron-parser = "0.3"
-tar = "0.4"
-zip = "2.2"
-chacha20poly1305 = { version = "0.10", optional = true }
-xz2 = { version = "0.1", optional = true }
-futures = { version = "0.3", optional = true }
-fs4 = { version = "0.12", optional = true }
+# Workspace dependencies - crypto
+ed25519-dalek = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true }
 
-# AWS SDK - 使用新版本替代 rusoto
-aws-config = { version = "1.5", optional = true }
-aws-sdk-s3 = { version = "1.5", optional = true }
+# Workspace dependencies - compression
+semver = { workspace = true, optional = true }
+bzip2 = { workspace = true, optional = true }
+zstd = { workspace = true, optional = true }
+walkdir = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
 
-# GCP SDK
-google-cloud-storage = { version = "0.23", optional = true }
+# Workspace dependencies - scheduling
+cron-parser = { workspace = true }
+tokio-cron-scheduler = { workspace = true, optional = true }
+tar = { workspace = true }
+zip = { workspace = true }
+xz2 = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+fs4 = { workspace = true, optional = true }
 
-# Azure SDK
-azure_storage = { version = "0.21", optional = true }
-azure_storage_blobs = { version = "0.21", optional = true }
+# Workspace dependencies - cloud
+aws-config = { workspace = true, optional = true }
+aws-sdk-s3 = { workspace = true, optional = true }
+google-cloud-storage = { workspace = true, optional = true }
+azure_storage = { workspace = true, optional = true }
+azure_storage_blobs = { workspace = true, optional = true }
 
-blake3 = "1.5"
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
-tokio-cron-scheduler = { version = "0.13", optional = true }
+# Workspace dependencies - SSO
+openidconnect = { workspace = true, optional = true }
+samael = { workspace = true, optional = true }
 
-# Git support - 升级到修复版本
-git2 = { version = "0.20", optional = true }
+# Workspace dependencies - hash
+blake3 = { workspace = true }
+xxhash-rust = { workspace = true }
 
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_System_ProcessStatus"], optional = true }
-windows = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Credentials", "Win32_System_WinRT", "Win32_Security_Tpm"] }
+# Workspace dependencies - git
+git2 = { workspace = true, optional = true }
+
+# Workspace dependencies - URL
+url = { workspace = true }
+urlencoding = { workspace = true }
 
 # i18n dependencies
-fluent = "0.16"
+fluent = { workspace = true }
 fluent-bundle = "0.15"
-unic-langid = { version = "0.9", features = ["macros"] }
+unic-langid = { workspace = true }
 intl-memoizer = "0.5"
-sys-locale = "0.3"
+sys-locale = { workspace = true }
+
+# SSH
+ssh2 = { workspace = true }
+
+# Terminal
+portable-pty = { workspace = true, optional = true }
 
 # Kubernetes dependencies (optional)
-kube = { version = "0.88", features = ["client", "rustls-tls", "ws"], optional = true }
-k8s-openapi = { version = "0.21", features = ["v1_28"], optional = true }
-yaml-rust2 = { version = "0.8", optional = true }
-bytes = { version = "1.5", optional = true }
-h2 = { version = "0.3", optional = true }
-http = { version = "1.0", optional = true }
+kube = { workspace = true, optional = true }
+k8s-openapi = { workspace = true, optional = true }
+yaml-rust2 = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
+h2 = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
 
 # Database client dependencies (optional)
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-rustls"], optional = true }
-mysql_async = { version = "0.34", optional = true }
-tokio-postgres = { version = "0.7", optional = true }
-mongodb = { version = "3.0", optional = true }
-redis = { version = "0.25", features = ["tokio-comp"], optional = true }
+sqlx = { workspace = true, optional = true }
+mysql_async = { workspace = true, optional = true }
+tokio-postgres = { workspace = true, optional = true }
+mongodb = { workspace = true, optional = true }
+redis = { workspace = true, optional = true }
+
+# Windows-specific (always needed on Windows, optional for cross-platform)
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, optional = true }
+windows = { workspace = true }
 
 [features]
-default = ["lite", "dev-tools"]
-lite = ["dep:hex", "dev-tools"]
-standard = ["lite", "embedded-terminal", "split-screen", "sftp", "monitoring", "remote-desktop", "log-monitor", "docker", "dev-tools"]
-pro = ["standard", "team", "audit", "sso", "sync", "dev-tools"]
-docker = ["dep:serde_yaml"]
+default = ["lite"]
+
+# ===== Version Features =====
+# Lite: SSH配置保险箱 - 基础SSH连接和配置管理
+lite = ["keychain", "config-crypto", "dev-tools"]
+
+# Standard: 全功能客户端 - 在Lite基础上增加终端、分屏、监控、文件管理
+standard = [
+    "lite",
+    "embedded-terminal",
+    "database",
+    "split-screen",
+    "sftp",
+    "monitoring",
+    "port-forwarding",
+    "log-monitor",
+    "snippets",
+    "dev-tools"
+]
+
+# Pro: 团队协作平台 - 在Standard基础上增加团队、审计、SSO
+pro = [
+    "standard",
+    "team",
+    "audit",
+    "sso",
+    "sync",
+    "backup",
+    "advanced-permissions",
+    "dev-tools"
+]
+
+# ===== Functional Features =====
+# Core infrastructure
+keychain = []
+config-crypto = []
+
+# Terminal features
 embedded-terminal = ["dep:portable-pty", "dep:async-trait"]
 split-screen = []
+
+# File transfer
 sftp = []
+
+# Monitoring
 monitoring = ["dep:async-trait", "dep:reqwest"]
-remote-desktop = []
 log-monitor = []
-git = ["dep:git2"]
-team = []
-audit = []
-sso = []
+
+# Connection
 port-forwarding = []
+
+# Code snippets
+snippets = []
+
+# Database client
+database = ["dep:sqlx"]
+database-client = ["database"]
+mysql-driver = ["database", "dep:mysql_async"]
+postgres-driver = ["database", "dep:tokio-postgres"]
+mongodb-driver = ["database", "dep:mongodb", "dep:futures"]
+redis-driver = ["database", "dep:redis"]
+
+# Cloud sync
 sync = ["dep:async-trait", "dep:reqwest"]
-telemetry = ["dep:windows-sys"]
-kubernetes = [
-    "dep:kube",
-    "dep:k8s-openapi",
-    "dep:yaml-rust2",
-    "dep:futures",
-    "dep:bytes",
-    "dep:h2",
-    "dep:http",
-    "dep:serde_yaml"
-]
-auto-update = [
-    "dep:reqwest",
-    "dep:ed25519-dalek",
-    "dep:hex",
-    "dep:semver",
-    "dep:bzip2",
-    "dep:zstd",
-    "dep:walkdir",
-    "dep:async-trait",
-    "dep:windows-sys",
-    "dep:anyhow"
-]
+
+# Backup system
 backup = [
     "dep:tokio-cron-scheduler",
     "dep:async-trait",
@@ -172,37 +212,89 @@ backup = [
 backup-aws = ["backup", "dep:aws-config", "dep:aws-sdk-s3"]
 backup-gcp = ["backup", "dep:google-cloud-storage"]
 backup-azure = ["backup", "dep:azure_storage", "dep:azure_storage_blobs"]
+
+# Team collaboration
+team = []
+advanced-permissions = ["team"]
+
+# Audit & compliance
+audit = []
+
+# SSO integration
+sso = ["dep:openidconnect"]
+saml-sso = ["sso", "dep:samael"]
+oidc-sso = ["sso"]
+
+# Kubernetes
+kubernetes = [
+    "dep:kube",
+    "dep:k8s-openapi",
+    "dep:yaml-rust2",
+    "dep:futures",
+    "dep:bytes",
+    "dep:h2",
+    "dep:http",
+    "dep:serde_yaml"
+]
+
+# Docker integration
+docker = ["dep:serde_yaml"]
+
+# Remote desktop
+remote-desktop = []
+
+# Git integration
+git = ["dep:git2"]
+
+# Auto-update
+auto-update = [
+    "dep:reqwest",
+    "dep:ed25519-dalek",
+    "dep:hex",
+    "dep:semver",
+    "dep:bzip2",
+    "dep:zstd",
+    "dep:walkdir",
+    "dep:async-trait",
+    "dep:windows-sys",
+    "dep:anyhow"
+]
+
+# Cloud storage
 cloud-aws = ["dep:aws-config", "dep:aws-sdk-s3"]
 cloud-gcp = ["dep:google-cloud-storage"]
 cloud-azure = ["dep:azure_storage", "dep:azure_storage_blobs"]
-# Workflow automation feature
+
+# Workflow automation
 workflow = []
-# Database client features
-database-client = ["dep:async-trait"]
-mysql-driver = ["database-client", "dep:mysql_async"]
-postgres-driver = ["database-client", "dep:tokio-postgres"]
-mongodb-driver = ["database-client", "dep:mongodb", "dep:futures"]
-redis-driver = ["database-client", "dep:redis"]
-# Debug tools feature - 统一Lite/Standard/Pro三版本Debug功能
+
+# Telemetry (Windows)
+telemetry = ["dep:windows-sys"]
+
+# Dev tools - 统一Lite/Standard/Pro三版本Debug功能
 dev-tools = []
+
+# Serialization formats
+serde_yaml = ["dep:serde_yaml"]
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+tokio-test = "0.4"
+tempfile = "3"
+mockall = "0.12"
+serde_json = { workspace = true }
 
 [[bench]]
 name = "crypto_bench"
 harness = false
-required-features = []
 
 [[bench]]
 name = "db_bench"
 harness = false
-required-features = []
 
 [[bench]]
 name = "ssh_bench"
 harness = false
-required-features = []
 
 [[bench]]
 name = "sftp_bench"

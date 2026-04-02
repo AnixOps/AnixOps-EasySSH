@@ -248,7 +248,7 @@ impl DockerManager {
     }
 
     /// Parse image inspect JSON
-    fn parse_image_inspect_json(&self, value: serde_json::Value) -> Result<ImageInfo, LiteError> {
+    pub fn parse_image_inspect_json(&self, value: serde_json::Value) -> Result<ImageInfo, LiteError> {
         let config = value.get("Config").and_then(|v| v.as_object());
 
         Ok(ImageInfo {

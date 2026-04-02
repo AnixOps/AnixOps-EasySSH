@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use sqlx::AnyPool;
+use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 
 // Base64 (0.21 API)
@@ -137,14 +137,14 @@ struct OidcTokenResponse {
 }
 
 pub struct SsoService {
-    db: AnyPool,
+    db: Pool<Sqlite>,
     config: std::sync::Arc<AppConfig>,
     // In-memory storage for pending requests (should be Redis in production)
     pending_requests: std::sync::Mutex<std::collections::HashMap<String, PendingAuthRequest>>,
 }
 
 impl SsoService {
-    pub fn new(db: AnyPool, config: std::sync::Arc<AppConfig>) -> Self {
+    pub fn new(db: Pool<Sqlite>, config: std::sync::Arc<AppConfig>) -> Self {
         Self {
             db,
             config,

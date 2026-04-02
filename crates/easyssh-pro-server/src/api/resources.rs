@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     routing::{delete, get, post, put},
     Json, Router,
 };
@@ -12,17 +12,17 @@ pub fn resource_routes() -> Router<AppState> {
         // Shared servers
         .route("/servers", post(share_server))
         .route("/servers", get(list_shared_servers))
-        .route("/servers/:id", get(get_shared_server))
-        .route("/servers/:id", delete(unshare_server))
-        .route("/servers/:id/permissions", put(update_server_permissions))
+        .route("/servers/{id}", get(get_shared_server))
+        .route("/servers/{id}", delete(unshare_server))
+        .route("/servers/{id}/permissions", put(update_server_permissions))
         // Snippets
         .route("/snippets", post(create_snippet))
         .route("/snippets", get(list_snippets))
-        .route("/snippets/:id", get(get_snippet))
-        .route("/snippets/:id", put(update_snippet))
-        .route("/snippets/:id", delete(delete_snippet))
-        .route("/snippets/:id/share", post(share_snippet))
-        .route("/snippets/:id/unshare", post(unshare_snippet))
+        .route("/snippets/{id}", get(get_snippet))
+        .route("/snippets/{id}", put(update_snippet))
+        .route("/snippets/{id}", delete(delete_snippet))
+        .route("/snippets/{id}/share", post(share_snippet))
+        .route("/snippets/{id}/unshare", post(unshare_snippet))
 }
 
 // Server sharing endpoints

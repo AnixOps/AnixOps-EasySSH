@@ -18,7 +18,7 @@ use axum::{
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// 创建事件响应中心API路由
 pub fn incident_routes() -> Router<AppState> {
@@ -26,80 +26,80 @@ pub fn incident_routes() -> Router<AppState> {
         // 事件管理
         .route("/incidents", post(create_incident))
         .route("/incidents", get(list_incidents))
-        .route("/incidents/:id", get(get_incident))
-        .route("/incidents/:id", put(update_incident))
-        .route("/incidents/:id/acknowledge", post(acknowledge_incident))
-        .route("/incidents/:id/resolve", post(resolve_incident))
-        .route("/incidents/:id/close", post(close_incident))
-        .route("/incidents/:id/join", post(join_incident))
-        .route("/incidents/:id/leave", post(leave_incident))
-        .route("/incidents/:id/timeline", get(get_timeline))
-        .route("/incidents/:id/timeline", post(add_timeline_entry))
-        .route("/incidents/:id/alerts", get(get_incident_alerts))
-        .route("/incidents/:id/diagnoses", get(get_diagnoses))
-        .route("/incidents/:id/diagnose", post(perform_ai_diagnosis))
-        .route("/incidents/:id/escalate", post(escalate_incident))
+        .route("/incidents/{id}", get(get_incident))
+        .route("/incidents/{id}", put(update_incident))
+        .route("/incidents/{id}/acknowledge", post(acknowledge_incident))
+        .route("/incidents/{id}/resolve", post(resolve_incident))
+        .route("/incidents/{id}/close", post(close_incident))
+        .route("/incidents/{id}/join", post(join_incident))
+        .route("/incidents/{id}/leave", post(leave_incident))
+        .route("/incidents/{id}/timeline", get(get_timeline))
+        .route("/incidents/{id}/timeline", post(add_timeline_entry))
+        .route("/incidents/{id}/alerts", get(get_incident_alerts))
+        .route("/incidents/{id}/diagnoses", get(get_diagnoses))
+        .route("/incidents/{id}/diagnose", post(perform_ai_diagnosis))
+        .route("/incidents/{id}/escalate", post(escalate_incident))
         .route(
-            "/incidents/:id/escalation-history",
+            "/incidents/{id}/escalation-history",
             get(get_escalation_history),
         )
-        .route("/incidents/:id/participants", get(get_participants))
-        .route("/incidents/:id/impact-analysis", get(get_impact_analysis))
-        .route("/incidents/:id/related", get(get_related_incidents))
-        .route("/incidents/:id/post-mortem", get(get_post_mortem))
-        .route("/incidents/:id/post-mortem", post(create_post_mortem))
+        .route("/incidents/{id}/participants", get(get_participants))
+        .route("/incidents/{id}/impact-analysis", get(get_impact_analysis))
+        .route("/incidents/{id}/related", get(get_related_incidents))
+        .route("/incidents/{id}/post-mortem", get(get_post_mortem))
+        .route("/incidents/{id}/post-mortem", post(create_post_mortem))
         .route("/incidents/stats", get(get_incident_stats))
         // 告警管理
         .route("/alerts", post(create_alert))
         .route("/alerts", get(list_alerts))
         .route("/alerts/aggregated", get(get_aggregated_alerts))
-        .route("/alerts/:id", get(get_alert))
-        .route("/alerts/:id/acknowledge", post(acknowledge_alert))
-        .route("/alerts/:id/resolve", post(resolve_alert))
-        .route("/alerts/:id/suppress", post(suppress_alert))
+        .route("/alerts/{id}", get(get_alert))
+        .route("/alerts/{id}/acknowledge", post(acknowledge_alert))
+        .route("/alerts/{id}/resolve", post(resolve_alert))
+        .route("/alerts/{id}/suppress", post(suppress_alert))
         // 运行手册
         .route("/runbooks", post(create_runbook))
         .route("/runbooks", get(list_runbooks))
-        .route("/runbooks/:id", get(get_runbook))
-        .route("/runbooks/:id", put(update_runbook))
-        .route("/runbooks/:id", delete(delete_runbook))
-        .route("/runbooks/:id/execute", post(execute_runbook))
-        .route("/runbooks/:id/executions", get(get_runbook_executions))
+        .route("/runbooks/{id}", get(get_runbook))
+        .route("/runbooks/{id}", put(update_runbook))
+        .route("/runbooks/{id}", delete(delete_runbook))
+        .route("/runbooks/{id}/execute", post(execute_runbook))
+        .route("/runbooks/{id}/executions", get(get_runbook_executions))
         .route("/runbooks/search", get(search_runbooks))
         .route("/runbooks/popular", get(get_popular_runbooks))
         // 升级策略
         .route("/escalation-policies", post(create_escalation_policy))
         .route("/escalation-policies", get(list_escalation_policies))
-        .route("/escalation-policies/:id", get(get_escalation_policy))
-        .route("/escalation-policies/:id", put(update_escalation_policy))
-        .route("/escalation-policies/:id", delete(delete_escalation_policy))
+        .route("/escalation-policies/{id}", get(get_escalation_policy))
+        .route("/escalation-policies/{id}", put(update_escalation_policy))
+        .route("/escalation-policies/{id}", delete(delete_escalation_policy))
         .route(
-            "/escalation-policies/:id/test",
+            "/escalation-policies/{id}/test",
             post(test_escalation_policy),
         )
         // 集成管理
         .route("/integrations", post(create_integration))
         .route("/integrations", get(list_integrations))
-        .route("/integrations/:id", get(get_integration))
-        .route("/integrations/:id", put(update_integration))
-        .route("/integrations/:id", delete(delete_integration))
-        .route("/integrations/:id/test", post(test_integration))
+        .route("/integrations/{id}", get(get_integration))
+        .route("/integrations/{id}", put(update_integration))
+        .route("/integrations/{id}", delete(delete_integration))
+        .route("/integrations/{id}/test", post(test_integration))
         // 事后复盘
         .route("/post-mortems", get(list_post_mortems))
-        .route("/post-mortems/:id", get(get_post_mortem_by_id))
-        .route("/post-mortems/:id", put(update_post_mortem))
-        .route("/post-mortems/:id/publish", post(publish_post_mortem))
-        .route("/post-mortems/:id/report", get(generate_post_mortem_report))
+        .route("/post-mortems/{id}", get(get_post_mortem_by_id))
+        .route("/post-mortems/{id}", put(update_post_mortem))
+        .route("/post-mortems/{id}/publish", post(publish_post_mortem))
+        .route("/post-mortems/{id}/report", get(generate_post_mortem_report))
         .route(
-            "/post-mortems/:id/suggestions",
+            "/post-mortems/{id}/suggestions",
             get(get_improvement_suggestions),
         )
         // 检测规则
         .route("/detection-rules", post(create_detection_rule))
         .route("/detection-rules", get(list_detection_rules))
-        .route("/detection-rules/:id", get(get_detection_rule))
-        .route("/detection-rules/:id", put(update_detection_rule))
-        .route("/detection-rules/:id", delete(delete_detection_rule))
+        .route("/detection-rules/{id}", get(get_detection_rule))
+        .route("/detection-rules/{id}", put(update_detection_rule))
+        .route("/detection-rules/{id}", delete(delete_detection_rule))
         // 指标和仪表板
         .route("/metrics", get(get_incident_metrics))
         .route(

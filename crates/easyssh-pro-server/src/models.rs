@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 // ============= User Models =============
@@ -50,7 +50,7 @@ pub struct LoginResponse {
     pub user: UserProfile,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UserProfile {
     pub id: String,
     pub email: String,
@@ -101,7 +101,7 @@ pub struct TeamMember {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum TeamRole {
     Owner,
     Admin,
@@ -140,7 +140,7 @@ pub struct InviteMemberRequest {
     pub role: TeamRole,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Invitation {
     pub id: String,
     pub team_id: String,
@@ -156,7 +156,7 @@ pub struct Invitation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum InvitationStatus {
     Pending,
     Accepted,
@@ -186,11 +186,12 @@ pub struct Permission {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CheckPermissionRequest {
     pub resource_type: String,
     pub action: String,
     pub resource_id: Option<String>,
+    pub team_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -218,7 +219,7 @@ pub struct AuditLog {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct QueryAuditLogsRequest {
     pub team_id: Option<String>,
     pub user_id: Option<String>,
@@ -345,7 +346,7 @@ pub struct SsoConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum SsoProviderType {
     #[serde(rename = "saml")]
     Saml,
@@ -392,6 +393,14 @@ pub enum WebSocketMessage {
     Pong { timestamp: DateTime<Utc> },
     Subscribe { channels: Vec<String> },
     Unsubscribe { channels: Vec<String> },
+    CollaborationUpdate {
+        resource_type: String,
+        resource_id: String,
+        action: String,
+        data: serde_json::Value,
+        user_id: String,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 // ============= Collaboration Models =============
@@ -601,7 +610,7 @@ pub struct AddClipboardRequest {
 
 // ============= Common Models =============
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
 pub struct PaginationParams {
     pub page: Option<i64>,
     pub limit: Option<i64>,

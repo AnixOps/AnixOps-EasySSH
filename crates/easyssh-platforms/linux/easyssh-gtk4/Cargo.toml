@@ -1,48 +1,82 @@
 [package]
 name = "easyssh-gtk4"
-version = "0.3.0"
-edition = "2021"
-authors = ["EasySSH Team"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "EasySSH GTK4 native client for Linux"
-license = "MIT"
+rust-version.workspace = true
 
 [[bin]]
 name = "easyssh"
 path = "src/main.rs"
 
 [dependencies]
-easyssh-core = { path = "../../../core", features = ["sftp"] }
+# Core dependency
+easyssh-core = { path = "../../../easyssh-core", default-features = false }
+
+# Workspace dependencies
+tokio = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 # GTK4 + libadwaita for modern GNOME-style UI
 gtk4 = { version = "0.8", features = ["v4_12"] }
 libadwaita = { version = "0.6", features = ["v1_5"] }
 cairo-rs = { version = "0.19", features = ["png"] }
 
-# DateTime for file timestamps
-chrono = "0.4"
-
-# Serialization
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-
-# Async runtime
-tokio = { version = "1", features = ["full"] }
-uuid = { version = "1", features = ["v4"] }
-
-# Logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
 [dev-dependencies]
-# Testing - GTK4 tests require display
 serial_test = "3"
-tempfile = "3"
+tempfile = { workspace = true }
 
 [[test]]
 name = "integration_tests"
 path = "tests/integration_tests.rs"
 
 [features]
-default = []
+default = ["standard"]
+
+# ===== Version Features =====
+lite = [
+    "easyssh-core/lite",
+    "sftp"
+]
+
+standard = [
+    "easyssh-core/standard",
+    "lite",
+    "embedded-terminal",
+    "monitoring",
+    "port-forwarding",
+    "snippets"
+]
+
+pro = [
+    "easyssh-core/pro",
+    "standard",
+    "team",
+    "sync",
+    "kubernetes"
+]
+
+# ===== Functional Features =====
+embedded-terminal = ["easyssh-core/embedded-terminal"]
+monitoring = ["easyssh-core/monitoring"]
+port-forwarding = ["easyssh-core/port-forwarding"]
+snippets = ["easyssh-core/snippets"]
+sftp = ["easyssh-core/sftp"]
+team = ["easyssh-core/team"]
+sync = ["easyssh-core/sync"]
+kubernetes = ["easyssh-core/kubernetes"]
+
+# Test features
 gtk-tests = []
 integration-tests = []
+
+# Debug feature
+dev-tools = ["easyssh-core/dev-tools"]

@@ -16,6 +16,12 @@ pub mod webgl;
 #[cfg(feature = "embedded-terminal")]
 pub mod xterm_compat;
 
+// Native terminal launcher (available for all editions)
+pub mod launcher;
+
+// Export launcher types
+pub use launcher::{DetectedTerminal, TerminalLauncher, TerminalPreference, TerminalType, generate_ssh_command};
+
 // Export core types
 #[cfg(feature = "embedded-terminal")]
 pub use embedded::{PtyTerminal, TerminalEmulator, TerminalManager};

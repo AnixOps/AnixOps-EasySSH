@@ -535,3 +535,31 @@ pub struct Actor {
     pub id: String,
     pub attributes: HashMap<String, String>,
 }
+
+/// Disk usage information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiskUsage {
+    pub layers_size: i64,
+    pub images: Vec<ImageInfo>,
+    pub containers: Vec<ContainerInfo>,
+    pub volumes: Vec<VolumeInfo>,
+    pub build_cache: Vec<BuildCacheInfo>,
+}
+
+/// Build cache information
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BuildCacheInfo {
+    pub id: String,
+    pub parent: Option<String>,
+    pub parents: Vec<String>,
+}
+
+/// System prune result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemPruneResult {
+    pub containers_deleted: Vec<String>,
+    pub images_deleted: Vec<String>,
+    pub networks_deleted: Vec<String>,
+    pub volumes_deleted: Vec<String>,
+    pub space_reclaimed: i64,
+}

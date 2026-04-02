@@ -1,7 +1,7 @@
 use axum::{
     extract::{Extension, Path, Query, State},
     response::Redirect,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use std::collections::HashMap;
@@ -13,16 +13,16 @@ pub fn sso_routes() -> Router<AppState> {
         // SSO Configuration (team admins)
         .route("/config", post(create_sso_config))
         .route("/config", get(list_sso_configs))
-        .route("/config/:id", get(get_sso_config))
-        .route("/config/:id", post(update_sso_config))
-        .route("/config/:id", delete(delete_sso_config))
+        .route("/config/{id}", get(get_sso_config))
+        .route("/config/{id}", post(update_sso_config))
+        .route("/config/{id}", delete(delete_sso_config))
         // SAML endpoints
-        .route("/saml/:team_id/login", get(saml_login))
-        .route("/saml/:team_id/acs", post(saml_acs))
-        .route("/saml/:team_id/metadata", get(saml_metadata))
+        .route("/saml/{team_id}/login", get(saml_login))
+        .route("/saml/{team_id}/acs", post(saml_acs))
+        .route("/saml/{team_id}/metadata", get(saml_metadata))
         // OIDC endpoints
-        .route("/oidc/:team_id/login", get(oidc_login))
-        .route("/oidc/:team_id/callback", get(oidc_callback))
+        .route("/oidc/{team_id}/login", get(oidc_login))
+        .route("/oidc/{team_id}/callback", get(oidc_callback))
 }
 
 async fn create_sso_config(
@@ -420,7 +420,7 @@ async fn saml_metadata(
     let response = axum::response::Response::builder()
         .status(axum::http::StatusCode::OK)
         .header("Content-Type", "application/xml")
-        .body(metadata)
+        .body(axum::body::Body::from(metadata))
         .map_err(|e| {
             (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,

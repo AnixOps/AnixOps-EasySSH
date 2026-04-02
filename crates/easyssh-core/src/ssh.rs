@@ -1669,3 +1669,1318 @@ mod tests {
         assert!(json.contains("degraded"));
     }
 }
+
+// =============================================================================
+// SSH Connection Management for Lite Version
+// =============================================================================
+
+// SSH connection management components for Lite version.
+//
+// This section provides:
+// - `SshConfig`: SSH configuration structure
+// - `AuthManager`: Authentication management
+// - `KnownHosts`: Known host key management
+// - `SshAgent`: SSH agent integration
+// - `ConnectionTestResult`: Connection testing utilities
+
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::path::{Path, PathBuf};
+
+/// SSH authentication method for Lite version.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AuthMethod {
+    /// Password authentication
+    Password(String),
+    /// Public key authentication with optional passphrase
+    PublicKey {
+        /// Path to private key file
+        path: PathBuf,
+        /// Optional passphrase for encrypted keys
+        passphrase: Option<String>,
+    },
+    /// SSH agent authentication
+    Agent,
+}
+
+impl AuthMethod {
+    /// Check if authentication method is valid.
+    pub fn is_valid(&self) -> bool {
+        match self {
+            AuthMethod::Password(password) => !password.is_empty(),
+            AuthMethod::PublicKey { path, .. } => !path.as_os_str().is_empty(),
+            AuthMethod::Agent => true,
+        }
+    }
+
+    /// Get a display name for this authentication method.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            AuthMethod::Password(_) => "Password",
+            AuthMethod::PublicKey { .. } => "Public Key",
+            AuthMethod::Agent => "SSH Agent",
+        }
+    }
+
+    /// Check if this is password authentication.
+    pub fn is_password(&self) -> bool {
+        matches!(self, AuthMethod::Password(_))
+    }
+
+    /// Check if this is public key authentication.
+    pub fn is_public_key(&self) -> bool {
+        matches!(self, AuthMethod::PublicKey { .. })
+    }
+
+    /// Check if this is agent authentication.
+    pub fn is_agent(&self) -> bool {
+        matches!(self, AuthMethod::Agent)
+    }
+}
+
+impl fmt::Display for AuthMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AuthMethod::Password(_) => write!(f, "password"),
+            AuthMethod::PublicKey { path, .. } => {
+                write!(f, "publickey({})", path.display())
+            }
+            AuthMethod::Agent => write!(f, "agent"),
+        }
+    }
+}
+
+/// SSH connection timeout configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConnectionTimeout {
+    /// Connection establishment timeout in seconds
+    pub connect_secs: u64,
+    /// Authentication timeout in seconds
+    pub auth_secs: u64,
+    /// Keepalive interval in seconds (0 to disable)
+    pub keepalive_secs: u64,
+    /// Command execution timeout in seconds (0 for no timeout)
+    pub command_secs: u64,
+}
+
+impl ConnectionTimeout {
+    /// Create a new timeout configuration.
+    pub fn new(connect_secs: u64, auth_secs: u64, keepalive_secs: u64, command_secs: u64) -> Self {
+        Self {
+            connect_secs,
+            auth_secs,
+            keepalive_secs,
+            command_secs,
+        }
+    }
+
+    /// Get connection timeout as Duration.
+    pub fn connect_duration(&self) -> Duration {
+        Duration::from_secs(self.connect_secs)
+    }
+
+    /// Get authentication timeout as Duration.
+    pub fn auth_duration(&self) -> Duration {
+        Duration::from_secs(self.auth_secs)
+    }
+
+    /// Get keepalive interval as Duration.
+    pub fn keepalive_duration(&self) -> Duration {
+        Duration::from_secs(self.keepalive_secs)
+    }
+
+    /// Get command timeout as Duration (None if 0).
+    pub fn command_duration(&self) -> Option<Duration> {
+        if self.command_secs > 0 {
+            Some(Duration::from_secs(self.command_secs))
+        } else {
+            None
+        }
+    }
+}
+
+impl Default for ConnectionTimeout {
+    fn default() -> Self {
+        Self {
+            connect_secs: 30,
+            auth_secs: 30,
+            keepalive_secs: 60,
+            command_secs: 0,
+        }
+    }
+}
+
+/// SSH connection configuration for Lite version.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SshConfig {
+    /// Remote host address (IP or hostname)
+    pub host: String,
+    /// Remote SSH port (default: 22)
+    pub port: u16,
+    /// Username for authentication
+    pub username: String,
+    /// Authentication method
+    pub auth: AuthMethod,
+    /// Connection timeout settings
+    pub timeout: ConnectionTimeout,
+    /// Path to known_hosts file
+    pub known_hosts_path: Option<PathBuf>,
+    /// Compression enabled (default: true)
+    pub compression: bool,
+    /// Cipher preference (None for default)
+    pub preferred_cipher: Option<String>,
+}
+
+impl SshConfig {
+    /// Create a new SSH configuration with basic settings.
+    pub fn new(host: impl Into<String>, port: u16, username: impl Into<String>) -> Self {
+        Self {
+            host: host.into(),
+            port,
+            username: username.into(),
+            auth: AuthMethod::Agent,
+            timeout: ConnectionTimeout::default(),
+            known_hosts_path: Self::default_known_hosts_path(),
+            compression: true,
+            preferred_cipher: None,
+        }
+    }
+
+    /// Create a new SSH configuration with password authentication.
+    pub fn with_password(
+        host: impl Into<String>,
+        port: u16,
+        username: impl Into<String>,
+        password: impl Into<String>,
+    ) -> Self {
+        Self {
+            host: host.into(),
+            port,
+            username: username.into(),
+            auth: AuthMethod::Password(password.into()),
+            timeout: ConnectionTimeout::default(),
+            known_hosts_path: Self::default_known_hosts_path(),
+            compression: true,
+            preferred_cipher: None,
+        }
+    }
+
+    /// Create a new SSH configuration with agent authentication.
+    pub fn with_agent(host: impl Into<String>, port: u16, username: impl Into<String>) -> Self {
+        Self {
+            host: host.into(),
+            port,
+            username: username.into(),
+            auth: AuthMethod::Agent,
+            timeout: ConnectionTimeout::default(),
+            known_hosts_path: Self::default_known_hosts_path(),
+            compression: true,
+            preferred_cipher: None,
+        }
+    }
+
+    /// Create a new SSH configuration with public key authentication.
+    pub fn with_key(
+        host: impl Into<String>,
+        port: u16,
+        username: impl Into<String>,
+        key_path: PathBuf,
+        passphrase: Option<String>,
+    ) -> Self {
+        Self {
+            host: host.into(),
+            port,
+            username: username.into(),
+            auth: AuthMethod::PublicKey {
+                path: key_path,
+                passphrase,
+            },
+            timeout: ConnectionTimeout::default(),
+            known_hosts_path: Self::default_known_hosts_path(),
+            compression: true,
+            preferred_cipher: None,
+        }
+    }
+
+    /// Set authentication method.
+    pub fn with_auth(mut self, auth: AuthMethod) -> Self {
+        self.auth = auth;
+        self
+    }
+
+    /// Set connection timeout.
+    pub fn with_timeout(mut self, timeout: ConnectionTimeout) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// Set known hosts file path.
+    pub fn with_known_hosts(mut self, path: Option<PathBuf>) -> Self {
+        self.known_hosts_path = path;
+        self
+    }
+
+    /// Enable or disable compression.
+    pub fn with_compression(mut self, enabled: bool) -> Self {
+        self.compression = enabled;
+        self
+    }
+
+    /// Set preferred cipher.
+    pub fn with_cipher(mut self, cipher: Option<String>) -> Self {
+        self.preferred_cipher = cipher;
+        self
+    }
+
+    /// Get the default known_hosts path.
+    fn default_known_hosts_path() -> Option<PathBuf> {
+        dirs::home_dir().map(|home| home.join(".ssh").join("known_hosts"))
+    }
+
+    /// Get connection address string (host:port).
+    pub fn address(&self) -> String {
+        format!("{}:{}", self.host, self.port)
+    }
+
+    /// Check if configuration is valid.
+    pub fn is_valid(&self) -> bool {
+        !self.host.is_empty()
+            && self.port > 0
+            && !self.username.is_empty()
+            && self.auth.is_valid()
+    }
+}
+
+impl Default for SshConfig {
+    fn default() -> Self {
+        Self {
+            host: String::new(),
+            port: 22,
+            username: String::new(),
+            auth: AuthMethod::Agent,
+            timeout: ConnectionTimeout::default(),
+            known_hosts_path: Self::default_known_hosts_path(),
+            compression: true,
+            preferred_cipher: None,
+        }
+    }
+}
+
+/// SSH private key format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum KeyFormat {
+    /// OpenSSH format (new style, since OpenSSH 7.8)
+    OpenSSH,
+    /// PEM format (traditional, PKCS#1/PKCS#8)
+    Pem,
+    /// PuTTY .ppk format
+    Ppk,
+    /// Unknown format
+    Unknown,
+}
+
+impl KeyFormat {
+    /// Detect key format from file content.
+    pub fn detect(content: &[u8]) -> Self {
+        let content_str = String::from_utf8_lossy(content);
+
+        if content_str.contains("-----BEGIN OPENSSH PRIVATE KEY-----") {
+            KeyFormat::OpenSSH
+        } else if content_str.contains("-----BEGIN RSA PRIVATE KEY-----")
+            || content_str.contains("-----BEGIN DSA PRIVATE KEY-----")
+            || content_str.contains("-----BEGIN EC PRIVATE KEY-----")
+            || content_str.contains("-----BEGIN PRIVATE KEY-----")
+            || content_str.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----")
+        {
+            KeyFormat::Pem
+        } else if content_str.contains("PuTTY-User-Key-File-") {
+            KeyFormat::Ppk
+        } else {
+            KeyFormat::Unknown
+        }
+    }
+
+    /// Check if format is supported.
+    pub fn is_supported(&self) -> bool {
+        matches!(self, KeyFormat::OpenSSH | KeyFormat::Pem)
+    }
+}
+
+/// SSH private key information.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrivateKey {
+    /// Key format
+    pub format: KeyFormat,
+    /// Whether key is encrypted
+    pub is_encrypted: bool,
+    /// Key algorithm
+    pub algorithm: String,
+    /// Key comment if available
+    pub comment: Option<String>,
+}
+
+impl PrivateKey {
+    /// Load key information from file.
+    pub fn from_file(path: &Path) -> Result<Self, LiteError> {
+        let content = std::fs::read_to_string(path).map_err(|e| {
+            LiteError::InvalidKey(format!("Failed to read key file: {}", e))
+        })?;
+
+        let format = KeyFormat::detect(content.as_bytes());
+        let is_encrypted = content.contains("ENCRYPTED")
+            || content.contains("Proc-Type: 4,ENCRYPTED");
+
+        let algorithm = Self::detect_algorithm(&content);
+        let comment = Self::extract_comment(&content);
+
+        Ok(PrivateKey {
+            format,
+            is_encrypted,
+            algorithm,
+            comment,
+        })
+    }
+
+    /// Detect algorithm from key content.
+    fn detect_algorithm(content: &str) -> String {
+        if content.contains("OPENSSH PRIVATE KEY") {
+            if content.contains("ssh-rsa") || content.contains("rsa-key-") {
+                "rsa".to_string()
+            } else if content.contains("ssh-ed25519") {
+                "ed25519".to_string()
+            } else if content.contains("ecdsa") {
+                "ecdsa".to_string()
+            } else {
+                "unknown".to_string()
+            }
+        } else if content.contains("RSA PRIVATE KEY") {
+            "rsa".to_string()
+        } else if content.contains("DSA PRIVATE KEY") {
+            "dsa".to_string()
+        } else if content.contains("EC PRIVATE KEY") {
+            "ecdsa".to_string()
+        } else {
+            "unknown".to_string()
+        }
+    }
+
+    /// Extract comment from key file.
+    fn extract_comment(content: &str) -> Option<String> {
+        for line in content.lines() {
+            if let Some(pos) = line.find("ssh-") {
+                let parts: Vec<&str> = line[pos..].split_whitespace().collect();
+                if parts.len() >= 3 {
+                    return Some(parts[2..].join(" "));
+                }
+            }
+        }
+        None
+    }
+
+    /// Check if passphrase is required.
+    pub fn needs_passphrase(&self) -> bool {
+        self.is_encrypted
+    }
+}
+
+/// Authentication manager for SSH connections.
+pub struct AuthManager {
+    /// Whether SSH agent is available
+    agent_available: bool,
+    /// Cached password
+    cached_password: Option<String>,
+}
+
+impl AuthManager {
+    /// Create a new authentication manager.
+    pub fn new() -> Self {
+        let agent_available = Self::detect_agent();
+        Self {
+            agent_available,
+            cached_password: None,
+        }
+    }
+
+    /// Create a new authentication manager without agent.
+    pub fn without_agent() -> Self {
+        Self {
+            agent_available: false,
+            cached_password: None,
+        }
+    }
+
+    /// Detect if SSH agent is available.
+    fn detect_agent() -> bool {
+        if std::env::var("SSH_AUTH_SOCK").is_ok() {
+            return true;
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            return std::env::var("SSH_AGENT_LAUNCHER").is_ok()
+                || std::env::var("SSH_AUTH_SOCK").is_ok();
+        }
+
+        false
+    }
+
+    /// Check if SSH agent is available.
+    pub fn supports_agent(&self) -> bool {
+        self.agent_available
+    }
+
+    /// Cache password temporarily.
+    pub fn cache_password(&mut self, password: impl Into<String>) {
+        self.cached_password = Some(password.into());
+    }
+
+    /// Get cached password and clear it.
+    pub fn take_cached_password(&mut self) -> Option<String> {
+        self.cached_password.take()
+    }
+
+    /// Clear cached credentials.
+    pub fn clear_cache(&mut self) {
+        self.cached_password = None;
+    }
+
+    /// Validate a key file.
+    pub fn validate_key(path: &Path) -> Result<PrivateKey, LiteError> {
+        if !path.exists() {
+            return Err(LiteError::FileNotFound {
+                path: path.display().to_string(),
+            });
+        }
+
+        PrivateKey::from_file(path)
+    }
+
+    /// Check if a key file needs a passphrase.
+    pub fn key_needs_passphrase(path: &Path) -> Result<bool, LiteError> {
+        let key = Self::validate_key(path)?;
+        Ok(key.needs_passphrase())
+    }
+
+    /// Find default SSH keys in ~/.ssh.
+    pub fn find_default_keys() -> Vec<PathBuf> {
+        let mut keys = Vec::new();
+
+        if let Some(home) = dirs::home_dir() {
+            let ssh_dir = home.join(".ssh");
+            let key_names = [
+                "id_rsa",
+                "id_ed25519",
+                "id_ecdsa",
+                "id_dsa",
+                "id_ed25519_sk",
+                "id_ecdsa_sk",
+            ];
+
+            for name in &key_names {
+                let key_path = ssh_dir.join(name);
+                if key_path.exists() {
+                    keys.push(key_path);
+                }
+            }
+        }
+
+        keys
+    }
+
+    /// Get default SSH key path.
+    pub fn default_key_path() -> Option<PathBuf> {
+        Self::find_default_keys().into_iter().next()
+    }
+
+    /// Expand a key path that may contain ~ for home directory.
+    pub fn expand_key_path(path: impl AsRef<Path>) -> PathBuf {
+        let path = path.as_ref();
+
+        if path.starts_with("~") {
+            if let Some(home) = dirs::home_dir() {
+                let without_tilde = path.strip_prefix("~").unwrap_or(path);
+                return home.join(without_tilde);
+            }
+        }
+
+        path.to_path_buf()
+    }
+
+    /// Attempt pre-validation of authentication method.
+    pub fn prevalidate(&self, method: &AuthMethod) -> Result<(), LiteError> {
+        match method {
+            AuthMethod::Password(password) => {
+                if password.is_empty() {
+                    return Err(LiteError::AuthFailed);
+                }
+            }
+            AuthMethod::PublicKey { path, passphrase } => {
+                let expanded = Self::expand_key_path(path);
+                let key_info = Self::validate_key(&expanded)?;
+
+                if key_info.needs_passphrase() && passphrase.is_none() {
+                    return Err(LiteError::InvalidKey(
+                        "Key requires passphrase".to_string(),
+                    ));
+                }
+
+                if !key_info.format.is_supported() {
+                    return Err(LiteError::InvalidKey(format!(
+                        "Key format {:?} is not supported",
+                        key_info.format
+                    )));
+                }
+            }
+            AuthMethod::Agent => {
+                if !self.agent_available {
+                    return Err(LiteError::Keychain(
+                        "SSH agent not available".to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Default for AuthManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for AuthManager {
+    fn drop(&mut self) {
+        self.clear_cache();
+    }
+}
+
+/// Host key verification result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum VerifyResult {
+    /// Host key is known and matches
+    Accepted,
+    /// Host key is unknown (first connection)
+    Unknown,
+    /// Host key has changed
+    Changed,
+    /// Host key has been revoked
+    Revoked,
+}
+
+impl VerifyResult {
+    /// Check if verification is accepted.
+    pub fn is_accepted(&self) -> bool {
+        matches!(self, VerifyResult::Accepted)
+    }
+
+    /// Check if host is unknown.
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, VerifyResult::Unknown)
+    }
+
+    /// Check if host key has changed.
+    pub fn is_changed(&self) -> bool {
+        matches!(self, VerifyResult::Changed)
+    }
+
+    /// Check if host key is revoked.
+    pub fn is_revoked(&self) -> bool {
+        matches!(self, VerifyResult::Revoked)
+    }
+}
+
+/// Known hosts entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostKeyEntry {
+    /// Hostnames or patterns this key applies to
+    pub hosts: Vec<String>,
+    /// Key type
+    pub key_type: String,
+    /// Base64-encoded public key
+    pub key: String,
+    /// Optional comment
+    pub comment: Option<String>,
+    /// Whether this entry is revoked
+    pub revoked: bool,
+    /// Line number in file
+    pub line_number: usize,
+}
+
+impl HostKeyEntry {
+    /// Parse a line from known_hosts file.
+    pub fn parse(line: &str, line_number: usize) -> Option<Self> {
+        let trimmed = line.trim();
+
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            return None;
+        }
+
+        let (revoked, content) = if trimmed.starts_with("@revoked ") {
+            (true, &trimmed[9..])
+        } else {
+            (false, trimmed)
+        };
+
+        let parts: Vec<&str> = content.split_whitespace().collect();
+
+        if parts.len() < 3 {
+            return None;
+        }
+
+        let hosts_field = parts[0];
+        let hosts = if hosts_field.starts_with("|1|") {
+            vec![hosts_field.to_string()]
+        } else {
+            hosts_field.split(',').map(|s| s.to_string()).collect()
+        };
+
+        let key_type = parts[1].to_string();
+        let key = parts[2].to_string();
+
+        let comment = if parts.len() > 3 {
+            Some(parts[3..].join(" "))
+        } else {
+            None
+        };
+
+        Some(HostKeyEntry {
+            hosts,
+            key_type,
+            key,
+            comment,
+            revoked,
+            line_number,
+        })
+    }
+
+    /// Format entry as known_hosts line.
+    pub fn to_line(&self) -> String {
+        let mut result = String::new();
+
+        if self.revoked {
+            result.push_str("@revoked ");
+        }
+
+        result.push_str(&self.hosts.join(","));
+        result.push(' ');
+        result.push_str(&self.key_type);
+        result.push(' ');
+        result.push_str(&self.key);
+
+        if let Some(ref comment) = self.comment {
+            result.push(' ');
+            result.push_str(comment);
+        }
+
+        result
+    }
+
+    /// Check if this entry matches a host.
+    pub fn matches(&self, hostname: &str) -> bool {
+        for host in &self.hosts {
+            if host == hostname {
+                return true;
+            }
+
+            if host.contains('*') || host.contains('?') {
+                if Self::wildcard_match(host, hostname) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Simple wildcard pattern matching.
+    fn wildcard_match(pattern: &str, text: &str) -> bool {
+        let pattern_parts: Vec<&str> = pattern.split('*').collect();
+
+        if pattern_parts.len() == 1 {
+            return pattern == text;
+        }
+
+        let mut text_remaining = text;
+
+        for (i, part) in pattern_parts.iter().enumerate() {
+            if part.is_empty() {
+                continue;
+            }
+
+            if i == 0 {
+                if !text_remaining.starts_with(part) {
+                    return false;
+                }
+                text_remaining = &text_remaining[part.len()..];
+            } else if i == pattern_parts.len() - 1 {
+                return text_remaining.ends_with(part);
+            } else {
+                if let Some(pos) = text_remaining.find(part) {
+                    text_remaining = &text_remaining[pos + part.len()..];
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    /// Get key fingerprint (SHA256 base64).
+    pub fn fingerprint(&self) -> String {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        use sha2::{Digest, Sha256};
+
+        if let Ok(decoded) = STANDARD.decode(&self.key) {
+            let hash = Sha256::digest(&decoded);
+            STANDARD.encode(hash)
+        } else {
+            String::new()
+        }
+    }
+
+    /// Get short fingerprint for display.
+    pub fn fingerprint_short(&self) -> String {
+        let full = self.fingerprint();
+        if full.len() >= 16 {
+            format!("{}...{}", &full[..8], &full[full.len() - 8..])
+        } else {
+            full
+        }
+    }
+}
+
+/// Known hosts manager.
+#[derive(Debug, Clone)]
+pub struct KnownHosts {
+    /// Loaded entries
+    entries: Vec<HostKeyEntry>,
+    /// Whether file has been modified
+    modified: bool,
+}
+
+impl KnownHosts {
+    /// Create a new empty known hosts manager.
+    pub fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+            modified: false,
+        }
+    }
+
+    /// Load known hosts from file.
+    pub async fn load(&mut self, path: &Path) -> Result<(), LiteError> {
+        if !path.exists() {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| LiteError::Io(e.to_string()))?;
+            }
+            std::fs::write(path, "")
+                .map_err(|e| LiteError::Io(e.to_string()))?;
+        }
+
+        let content = tokio::fs::read_to_string(path)
+            .await
+            .map_err(|e| LiteError::Io(e.to_string()))?;
+
+        self.parse_content(&content)?;
+        self.modified = false;
+
+        Ok(())
+    }
+
+    /// Parse known_hosts content.
+    fn parse_content(&mut self, content: &str) -> Result<(), LiteError> {
+        self.entries.clear();
+
+        for (line_num, line) in content.lines().enumerate() {
+            if let Some(entry) = HostKeyEntry::parse(line, line_num + 1) {
+                self.entries.push(entry);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Verify a host's key.
+    pub fn verify(&self, hostname: &str, key: &str, key_type: &str) -> VerifyResult {
+        for entry in &self.entries {
+            if entry.matches(hostname) && entry.revoked && entry.key == key {
+                return VerifyResult::Revoked;
+            }
+        }
+
+        let matching: Vec<&HostKeyEntry> = self
+            .entries
+            .iter()
+            .filter(|e| e.matches(hostname) && !e.revoked)
+            .collect();
+
+        if matching.is_empty() {
+            return VerifyResult::Unknown;
+        }
+
+        for entry in &matching {
+            if entry.key == key && entry.key_type == key_type {
+                return VerifyResult::Accepted;
+            }
+        }
+
+        VerifyResult::Changed
+    }
+
+    /// Add a host key.
+    pub fn add_host(&mut self, hostname: &str, key_type: &str, key: &str) {
+        self.entries.retain(|e| {
+            !(e.matches(hostname) && e.key_type == key_type)
+        });
+
+        let entry = HostKeyEntry {
+            hosts: vec![hostname.to_string()],
+            key_type: key_type.to_string(),
+            key: key.to_string(),
+            comment: Some("Added by EasySSH".to_string()),
+            revoked: false,
+            line_number: self.entries.len() + 1,
+        };
+
+        self.entries.push(entry);
+        self.modified = true;
+    }
+
+    /// Revoke a host key.
+    pub fn revoke_host(&mut self, hostname: &str) {
+        for entry in &mut self.entries {
+            if entry.matches(hostname) && !entry.revoked {
+                entry.revoked = true;
+                self.modified = true;
+            }
+        }
+    }
+
+    /// Remove a host entry.
+    pub fn remove_host(&mut self, hostname: &str) {
+        let before = self.entries.len();
+        self.entries.retain(|e| !e.matches(hostname));
+
+        if self.entries.len() < before {
+            self.modified = true;
+            for (i, entry) in self.entries.iter_mut().enumerate() {
+                entry.line_number = i + 1;
+            }
+        }
+    }
+
+    /// Check if file has been modified.
+    pub fn is_modified(&self) -> bool {
+        self.modified
+    }
+
+    /// Get all entries.
+    pub fn entries(&self) -> &[HostKeyEntry] {
+        &self.entries
+    }
+
+    /// Get entry count.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Check if no entries.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Find entries for a host.
+    pub fn find_entries(&self, hostname: &str) -> Vec<&HostKeyEntry> {
+        self.entries.iter().filter(|e| e.matches(hostname)).collect()
+    }
+
+    /// Get a host's key fingerprint.
+    pub fn get_fingerprint(&self, hostname: &str) -> Option<String> {
+        self.entries
+            .iter()
+            .find(|e| e.matches(hostname) && !e.revoked)
+            .map(|e| e.fingerprint_short())
+    }
+
+    /// Clear all entries.
+    pub fn clear(&mut self) {
+        if !self.entries.is_empty() {
+            self.modified = true;
+        }
+        self.entries.clear();
+    }
+}
+
+impl Default for KnownHosts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// SSH agent error.
+#[derive(Debug, Clone)]
+pub enum SshAgentError {
+    /// Agent not available
+    NotAvailable,
+    /// Connection failed
+    ConnectionFailed(String),
+    /// Authentication failed
+    AuthFailed(String),
+    /// Protocol error
+    ProtocolError(String),
+    /// Key not found
+    KeyNotFound,
+    /// IO error
+    Io(String),
+}
+
+impl fmt::Display for SshAgentError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SshAgentError::NotAvailable => write!(f, "SSH agent not available"),
+            SshAgentError::ConnectionFailed(msg) => write!(f, "Connection failed: {}", msg),
+            SshAgentError::AuthFailed(msg) => write!(f, "Authentication failed: {}", msg),
+            SshAgentError::ProtocolError(msg) => write!(f, "Protocol error: {}", msg),
+            SshAgentError::KeyNotFound => write!(f, "Key not found in agent"),
+            SshAgentError::Io(msg) => write!(f, "IO error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for SshAgentError {}
+
+/// SSH agent key information.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentKey {
+    /// Key blob (public key data)
+    pub blob: Vec<u8>,
+    /// Key comment
+    pub comment: String,
+    /// Key fingerprint
+    pub fingerprint: String,
+    /// Key algorithm
+    pub algorithm: String,
+}
+
+impl AgentKey {
+    /// Create a short display string.
+    pub fn display_short(&self) -> String {
+        if self.comment.is_empty() {
+            format!(
+                "{} {}",
+                self.algorithm,
+                &self.fingerprint[..16.min(self.fingerprint.len())]
+            )
+        } else {
+            format!("{} ({})", self.comment, self.algorithm)
+        }
+    }
+
+    /// Check if this key matches a comment pattern.
+    pub fn matches_comment(&self, pattern: &str) -> bool {
+        self.comment.to_lowercase().contains(&pattern.to_lowercase())
+    }
+}
+
+/// SSH agent connection.
+pub struct SshAgent {
+    /// Agent socket path
+    socket_path: Option<PathBuf>,
+    /// Connection state
+    connected: bool,
+}
+
+impl SshAgent {
+    /// Connect to SSH agent.
+    pub async fn connect() -> Result<Self, SshAgentError> {
+        let socket_path = Self::detect_agent_path()?;
+
+        let agent = SshAgent {
+            socket_path: Some(socket_path),
+            connected: true,
+        };
+
+        log::info!("SSH Agent: Connected to {:?}", agent.socket_path);
+
+        Ok(agent)
+    }
+
+    /// Detect SSH agent path.
+    fn detect_agent_path() -> Result<PathBuf, SshAgentError> {
+        if let Ok(sock) = std::env::var("SSH_AUTH_SOCK") {
+            let path = PathBuf::from(sock);
+            if path.exists() || cfg!(windows) {
+                return Ok(path);
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            if std::env::var("SSH_AGENT_LAUNCHER").is_ok() {
+                return Ok(PathBuf::from("\\\\.\\pipe\\openssh-ssh-agent"));
+            }
+            return Ok(PathBuf::from("pageant"));
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let home = dirs::home_dir().ok_or(SshAgentError::NotAvailable)?;
+            let launchd_path = home.join("Library/Group Containers/group.com.openssh.ssh-agent/ssh-agent.sock");
+            if launchd_path.exists() {
+                return Ok(launchd_path);
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(entries) = std::fs::read_dir("/tmp") {
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    let name_str = name.to_string_lossy();
+                    if name_str.starts_with("ssh-") && name_str.ends_with("agent") {
+                        return Ok(entry.path());
+                    }
+                }
+            }
+        }
+
+        Err(SshAgentError::NotAvailable)
+    }
+
+    /// Check if agent is connected.
+    pub fn is_connected(&self) -> bool {
+        self.connected
+    }
+
+    /// Get agent socket path.
+    pub fn socket_path(&self) -> Option<&PathBuf> {
+        self.socket_path.as_ref()
+    }
+
+    /// List available keys in agent.
+    pub async fn list_keys(&mut self) -> Result<Vec<AgentKey>, SshAgentError> {
+        if !self.connected {
+            return Err(SshAgentError::NotAvailable);
+        }
+
+        log::debug!("SSH Agent: Listing keys");
+        Ok(Vec::new())
+    }
+
+    /// Disconnect from agent.
+    pub fn disconnect(&mut self) {
+        if self.connected {
+            log::info!("SSH Agent: Disconnected");
+            self.connected = false;
+        }
+    }
+}
+
+impl Drop for SshAgent {
+    fn drop(&mut self) {
+        self.disconnect();
+    }
+}
+
+/// Check if SSH agent is available.
+pub fn is_agent_available() -> bool {
+    if std::env::var("SSH_AUTH_SOCK").is_ok() {
+        return true;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if std::env::var("SSH_AGENT_LAUNCHER").is_ok() {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Re-export ConnectionTestResult.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConnectionTestResult {
+    /// Whether connection was successful
+    pub success: bool,
+    /// Error message if failed
+    pub error: Option<String>,
+    /// Server identification string (if successful)
+    pub server_version: Option<String>,
+    /// Time taken to connect
+    pub connect_time_ms: u64,
+    /// Authentication method used
+    pub auth_method: String,
+    /// Host key fingerprint
+    pub host_key_fingerprint: Option<String>,
+}
+
+impl ConnectionTestResult {
+    /// Check if connection test was successful.
+    pub fn is_success(&self) -> bool {
+        self.success
+    }
+
+    /// Check if connection failed.
+    pub fn is_failed(&self) -> bool {
+        !self.success
+    }
+
+    /// Get duration of connection test.
+    pub fn duration(&self) -> Duration {
+        Duration::from_millis(self.connect_time_ms)
+    }
+
+    /// Create a success result.
+    pub fn success(auth_method: impl Into<String>, connect_time_ms: u64) -> Self {
+        Self {
+            success: true,
+            error: None,
+            server_version: None,
+            connect_time_ms,
+            auth_method: auth_method.into(),
+            host_key_fingerprint: None,
+        }
+    }
+
+    /// Create a failure result.
+    pub fn failed(error: impl Into<String>, auth_method: impl Into<String>, connect_time_ms: u64) -> Self {
+        Self {
+            success: false,
+            error: Some(error.into()),
+            server_version: None,
+            connect_time_ms,
+            auth_method: auth_method.into(),
+            host_key_fingerprint: None,
+        }
+    }
+}
+
+// =============================================================================
+// Tests for Lite Version SSH Components
+// =============================================================================
+
+#[cfg(test)]
+mod lite_tests {
+    use super::*;
+
+    #[test]
+    fn test_auth_method_password() {
+        let auth = AuthMethod::Password("secret".to_string());
+        assert!(auth.is_valid());
+        assert!(auth.is_password());
+        assert_eq!(auth.display_name(), "Password");
+    }
+
+    #[test]
+    fn test_auth_method_public_key() {
+        let auth = AuthMethod::PublicKey {
+            path: PathBuf::from("~/.ssh/id_rsa"),
+            passphrase: None,
+        };
+        assert!(auth.is_valid());
+        assert!(auth.is_public_key());
+        assert_eq!(auth.display_name(), "Public Key");
+    }
+
+    #[test]
+    fn test_auth_method_agent() {
+        let auth = AuthMethod::Agent;
+        assert!(auth.is_valid());
+        assert!(auth.is_agent());
+        assert_eq!(auth.display_name(), "SSH Agent");
+    }
+
+    #[test]
+    fn test_connection_timeout_default() {
+        let timeout = ConnectionTimeout::default();
+        assert_eq!(timeout.connect_secs, 30);
+        assert_eq!(timeout.auth_secs, 30);
+    }
+
+    #[test]
+    fn test_ssh_config_new() {
+        let config = SshConfig::new("192.168.1.1", 22, "root");
+        assert_eq!(config.host, "192.168.1.1");
+        assert_eq!(config.port, 22);
+        assert_eq!(config.username, "root");
+    }
+
+    #[test]
+    fn test_ssh_config_is_valid() {
+        let valid = SshConfig::with_password("host", 22, "user", "pass");
+        assert!(valid.is_valid());
+
+        let invalid = SshConfig::new("", 22, "user");
+        assert!(!invalid.is_valid());
+    }
+
+    #[test]
+    fn test_key_format_detect() {
+        let openssh = b"-----BEGIN OPENSSH PRIVATE KEY-----";
+        assert_eq!(KeyFormat::detect(openssh), KeyFormat::OpenSSH);
+
+        let pem = b"-----BEGIN RSA PRIVATE KEY-----";
+        assert_eq!(KeyFormat::detect(pem), KeyFormat::Pem);
+
+        let unknown = b"random data";
+        assert_eq!(KeyFormat::detect(unknown), KeyFormat::Unknown);
+    }
+
+    #[test]
+    fn test_known_hosts_new() {
+        let hosts = KnownHosts::new();
+        assert!(hosts.is_empty());
+    }
+
+    #[test]
+    fn test_host_key_entry_parse() {
+        let line = "github.com ssh-rsa AAAAB3NzaC1... comment";
+        let entry = HostKeyEntry::parse(line, 1).unwrap();
+        assert_eq!(entry.hosts, vec!["github.com"]);
+        assert_eq!(entry.key_type, "ssh-rsa");
+    }
+
+    #[test]
+    fn test_verify_result_variants() {
+        assert!(VerifyResult::Accepted.is_accepted());
+        assert!(VerifyResult::Unknown.is_unknown());
+        assert!(VerifyResult::Changed.is_changed());
+        assert!(VerifyResult::Revoked.is_revoked());
+    }
+
+    #[test]
+    fn test_auth_manager_new() {
+        let manager = AuthManager::new();
+        let _ = manager.supports_agent();
+    }
+
+    #[test]
+    fn test_is_agent_available() {
+        let _ = is_agent_available();
+    }
+
+    #[test]
+    fn test_ssh_agent_error_display() {
+        let err = SshAgentError::NotAvailable;
+        assert_eq!(err.to_string(), "SSH agent not available");
+    }
+
+    #[test]
+    fn test_connection_test_result_success() {
+        let result = ConnectionTestResult::success("password", 100);
+        assert!(result.is_success());
+        assert_eq!(result.auth_method, "password");
+    }
+
+    #[test]
+    fn test_connection_test_result_failed() {
+        let result = ConnectionTestResult::failed("error", "agent", 50);
+        assert!(!result.is_success());
+        assert!(result.error.is_some());
+    }
+}

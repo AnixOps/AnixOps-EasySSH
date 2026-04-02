@@ -1,15 +1,15 @@
 use crate::models::*;
 use anyhow::Result;
 use chrono::Utc;
-use sqlx::AnyPool;
+use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 
 pub struct RbacService {
-    db: AnyPool,
+    db: Pool<Sqlite>,
 }
 
 impl RbacService {
-    pub fn new(db: AnyPool) -> Self {
+    pub fn new(db: Pool<Sqlite>) -> Self {
         Self { db }
     }
 

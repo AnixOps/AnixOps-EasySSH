@@ -11,6 +11,9 @@ use sqlx::{Any, Transaction};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
+
+use sqlx::Row;
 
 pub struct IncidentService {
     db: Arc<Database>,
@@ -155,7 +158,7 @@ impl IncidentService {
 
         // 构建动态更新
         let mut updates = vec![];
-        let mut params: Vec<Box<dyn sqlx::Type<sqlx::Any> + Send + Sync>> = vec![];
+        // let mut params: Vec<Box<dyn sqlx::Type<sqlx::Any> + Send + Sync>> = vec![];
 
         if let Some(title) = &req.title {
             updates.push("title = ?");
@@ -523,7 +526,7 @@ impl IncidentService {
         .bind(description)
         .bind(user_id)
         .bind(now)
-        .bind(metadata)
+        .bind(metadata.clone())
         .execute(self.db.pool())
         .await?;
 
@@ -785,7 +788,7 @@ impl IncidentService {
                 fingerprint,
                 alert_count,
                 first_alert,
-                latest_alert,
+                latest_alert: latest_alert.clone(),
                 severity: latest_alert.severity.clone(),
                 is_flapping,
                 suggested_action,
@@ -1072,7 +1075,7 @@ impl IncidentService {
         let findings = self.analyze_incident_patterns(&incident).await?;
 
         // 查找相关历史事件
-        let similar_incidents = self.find_similar_incidents(&incident).await?;
+        let similar_incidents = self.find_similar_incidents(&incident.incident).await?;
 
         // 建议的运行手册
         let runbook_suggestions: Vec<String> = self
@@ -1273,47 +1276,33 @@ impl IncidentService {
 
         Ok(related)
     }
-}
 
-// ============= 扩展trait实现 =============
+    /// 建议适用的运行手册
+    pub async fn suggest_runbooks(&self, incident: &Incident) -> Result<Vec<Runbook>> {
+        let since = Utc::now() - Duration::days(90);
 
-impl IncidentType {
-    fn as_str(&self) -> &'static str {
-        match self {
-            IncidentType::ServerDown => "server_down",
-            IncidentType::HighCpu => "high_cpu",
-            IncidentType::HighMemory => "high_memory",
-            IncidentType::DiskFull => "disk_full",
-            IncidentType::NetworkIssue => "network_issue",
-            IncidentType::ServiceUnavailable => "service_unavailable",
-            IncidentType::SecurityBreach => "security_breach",
-            IncidentType::SslExpired => "ssl_expired",
-            IncidentType::BackupFailed => "backup_failed",
-            IncidentType::DatabaseError => "database_error",
-            IncidentType::ApplicationError => "application_error",
-            IncidentType::HardwareFailure => "hardware_failure",
-            IncidentType::DdosAttack => "ddos_attack",
-            IncidentType::ConfigurationError => "configuration_error",
-            IncidentType::Custom => "custom",
-        }
-    }
-}
+        let runbooks = sqlx::query_as::<_, Runbook>(
+            r#"
+            SELECT * FROM runbooks
+            WHERE (team_id = ? OR is_global = TRUE)
+            AND is_active = TRUE
+            AND (
+                incident_types LIKE ?
+                OR severity_levels LIKE ?
+            )
+            AND created_at > ?
+            ORDER BY success_rate DESC, usage_count DESC
+            LIMIT 5
+        "#,
+        )
+        .bind(&incident.team_id)
+        .bind(format!("%{}%", incident.incident_type.as_str()))
+        .bind(format!("%{}%", incident.severity.as_str()))
+        .bind(since)
+        .fetch_all(self.db.pool())
+        .await?;
 
-impl TimelineEntryType {
-    fn as_str(&self) -> &'static str {
-        match self {
-            TimelineEntryType::StatusChange => "status_change",
-            TimelineEntryType::SeverityChange => "severity_change",
-            TimelineEntryType::Assignment => "assignment",
-            TimelineEntryType::Escalation => "escalation",
-            TimelineEntryType::Note => "note",
-            TimelineEntryType::Action => "action",
-            TimelineEntryType::Diagnosis => "diagnosis",
-            TimelineEntryType::Communication => "communication",
-            TimelineEntryType::Automation => "automation",
-            TimelineEntryType::Alert => "alert",
-            TimelineEntryType::RunbookExecuted => "runbook_executed",
-        }
+        Ok(runbooks)
     }
 }
 

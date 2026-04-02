@@ -59,6 +59,7 @@ pub struct DebugTestResult {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<String>,
+    pub duration_ms: Option<u64>,
 }
 
 // ============ 辅助函数 ============
@@ -224,6 +225,7 @@ pub fn debug_test_db() -> Result<DebugTestReport, String> {
                 passed: true,
                 message: format!("数据库路径: {}", p),
                 details: None,
+                duration_ms: None,
             });
             passed += 1;
         }
@@ -234,6 +236,7 @@ pub fn debug_test_db() -> Result<DebugTestReport, String> {
                 passed: false,
                 message: "数据库路径为空".to_string(),
                 details: None,
+                duration_ms: None,
             });
             failed += 1;
         }
@@ -250,6 +253,7 @@ pub fn debug_test_db() -> Result<DebugTestReport, String> {
                 passed: true,
                 message: "Database实例创建成功".to_string(),
                 details: None,
+                duration_ms: None,
             });
             passed += 1;
         }
@@ -260,6 +264,7 @@ pub fn debug_test_db() -> Result<DebugTestReport, String> {
                 passed: false,
                 message: format!("Database实例创建失败: {}", e),
                 details: None,
+                duration_ms: None,
             });
             failed += 1;
         }
@@ -291,6 +296,7 @@ pub fn debug_test_crypto() -> Result<DebugTestReport, String> {
                 passed: true,
                 message: format!("加密状态初始化成功, 已解锁: {}", is_unlocked),
                 details: None,
+                duration_ms: None,
             });
             passed += 1;
             drop(c); // 显式释放锁
@@ -302,6 +308,7 @@ pub fn debug_test_crypto() -> Result<DebugTestReport, String> {
                 passed: false,
                 message: format!("加密状态初始化失败: {}", e),
                 details: None,
+                duration_ms: None,
             });
             failed += 1;
         }
@@ -321,6 +328,7 @@ pub fn debug_test_crypto() -> Result<DebugTestReport, String> {
                 passed: true,
                 message: "主密码初始化成功".to_string(),
                 details: None,
+                duration_ms: None,
             });
             passed += 1;
         }
@@ -331,6 +339,7 @@ pub fn debug_test_crypto() -> Result<DebugTestReport, String> {
                 passed: false,
                 message: format!("主密码初始化失败: {}", e),
                 details: None,
+                duration_ms: None,
             });
             failed += 1;
         }
@@ -360,6 +369,7 @@ pub fn debug_test_ssh() -> Result<DebugTestReport, String> {
         passed: true,
         message: format!("SshSessionManager创建成功, 当前会话数: {}", session_count),
         details: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -376,6 +386,7 @@ pub fn debug_test_ssh() -> Result<DebugTestReport, String> {
             "has_session错误返回true".to_string()
         },
         details: None,
+        duration_ms: None,
     });
     if !has_none {
         passed += 1;
@@ -414,6 +425,7 @@ pub fn debug_test_pro() -> Result<DebugTestReport, String> {
                     "团队数据无效".to_string()
                 },
                 details: None,
+                duration_ms: None,
             });
             if valid {
                 passed += 1;
@@ -428,6 +440,7 @@ pub fn debug_test_pro() -> Result<DebugTestReport, String> {
                 passed: false,
                 message: format!("团队创建失败: {}", e),
                 details: None,
+                duration_ms: None,
             });
             failed += 1;
         }
@@ -483,6 +496,7 @@ pub fn debug_test_pro() -> Result<DebugTestReport, String> {
             "审计日志数据无效".to_string()
         },
         details: None,
+        duration_ms: None,
     });
     if valid {
         passed += 1;
@@ -511,6 +525,7 @@ pub fn debug_test_pro() -> Result<DebugTestReport, String> {
             passed: false,
             message: "Pro功能未启用 - 需要Pro版本".to_string(),
             details: None,
+            duration_ms: None,
         }],
     })
 }
@@ -536,6 +551,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "SSH命令格式错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -558,6 +574,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "Agent forwarding 未启用".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -580,6 +597,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "终端尺寸错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -602,6 +620,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "终端信号值错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -629,6 +648,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "主题创建失败".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -649,6 +669,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "调色板错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -669,6 +690,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "光标样式错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -689,6 +711,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "字体配置错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -709,6 +732,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "256色支持错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -732,6 +756,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "WebGL配置错误".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -752,6 +777,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "xterm兼容层不可用".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -786,6 +812,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "主题管理器初始化失败".to_string()
             },
             details: Some(format!("可用主题: {:?}", themes)),
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -812,6 +839,7 @@ pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
                 "CSS变量生成失败".to_string()
             },
             details: None,
+            duration_ms: None,
         });
         if valid {
             passed += 1;
@@ -862,6 +890,7 @@ pub fn debug_test_all() -> Result<DebugTestReport, String> {
                     passed: false,
                     message: format!("模块测试执行失败: {}", e),
                     details: None,
+                    duration_ms: None,
                 });
                 total_failed += 1;
             }
@@ -889,6 +918,7 @@ pub fn debug_quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "db模块可导入".to_string(),
         details: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -899,6 +929,7 @@ pub fn debug_quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "crypto模块可导入".to_string(),
         details: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -909,6 +940,7 @@ pub fn debug_quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "ssh模块可导入".to_string(),
         details: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -919,6 +951,7 @@ pub fn debug_quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "pro模块可导入".to_string(),
         details: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -929,6 +962,7 @@ pub fn debug_quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "terminal模块可导入".to_string(),
         details: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -941,6 +975,7 @@ pub fn debug_quick_check() -> Result<DebugTestReport, String> {
                 passed: h.status == "ok",
                 message: format!("健康检查: {} v{}", h.status, h.version),
                 details: None,
+                duration_ms: None,
             });
             if h.status == "ok" {
                 passed += 1;
@@ -955,6 +990,7 @@ pub fn debug_quick_check() -> Result<DebugTestReport, String> {
                 passed: false,
                 message: format!("健康检查失败: {}", e),
                 details: None,
+                duration_ms: None,
             });
             failed += 1;
         }
@@ -1291,6 +1327,7 @@ mod tests {
                 passed: true,
                 message: "passed".to_string(),
                 details: None,
+                duration_ms: None,
             }],
         };
         let json = serde_json::to_string(&report).unwrap();

@@ -281,8 +281,10 @@ impl EscalationService {
             None => return Ok(None),
         };
 
-        let rules: Vec<EscalationRule> =
-            serde_json::from_value(policy.rules.clone()).unwrap_or_default();
+        let rules: Vec<EscalationRule> = match &policy.rules {
+            Some(rules) => serde_json::from_value(rules.clone()).unwrap_or_default(),
+            None => vec![],
+        };
 
         // 找到适用的下一级规则
         let next_rule = rules
@@ -983,20 +985,6 @@ impl CommunicationType {
             CommunicationType::Escalation => "escalation",
             CommunicationType::Resolution => "resolution",
             CommunicationType::StakeholderUpdate => "stakeholder_update",
-        }
-    }
-}
-
-impl IncidentStatus {
-    fn as_str(&self) -> &'static str {
-        match self {
-            IncidentStatus::Detected => "detected",
-            IncidentStatus::Acknowledged => "acknowledged",
-            IncidentStatus::Investigating => "investigating",
-            IncidentStatus::Mitigating => "mitigating",
-            IncidentStatus::Resolved => "resolved",
-            IncidentStatus::Closed => "closed",
-            IncidentStatus::Escalated => "escalated",
         }
     }
 }

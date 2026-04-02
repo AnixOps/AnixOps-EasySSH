@@ -371,6 +371,10 @@ macro_rules! check_feature {
     (dev_tools) => {
         cfg!(feature = "dev-tools")
     };
+    (ssh) => {
+        // ssh是基础功能，始终返回true
+        true
+    };
 }
 
 /// 版本检查宏 - 运行时检查

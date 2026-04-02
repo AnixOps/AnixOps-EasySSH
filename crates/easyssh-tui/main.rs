@@ -1,268 +1,58 @@
-use easyssh_core::db::{Database, NewGroup, NewServer};
-use easyssh_core::terminal;
-use std::env;
-use std::error::Error;
-use std::path::PathBuf;
+//! EasySSH TUI - Terminal User Interface for EasySSH Lite
+//!
+//! This crate provides a terminal-based user interface for managing SSH connections.
+//! Built with ratatui and crossterm for cross-platform terminal control.
 
-fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+mod app;
+mod events;
+mod keybindings;
+mod ui;
 
-    let args: Vec<String> = env::args().collect();
-    if args.len() <= 1 {
-        print_help();
-        return Ok(());
+use app::{App, AppResult};
+use events::{Event, EventHandler};
+use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
+use std::io;
+use ui::Ui;
+
+#[tokio::main]
+async fn main() -> AppResult<()> {
+    // Initialize logging
+    env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("info"),
+    )
+    .init();
+
+    // Initialize terminal
+    let backend = CrosstermBackend::new(io::stdout());
+    let mut terminal = Terminal::new(backend)?;
+
+    // Create application state
+    let mut app = App::new()?;
+    app.init().await?;
+
+    // Create event handler
+    let mut events = EventHandler::new(250);
+
+    // Create UI renderer
+    let mut ui = Ui::new();
+
+    // Main loop
+    while app.running {
+        // Draw UI
+        terminal.draw(|f| ui.render(f, &mut app))?;
+
+        // Handle events
+        match events.next().await? {
+            Event::Tick => app.tick().await,
+            Event::Key(key) => app.handle_key(key).await,
+            Event::Mouse(mouse) => app.handle_mouse(mouse).await,
+            Event::Resize(w, h) => app.handle_resize(w, h).await,
+        }?;
     }
 
-    run_cli(&args)
-}
+    // Restore terminal
+    app.cleanup()?;
 
-fn run_cli(args: &[String]) -> Result<(), Box<dyn Error>> {
-    let db = Database::new(easyssh_core::get_db_path())?;
-    db.init()?;
-
-    match args[1].as_str() {
-        "add-server" | "add" => add_server(&db, args),
-        "add-group" | "group" => add_group(&db, args),
-        "list" | "ls" => list_servers(&db),
-        "import-ssh" | "import" => import_ssh_config(&db),
-        "connect" => connect_server(&db, args),
-        "version" | "-v" | "--version" => {
-            println!("EasySSH {} (Lite)", env!("CARGO_PKG_VERSION"));
-            Ok(())
-        }
-        "help" | "-h" | "--help" => {
-            print_help();
-            Ok(())
-        }
-        other => {
-            eprintln!("Unknown command: {other}");
-            print_help();
-            Ok(())
-        }
-    }
-}
-
-fn add_server(db: &Database, args: &[String]) -> Result<(), Box<dyn Error>> {
-    if args.len() < 5 {
-        eprintln!("Usage: easyssh add-server <name> <host> <username> [port] [auth_type]");
-        return Ok(());
-    }
-
-    let name = &args[2];
-    let host = &args[3];
-    let username = &args[4];
-    let port_str = args.get(5).cloned().unwrap_or_else(|| "22".to_string());
-    let auth_type = args.get(6).cloned().unwrap_or_else(|| "agent".to_string());
-
-    validate_server(name, host, username, &port_str, &auth_type)?;
-    let port = port_str.parse::<i64>()?;
-
-    let server = NewServer {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: name.clone(),
-        host: host.clone(),
-        port,
-        username: username.clone(),
-        auth_type,
-        identity_file: None,
-        group_id: None,
-        status: "unknown".to_string(),
-    };
-
-    db.add_server(&server)?;
-    println!("Added server: {name}");
-    Ok(())
-}
-
-fn add_group(db: &Database, args: &[String]) -> Result<(), Box<dyn Error>> {
-    if args.len() < 3 {
-        eprintln!("Usage: easyssh add-group <name>");
-        return Ok(());
-    }
-
-    let name = &args[2];
-    validate_group_name(name)?;
-
-    let group = NewGroup {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: name.clone(),
-    };
-
-    db.add_group(&group)?;
-    println!("Added group: {name}");
-    Ok(())
-}
-
-fn list_servers(db: &Database) -> Result<(), Box<dyn Error>> {
-    let servers = db.get_servers()?;
-    let groups = db.get_groups()?;
-
-    if servers.is_empty() {
-        println!("No servers configured");
-        return Ok(());
-    }
-
-    println!(
-        "{:<36} {:<12} {:<20} {:<10} {}",
-        "ID", "Group", "Name", "Username", "Host:Port"
-    );
-    println!("{}", "-".repeat(100));
-
-    for s in servers {
-        let group_name = s
-            .group_id
-            .as_ref()
-            .and_then(|gid| {
-                groups
-                    .iter()
-                    .find(|g| &g.id == gid)
-                    .map(|g| g.name.as_str())
-            })
-            .unwrap_or("(none)");
-
-        println!(
-            "{:<36} {:<12} {:<20} {:<10} {}:{}",
-            s.id, group_name, s.name, s.username, s.host, s.port
-        );
-    }
-
-    Ok(())
-}
-
-fn import_ssh_config(db: &Database) -> Result<(), Box<dyn Error>> {
-    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
-    let config_path: PathBuf = home.join(".ssh").join("config");
-
-    if !config_path.exists() {
-        eprintln!("~/.ssh/config not found");
-        return Ok(());
-    }
-
-    let content = std::fs::read_to_string(&config_path)?;
-    let mut current_host: Option<String> = None;
-    let mut imported = 0;
-
-    for line in content.lines() {
-        let line = line.trim();
-        if let Some(host) = line.strip_prefix("Host ") {
-            if !host.contains('*') {
-                current_host = Some(host.trim().to_string());
-            }
-        } else if let Some(ref host) = current_host {
-            if let Some(hostname) = line.strip_prefix("HostName ") {
-                let server = NewServer {
-                    id: uuid::Uuid::new_v4().to_string(),
-                    name: host.clone(),
-                    host: hostname.trim().to_string(),
-                    port: 22,
-                    username: whoami::username(),
-                    auth_type: "agent".to_string(),
-                    identity_file: None,
-                    group_id: None,
-                    status: "unknown".to_string(),
-                };
-                if db.add_server(&server).is_ok() {
-                    imported += 1;
-                }
-                current_host = None;
-            }
-        }
-    }
-
-    println!("Imported {imported} servers from ~/.ssh/config");
-    Ok(())
-}
-
-fn connect_server(db: &Database, args: &[String]) -> Result<(), Box<dyn Error>> {
-    if args.len() < 3 {
-        eprintln!("Usage: easyssh connect <server-id-or-name>");
-        return Ok(());
-    }
-
-    let search = &args[2];
-
-    // Try to find server by ID first, then by name
-    let server = if let Ok(s) = db.get_server(search) {
-        s
-    } else {
-        // Search by name
-        let servers = db.get_servers()?;
-        let matches: Vec<_> = servers.iter().filter(|s| s.name == *search).collect();
-
-        match matches.len() {
-            0 => {
-                eprintln!("Server not found: {}", search);
-                return Ok(());
-            }
-            1 => matches[0].clone(),
-            _ => {
-                eprintln!("Multiple servers match '{}':", search);
-                for s in matches {
-                    println!("  {} ({}@{}:{})", s.id, s.username, s.host, s.port);
-                }
-                eprintln!("Please use the server ID to connect");
-                return Ok(());
-            }
-        }
-    };
-
-    println!(
-        "Connecting to {} ({}@{}:{})...",
-        server.name, server.username, server.host, server.port
-    );
-    terminal::open_native_terminal(
-        &server.host,
-        server.port as u16,
-        &server.username,
-        &server.auth_type,
-    )?;
-    Ok(())
-}
-
-fn print_help() {
-    println!("EasySSH Core CLI v{}", env!("CARGO_PKG_VERSION"));
-    println!();
-    println!("Commands:");
-    println!("  easyssh add-server <name> <host> <username> [port] [auth]");
-    println!("  easyssh add-group <name>");
-    println!("  easyssh list");
-    println!("  easyssh import-ssh");
-    println!("  easyssh connect <server-id-or-name>");
-    println!("  easyssh version");
-    println!();
-    println!("Auth types: password, key, agent (default: agent)");
-    println!("Connect accepts either server ID (UUID) or server name");
-}
-
-fn validate_server(
-    name: &str,
-    host: &str,
-    username: &str,
-    port: &str,
-    auth_type: &str,
-) -> Result<(), Box<dyn Error>> {
-    if name.is_empty() {
-        return Err("服务器名称不能为空".into());
-    }
-    if host.is_empty() {
-        return Err("主机地址不能为空".into());
-    }
-    if username.is_empty() {
-        return Err("用户名不能为空".into());
-    }
-    let port_num: u16 = port.parse()?;
-    if port_num == 0 {
-        return Err("端口号不能为0".into());
-    }
-    match auth_type {
-        "password" | "key" | "agent" => Ok(()),
-        _ => Err("无效的认证类型".into()),
-    }
-}
-
-fn validate_group_name(name: &str) -> Result<(), Box<dyn Error>> {
-    if name.is_empty() {
-        return Err("分组名称不能为空".into());
-    }
     Ok(())
 }

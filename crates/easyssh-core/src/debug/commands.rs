@@ -38,7 +38,8 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         category: "import".to_string(),
         passed: true,
         message: "db module available".to_string(),
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     passed += 1;
 
@@ -48,7 +49,8 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         category: "import".to_string(),
         passed: true,
         message: "crypto module available".to_string(),
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     passed += 1;
 
@@ -58,7 +60,8 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         category: "import".to_string(),
         passed: true,
         message: "ssh module available".to_string(),
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     passed += 1;
 
@@ -73,7 +76,8 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         } else {
             "pro module not available (expected for Lite/Standard)".to_string()
         },
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     if pro_available {
         passed += 1;
@@ -87,7 +91,8 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         category: "import".to_string(),
         passed: true,
         message: "terminal module available".to_string(),
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     passed += 1;
 
@@ -102,7 +107,8 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
             "Debug access: enabled={}, level={:?}",
             is_enabled, level
         ),
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     if is_enabled {
         passed += 1;
@@ -134,6 +140,7 @@ pub fn test_db() -> Result<DebugTestReport, String> {
                 category: "database".to_string(),
                 passed: true,
                 message: format!("Database path: {}", p),
+                details: None,
                 duration_ms: None,
             });
             passed += 1;
@@ -144,6 +151,7 @@ pub fn test_db() -> Result<DebugTestReport, String> {
                 category: "database".to_string(),
                 passed: false,
                 message: "Database path is empty".to_string(),
+                details: None,
                 duration_ms: None,
             });
             failed += 1;
@@ -160,6 +168,7 @@ pub fn test_db() -> Result<DebugTestReport, String> {
                 category: "database".to_string(),
                 passed: true,
                 message: "Database instance created successfully".to_string(),
+                details: None,
                 duration_ms: None,
             });
             passed += 1;
@@ -170,6 +179,7 @@ pub fn test_db() -> Result<DebugTestReport, String> {
                 category: "database".to_string(),
                 passed: false,
                 message: format!("Database instance creation failed: {}", e),
+                details: None,
                 duration_ms: None,
             });
             failed += 1;
@@ -202,6 +212,7 @@ pub fn test_crypto() -> Result<DebugTestReport, String> {
                 category: "crypto".to_string(),
                 passed: true,
                 message: format!("Crypto state initialized, unlocked: {}", is_unlocked),
+                details: None,
                 duration_ms: None,
             });
             passed += 1;
@@ -213,6 +224,7 @@ pub fn test_crypto() -> Result<DebugTestReport, String> {
                 category: "crypto".to_string(),
                 passed: false,
                 message: format!("Crypto state initialization failed: {}", e),
+                details: None,
                 duration_ms: None,
             });
             failed += 1;
@@ -232,6 +244,7 @@ pub fn test_crypto() -> Result<DebugTestReport, String> {
                 category: "crypto".to_string(),
                 passed: true,
                 message: "Master password initialized successfully".to_string(),
+                details: None,
                 duration_ms: None,
             });
             passed += 1;
@@ -242,6 +255,7 @@ pub fn test_crypto() -> Result<DebugTestReport, String> {
                 category: "crypto".to_string(),
                 passed: false,
                 message: format!("Master password initialization failed: {}", e),
+                details: None,
                 duration_ms: None,
             });
             failed += 1;
@@ -272,7 +286,8 @@ pub fn test_ssh() -> Result<DebugTestReport, String> {
         category: "ssh".to_string(),
         passed: true,
         message: format!("SshSessionManager created, session count: {}", session_count),
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     passed += 1;
 
@@ -288,7 +303,8 @@ pub fn test_ssh() -> Result<DebugTestReport, String> {
         } else {
             "has_session incorrectly returned true".to_string()
         },
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     if !has_none {
         passed += 1;
@@ -324,7 +340,8 @@ pub fn test_terminal() -> Result<DebugTestReport, String> {
         } else {
             "SSH command format error".to_string()
         },
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     if valid {
         passed += 1;
@@ -344,7 +361,8 @@ pub fn test_terminal() -> Result<DebugTestReport, String> {
         } else {
             "Terminal size error".to_string()
         },
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     if valid {
         passed += 1;
@@ -364,7 +382,8 @@ pub fn test_terminal() -> Result<DebugTestReport, String> {
         } else {
             "Terminal signal values error".to_string()
         },
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     if valid {
         passed += 1;
@@ -403,6 +422,7 @@ pub fn test_pro() -> Result<DebugTestReport, String> {
                 } else {
                     "Team data invalid".to_string()
                 },
+                details: None,
                 duration_ms: None,
             });
             if valid {
@@ -417,6 +437,7 @@ pub fn test_pro() -> Result<DebugTestReport, String> {
                 category: "pro".to_string(),
                 passed: false,
                 message: format!("Team creation failed: {}", e),
+                details: None,
                 duration_ms: None,
             });
             failed += 1;
@@ -437,7 +458,8 @@ pub fn test_pro() -> Result<DebugTestReport, String> {
         } else {
             "TeamRole permissions error".to_string()
         },
-        duration_ms: None,
+        details: None,
+                duration_ms: None,
     });
     if both_correct {
         passed += 1;
@@ -466,7 +488,8 @@ pub fn test_pro() -> Result<DebugTestReport, String> {
             category: "pro".to_string(),
             passed: false,
             message: "Pro feature not enabled - requires Pro edition".to_string(),
-            duration_ms: None,
+            details: None,
+                duration_ms: None,
         }],
         duration_ms: 0,
     })
@@ -499,6 +522,7 @@ pub fn test_all() -> Result<DebugTestReport, String> {
                         category: r.category,
                         passed: r.passed,
                         message: r.message,
+                        details: None,
                         duration_ms: r.duration_ms,
                     });
                 }
@@ -509,6 +533,7 @@ pub fn test_all() -> Result<DebugTestReport, String> {
                     category: module_name.to_string(),
                     passed: false,
                     message: format!("Module test execution failed: {}", e),
+                    details: None,
                     duration_ms: None,
                 });
                 total_failed += 1;

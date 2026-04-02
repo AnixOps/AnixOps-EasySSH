@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     routing::{delete, get, post, put},
     Json, Router,
 };
@@ -14,22 +14,22 @@ pub fn team_routes() -> Router<AppState> {
         // Team CRUD
         .route("/", post(create_team))
         .route("/", get(list_teams))
-        .route("/:id", get(get_team))
-        .route("/:id", put(update_team))
-        .route("/:id", delete(delete_team))
+        .route("/{id}", get(get_team))
+        .route("/{id}", put(update_team))
+        .route("/{id}", delete(delete_team))
         // Members
-        .route("/:id/members", get(list_team_members))
-        .route("/:id/members", post(invite_member))
-        .route("/:id/members/:member_id", delete(remove_member))
-        .route("/:id/members/:member_id/role", put(update_member_role))
+        .route("/{id}/members", get(list_team_members))
+        .route("/{id}/members", post(invite_member))
+        .route("/{id}/members/{member_id}", delete(remove_member))
+        .route("/{id}/members/{member_id}/role", put(update_member_role))
         // Invitations
-        .route("/invitations/:token/accept", post(accept_invitation))
-        .route("/invitations/:token/decline", post(decline_invitation))
-        .route("/:id/invitations", get(list_invitations))
-        .route("/:id/invitations/:invitation_id", delete(cancel_invitation))
+        .route("/invitations/{token}/accept", post(accept_invitation))
+        .route("/invitations/{token}/decline", post(decline_invitation))
+        .route("/{id}/invitations", get(list_invitations))
+        .route("/{id}/invitations/{invitation_id}", delete(cancel_invitation))
         // Settings
-        .route("/:id/settings", get(get_team_settings))
-        .route("/:id/settings", put(update_team_settings))
+        .route("/{id}/settings", get(get_team_settings))
+        .route("/{id}/settings", put(update_team_settings))
 }
 
 async fn create_team(

@@ -1,16 +1,16 @@
 use crate::{models::*, redis_cache::RedisCache};
 use anyhow::Result;
 use chrono::Utc;
-use sqlx::AnyPool;
+use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 
 pub struct ResourceService {
-    db: AnyPool,
+    db: Pool<Sqlite>,
     redis: std::sync::Arc<RedisCache>,
 }
 
 impl ResourceService {
-    pub fn new(db: AnyPool, redis: std::sync::Arc<RedisCache>) -> Self {
+    pub fn new(db: Pool<Sqlite>, redis: std::sync::Arc<RedisCache>) -> Self {
         Self { db, redis }
     }
 
@@ -32,6 +32,8 @@ impl ResourceService {
             "can_delete": false
         });
 
+        let permissions_val = permissions.unwrap_or(default_permissions);
+
         sqlx::query(
             "INSERT INTO shared_servers (id, server_id, team_id, shared_by, shared_at, permissions, is_active) VALUES (?, ?, ?, ?, ?, ?, TRUE)"
         )
@@ -40,7 +42,7 @@ impl ResourceService {
         .bind(team_id)
         .bind(shared_by)
         .bind(now)
-        .bind(permissions.unwrap_or(default_permissions))
+        .bind(permissions_val.clone())
         .execute(&self.db)
         .await?;
 
@@ -50,7 +52,7 @@ impl ResourceService {
             team_id: team_id.to_string(),
             shared_by: shared_by.to_string(),
             shared_at: now,
-            permissions,
+            permissions: Some(permissions_val),
             is_active: true,
         })
     }

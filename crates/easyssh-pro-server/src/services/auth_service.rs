@@ -1,16 +1,16 @@
 use crate::{models::*, redis_cache::RedisCache};
 use anyhow::Result;
 use chrono::Utc;
-use sqlx::AnyPool;
+use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 
 pub struct AuthService {
-    db: AnyPool,
+    db: Pool<Sqlite>,
     redis: std::sync::Arc<RedisCache>,
 }
 
 impl AuthService {
-    pub fn new(db: AnyPool, redis: std::sync::Arc<RedisCache>) -> Self {
+    pub fn new(db: Pool<Sqlite>, redis: std::sync::Arc<RedisCache>) -> Self {
         Self { db, redis }
     }
 
@@ -133,7 +133,7 @@ impl AuthService {
         .bind(name)
         .bind(key_hash)
         .bind(key_prefix)
-        .bind(scopes)
+        .bind(scopes.clone())
         .bind(now)
         .bind(expires_at)
         .execute(&self.db)

@@ -42,7 +42,7 @@ impl AppConfig {
             .parse::<u16>()
             .expect("Invalid PORT");
 
-        let base_url = env::var("BASE_URL").unwrap_or_else(|| format!("http://{}:{}", host, port));
+        let base_url = env::var("BASE_URL").unwrap_or_else(|_| format!("http://{}:{}", host, port));
 
         Ok(Self {
             host,

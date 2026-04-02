@@ -1,10 +1,11 @@
 [package]
 name = "easyssh-pro-server"
-version = "0.3.0"
-edition = "2021"
-authors = ["EasySSH Team"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "EasySSH Pro Backend API Server - Team collaboration, audit logs, SSO"
-license = "MIT"
+rust-version.workspace = true
 
 [[bin]]
 name = "pro-server"
@@ -13,105 +14,98 @@ path = "src/main.rs"
 [[bin]]
 name = "update-admin"
 path = "src/bin/update-admin.rs"
+required-features = ["admin-cli"]
 
 [dependencies]
-# Core dependencies from workspace
+# Core workspace dependencies
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
-
-# Web framework - Axum
-axum = { version = "0.7", features = ["ws", "multipart"] }
-tower = { version = "0.4", features = ["full"] }
-tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip", "compression-br", "auth"] }
-hyper = { version = "1", features = ["full"] }
-
-# Update Server - Actix Web
-actix-web = { version = "4", optional = true }
-
-# CLI
-clap = { version = "4", features = ["derive", "env"], optional = true }
-
-# Database - SQLx
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+validator = { workspace = true }
+base64 = { workspace = true }
+redis = { workspace = true, features = ["tokio-comp", "connection-manager"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "postgres", "mysql", "chrono", "uuid", "migrate", "macros"] }
 libsqlite3-sys = { workspace = true }
 
-# Cache - Redis
-redis = { workspace = true, features = ["tokio-comp", "connection-manager"] }
+# Web framework
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+hyper = { workspace = true }
 
-# Authentication & Security
-jsonwebtoken = "9"
-argon2 = { version = "0.5", features = ["alloc", "password-hash"] }
-sha2 = "0.10"
-hmac = "0.12"
-bcrypt = { version = "0.16", features = ["std"] }
-rand = "0.8"
-base64 = { workspace = true }
+# CLI
+clap = { workspace = true, optional = true }
 
-# API Documentation - OpenAPI/Swagger
-utoipa = { version = "4", features = ["axum_extras", "uuid", "chrono"] }
-utoipa-swagger-ui = { version = "6", features = ["axum"] }
+# Auth & Security
+jsonwebtoken = { workspace = true }
+argon2 = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+bcrypt = { workspace = true }
+rand = { workspace = true }
 
-# Real-time - WebSocket
-tokio-tungstenite = "0.24"
-futures-util = "0.3"
+# OpenAPI/Swagger
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+
+# Real-time
+futures-util = { workspace = true }
 futures-channel = "0.3"
 
-# Serialization & Validation
-chrono = { version = "0.4", features = ["serde"] }
-validator = { workspace = true, features = ["derive"] }
-regex = "1"
-once_cell = "1"
-semver = "1"
+# Validation
+once_cell = { workspace = true }
+semver = { workspace = true }
+regex = { workspace = true }
 
-# Logging & Tracing
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+# HTTP Client
+reqwest = { workspace = true }
 
 # Configuration
-config = "0.14"
-dotenvy = "0.15"
+dotenvy = { workspace = true }
+config = { workspace = true }
 
 # Error handling
-anyhow = "1"
-
-# HTTP Client for SSO
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-
-# SAML SSO (optional, requires xmlsec)
-samael = { version = "0.0.20", features = ["xmlsec"], optional = true }
-xml-rs = "0.8"
-
-# OIDC SSO
-openidconnect = { version = "4.0", features = ["reqwest"] }
-url = "2.5.4"
-urlencoding = "2.1"
+anyhow = { workspace = true }
 
 # Rate limiting
-governor = "0.6"
+governor = { workspace = true }
 
-# Email for invitations
-lettre = { version = "0.11", features = ["tokio1-native-tls", "smtp-transport", "builder"] }
+# Email
+lettre = { workspace = true }
 
 # Encryption
-aes-gcm = "0.10"
+aes-gcm = { workspace = true }
 aes = "0.8"
 
+# Serialization & parsing
+serde_yaml = { workspace = true }
+xml-rs = { workspace = true }
+
 # Utils
-serde_yaml = "0.9"
-tempfile = "3"
-walkdir = "2"
-mime = "0.3"
-time = "0.3"
+time = { workspace = true }
+mime = { workspace = true }
+tempfile = { workspace = true }
+walkdir = { workspace = true }
+
+# SSO (optional)
+openidconnect = { workspace = true, optional = true }
+samael = { workspace = true, optional = true }
+url = { workspace = true }
+urlencoding = { workspace = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { workspace = true }
 
 [features]
 default = []
-update-server = ["dep:actix-web"]
+update-server = []
 admin-cli = ["dep:clap"]
 saml-sso = ["dep:samael"]
+oidc-sso = ["dep:openidconnect"]
+sso = ["saml-sso", "oidc-sso"]

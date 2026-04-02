@@ -75,6 +75,12 @@ pub enum RetryStrategy {
     SelectedOnly,
 }
 
+impl Default for RetryStrategy {
+    fn default() -> Self {
+        RetryStrategy::AllFailed
+    }
+}
+
 /// Response from batch results panel
 #[derive(Debug, Default)]
 pub struct BatchResultsResponse {
@@ -389,7 +395,7 @@ impl BatchExecutionResultsPanel {
             if !successful.is_empty() {
                 ui.colored_label(Color32::GREEN, format!("✓ Succeeded ({})", successful.len()));
                 ScrollArea::vertical()
-                    .id_salt("successful_group")
+                    .id_source("successful_group")
                     .max_height(200.0)
                     .show(ui, |ui| {
                         for result in successful {
@@ -401,7 +407,7 @@ impl BatchExecutionResultsPanel {
             if !failed.is_empty() {
                 ui.colored_label(Color32::RED, format!("✗ Failed ({})", failed.len()));
                 ScrollArea::vertical()
-                    .id_salt("failed_group")
+                    .id_source("failed_group")
                     .max_height(200.0)
                     .show(ui, |ui| {
                         for result in failed {
@@ -659,6 +665,7 @@ impl BatchExecutionResultsPanel {
                 StepStatus::Skipped => ("⊘", Color32::GRAY, "Skipped"),
                 StepStatus::Pending => ("○", Color32::YELLOW, "Pending"),
                 StepStatus::Running => ("▶", Color32::BLUE, "Running"),
+                StepStatus::Cancelled => ("⊘", Color32::ORANGE, "Cancelled"),
             };
 
             Frame::group(ui.style()).show(ui, |ui| {
@@ -681,9 +688,9 @@ impl BatchExecutionResultsPanel {
                         .fill(Color32::from_gray(25))
                         .show(ui, |ui| {
                             ui.set_min_width(ui.available_width());
-                            ui.add(ScrollArea::horizontal().show(ui, |ui| {
+                            ScrollArea::horizontal().show(ui, |ui| {
                                 ui.monospace(output);
-                            }).inner);
+                            });
                         });
                 }
 
@@ -751,9 +758,9 @@ impl BatchExecutionResultsPanel {
                     .fill(Color32::from_gray(20))
                     .show(ui, |ui| {
                         ui.set_min_width(ui.available_width());
-                        ui.add(ScrollArea::horizontal().show(ui, |ui| {
+                        ScrollArea::horizontal().show(ui, |ui| {
                             ui.monospace(&logs);
-                        }).inner);
+                        });
                     });
             });
     }

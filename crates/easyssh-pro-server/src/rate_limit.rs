@@ -4,10 +4,9 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{models::ErrorResponse, redis_cache::RedisCache, AppState};
+use crate::{models::ErrorResponse, AppState};
 
 /// Rate limit configuration
 #[derive(Clone, Debug)]
@@ -25,23 +24,13 @@ impl Default for RateLimitConfig {
     }
 }
 
-/// Check if request is within rate limits
-pub async fn check_rate_limit(
-    _state: &AppState,
-    _client_id: &str,
-    _config: &RateLimitConfig,
-) -> Result<bool, (StatusCode, axum::Json<ErrorResponse>)> {
-    // TODO: Implement actual rate limiting with Redis
-    Ok(true)
-}
-
 /// Rate limiting middleware
 pub async fn rate_limit_middleware(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     request: Request,
     next: Next,
 ) -> Result<Response, (StatusCode, axum::Json<ErrorResponse>)> {
-    // TODO: Extract client identifier and check rate limit
+    // TODO: Implement actual rate limiting with Redis
     // For now, allow all requests
     Ok(next.run(request).await)
 }

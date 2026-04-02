@@ -203,7 +203,7 @@ pub async fn get_database_metrics(
 
 /// 数据库连接测试
 #[cfg(feature = "database-client")]
-pub async fn test_connection(_config: DatabaseConnectionConfig) -> Result<bool, String> {
+pub async fn test_connection(config: DatabaseConnectionConfig) -> Result<bool, String> {
     if !check_access(DebugAccessLevel::Viewer) {
         return Err("Database connection test requires Viewer access level".to_string());
     }

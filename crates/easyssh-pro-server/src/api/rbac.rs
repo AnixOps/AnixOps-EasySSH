@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     routing::{delete, get, post, put},
     Json, Router,
 };
@@ -11,25 +11,25 @@ pub fn rbac_routes() -> Router<AppState> {
         // Role management
         .route("/roles", get(list_roles))
         .route("/roles", post(create_role))
-        .route("/roles/:id", get(get_role))
-        .route("/roles/:id", put(update_role))
-        .route("/roles/:id", delete(delete_role))
+        .route("/roles/{id}", get(get_role))
+        .route("/roles/{id}", put(update_role))
+        .route("/roles/{id}", delete(delete_role))
         // Permission management
         .route("/permissions", get(list_permissions))
-        .route("/roles/:id/permissions", get(get_role_permissions))
-        .route("/roles/:id/permissions", post(add_permission_to_role))
+        .route("/roles/{id}/permissions", get(get_role_permissions))
+        .route("/roles/{id}/permissions", post(add_permission_to_role))
         .route(
-            "/roles/:id/permissions/:permission_id",
+            "/roles/{id}/permissions/{permission_id}",
             delete(remove_permission_from_role),
         )
         // Permission checking
         .route("/check", post(check_permission))
         .route("/user/permissions", get(get_user_permissions))
         // Team-specific roles
-        .route("/team/:team_id/roles", get(list_team_roles))
-        .route("/team/:team_id/roles", post(create_team_role))
-        .route("/team/:team_id/assign", post(assign_role_to_member))
-        .route("/team/:team_id/revoke", post(revoke_role_from_member))
+        .route("/team/{team_id}/roles", get(list_team_roles))
+        .route("/team/{team_id}/roles", post(create_team_role))
+        .route("/team/{team_id}/assign", post(assign_role_to_member))
+        .route("/team/{team_id}/revoke", post(revoke_role_from_member))
 }
 
 async fn list_roles(

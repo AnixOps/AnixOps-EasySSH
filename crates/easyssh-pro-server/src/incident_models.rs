@@ -22,7 +22,7 @@ use uuid::Uuid;
 // ============= 事件严重程度 =============
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum IncidentSeverity {
     #[serde(rename = "critical")]
     Critical, // P1 - 系统完全不可用
@@ -82,7 +82,7 @@ impl IncidentSeverity {
 // ============= 事件状态 =============
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum IncidentStatus {
     #[serde(rename = "detected")]
     Detected, // 已检测
@@ -128,7 +128,7 @@ impl IncidentStatus {
 // ============= 事件类型 =============
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum IncidentType {
     #[serde(rename = "server_down")]
     ServerDown,
@@ -289,7 +289,7 @@ pub struct Alert {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum AlertStatus {
     #[serde(rename = "firing")]
     Firing, // 告警触发中
@@ -318,7 +318,7 @@ pub struct IncidentTimelineEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum TimelineEntryType {
     #[serde(rename = "status_change")]
     StatusChange,
@@ -344,7 +344,23 @@ pub enum TimelineEntryType {
     RunbookExecuted,
 }
 
-// ============= 诊断结果 =============
+impl TimelineEntryType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TimelineEntryType::StatusChange => "status_change",
+            TimelineEntryType::SeverityChange => "severity_change",
+            TimelineEntryType::Assignment => "assignment",
+            TimelineEntryType::Escalation => "escalation",
+            TimelineEntryType::Note => "note",
+            TimelineEntryType::Action => "action",
+            TimelineEntryType::Diagnosis => "diagnosis",
+            TimelineEntryType::Communication => "communication",
+            TimelineEntryType::Automation => "automation",
+            TimelineEntryType::Alert => "alert",
+            TimelineEntryType::RunbookExecuted => "runbook_executed",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct DiagnosisResult {
@@ -417,7 +433,7 @@ pub struct RunbookExecution {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum RunbookExecutionStatus {
     #[serde(rename = "pending")]
     Pending,
@@ -448,7 +464,7 @@ pub struct IncidentParticipant {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum ParticipantRole {
     #[serde(rename = "incident_commander")]
     IncidentCommander, // 事件指挥官
@@ -477,7 +493,7 @@ pub struct IncidentCommunication {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum CommunicationType {
     #[serde(rename = "notification")]
     Notification,
@@ -492,7 +508,7 @@ pub enum CommunicationType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum CommunicationStatus {
     #[serde(rename = "pending")]
     Pending,
@@ -571,7 +587,7 @@ pub struct PostMortem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum PostMortemStatus {
     #[serde(rename = "draft")]
     Draft,
@@ -611,7 +627,7 @@ pub struct IntegrationConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum IntegrationProvider {
     #[serde(rename = "pagerduty")]
     PagerDuty,
@@ -671,7 +687,7 @@ pub struct AffectedUsers {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum ImpactLevel {
     #[serde(rename = "total")]
     Total, // 完全不可用
@@ -722,7 +738,7 @@ pub struct DetectionRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, ToSchema, PartialEq)]
-#[sqlx(rename = "TEXT")]
+#[sqlx(type_name = "TEXT")]
 pub enum DetectionRuleType {
     #[serde(rename = "threshold")]
     Threshold, // 阈值检测
@@ -947,7 +963,8 @@ pub fn generate_alert_fingerprint(
     hasher.update(content.as_bytes());
     let result = hasher.finalize();
 
-    format!("{:x}", &result[..16]) // 取前16字节
+    // 取前16字节并格式化为hex
+    result[..16].iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 // ============= 事件编号生成 =============

@@ -32,7 +32,7 @@ pub fn get_performance_metrics() -> Result<PerformanceMetrics, String> {
     }
 
     // Pro版本包含网络延迟
-    if level == DebugAccessLevel::Pro {
+    if level == DebugAccessLevel::Admin {
         metrics.network_latency_ms = Some(0.0); // 占位值
     }
 
@@ -153,9 +153,10 @@ impl PerformanceTimer {
 
     /// 记录并停止计时
     pub fn finish(self) -> PerformanceRecord {
+        let duration = self.elapsed_ms();
         PerformanceRecord {
             name: self.name,
-            duration_ms: self.elapsed_ms(),
+            duration_ms: duration,
         }
     }
 }

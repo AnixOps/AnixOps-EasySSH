@@ -320,21 +320,58 @@ impl Database {
 
     pub fn update_server(&self, server: &UpdateServer) -> Result<(), LiteError> {
         let now = chrono_now();
-        self.conn.execute(
-            "UPDATE servers SET name = ?, host = ?, port = ?, username = ?, auth_type = ?, identity_file = ?, group_id = ?, status = ?, updated_at = ? WHERE id = ?",
-            params![
-                server.name,
-                server.host,
-                server.port,
-                server.username,
-                server.auth_type,
-                server.identity_file,
-                server.group_id,
-                server.status.as_str(),
-                now,
-                server.id
-            ],
-        )?;
+        // Build dynamic SQL based on which fields are provided
+        let mut fields = Vec::new();
+        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+
+        if let Some(name) = &server.name {
+            fields.push("name = ?");
+            params.push(name as &dyn rusqlite::ToSql);
+        }
+        if let Some(host) = &server.host {
+            fields.push("host = ?");
+            params.push(host as &dyn rusqlite::ToSql);
+        }
+        if let Some(port) = &server.port {
+            fields.push("port = ?");
+            params.push(port as &dyn rusqlite::ToSql);
+        }
+        if let Some(username) = &server.username {
+            fields.push("username = ?");
+            params.push(username as &dyn rusqlite::ToSql);
+        }
+        if let Some(auth_type) = &server.auth_type {
+            fields.push("auth_type = ?");
+            params.push(auth_type as &dyn rusqlite::ToSql);
+        }
+        if server.identity_file.is_some() {
+            fields.push("identity_file = ?");
+            params.push(&server.identity_file as &dyn rusqlite::ToSql);
+        }
+        if server.group_id.is_some() {
+            fields.push("group_id = ?");
+            params.push(&server.group_id as &dyn rusqlite::ToSql);
+        }
+        if let Some(status) = &server.status {
+            fields.push("status = ?");
+            params.push(status as &dyn rusqlite::ToSql);
+        }
+
+        // Always update updated_at
+        fields.push("updated_at = ?");
+        params.push(&now as &dyn rusqlite::ToSql);
+
+        // Add id for WHERE clause
+        params.push(&server.id as &dyn rusqlite::ToSql);
+
+        if !fields.is_empty() {
+            let sql = format!(
+                "UPDATE servers SET {} WHERE id = ?",
+                fields.join(", ")
+            );
+            self.conn.execute(&sql, params.as_slice())?;
+        }
+
         Ok(())
     }
 
@@ -374,10 +411,12 @@ impl Database {
 
     pub fn update_group(&self, group: &UpdateGroup) -> Result<(), LiteError> {
         let now = chrono_now();
-        self.conn.execute(
-            "UPDATE groups SET name = ?, updated_at = ? WHERE id = ?",
-            params![group.name, now, group.id],
-        )?;
+        if let Some(name) = &group.name {
+            self.conn.execute(
+                "UPDATE groups SET name = ?, updated_at = ? WHERE id = ?",
+                params![name, now, group.id],
+            )?;
+        }
         Ok(())
     }
 
@@ -1293,20 +1332,20 @@ pub struct NewServer {
     pub status: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UpdateServer {
     pub id: String,
-    pub name: String,
-    pub host: String,
-    pub port: i64,
-    pub username: String,
-    pub auth_type: String,
+    pub name: Option<String>,
+    pub host: Option<String>,
+    pub port: Option<i64>,
+    pub username: Option<String>,
+    pub auth_type: Option<String>,
     pub identity_file: Option<String>,
     pub group_id: Option<String>,
-    pub status: String,
+    pub status: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GroupRecord {
     pub id: String,
     pub name: String,
@@ -1314,19 +1353,19 @@ pub struct GroupRecord {
     pub updated_at: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct NewGroup {
     pub id: String,
     pub name: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UpdateGroup {
     pub id: String,
-    pub name: String,
+    pub name: Option<String>,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(Debug, serde::Serialize, Clone, serde::Deserialize)]
 pub struct HostRecord {
     pub id: String,
     pub name: String,
@@ -1347,7 +1386,7 @@ pub struct HostRecord {
     pub updated_at: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct NewHost {
     pub id: String,
     pub name: String,
@@ -1385,7 +1424,7 @@ pub struct UpdateHost {
     pub status: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone, serde::Deserialize)]
 pub struct TagRecord {
     pub id: String,
     pub name: String,
@@ -1395,7 +1434,7 @@ pub struct TagRecord {
     pub updated_at: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct NewTag {
     pub id: String,
     pub name: String,
