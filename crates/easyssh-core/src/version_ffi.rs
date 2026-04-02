@@ -375,7 +375,9 @@ mod tests {
 
         unsafe {
             let json_str = CStr::from_ptr(json).to_string_lossy();
-            assert!(json_str.contains("version_info"));
+            // version_info is flattened, so we check for its fields
+            assert!(json_str.contains("edition"));
+            assert!(json_str.contains("version"));
             assert!(json_str.contains("platform"));
             version_free_string(json);
         }

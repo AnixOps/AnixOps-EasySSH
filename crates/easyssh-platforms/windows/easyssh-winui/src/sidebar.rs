@@ -345,7 +345,7 @@ impl ServerCard {
                     // Connection status indicator (pulse animation when connected)
                     let (status_color, pulse) = if is_connected {
                         let pulse = (ui.input(|i| i.time) * 2.0).sin() * 0.3 + 0.7;
-                        (Color32::GREEN.linear_multiply(pulse), true)
+                        (Color32::GREEN.linear_multiply(pulse as f32), true)
                     } else {
                         (theme.text_quaternary, false)
                     };
@@ -361,7 +361,7 @@ impl ServerCard {
                         ui.painter().circle_stroke(
                             status_pos,
                             8.0,
-                            Stroke::new(2.0, Color32::GREEN.linear_multiply(ring_alpha)),
+                            Stroke::new(2.0, Color32::GREEN.linear_multiply(ring_alpha as f32)),
                         );
                     }
 
@@ -433,7 +433,7 @@ impl ServerCard {
                         "agent" => ("🔐", "SSH Agent", Color32::from_rgb(59, 130, 246)),
                         "key" => ("🗝", "Key", Color32::from_rgb(168, 85, 247)),
                         "password" => ("🔑", "Password", Color32::from_rgb(234, 179, 8)),
-                        _ => ("●", &server.auth_type, theme.text_tertiary),
+                        _ => ("●", server.auth_type.as_str(), theme.text_tertiary),
                     };
 
                     Frame::none()

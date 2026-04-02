@@ -2,7 +2,8 @@
 
 use crate::error::LiteError;
 use crate::sftp::types::FileInfo;
-use ssh2::{Session, Sftp};
+pub use ssh2::Sftp;
+use ssh2::{Session, Sftp as SshSftp};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -76,7 +77,7 @@ pub struct SftpClient {
     id: String,
     config: SftpClientConfig,
     session: Arc<Mutex<Session>>,
-    sftp: Arc<Mutex<Option<Sftp>>>,
+    sftp: Arc<Mutex<Option<SshSftp>>>,
     state: Arc<RwLock<ConnectionState>>,
 }
 
@@ -109,6 +110,17 @@ impl SftpClient {
             session: Arc::new(Mutex::new(Session::new().unwrap())),
             sftp: Arc::new(Mutex::new(None)),
             state: Arc::new(RwLock::new(ConnectionState::Disconnected)),
+        }
+    }
+
+    /// Create SftpClient from an existing Sftp channel (for compatibility with old API)
+    pub fn from_sftp(sftp: Sftp) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            config: SftpClientConfig::default(),
+            session: Arc::new(Mutex::new(Session::new().unwrap())),
+            sftp: Arc::new(Mutex::new(Some(sftp))),
+            state: Arc::new(RwLock::new(ConnectionState::Connected)),
         }
     }
 

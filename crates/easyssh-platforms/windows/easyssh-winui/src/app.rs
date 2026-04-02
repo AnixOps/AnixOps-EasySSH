@@ -484,7 +484,7 @@ impl EasySshApp {
             .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion {
                 egui::Shadow::NONE
             } else {
-                egui::Shadow::small_dark()
+                egui::Shadow { blur: 8.0, spread: 4.0, offset: egui::Vec2::new(0.0, 2.0), color: egui::Color32::from_black_alpha(40) }
             }))
             .show(ctx, |ui| {
                 let diag = get_terminal_diagnostics();
@@ -590,7 +590,7 @@ impl EasySshApp {
             .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion {
                 egui::Shadow::NONE
             } else {
-                egui::Shadow::small_dark()
+                egui::Shadow { blur: 8.0, spread: 4.0, offset: egui::Vec2::new(0.0, 2.0), color: egui::Color32::from_black_alpha(40) }
             }))
             .show(ctx, |ui| {
                 ui.label(RichText::new("Quick Actions:").strong());
@@ -980,8 +980,10 @@ impl EasySshApp {
                     );
 
                     // Update UI - need vm lock again
-                    let vm = self.view_model.lock().unwrap();
-                    let groups = vm.get_groups();
+                    let groups = {
+                        let vm = self.view_model.lock().unwrap();
+                        vm.get_groups()
+                    };
                     let is_connected = self.connected_servers.contains_key(server_id);
                     self.detail_panel
                         .show_server(server.clone(), &groups, is_connected);

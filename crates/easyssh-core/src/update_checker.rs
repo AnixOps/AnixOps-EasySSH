@@ -736,17 +736,26 @@ mod tests {
 
     #[test]
     fn test_is_asset_for_platform() {
-        // Windows
-        assert!(is_asset_for_platform("EasySSH-Windows-x64.exe"));
-        assert!(is_asset_for_platform("easyssh-1.0.0-win64.msi"));
+        let platform = std::env::consts::OS;
 
-        // macOS
-        assert!(is_asset_for_platform("EasySSH-macOS-x86_64.dmg"));
-        assert!(is_asset_for_platform("easyssh-1.0.0-macos-arm64.pkg"));
-
-        // Linux
-        assert!(is_asset_for_platform("EasySSH-Linux-x86_64.AppImage"));
-        assert!(is_asset_for_platform("easyssh-1.0.0-linux-amd64.deb"));
+        match platform {
+            "windows" => {
+                assert!(is_asset_for_platform("EasySSH-Windows-x64.exe"));
+                assert!(is_asset_for_platform("easyssh-1.0.0-win64.msi"));
+                // macOS and Linux assets should not match on Windows
+                assert!(!is_asset_for_platform("EasySSH-macOS-x86_64.dmg"));
+                assert!(!is_asset_for_platform("EasySSH-Linux-x86_64.AppImage"));
+            }
+            "macos" | "darwin" => {
+                assert!(is_asset_for_platform("EasySSH-macOS-x86_64.dmg"));
+                assert!(is_asset_for_platform("easyssh-1.0.0-macos-arm64.pkg"));
+            }
+            "linux" => {
+                assert!(is_asset_for_platform("EasySSH-Linux-x86_64.AppImage"));
+                assert!(is_asset_for_platform("easyssh-1.0.0-linux-amd64.deb"));
+            }
+            _ => {}
+        }
     }
 
     #[test]

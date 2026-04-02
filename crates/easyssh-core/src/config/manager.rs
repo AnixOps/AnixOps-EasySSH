@@ -992,8 +992,8 @@ mod tests {
         assert_eq!(loaded.app_config().theme, Theme::Dark);
     }
 
-    #[test]
-    fn test_recent_connections() {
+    #[tokio::test]
+    async fn test_recent_connections() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.json");
 
@@ -1008,8 +1008,8 @@ mod tests {
         assert_eq!(prefs.recent_connections[0], "server1");
     }
 
-    #[test]
-    fn test_search_history() {
+    #[tokio::test]
+    async fn test_search_history() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.json");
 
@@ -1044,8 +1044,8 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_export_import() {
+    #[tokio::test]
+    async fn test_export_import() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.json");
         let export_path = temp_dir.path().join("export.json");
@@ -1065,8 +1065,8 @@ mod tests {
         assert_eq!(manager.app_config().theme, Theme::Dark);
     }
 
-    #[test]
-    fn test_reset_to_defaults() {
+    #[tokio::test]
+    async fn test_reset_to_defaults() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.json");
 
@@ -1080,8 +1080,8 @@ mod tests {
         assert_eq!(manager.user_preferences().default_port, 22);
     }
 
-    #[test]
-    fn test_export_import_yaml() {
+    #[tokio::test]
+    async fn test_export_import_yaml() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.json");
 

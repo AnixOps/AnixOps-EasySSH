@@ -276,9 +276,9 @@ pub fn apply_filter(entries: &[LogEntry], config: &LogFilterConfig) -> Vec<LogEn
                 .any(|t| entry.target.contains(t))
         })
         .filter(|entry| {
-            // 消息过滤
+            // 消息过滤 (case-insensitive)
             if let Some(ref f) = config.message_filter {
-                entry.message.contains(f)
+                entry.message.to_lowercase().contains(&f.to_lowercase())
             } else {
                 true
             }

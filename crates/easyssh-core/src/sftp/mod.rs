@@ -29,7 +29,7 @@ pub use types::{
     TransferResult, TransferStats, TransferStatus, TransferTask,
 };
 
-pub use client::{ConnectionState, SftpClient, SftpClientConfig};
+pub use client::{ConnectionState, Sftp, SftpClient, SftpClientConfig};
 
 pub use transfer::{ChunkConfig, FileTransfer, TransferError, TransferHandle};
 
@@ -84,14 +84,14 @@ impl SftpManager {
 
     /// 获取远程文件系统操作接口
     pub async fn remote_fs(&self, client_id: &str) -> Result<RemoteFs, LiteError> {
-        let clients = self.clients.read().await;
+        let clients = self.clients.lock().unwrap();
         let client = clients.get(client_id).await?;
         Ok(RemoteFs::new(client))
     }
 
     /// 获取文件传输器
     pub async fn file_transfer(&self, client_id: &str) -> Result<FileTransfer, LiteError> {
-        let clients = self.clients.read().await;
+        let clients = self.clients.lock().unwrap();
         let client = clients.get(client_id).await?;
         let queue = self.queue.clone();
         let progress = self.progress.clone();
@@ -100,7 +100,7 @@ impl SftpManager {
 
     /// 关闭所有连接
     pub async fn shutdown(&self) -> Result<(), LiteError> {
-        let mut clients = self.clients.write().await;
+        let mut clients = self.clients.lock().unwrap();
         clients.close_all().await;
         Ok(())
     }
@@ -173,22 +173,23 @@ impl SftpManager {
 
     /// 关闭会话
     pub async fn close_session(&self, session_id: &str) -> Result<(), LiteError> {
-        let mut clients = self.clients.write().await;
+        let mut clients = self.clients.lock().unwrap();
         clients.remove(session_id).await;
         Ok(())
     }
 
-    /// 创建SFTP会话 (添加客户端)
-    pub async fn create_session(&self, session_id: &str, client: SftpClient) -> Result<(), LiteError> {
-        let mut clients = self.clients.write().await;
+    /// 创建SFTP会话 (添加客户端) - 接受Sftp类型并转换为SftpClient
+    pub fn create_session(&self, session_id: &str, sftp: Sftp) -> Result<(), LiteError> {
+        let mut clients = self.clients.lock().unwrap();
+        let client = client::SftpClient::from_sftp(sftp);
         client::ClientPool::insert(&mut *clients, session_id, client);
         Ok(())
     }
 
-    /// 列出所有会话ID
-    pub async fn list_sessions(&self) -> Vec<String> {
-        let clients = self.clients.read().await;
-        clients.keys()
+    /// 列出所有会话ID (同步)
+    pub fn list_sessions(&self) -> Vec<String> {
+        let clients = self.clients.lock().unwrap();
+        clients.keys_sync()
     }
 
     /// 列出目录

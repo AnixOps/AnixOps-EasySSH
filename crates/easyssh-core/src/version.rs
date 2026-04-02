@@ -566,9 +566,12 @@ mod tests {
         let info = FullBuildInfo::current();
         let json = info.to_json().expect("Failed to serialize to JSON");
 
-        assert!(json.contains("version_info"));
+        // version_info is flattened, so we check for its fields
+        assert!(json.contains("edition"));
+        assert!(json.contains("version"));
         assert!(json.contains("platform"));
         assert!(json.contains("user_agent"));
+        assert!(json.contains("rustc_version"));
     }
 
     #[test]

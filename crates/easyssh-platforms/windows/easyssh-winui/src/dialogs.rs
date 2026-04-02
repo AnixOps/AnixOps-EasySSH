@@ -234,7 +234,7 @@ impl GroupColorPicker {
                             // Checkmark for selected
                             if is_selected {
                                 let check_color =
-                                    if color_value.r() + color_value.g() + color_value.b() > 384 {
+                                    if color_value.r() as u16 + color_value.g() as u16 + color_value.b() as u16 > 384 {
                                         egui::Color32::BLACK
                                     } else {
                                         egui::Color32::WHITE
