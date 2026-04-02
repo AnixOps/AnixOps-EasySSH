@@ -1,13 +1,24 @@
 //! Configuration Manager
 //!
 //! Central manager for configuration loading, saving, validation, migration,
-//! and change notifications. Provides thread-safe access to configuration data.
+//! encryption, and change notifications. Provides thread-safe access to configuration data.
+//!
+//! # Features
+//! - Multi-format import/export (JSON, YAML, TOML, ENV)
+//! - Configuration encryption with AES-256-GCM
+//! - Automatic migration
+//! - Template-based configuration
+//! - Environment variable integration
+//! - Change notifications
 
 use super::{
-    defaults::*,
-    migration::{ConfigBackup, ConfigMigration, MigrationResult, CURRENT_CONFIG_VERSION},
+    defaults::{self, apply_system_defaults, ConfigPresets, EnvConfig},
+    encryption::{ConfigEncryption, EncryptionOptions, EncryptedConfig},
+    import_export::{ExportFormat, ExportOptions, ImportExportManager, ImportOptions, ImportResult},
+    migration::{ConfigBackup, ConfigMigration, MigrationResult, MigrationInfo, CURRENT_CONFIG_VERSION},
+    templates::{ConfigOverrides, Template, TemplateCategory, TemplateError, TemplateManager},
     types::*,
-    validation::{ConfigAutoFix, ConfigValidator, ValidationError},
+    validation::{ConfigAutoFix, ConfigValidator, ValidationContext, ValidationError, SecurityValidationLevel},
     ConfigChangeCallback, ConfigChangeEvent, ConfigChangeListener,
 };
 use crate::error::{EasySSHErrors, Result};
@@ -37,6 +48,14 @@ pub struct ConfigManager {
     last_validation_errors: Vec<ValidationError>,
     /// Auto-save enabled
     auto_save: bool,
+    /// Template manager
+    template_manager: Option<TemplateManager>,
+    /// Encryption state
+    encryption: Option<ConfigEncryption>,
+    /// Whether config is encrypted
+    is_encrypted: bool,
+    /// Security validation level
+    security_level: SecurityValidationLevel,
 }
 
 impl ConfigManager {
@@ -61,6 +80,10 @@ impl ConfigManager {
             callbacks: Arc::new(RwLock::new(Vec::new())),
             last_validation_errors: Vec::new(),
             auto_save: true,
+            template_manager: None,
+            encryption: None,
+            is_encrypted: false,
+            security_level: SecurityValidationLevel::Standard,
         })
     }
 
@@ -77,6 +100,25 @@ impl ConfigManager {
 
         manager.dirty = true;
         Ok(manager)
+    }
+
+    /// Create with a template
+    pub fn with_template(template_id: &str) -> EasySSHResult<Self> {
+        let mut manager = Self::new()?;
+        let mut template_manager = TemplateManager::new();
+        template_manager.load_builtin_templates();
+
+        if let Ok(config) = template_manager.apply_template(template_id) {
+            manager.config = config;
+            manager.template_manager = Some(template_manager);
+            manager.dirty = true;
+            Ok(manager)
+        } else {
+            Err(EasySSHErrors::configuration(format!(
+                "Template '{}' not found",
+                template_id
+            )))
+        }
     }
 
     /// Get the configuration file path
@@ -99,6 +141,16 @@ impl ConfigManager {
         self.auto_save
     }
 
+    /// Set security validation level
+    pub fn set_security_level(&mut self, level: SecurityValidationLevel) {
+        self.security_level = level;
+    }
+
+    /// Get security level
+    pub fn security_level(&self) -> SecurityValidationLevel {
+        self.security_level
+    }
+
     /// Load configuration from disk (synchronous)
     pub fn load(&mut self) -> EasySSHResult<()> {
         if !self.config_path.exists() {
@@ -115,59 +167,23 @@ impl ConfigManager {
             return Ok(());
         }
 
-        // Read and parse configuration
+        // Check if file is encrypted
         let content = std::fs::read_to_string(&self.config_path).map_err(|e| {
             EasySSHErrors::configuration(format!("Failed to read config file: {}", e))
         })?;
 
-        let mut config: FullConfig = serde_json::from_str(&content).map_err(|e| {
-            EasySSHErrors::configuration(format!("Failed to parse config file: {}", e))
-        })?;
+        // Try to detect encrypted config
+        if content.trim().starts_with('{') && content.contains("\"salt\"") && content.contains("\"data\"") {
+            self.is_encrypted = true;
+            // Don't try to decrypt without password - let caller handle this
+        } else {
+            // Read and parse configuration
+            let mut config: FullConfig = serde_json::from_str(&content).map_err(|e| {
+                EasySSHErrors::configuration(format!("Failed to parse config file: {}", e))
+            })?;
 
-        // Apply system defaults for new fields
-        apply_system_defaults(&mut config);
-
-        // Apply environment overrides
-        EnvConfig::apply_overrides(&mut config);
-
-        // Sanitize configuration
-        ConfigValidator::sanitize(&mut config);
-
-        // Migrate if needed
-        if ConfigMigration::needs_migration(&config) {
-            let result = ConfigMigration::migrate(&mut config);
-            if !result.success {
-                return Err(EasySSHErrors::configuration(format!(
-                    "Configuration migration failed: {:?}",
-                    result.errors
-                )));
-            }
+            self.load_config_internal(&mut config)?;
         }
-
-        // Validate configuration
-        if let Err(errors) = ConfigValidator::validate(&config) {
-            // Try to auto-fix issues
-            let fixes = ConfigAutoFix::auto_fix(&mut config);
-
-            // Re-validate after auto-fix
-            if let Err(errors) = ConfigValidator::validate(&config) {
-                self.last_validation_errors = errors;
-                // Log validation errors but don't fail loading
-                eprintln!(
-                    "Configuration validation warnings: {:?}",
-                    self.last_validation_errors
-                );
-            }
-
-            if !fixes.is_empty() {
-                eprintln!("Auto-fixed configuration issues: {:?}", fixes);
-            }
-        }
-
-        self.config = config;
-        self.dirty = false;
-
-        self.notify_change(ConfigChangeEvent::ConfigReloaded);
 
         Ok(())
     }
@@ -210,11 +226,92 @@ impl ConfigManager {
         }
 
         // Validate and auto-fix
-        if let Err(_) = ConfigValidator::validate(&config) {
+        let validator = ConfigValidator::new().security_level(self.security_level);
+        if let Err(_) = validator.validate(&config) {
             ConfigAutoFix::auto_fix(&mut config);
         }
 
         Ok(config)
+    }
+
+    /// Load and decrypt configuration
+    pub fn load_encrypted(&mut self, master_password: &str) -> EasySSHResult<()> {
+        if !self.config_path.exists() {
+            return self.load();
+        }
+
+        let content = std::fs::read_to_string(&self.config_path).map_err(|e| {
+            EasySSHErrors::configuration(format!("Failed to read config file: {}", e))
+        })?;
+
+        // Try to parse as encrypted config
+        if let Ok(encrypted) = serde_json::from_str::<EncryptedConfig>(&content) {
+            let encryption = ConfigEncryption::new(master_password).map_err(|e| {
+                EasySSHErrors::configuration(format!("Failed to initialize encryption: {}", e))
+            })?;
+
+            self.config = encryption.decrypt_config(&encrypted).map_err(|e| {
+                EasySSHErrors::configuration(format!("Failed to decrypt config: {}", e))
+            })?;
+
+            self.encryption = Some(encryption);
+            self.is_encrypted = true;
+            self.dirty = false;
+
+            self.notify_change(ConfigChangeEvent::ConfigReloaded);
+            Ok(())
+        } else {
+            // Not encrypted, load normally
+            self.load()
+        }
+    }
+
+    /// Save encrypted configuration
+    pub fn save_encrypted(&mut self) -> EasySSHResult<()> {
+        let encryption = self.encryption.as_ref().ok_or_else(|| {
+            EasySSHErrors::configuration("Encryption not initialized")
+        })?;
+
+        let encrypted = encryption.encrypt_config(&self.config).map_err(|e| {
+            EasySSHErrors::configuration(format!("Failed to encrypt config: {}", e))
+        })?;
+
+        // Ensure config directory exists
+        if let Some(parent) = self.config_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                EasySSHErrors::configuration(format!("Failed to create config directory: {}", e))
+            })?;
+        }
+
+        let json = serde_json::to_string_pretty(&encrypted).map_err(|e| {
+            EasySSHErrors::configuration(format!("Failed to serialize encrypted config: {}", e))
+        })?;
+
+        std::fs::write(&self.config_path, json).map_err(|e| {
+            EasySSHErrors::configuration(format!("Failed to write config file: {}", e))
+        })?;
+
+        self.dirty = false;
+        self.is_encrypted = true;
+
+        Ok(())
+    }
+
+    /// Initialize encryption for the current config
+    pub fn initialize_encryption(&mut self, master_password: &str) -> EasySSHResult<()> {
+        let encryption = ConfigEncryption::new(master_password).map_err(|e| {
+            EasySSHErrors::configuration(format!("Failed to initialize encryption: {}", e))
+        })?;
+
+        self.encryption = Some(encryption);
+        self.dirty = true;
+
+        Ok(())
+    }
+
+    /// Check if configuration is encrypted
+    pub fn is_encrypted(&self) -> bool {
+        self.is_encrypted
     }
 
     /// Load configuration asynchronously and update the manager
@@ -226,10 +323,58 @@ impl ConfigManager {
         Ok(())
     }
 
+    /// Internal load logic
+    fn load_config_internal(&mut self, config: &mut FullConfig) -> EasySSHResult<()> {
+        // Apply system defaults for new fields
+        apply_system_defaults(config);
+
+        // Apply environment overrides
+        EnvConfig::apply_overrides(config);
+
+        // Sanitize configuration
+        ConfigValidator::sanitize(config);
+
+        // Migrate if needed
+        if ConfigMigration::needs_migration(config) {
+            let result = ConfigMigration::migrate(config);
+            if !result.success {
+                return Err(EasySSHErrors::configuration(format!(
+                    "Configuration migration failed: {:?}",
+                    result.errors
+                )));
+            }
+        }
+
+        // Validate configuration
+        let validator = ConfigValidator::new().security_level(self.security_level);
+        if let Err(errors) = validator.validate(config) {
+            // Try to auto-fix issues
+            let fixes = ConfigAutoFix::auto_fix(config);
+
+            // Re-validate after auto-fix
+            if let Err(errors) = validator.validate(config) {
+                self.last_validation_errors = errors;
+                eprintln!("Configuration validation warnings: {:?}", self.last_validation_errors);
+            }
+
+            if !fixes.is_empty() {
+                eprintln!("Auto-fixed configuration issues: {:?}", fixes);
+            }
+        }
+
+        self.config = config.clone();
+        self.dirty = false;
+
+        self.notify_change(ConfigChangeEvent::ConfigReloaded);
+
+        Ok(())
+    }
+
     /// Save configuration to disk (synchronous)
     pub fn save(&mut self) -> EasySSHResult<()> {
         // Validate before saving
-        if let Err(errors) = ConfigValidator::validate(&self.config) {
+        let validator = ConfigValidator::new().security_level(self.security_level);
+        if let Err(errors) = validator.validate(&self.config) {
             let has_errors = errors
                 .iter()
                 .any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
@@ -241,6 +386,11 @@ impl ConfigManager {
             }
             // Just warnings, proceed with save
             self.last_validation_errors = errors;
+        }
+
+        // If encrypted, save encrypted version
+        if self.is_encrypted || self.encryption.is_some() {
+            return self.save_encrypted();
         }
 
         // Ensure config directory exists
@@ -267,7 +417,8 @@ impl ConfigManager {
     /// Save configuration to disk (asynchronous)
     pub async fn save_async(&self) -> EasySSHResult<()> {
         // Validate before saving
-        if let Err(errors) = ConfigValidator::validate(&self.config) {
+        let validator = ConfigValidator::new().security_level(self.security_level);
+        if let Err(errors) = validator.validate(&self.config) {
             let has_errors = errors
                 .iter()
                 .any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
@@ -417,9 +568,7 @@ impl ConfigManager {
 
         // Trim to max
         if prefs.recent_connections.len() > prefs.max_recent_connections {
-            prefs
-                .recent_connections
-                .truncate(prefs.max_recent_connections);
+            prefs.recent_connections.truncate(prefs.max_recent_connections);
         }
 
         self.dirty = true;
@@ -460,7 +609,8 @@ impl ConfigManager {
 
     /// Validate current configuration
     pub fn validate(&self) -> EasySSHResult<()> {
-        match ConfigValidator::validate(&self.config) {
+        let validator = ConfigValidator::new().security_level(self.security_level);
+        match validator.validate(&self.config) {
             Ok(()) => Ok(()),
             Err(errors) => {
                 let msg = errors
@@ -482,12 +632,22 @@ impl ConfigManager {
     }
 
     /// Export configuration to a file
-    pub fn export_to(&self, path: &Path) -> EasySSHResult<()> {
-        let json = serde_json::to_string_pretty(&self.config).map_err(|e| {
-            EasySSHErrors::configuration(format!("Failed to serialize config: {}", e))
-        })?;
+    pub fn export_to(&self, path: &Path, format: Option<ExportFormat>) -> EasySSHResult<()> {
+        let format = format.or_else(|| {
+            path.extension()
+                .and_then(|e| e.to_str())
+                .and_then(ExportFormat::from_extension)
+        }).unwrap_or(ExportFormat::JsonPretty);
 
-        std::fs::write(path, json).map_err(|e| {
+        let options = ExportOptions {
+            format,
+            ..Default::default()
+        };
+
+        let content = ImportExportManager::export_config(&self.config, options)
+            .map_err(|e| EasySSHErrors::configuration(format!("Export failed: {}", e)))?;
+
+        std::fs::write(path, content).map_err(|e| {
             EasySSHErrors::configuration(format!("Failed to write export file: {}", e))
         })?;
 
@@ -495,40 +655,51 @@ impl ConfigManager {
     }
 
     /// Import configuration from a file
-    pub fn import_from(&mut self, path: &Path) -> EasySSHResult<()> {
+    pub fn import_from(&mut self, path: &Path) -> EasySSHResult<ImportResult> {
+        let options = ImportOptions::default();
         let content = std::fs::read_to_string(path).map_err(|e| {
             EasySSHErrors::configuration(format!("Failed to read import file: {}", e))
         })?;
 
-        let mut config: FullConfig = serde_json::from_str(&content).map_err(|e| {
-            EasySSHErrors::configuration(format!("Failed to parse import file: {}", e))
-        })?;
+        let result = ImportExportManager::import_config(&content, options);
 
-        // Validate imported config
-        ConfigValidator::sanitize(&mut config);
+        if let Some(config) = result.config.clone() {
+            self.config = config;
+            self.dirty = true;
+            self.notify_change(ConfigChangeEvent::ConfigReloaded);
 
-        if let Err(errors) = ConfigValidator::validate(&config) {
-            let has_errors = errors
-                .iter()
-                .any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
-            if has_errors {
-                return Err(EasySSHErrors::configuration(format!(
-                    "Imported configuration is invalid: {:?}",
-                    errors
-                )));
+            if self.auto_save {
+                self.save()?;
             }
         }
 
-        self.config = config;
-        self.dirty = true;
+        Ok(result)
+    }
 
-        self.notify_change(ConfigChangeEvent::ConfigReloaded);
+    /// Import from multiple formats
+    pub fn import_from_format(
+        &mut self,
+        content: &str,
+        format: ExportFormat,
+    ) -> EasySSHResult<ImportResult> {
+        let options = ImportOptions {
+            format_hint: Some(format),
+            ..Default::default()
+        };
 
-        if self.auto_save {
-            self.save()?;
+        let result = ImportExportManager::import_config(content, options);
+
+        if let Some(config) = result.config.clone() {
+            self.config = config;
+            self.dirty = true;
+            self.notify_change(ConfigChangeEvent::ConfigReloaded);
+
+            if self.auto_save {
+                self.save()?;
+            }
         }
 
-        Ok(())
+        Ok(result)
     }
 
     /// Reset configuration to defaults
@@ -537,6 +708,24 @@ impl ConfigManager {
         apply_system_defaults(&mut self.config);
         self.dirty = true;
         self.notify_change(ConfigChangeEvent::ConfigReloaded);
+    }
+
+    /// Reset to a template
+    pub fn reset_to_template(&mut self, template_id: &str) -> std::result::Result<(), TemplateError> {
+        if let Some(ref manager) = self.template_manager {
+            self.config = manager.apply_template(template_id)?;
+            self.dirty = true;
+            self.notify_change(ConfigChangeEvent::ConfigReloaded);
+            Ok(())
+        } else {
+            let mut manager = TemplateManager::new();
+            manager.load_builtin_templates();
+            self.config = manager.apply_template(template_id)?;
+            self.template_manager = Some(manager);
+            self.dirty = true;
+            self.notify_change(ConfigChangeEvent::ConfigReloaded);
+            Ok(())
+        }
     }
 
     /// Register a change listener
@@ -591,7 +780,7 @@ impl ConfigManager {
     }
 
     /// Create a backup of the current configuration
-    pub async fn backup(&self) -> EasySSHResult<PathBuf> {
+    pub async fn backup(&self) -> EasySSHResult<std::path::PathBuf> {
         if !self.config_path.exists() {
             return Err(EasySSHErrors::configuration(
                 "No configuration file to backup",
@@ -620,6 +809,11 @@ impl ConfigManager {
         ConfigMigration::migration_status(&self.config)
     }
 
+    /// Get detailed migration info
+    pub fn migration_info(&self) -> MigrationInfo {
+        ConfigMigration::get_migration_info(&self.config)
+    }
+
     /// Run configuration migration
     pub fn migrate(&mut self) -> MigrationResult {
         let result = ConfigMigration::migrate(&mut self.config);
@@ -641,6 +835,66 @@ impl ConfigManager {
     pub fn is_up_to_date(&self) -> bool {
         self.config.version == CURRENT_CONFIG_VERSION
     }
+
+    /// Get available templates
+    pub fn available_templates(&self) -> Vec<&Template> {
+        if let Some(ref manager) = self.template_manager {
+            manager.list_templates()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Load templates
+    pub fn load_templates(&mut self) {
+        if self.template_manager.is_none() {
+            let mut manager = TemplateManager::new();
+            manager.load_builtin_templates();
+            self.template_manager = Some(manager);
+        }
+    }
+
+    /// Apply template
+    pub fn apply_template(&mut self, template_id: &str) -> std::result::Result<(), TemplateError> {
+        self.load_templates();
+        self.reset_to_template(template_id)
+    }
+
+    /// Export as YAML
+    pub fn export_yaml(&self) -> EasySSHResult<String> {
+        let options = ExportOptions::yaml();
+        ImportExportManager::export_config(&self.config, options)
+            .map_err(|e| EasySSHErrors::configuration(format!("YAML export failed: {}", e)))
+    }
+
+    /// Export as TOML
+    pub fn export_toml(&self) -> EasySSHResult<String> {
+        let options = ExportOptions::toml();
+        ImportExportManager::export_config(&self.config, options)
+            .map_err(|e| EasySSHErrors::configuration(format!("TOML export failed: {}", e)))
+    }
+
+    /// Export as ENV format
+    pub fn export_env(&self) -> EasySSHResult<String> {
+        let options = ExportOptions::env();
+        ImportExportManager::export_config(&self.config, options)
+            .map_err(|e| EasySSHErrors::configuration(format!("ENV export failed: {}", e)))
+    }
+
+    /// Import from YAML
+    pub fn import_yaml(&mut self, yaml: &str) -> EasySSHResult<ImportResult> {
+        self.import_from_format(yaml, ExportFormat::Yaml)
+    }
+
+    /// Import from TOML
+    pub fn import_toml(&mut self, toml: &str) -> EasySSHResult<ImportResult> {
+        self.import_from_format(toml, ExportFormat::Toml)
+    }
+
+    /// Import from ENV format
+    pub fn import_env(&mut self, env: &str) -> EasySSHResult<ImportResult> {
+        self.import_from_format(env, ExportFormat::Env)
+    }
 }
 
 impl Clone for ConfigManager {
@@ -656,6 +910,10 @@ impl Clone for ConfigManager {
             callbacks: Arc::new(RwLock::new(Vec::new())),
             last_validation_errors: self.last_validation_errors.clone(),
             auto_save: self.auto_save,
+            template_manager: None,
+            encryption: None,
+            is_encrypted: false,
+            security_level: self.security_level,
         }
     }
 }
@@ -681,6 +939,21 @@ mod tests {
 
         let manager = ConfigManager::with_path(config_path);
         assert!(manager.is_ok());
+    }
+
+    #[test]
+    fn test_preset_creation() {
+        let minimal = ConfigManager::with_preset(ConfigPreset::Minimal).unwrap();
+        assert!(!minimal.app_config().show_sidebar);
+
+        let rich = ConfigManager::with_preset(ConfigPreset::Rich).unwrap();
+        assert!(rich.app_config().show_sidebar);
+    }
+
+    #[test]
+    fn test_template_creation() {
+        let dev = ConfigManager::with_template("development").unwrap();
+        assert_eq!(dev.app_config().theme, Theme::Dark);
     }
 
     #[tokio::test]
@@ -755,21 +1028,6 @@ mod tests {
     }
 
     #[test]
-    fn test_preset_creation() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join("config.json");
-
-        // Create with preset (we need to override the path after)
-        let mut minimal = ConfigManager::with_preset(ConfigPreset::Minimal).unwrap();
-        minimal.config_path = config_path.clone();
-
-        assert!(!minimal.app_config().show_sidebar);
-
-        let rich = ConfigManager::with_preset(ConfigPreset::Rich).unwrap();
-        assert!(rich.app_config().show_sidebar);
-    }
-
-    #[test]
     fn test_export_import() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.json");
@@ -780,7 +1038,7 @@ mod tests {
         manager.save().unwrap();
 
         // Export
-        manager.export_to(&export_path).unwrap();
+        manager.export_to(&export_path, None).unwrap();
         assert!(export_path.exists());
 
         // Modify and import back
@@ -803,5 +1061,58 @@ mod tests {
 
         assert_eq!(manager.app_config().theme, Theme::System);
         assert_eq!(manager.user_preferences().default_port, 22);
+    }
+
+    #[test]
+    fn test_export_import_yaml() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let mut manager = ConfigManager::with_path(config_path).unwrap();
+        manager.update_app_config(|c| c.theme = Theme::Dark);
+        manager.update_user_preferences(|p| p.default_port = 2222);
+
+        // Export as YAML
+        let yaml = manager.export_yaml().unwrap();
+        assert!(!yaml.is_empty());
+
+        // Import back
+        let result = manager.import_yaml(&yaml).unwrap();
+        assert!(result.is_success());
+    }
+
+    #[test]
+    fn test_security_level() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let mut manager = ConfigManager::with_path(config_path).unwrap();
+        manager.set_security_level(SecurityValidationLevel::High);
+
+        assert_eq!(manager.security_level(), SecurityValidationLevel::High);
+    }
+
+    #[test]
+    fn test_migration_info() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let manager = ConfigManager::with_path(config_path).unwrap();
+        let info = manager.migration_info();
+
+        assert_eq!(info.target_version, CURRENT_CONFIG_VERSION);
+        assert!(info.can_migrate);
+    }
+
+    #[test]
+    fn test_template_manager() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let mut manager = ConfigManager::with_path(config_path).unwrap();
+        manager.load_templates();
+
+        let templates = manager.available_templates();
+        assert!(!templates.is_empty());
     }
 }

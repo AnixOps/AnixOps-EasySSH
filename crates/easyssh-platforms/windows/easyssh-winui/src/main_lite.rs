@@ -12,6 +12,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod design;
 mod dialogs;
 mod detail_panel;
 mod sidebar;

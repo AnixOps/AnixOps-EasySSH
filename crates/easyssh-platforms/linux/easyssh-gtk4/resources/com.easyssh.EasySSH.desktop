@@ -1,0 +1,28 @@
+[Desktop Entry]
+Name=EasySSH
+Comment=A lightweight SSH client for Linux
+Exec=easyssh %U
+Icon=com.easyssh.EasySSH
+Terminal=false
+Type=Application
+Categories=Network;RemoteAccess;System;Utility;
+Keywords=ssh;terminal;remote;server;connection;
+MimeType=x-scheme-handler/ssh;
+StartupNotify=true
+StartupWMClass=com.easyssh.EasySSH
+Actions=NewServer;Preferences;
+
+[Desktop Action NewServer]
+Name=Add New Server
+Exec=easyssh --new-server
+
+[Desktop Action Preferences]
+Name=Preferences
+Exec=easyssh --preferences
+
+# GNOME-specific settings
+X-GNOME-UsesNotifications=true
+X-GNOME-SingleWindow=true
+
+# Freedesktop compliance
+X-Desktop-File-Install-Version=0.26

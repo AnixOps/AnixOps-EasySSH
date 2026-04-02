@@ -563,7 +563,7 @@ mod tests {
     }
 
     #[test]
-    fn test_terminal() {
+    fn test_terminal_module() {
         let report = test_terminal().unwrap();
         assert_eq!(report.total, 3); // 三个测试项
     }

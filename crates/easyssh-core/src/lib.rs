@@ -771,6 +771,30 @@ pub use workflow_variables::*;
 
 pub mod security_tests;
 
+// Performance optimization module
+pub mod performance;
+pub use performance::{
+    crypto_optimizer::{
+        CryptoOptimizer, EncryptionBufferPool, KeyDerivationCache,
+        detect_aes_ni, get_optimization_recommendations,
+    },
+    db_optimizer::{
+        BatchOperations, DatabaseStats, DbOptimizer, OptimizedDatabase, QueryCache, QueryStats,
+    },
+    memory_optimizer::{
+        ByteBufferPool, DataStructureGuide, MemoryOptimizer, MemoryStats, MemoryTracker,
+        ObjectPool, PoolStats as MemPoolStats, PooledObject, StringPool,
+    },
+    search_optimizer::{
+        FastStringMatcher, IndexStats, InvertedIndex, PrefixIndex, SearchOptimizer,
+    },
+    startup_optimizer::{
+        AsyncLazyInitializer, DeferredLoader, LazyInitializer, PhaseReport, PhaseTiming,
+        StartupOptimizer, StartupPhase, StartupReport, StartupSequence, check_startup_readiness,
+    },
+    BenchmarkTargets, PerformanceMetrics, check_performance_targets,
+};
+
 // Docker Management
 #[cfg(feature = "docker")]
 pub mod docker;
@@ -873,9 +897,11 @@ pub use models::{
     UNGROUPED_ID, UNGROUPED_NAME,
 };
 pub use services::{
-    AsyncServerService, ConnectionStatus as SearchConnectionStatus, ConnectionTestResult,
-    SearchAuthMethod, SearchHistoryEntry, SearchQuery, SearchQueryBuilder, SearchResult,
-    SearchService, ServerService, ServerServiceError, SortBy, SortOrder,
+    AsyncGroupService, AsyncServerService, BatchOperationResult, ConnectionStatus as SearchConnectionStatus, ConnectionTestResult,
+    GroupImportResult, GroupResult, GroupService, GroupServiceError,
+    SearchAuthMethod, SearchHistoryEntry, SearchQuery, SearchQueryBuilder, SearchResult, SearchService,
+    ServerImportResult, ServerResult, ServerService, ServerServiceError , ServerStats, SortBy, SortOrder,
+    TransactionError, TransactionResult,
 };
 
 // Version system FFI exports

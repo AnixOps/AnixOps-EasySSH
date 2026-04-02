@@ -1,62 +1,288 @@
-name: Test
+name: Test Suite
 
 on:
   push:
     branches: [main, develop]
+    paths:
+      - 'crates/**'
+      - '.github/workflows/test.yml'
+      - 'Cargo.toml'
   pull_request:
     branches: [main, develop]
+    paths:
+      - 'crates/**'
+      - '.github/workflows/test.yml'
+      - 'Cargo.toml'
   workflow_call:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
 
 jobs:
-  test-core:
-    name: Test Core Library
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable, nightly]
+  # ============ Check and Format ============
+  check:
+    name: Check and Format
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
 
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Run tests (Lite)
-        run: cargo test -p easyssh-core --features lite -- --nocapture
-
-      - name: Run tests (Standard)
-        run: cargo test -p easyssh-core --features standard -- --nocapture
-
-      - name: Run tests (Pro)
-        run: cargo test -p easyssh-core --features pro -- --nocapture
+      - name: Check formatting
+        run: cargo fmt -- --check
 
       - name: Run clippy
-        run: cargo clippy -p easyssh-core --all-features -- -D warnings
+        run: cargo clippy --all-features -- -D warnings
 
-  test-platforms:
-    name: Test Platform Builds
+      - name: Check documentation
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  # ============ Unit Tests ============
+  unit-tests:
+    name: Unit Tests
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            target: linux-gtk4
-          - os: windows-latest
-            target: windows-winui
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        feature: [lite, standard, pro]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssh2-1-dev
+
+      - name: Run unit tests (${{ matrix.feature }})
+        run: |
+          cargo test --package easyssh-core --lib --features ${{ matrix.feature }} -- --test-threads=2
+          cargo test --package easyssh-core --test '*' --features ${{ matrix.feature }} -- security_tests --test-threads=1
+          cargo test --package easyssh-core --test '*' --features ${{ matrix.feature }} -- performance_tests --test-threads=1
+          cargo test --package easyssh-core --test '*' --features ${{ matrix.feature }} -- fuzz_tests --test-threads=1
+        timeout-minutes: 20
+
+  # ============ Integration Tests ============
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      sshd:
+        image: linuxserver/openssh-server:latest
+        ports:
+          - 2222:2222
+        env:
+          PUID: 1000
+          PGID: 1000
+          TZ: Asia/Shanghai
+          USER_NAME: test
+          USER_PASSWORD: test
+          PASSWORD_ACCESS: true
+          SUDO_ACCESS: "true"
+        options: >-
+          --health-cmd "nc -z localhost 2222 || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssh2-1-dev
+
+      - name: Wait for SSHD
+        run: |
+          for i in {1..30}; do
+            if nc -z localhost 2222; then
+              echo "SSH server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "SSH server failed to start"
+          exit 1
+
+      - name: Run database integration tests
+        run: cargo test --package easyssh-core --test database_integration_tests --features standard -- --test-threads=1
+        env:
+          RUST_TEST_THREADS: 1
+
+      - name: Run SSH integration tests
+        run: cargo test --package easyssh-core --test ssh_integration_tests --features standard -- --test-threads=1
+        env:
+          TEST_SSH_HOST: localhost
+          TEST_SSH_PORT: 2222
+          TEST_SSH_USER: test
+          TEST_SSH_PASSWORD: test
+          RUST_TEST_THREADS: 1
+
+  # ============ Security Tests ============
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssh2-1-dev
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run cargo audit
+        run: cargo audit --deny warnings
+
+      - name: Run security unit tests
+        run: cargo test --package easyssh-core --test security_tests --features pro -- --nocapture
+
+      - name: Run fuzz tests
+        run: cargo test --package easyssh-core --test fuzz_tests --features pro -- --nocapture
+
+  # ============ Code Coverage ============
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssh2-1-dev
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+
+      - name: Generate coverage
+        run: |
+          cargo llvm-cov --package easyssh-core --features pro --lcov --output-path lcov.info -- --test-threads=1
+
+      - name: Generate HTML report
+        run: |
+          cargo llvm-cov --package easyssh-core --features pro --html -- --test-threads=1
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/llvm-cov/html/
+          retention-days: 7
+
+  # ============ Benchmarks ============
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssh2-1-dev
+
+      - name: Run benchmarks
+        run: cargo bench --package easyssh-core --features pro -- --noplot
+        timeout-minutes: 30
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: target/criterion/
+          retention-days: 7
+
+  # ============ Documentation Tests ============
+  test-docs:
+    name: Test Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssh2-1-dev
+
+      - name: Run doctests
+        run: cargo test --package easyssh-core --doc --features pro
+
+  # ============ Build Verification ============
+  build-verification:
+    name: Build Verification
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        feature: [lite, standard, pro]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -64,65 +290,70 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
 
-      - name: Cache cargo dependencies
-        uses: Swatinem/rust-cache@v2
+      - name: Build ${{ matrix.feature }}
+        run: cargo build --package easyssh-core --features ${{ matrix.feature }} --release
 
-      - name: Build Linux GTK4
-        if: matrix.target == 'linux-gtk4'
-        run: cargo build -p easyssh-gtk4
-
-      - name: Build Windows WinUI
-        if: matrix.target == 'windows-winui'
-        run: cargo build -p easyssh-winui
-
-  test-integration:
-    name: Integration Tests
+  # ============ Test Summary ============
+  test-summary:
+    name: Test Summary
     runs-on: ubuntu-latest
-    services:
-      ssh-server:
-        image: linuxserver/openssh-server
-        env:
-          USER_NAME: test
-          USER_PASSWORD: test
-          PASSWORD_ACCESS: true
-        ports:
-          - 2222:2222
+    needs: [check, unit-tests, integration-tests, security-tests, coverage, benchmarks, test-docs, build-verification]
+    if: always()
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run integration tests
+      - name: Test Results
         run: |
-          export TEST_SSH_HOST=localhost
-          export TEST_SSH_PORT=2222
-          export TEST_SSH_USER=test
-          export TEST_SSH_PASSWORD=test
-          cargo test --test '*' --features standard
+          echo "================================"
+          echo "=== EasySSH Test Suite Summary ==="
+          echo "================================"
+          echo ""
+          echo "Check & Format:        ${{ needs.check.result }}"
+          echo "Unit Tests:            ${{ needs.unit-tests.result }}"
+          echo "Integration Tests:     ${{ needs.integration-tests.result }}"
+          echo "Security Tests:        ${{ needs.security-tests.result }}"
+          echo "Code Coverage:         ${{ needs.coverage.result }}"
+          echo "Benchmarks:            ${{ needs.benchmarks.result }}"
+          echo "Documentation Tests:   ${{ needs.test-docs.result }}"
+          echo "Build Verification:    ${{ needs.build-verification.result }}"
+          echo ""
+          echo "================================"
 
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+          # Check for failures
+          FAILURES=()
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
+          if [[ "${{ needs.check.result }}" == "failure" ]]; then
+            FAILURES+=("Check & Format")
+          fi
 
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
+          if [[ "${{ needs.unit-tests.result }}" == "failure" ]]; then
+            FAILURES+=("Unit Tests")
+          fi
 
-      - name: Generate coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+          if [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
+            FAILURES+=("Integration Tests")
+          fi
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: lcov.info
-          fail_ci_if_error: true
+          if [[ "${{ needs.security-tests.result }}" == "failure" ]]; then
+            FAILURES+=("Security Tests")
+          fi
+
+          if [[ "${{ needs.coverage.result }}" == "failure" ]]; then
+            FAILURES+=("Code Coverage")
+          fi
+
+          if [[ "${{ needs.build-verification.result }}" == "failure" ]]; then
+            FAILURES+=("Build Verification")
+          fi
+
+          if [[ ${#FAILURES[@]} -gt 0 ]]; then
+            echo "FAILED JOBS:"
+            for job in "${FAILURES[@]}"; do
+              echo "  - $job"
+            done
+            echo ""
+            echo "Test suite failed!"
+            exit 1
+          fi
+
+          echo ""
+          echo "All tests passed successfully!"
+          echo "================================"

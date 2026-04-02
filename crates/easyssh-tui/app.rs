@@ -8,8 +8,10 @@
 
 use crate::events::Key;
 use crate::keybindings::{Action, KeyBindings};
+use crate::theme::{Theme, ColorPalette};
 use crate::ui::dialogs::{Dialog, DialogResult};
-use crossterm::event::{KeyCode, KeyModifiers, MouseEvent};
+use crate::virtual_list::{VirtualListState, ServerListItem, render_virtual_server_list, GroupListItem, render_virtual_group_list};
+use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind, MouseButton};
 use easyssh_core::{
     connect_server, delete_group, delete_server, get_db_path, get_groups, get_servers,
     init_database, update_server, AppState, AuthMethod, GroupRecord, NewGroup, NewServer,
@@ -66,14 +68,19 @@ pub struct App {
     pub input_mode: InputMode,
     /// Key bindings
     pub key_bindings: KeyBindings,
+    /// Current theme
+    pub theme: Theme,
 
     /// List of servers
     pub servers: Vec<ServerRecord>,
     /// List of groups
     pub groups: Vec<GroupRecord>,
-    /// Currently selected server index
+
+    /// Virtual list state for server list
+    pub server_list_state: VirtualListState,
+    /// Currently selected server index in filtered list
     pub selected_server: usize,
-    /// Currently selected group index (in sidebar)
+    /// Currently selected group index (in sidebar, 0 = All)
     pub selected_group: usize,
     /// Filtered server indices (for search)
     pub filtered_servers: Vec<usize>,
@@ -92,12 +99,15 @@ pub struct App {
 
     /// Whether mouse support is enabled
     pub mouse_enabled: bool,
+    /// Clipboard content (internal)
+    pub clipboard: Option<String>,
 }
 
 impl App {
     /// Create a new application instance
     pub fn new() -> AppResult<Self> {
         let state = AppState::new();
+        let theme = Theme::default();
 
         Ok(Self {
             state,
@@ -106,8 +116,10 @@ impl App {
             view_mode: ViewMode::Normal,
             input_mode: InputMode::Normal,
             key_bindings: KeyBindings::default(),
+            theme,
             servers: Vec::new(),
             groups: Vec::new(),
+            server_list_state: VirtualListState::new(0),
             selected_server: 0,
             selected_group: 0,
             filtered_servers: Vec::new(),
@@ -117,6 +129,7 @@ impl App {
             status_message: String::new(),
             terminal_size: (80, 24),
             mouse_enabled: true,
+            clipboard: None,
         })
     }
 
@@ -160,13 +173,41 @@ impl App {
         // Reset filtered list
         self.filtered_servers = (0..self.servers.len()).collect();
 
+        // Update virtual list state
+        self.server_list_state = VirtualListState::new(self.filtered_servers.len());
+        self.server_list_state.selected = self.selected_server;
+
         // Ensure selection is valid
         self.selected_server = self
             .selected_server
             .min(self.filtered_servers.len().saturating_sub(1));
-        self.selected_group = self.selected_group.min(self.groups.len().saturating_sub(1));
+        self.selected_group = self.selected_group.min(self.groups.len());
 
         Ok(())
+    }
+
+    /// Get color palette from theme
+    pub fn palette(&self) -> &ColorPalette {
+        &self.theme.palette
+    }
+
+    /// Toggle between available themes
+    pub fn toggle_theme(&mut self) {
+        let themes = Theme::available_themes();
+        let current_idx = themes.iter().position(|&t| t == self.theme.name).unwrap_or(0);
+        let next_idx = (current_idx + 1) % themes.len();
+        self.theme = Theme::new(themes[next_idx], self.theme.capability);
+        self.set_status(format!("Theme: {}", self.theme.name));
+    }
+
+    /// Get clipboard content
+    pub fn get_clipboard(&self) -> Option<&str> {
+        self.clipboard.as_deref()
+    }
+
+    /// Set clipboard content
+    pub fn set_clipboard(&mut self, content: String) {
+        self.clipboard = Some(content);
     }
 
     /// Tick handler for periodic updates
@@ -213,16 +254,29 @@ impl App {
             Some(Action::NavigateDown) => self.navigate_down(),
             Some(Action::NavigateLeft) => self.navigate_left(),
             Some(Action::NavigateRight) => self.navigate_right(),
+            Some(Action::GoToFirst) => self.go_to_first(),
+            Some(Action::GoToLast) => self.go_to_last(),
+            Some(Action::PageUp) => self.page_up(),
+            Some(Action::PageDown) => self.page_down(),
             Some(Action::Select) => self.select().await?,
             Some(Action::Search) => self.start_search(),
             Some(Action::NewServer) => self.new_server_dialog().await?,
             Some(Action::EditServer) => self.edit_server_dialog().await?,
             Some(Action::DeleteServer) => self.delete_server_confirm().await?,
+            Some(Action::DuplicateServer) => self.duplicate_server().await?,
             Some(Action::NewGroup) => self.new_group_dialog().await?,
             Some(Action::EditGroup) => self.edit_group_dialog().await?,
             Some(Action::DeleteGroup) => self.delete_group_confirm().await?,
             Some(Action::Connect) => self.connect().await?,
+            Some(Action::QuickConnect) => self.quick_connect().await?,
+            Some(Action::Refresh) => {
+                self.reload_data().await?;
+                self.set_status("Data refreshed");
+            }
+            Some(Action::ToggleTheme) => self.toggle_theme(),
             Some(Action::Help) => self.show_help(),
+            Some(Action::Copy) => self.copy_current(),
+            Some(Action::Paste) => self.paste(),
             Some(Action::Cancel) | Some(Action::Back) => self.cancel(),
             None => {}
         }
@@ -230,40 +284,94 @@ impl App {
         Ok(())
     }
 
-    /// Handle mouse events
+    /// Handle mouse events with enhanced support
     pub async fn handle_mouse(&mut self, mouse: MouseEvent) -> AppResult<()> {
-        use crossterm::event::{MouseButton, MouseEventKind};
+        let x = mouse.column;
+        let y = mouse.row;
+
+        // Calculate layout areas (similar to layout manager)
+        let sidebar_width = (self.terminal_size.0 / 5).max(15).min(25);
+        let detail_width = (self.terminal_size.0 / 4).max(20).min(35);
+        let main_area_width = self.terminal_size.0.saturating_sub(sidebar_width + detail_width);
 
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                // Check if click is in sidebar area (left 20 columns)
-                let x = mouse.column;
-                let y = mouse.row;
-
-                // Simple hit testing based on layout
-                if x < 20 && y > 1 {
+                // Check which area was clicked
+                if x < sidebar_width && y > 0 {
                     // Sidebar click
                     self.focus = Focus::Sidebar;
-                    let index = (y as usize).saturating_sub(3); // Adjust for header
-                    if index < self.groups.len() + 1 {
-                        // +1 for "All" group
+                    let index = (y as usize).saturating_sub(2); // Adjust for header
+                    let max_index = self.groups.len(); // +1 for "All"
+                    if index <= max_index {
                         self.selected_group = index;
                         self.apply_group_filter();
                     }
-                } else if x >= 20 && x < self.terminal_size.0.saturating_sub(30) && y > 1 {
+                } else if x >= sidebar_width && x < sidebar_width + main_area_width && y > 0 {
                     // Server list click
                     self.focus = Focus::ServerList;
+                    let index = (y as usize).saturating_sub(3); // Adjust for header + table header
+                    if index < self.filtered_servers.len() {
+                        self.selected_server = index;
+                        self.server_list_state.selected = index;
+                    }
+                } else if x >= sidebar_width + main_area_width && y > 0 {
+                    // Detail panel click
+                    self.focus = Focus::DetailPanel;
+                }
+            }
+            MouseEventKind::Down(MouseButton::Right) => {
+                // Right click for context menu - could open quick actions
+                if x >= sidebar_width && x < sidebar_width + main_area_width {
+                    self.focus = Focus::ServerList;
+                    // Future: Open context menu
+                }
+            }
+            MouseEventKind::DoubleClick(MouseButton::Left) => {
+                // Double click to connect
+                if x >= sidebar_width && x < sidebar_width + main_area_width && y > 0 {
                     let index = (y as usize).saturating_sub(3);
                     if index < self.filtered_servers.len() {
                         self.selected_server = index;
+                        self.server_list_state.selected = index;
+                        self.connect().await?;
                     }
                 }
             }
             MouseEventKind::ScrollDown => {
-                self.navigate_down();
+                match self.focus {
+                    Focus::Sidebar => {
+                        let max = self.groups.len();
+                        if self.selected_group < max {
+                            self.selected_group += 1;
+                            self.apply_group_filter();
+                        }
+                    }
+                    Focus::ServerList => {
+                        let max = self.filtered_servers.len().saturating_sub(1);
+                        if self.selected_server < max {
+                            self.selected_server += 1;
+                            self.server_list_state.selected = self.selected_server;
+                        }
+                    }
+                    _ => {}
+                }
             }
             MouseEventKind::ScrollUp => {
-                self.navigate_up();
+                match self.focus {
+                    Focus::Sidebar => {
+                        if self.selected_group > 0 {
+                            self.selected_group -= 1;
+                            self.apply_group_filter();
+                        }
+                    }
+                    Focus::ServerList => {
+                        if self.selected_server > 0 {
+                            self.selected_server -= 1;
+                            self.server_list_state.selected = self.selected_server;
+                        }
+                    }
+                    _ => {}
+                }
             }
             _ => {}
         }
@@ -271,7 +379,20 @@ impl App {
         Ok(())
     }
 
-    /// Handle terminal resize
+    /// Handle mouse double-click events
+    pub async fn handle_mouse_double_click(
+        &mut self,
+        _x: u16,
+        _y: u16,
+        _button: crossterm::event::MouseButton,
+    ) -> AppResult<()> {
+        // Double-click on server list area connects to the selected server
+        if self.focus == Focus::ServerList {
+            self.connect().await?;
+        }
+        Ok(())
+    }
+
     pub async fn handle_resize(&mut self, width: u16, height: u16) -> AppResult<()> {
         self.terminal_size = (width, height);
         Ok(())
@@ -290,6 +411,7 @@ impl App {
             Focus::ServerList => {
                 if self.selected_server > 0 {
                     self.selected_server -= 1;
+                    self.server_list_state.navigate_up();
                 }
             }
             _ => {}
@@ -309,7 +431,55 @@ impl App {
                 let max = self.filtered_servers.len().saturating_sub(1);
                 if self.selected_server < max {
                     self.selected_server += 1;
+                    self.server_list_state.navigate_down();
                 }
+            }
+            _ => {}
+        }
+    }
+
+    fn go_to_first(&mut self) {
+        match self.focus {
+            Focus::Sidebar => {
+                self.selected_group = 0;
+                self.apply_group_filter();
+            }
+            Focus::ServerList => {
+                self.selected_server = 0;
+                self.server_list_state.go_to_first();
+            }
+            _ => {}
+        }
+    }
+
+    fn go_to_last(&mut self) {
+        match self.focus {
+            Focus::Sidebar => {
+                self.selected_group = self.groups.len();
+            }
+            Focus::ServerList => {
+                self.selected_server = self.filtered_servers.len().saturating_sub(1);
+                self.server_list_state.go_to_last();
+            }
+            _ => {}
+        }
+    }
+
+    fn page_up(&mut self) {
+        match self.focus {
+            Focus::ServerList => {
+                self.server_list_state.page_up();
+                self.selected_server = self.server_list_state.selected;
+            }
+            _ => {}
+        }
+    }
+
+    fn page_down(&mut self) {
+        match self.focus {
+            Focus::ServerList => {
+                self.server_list_state.page_down();
+                self.selected_server = self.server_list_state.selected;
             }
             _ => {}
         }
@@ -333,6 +503,53 @@ impl App {
                 self.focus = Focus::DetailPanel;
             }
             _ => {}
+        }
+    }
+
+    async fn quick_connect(&mut self) -> AppResult<()> {
+        // Connect without changing focus - for power users
+        self.connect().await
+    }
+
+    async fn duplicate_server(&mut self) -> AppResult<()> {
+        if let Some(&index) = self.filtered_servers.get(self.selected_server) {
+            if let Some(server) = self.servers.get(index).cloned() {
+                let new_server = NewServer {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    name: format!("{} (copy)", server.name),
+                    host: server.host,
+                    port: server.port,
+                    username: server.username,
+                    auth_type: server.auth_type.clone(),
+                    identity_file: server.identity_file.clone(),
+                    group_id: server.group_id.clone(),
+                    status: "unknown".to_string(),
+                };
+                easyssh_core::add_server(&self.state, &new_server)?;
+                self.set_status("Server duplicated");
+                self.reload_data().await?;
+            }
+        }
+        Ok(())
+    }
+
+    fn copy_current(&mut self) {
+        if let Some(server) = self.get_selected_server() {
+            let text = format!("{}@{}:{}", server.username, server.host, server.port);
+            self.set_clipboard(text.clone());
+            self.set_status(format!("Copied: {}", text));
+        }
+    }
+
+    fn paste(&mut self) {
+        // Paste functionality for search/filter
+        if self.view_mode == ViewMode::Search {
+            if let Some(clipboard) = &self.clipboard {
+                self.search_query.push_str(clipboard);
+                self.search_cursor = self.search_query.len();
+                self.apply_search_filter();
+                self.set_status("Pasted from clipboard");
+            }
         }
     }
 
@@ -378,7 +595,7 @@ impl App {
         self.view_mode = ViewMode::Search;
         self.search_query.clear();
         self.search_cursor = 0;
-        self.set_status("Search: Type to filter servers");
+        self.set_status("Search: Type to filter servers (Esc to cancel, Enter to confirm)");
     }
 
     async fn handle_search_key(&mut self, key: Key) -> AppResult<()> {
@@ -404,6 +621,12 @@ impl App {
                 if self.search_cursor < self.search_query.len() {
                     self.search_cursor += 1;
                 }
+            }
+            KeyCode::Home => {
+                self.search_cursor = 0;
+            }
+            KeyCode::End => {
+                self.search_cursor = self.search_query.len();
             }
             KeyCode::Esc => {
                 self.cancel();
@@ -431,7 +654,13 @@ impl App {
             })
             .map(|(i, _)| i)
             .collect();
+
+        // Reset selection and virtual list state
         self.selected_server = 0;
+        self.server_list_state = VirtualListState::new(self.filtered_servers.len());
+
+        // Update status with results count
+        self.status_message = format!("Found {} matches", self.filtered_servers.len());
     }
 
     fn apply_group_filter(&mut self) {
@@ -453,7 +682,10 @@ impl App {
                 .map(|(i, _)| i)
                 .collect();
         }
+
+        // Reset selection and virtual list state
         self.selected_server = 0;
+        self.server_list_state = VirtualListState::new(self.filtered_servers.len());
     }
 
     // Action methods
@@ -638,6 +870,7 @@ impl App {
                     let new_group = NewGroup {
                         id: uuid::Uuid::new_v4().to_string(),
                         name: data.name,
+                        color: "#4A90D9".to_string(),
                     };
                     easyssh_core::add_group(&self.state, &new_group)?;
                     self.set_status("Group added");
@@ -646,6 +879,7 @@ impl App {
                     let update = easyssh_core::UpdateGroup {
                         id: data.id,
                         name: Some(data.name),
+                        color: None,
                     };
                     easyssh_core::update_group(&self.state, &update)?;
                     self.set_status("Group updated");

@@ -1,0 +1,417 @@
+name: Unified CI Build
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/**'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: short
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Detect Changes
+  # ============================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.changes.outputs.rust }}
+      windows: ${{ steps.changes.outputs.windows }}
+      linux: ${{ steps.changes.outputs.linux }}
+      macos: ${{ steps.changes.outputs.macos }}
+      pro-server: ${{ steps.changes.outputs.pro-server }}
+      docker: ${{ steps.changes.outputs.docker }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            rust:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - '**/Cargo.lock'
+            windows:
+              - 'crates/easyssh-platforms/windows/**/*.rs'
+              - 'crates/easyssh-platforms/windows/**/Cargo.toml'
+            linux:
+              - 'crates/easyssh-platforms/linux/**/*.rs'
+              - 'crates/easyssh-platforms/linux/**/Cargo.toml'
+            macos:
+              - 'platforms/macos/**/*.swift'
+            pro-server:
+              - 'crates/easyssh-pro-server/**/*.rs'
+            docker:
+              - 'docker/**'
+
+  # ============================================================================
+  # Code Quality (All Editions)
+  # ============================================================================
+  quality:
+    name: Code Quality (${{ matrix.edition }})
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        edition: [lite, standard, pro]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: quality-${{ matrix.edition }}
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssl-dev
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run Clippy (${{ matrix.edition }})
+        run: |
+          cargo clippy -p easyssh-core --features ${{ matrix.edition }} --all-targets -- \
+            -D warnings \
+            -A clippy::type_complexity \
+            -A clippy::too_many_arguments
+
+      - name: Run security audit
+        run: cargo audit
+
+  # ============================================================================
+  # Tests (All Editions x All Platforms)
+  # ============================================================================
+  test:
+    name: Test (${{ matrix.edition }} on ${{ matrix.os }})
+    needs: [changes, quality]
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        edition: [lite, standard, pro]
+        exclude:
+          # Pro server tests only on Linux
+          - os: windows-latest
+            edition: pro
+          - os: macos-latest
+            edition: pro
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: test-${{ matrix.os }}-${{ matrix.edition }}
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssl-dev
+
+      - name: Run tests (${{ matrix.edition }})
+        working-directory: crates/easyssh-core
+        run: |
+          cargo test --features ${{ matrix.edition }} -- --test-threads=2
+
+  # ============================================================================
+  # Build Matrix (Optimized Parallel Builds)
+  # ============================================================================
+  build-matrix:
+    name: Build ${{ matrix.config.edition }} for ${{ matrix.config.target }}
+    needs: [changes, quality, test]
+    if: |
+      (needs.changes.outputs.windows == 'true' && contains(matrix.config.target, 'windows')) ||
+      (needs.changes.outputs.linux == 'true' && contains(matrix.config.target, 'linux')) ||
+      (needs.changes.outputs.pro-server == 'true' && matrix.config.edition == 'pro') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.config.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          # Windows - Lite
+          - { edition: lite, target: x86_64-pc-windows-msvc, runner: windows-latest, profile: release-lite }
+          - { edition: lite, target: aarch64-pc-windows-msvc, runner: windows-latest, profile: release-lite }
+          # Windows - Standard
+          - { edition: standard, target: x86_64-pc-windows-msvc, runner: windows-latest, profile: release-standard }
+          - { edition: standard, target: aarch64-pc-windows-msvc, runner: windows-latest, profile: release-standard }
+          # Linux - Lite
+          - { edition: lite, target: x86_64-unknown-linux-gnu, runner: ubuntu-latest, profile: release-lite }
+          - { edition: lite, target: aarch64-unknown-linux-gnu, runner: ubuntu-latest, profile: release-lite }
+          # Linux - Standard
+          - { edition: standard, target: x86_64-unknown-linux-gnu, runner: ubuntu-latest, profile: release-standard }
+          - { edition: standard, target: aarch64-unknown-linux-gnu, runner: ubuntu-latest, profile: release-standard }
+          # Linux - Pro Server
+          - { edition: pro, target: x86_64-unknown-linux-gnu, runner: ubuntu-latest, profile: release-pro }
+          - { edition: pro, target: aarch64-unknown-linux-gnu, runner: ubuntu-latest, profile: release-pro }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.config.target }}
+
+      - name: Install Cross (for ARM64)
+        if: contains(matrix.config.target, 'aarch64')
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: build-${{ matrix.config.edition }}-${{ matrix.config.target }}
+
+      - name: Install Linux dependencies
+        if: contains(matrix.config.runner, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssl-dev
+
+      - name: Build ${{ matrix.config.edition }} for ${{ matrix.config.target }}
+        run: |
+          chmod +x resources/scripts/build-version.sh
+          ./resources/scripts/build-version.sh ${{ matrix.config.edition }} ${{ matrix.config.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.config.edition }}-${{ matrix.config.target }}
+          path: releases/${{ matrix.config.edition }}-v*/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ============================================================================
+  # Build macOS Universal Binaries
+  # ============================================================================
+  build-macos:
+    name: Build macOS Universal (${{ matrix.edition }})
+    needs: [changes, quality, test]
+    if: |
+      needs.changes.outputs.macos == 'true' ||
+      needs.changes.outputs.rust == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        edition: [lite, standard]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: macos-${{ matrix.edition }}
+
+      - name: Build macOS ${{ matrix.edition }}
+        run: |
+          ./resources/scripts/build-version.sh ${{ matrix.edition }} x86_64-apple-darwin
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.edition }}-macos-universal
+          path: releases/${{ matrix.edition }}-v*/
+          retention-days: 7
+
+  # ============================================================================
+  # Package & Distribute
+  # ============================================================================
+  package:
+    name: Package & Verify
+    needs: [build-matrix, build-macos]
+    runs-on: ubuntu-latest
+    if: always() && (needs.build-matrix.result == 'success' || needs.build-matrix.result == 'skipped') && (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: build-*
+
+      - name: Generate checksums
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+          echo "EasySSH v$VERSION CI Build Checksums" > SHA256SUMS.txt
+          echo "===================================" >> SHA256SUMS.txt
+          echo "" >> SHA256SUMS.txt
+
+          find artifacts -type f \( -name "easyssh*" -o -name "EasySSH*" \) -exec sha256sum {} \; >> SHA256SUMS.txt
+
+          cat SHA256SUMS.txt
+
+      - name: Generate release manifest
+        run: |
+          chmod +x resources/scripts/generate-release-manifest.sh
+          resources/scripts/generate-release-manifest.sh
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            SHA256SUMS.txt
+            release-manifest-*.json
+          retention-days: 7
+
+  # ============================================================================
+  # Docker Build (Pro Server)
+  # ============================================================================
+  docker:
+    name: Build Docker Images
+    needs: [changes, quality, test]
+    if: |
+      needs.changes.outputs.pro-server == 'true' ||
+      needs.changes.outputs.docker == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Pro Server
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/pro-server/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/easyssh-pro:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/easyssh-pro:ci
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # CI Summary
+  # ============================================================================
+  summary:
+    name: CI Summary
+    needs: [quality, test, build-matrix, build-macos, package, docker]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# CI Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Quality
+          if [ "${{ needs.quality.result }}" == "success" ]; then
+            echo "| Code Quality | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Code Quality | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Tests
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "| Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Tests | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Build Matrix
+          if [ "${{ needs.build-matrix.result }}" == "success" ]; then
+            echo "| Build Matrix | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Build Matrix | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # macOS
+          if [ "${{ needs.build-macos.result }}" == "success" ]; then
+            echo "| macOS Builds | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-macos.result }}" == "skipped" ]; then
+            echo "| macOS Builds | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| macOS Builds | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Docker
+          if [ "${{ needs.docker.result }}" == "success" ]; then
+            echo "| Docker | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.docker.result }}" == "skipped" ]; then
+            echo "| Docker | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Docker | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.quality.result }}" == "success" ] && \
+             [ "${{ needs.test.result }}" == "success" ] && \
+             [ "${{ needs.build-matrix.result }}" == "success" ]; then
+            echo "## ✅ All Checks Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Some Checks Failed" >> $GITHUB_STEP_SUMMARY
+          fi

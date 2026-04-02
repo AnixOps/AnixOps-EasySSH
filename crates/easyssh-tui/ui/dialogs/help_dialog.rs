@@ -1,6 +1,7 @@
 //! Help Dialog
 //!
 //! Displays keyboard shortcuts and usage information.
+//! Styled with theme support for consistent UI.
 
 use super::{Dialog, DialogResult};
 use crate::keybindings::KeyBindings;
@@ -32,13 +33,14 @@ impl Dialog for HelpDialog {
         }
     }
 
-    fn render(&self, frame: &mut Frame, area: Rect) {
+    fn render(&self, frame: &mut Frame, area: Rect, theme: &crate::theme::ColorPalette) {
         frame.render_widget(Clear, area);
 
         let block = Block::default()
             .title(" Keyboard Shortcuts ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Green));
+            .border_style(Style::default().fg(theme.accent_success))
+            .style(Style::default().bg(theme.bg_dialog));
 
         let inner = block.inner(area);
         frame.render_widget(block, area);
@@ -54,10 +56,26 @@ impl Dialog for HelpDialog {
             .split(inner);
 
         // Header
-        let header = Paragraph::new(
-            "EasySSH Lite TUI - Cross-platform SSH client\nUse hjkl or arrow keys for navigation",
-        )
-        .style(Style::default().add_modifier(Modifier::BOLD))
+        let header = Paragraph::new(vec![
+            Line::from(vec![
+                Span::styled(
+                    "EasySSH Lite TUI",
+                    Style::default()
+                        .fg(theme.accent_primary)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(
+                    "Use ",
+                    Style::default().fg(theme.fg_secondary),
+                ),
+                Span::styled("hjkl", Style::default().fg(theme.accent_info).add_modifier(Modifier::BOLD)),
+                Span::styled(" or ", Style::default().fg(theme.fg_secondary)),
+                Span::styled("arrows", Style::default().fg(theme.accent_info).add_modifier(Modifier::BOLD)),
+                Span::styled(" for navigation", Style::default().fg(theme.fg_secondary)),
+            ]),
+        ])
         .alignment(Alignment::Center);
         frame.render_widget(header, chunks[0]);
 
@@ -67,13 +85,21 @@ impl Dialog for HelpDialog {
         let mut lines: Vec<Line> = Vec::new();
         lines.push(Line::from(""));
 
-        // Group by category
-        lines.push(Line::from(vec![Span::styled(
-            "Navigation",
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
-        )]));
+        // Category styling function
+        let category_header = |name: &str| -> Line {
+            Line::from(vec![
+                Span::styled(
+                    format!("  {}  ", name),
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.accent_secondary)
+                        .bg(theme.bg_highlight),
+                ),
+            ])
+        };
+
+        // Navigation section
+        lines.push(category_header("Navigation"));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
@@ -83,24 +109,22 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::NavigateDown
                     | crate::keybindings::Action::NavigateLeft
                     | crate::keybindings::Action::NavigateRight
+                    | crate::keybindings::Action::GoToFirst
+                    | crate::keybindings::Action::GoToLast
+                    | crate::keybindings::Action::PageUp
+                    | crate::keybindings::Action::PageDown
                     | crate::keybindings::Action::Select
-                    | crate::keybindings::Action::Back
                     | crate::keybindings::Action::Cancel
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
-                    Span::raw(*desc),
+                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::raw(desc),
                 ]));
             }
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![Span::styled(
-            "Server Operations",
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
-        )]));
+        lines.push(category_header("Server Operations"));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
@@ -109,23 +133,21 @@ impl Dialog for HelpDialog {
                 crate::keybindings::Action::NewServer
                     | crate::keybindings::Action::EditServer
                     | crate::keybindings::Action::DeleteServer
+                    | crate::keybindings::Action::DuplicateServer
                     | crate::keybindings::Action::Connect
+                    | crate::keybindings::Action::QuickConnect
                     | crate::keybindings::Action::Search
+                    | crate::keybindings::Action::Refresh
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
-                    Span::raw(*desc),
+                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::raw(desc),
                 ]));
             }
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![Span::styled(
-            "Group Operations",
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
-        )]));
+        lines.push(category_header("Group Operations"));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
@@ -136,29 +158,26 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::DeleteGroup
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
-                    Span::raw(*desc),
+                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::raw(desc),
                 ]));
             }
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![Span::styled(
-            "Other",
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
-        )]));
+        lines.push(category_header("Other"));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
             if matches!(
                 action,
-                crate::keybindings::Action::Help | crate::keybindings::Action::Quit
+                crate::keybindings::Action::Help
+                    | crate::keybindings::Action::ToggleTheme
+                    | crate::keybindings::Action::Quit
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
-                    Span::raw(*desc),
+                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::raw(desc),
                 ]));
             }
         }
@@ -168,7 +187,7 @@ impl Dialog for HelpDialog {
 
         // Footer
         let footer = Paragraph::new("Press Enter, Esc, or q to close this help")
-            .style(Style::default().fg(Color::Gray))
+            .style(Style::default().fg(theme.fg_muted))
             .alignment(Alignment::Center);
         frame.render_widget(footer, chunks[2]);
     }

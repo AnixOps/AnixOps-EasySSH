@@ -6,6 +6,20 @@
 import { tokens, type Theme } from '../tokens/design-tokens';
 
 // ============================================================================
+// Class Name Utilities (Tailwind Merge)
+// ============================================================================
+
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+/**
+ * Merge Tailwind classes with proper precedence
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// ============================================================================
 // Color Utilities
 // ============================================================================
 
@@ -70,6 +84,67 @@ export function getStatusColor(status: 'online' | 'offline' | 'connecting' | 'ma
 
   return colors[status] || colors.unknown;
 }
+
+// Color conversion utilities
+export const colors = {
+  /**
+   * Convert hex to RGB
+   */
+  hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null;
+  },
+
+  /**
+   * Convert RGB to hex
+   */
+  rgbToHex(r: number, g: number, b: number): string {
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+  },
+
+  /**
+   * Calculate luminance
+   */
+  luminance(r: number, g: number, b: number): number {
+    const [rs, gs, bs] = [r, g, b].map((c) => {
+      c = c / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  },
+
+  /**
+   * Calculate contrast ratio
+   */
+  contrastRatio(color1: string, color2: string): number {
+    const rgb1 = this.hexToRgb(color1);
+    const rgb2 = this.hexToRgb(color2);
+
+    if (!rgb1 || !rgb2) return 0;
+
+    const lum1 = this.luminance(rgb1.r, rgb1.g, rgb1.b);
+    const lum2 = this.luminance(rgb2.r, rgb2.g, rgb2.b);
+
+    const lighter = Math.max(lum1, lum2);
+    const darker = Math.min(lum1, lum2);
+
+    return (lighter + 0.05) / (darker + 0.05);
+  },
+
+  /**
+   * Check if color meets WCAG AA standard
+   */
+  meetsWCAGAA(foreground: string, background: string, largeText = false): boolean {
+    const ratio = this.contrastRatio(foreground, background);
+    return largeText ? ratio >= 3 : ratio >= 4.5;
+  },
+};
 
 // ============================================================================
 // Spacing Utilities
@@ -282,6 +357,154 @@ export function reducedMotion(): string {
 }
 
 // ============================================================================
+// Formatting Utilities
+// ============================================================================
+
+/**
+ * Format bytes to human readable string
+ */
+export function formatBytes(bytes: number, decimals = 2): string {
+  if (bytes === 0) return '0 Bytes';
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+/**
+ * Format date to localized string
+ */
+export function formatDate(
+  date: Date | number | string,
+  options: Intl.DateTimeFormatOptions = {}
+): string {
+  const d = new Date(date);
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    ...options,
+  };
+  return d.toLocaleDateString(undefined, defaultOptions);
+}
+
+/**
+ * Format time to localized string
+ */
+export function formatTime(
+  date: Date | number | string,
+  options: Intl.DateTimeFormatOptions = {}
+): string {
+  const d = new Date(date);
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    hour: 'numeric',
+    minute: '2-digit',
+    ...options,
+  };
+  return d.toLocaleTimeString(undefined, defaultOptions);
+}
+
+/**
+ * Format relative time (e.g., "2 hours ago")
+ */
+export function formatRelativeTime(date: Date | number | string): string {
+  const now = new Date();
+  const d = new Date(date);
+  const diff = now.getTime() - d.getTime();
+
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+
+  return formatDate(date);
+}
+
+/**
+ * Truncate text with ellipsis
+ */
+export function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+}
+
+/**
+ * Generate a unique ID
+ */
+export function generateId(prefix = 'id'): string {
+  return `${prefix}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Copy text to clipboard
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Fallback
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
+      document.execCommand('copy');
+      return true;
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+}
+
+// ============================================================================
+// DOM Utilities
+// ============================================================================
+
+/**
+ * Get CSS variable value
+ */
+export function getCSSVariable(name: string): string {
+  if (typeof window === 'undefined') return '';
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/**
+ * Set CSS variable
+ */
+export function setCSSVariable(name: string, value: string): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.style.setProperty(name, value);
+}
+
+/**
+ * Check if value is in viewport
+ */
+export function isInViewport(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return (
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+  );
+}
+
+// ============================================================================
 // Theme Utilities
 // ============================================================================
 
@@ -349,7 +572,8 @@ export function generateCSSVariables(): string {
 // ============================================================================
 
 export const utils = {
-  color: { getColor, getTerminalColor, getStatusColor },
+  cn,
+  color: { getColor, getTerminalColor, getStatusColor, ...colors },
   spacing: { getSpacing, spacing },
   typography: { getFontStack, getTypeStyle },
   shadow: { getShadow, combineShadows },
@@ -358,8 +582,11 @@ export const utils = {
   zIndex: { getZIndex, zIndex },
   component: { getComponentToken, getButtonHeight, getSidebarWidth },
   a11y: { focusRing, reducedMotion },
+  format: { formatBytes, formatDate, formatTime, formatRelativeTime, truncate },
+  dom: { getCSSVariable, setCSSVariable, isInViewport, copyToClipboard },
   theme: { isDarkTheme, applyThemeClass },
   css: { generateCSSVariables },
+  id: { generateId },
 };
 
 export default utils;

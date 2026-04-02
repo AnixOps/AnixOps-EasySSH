@@ -30,6 +30,9 @@ gtk4 = { version = "0.8", features = ["v4_12"] }
 libadwaita = { version = "0.6", features = ["v1_5"] }
 cairo-rs = { version = "0.19", features = ["png"] }
 
+# System integration
+open = "5"
+
 [dev-dependencies]
 serial_test = "3"
 tempfile = { workspace = true }

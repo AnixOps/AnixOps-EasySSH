@@ -15,19 +15,20 @@ use ratatui::{
     Frame,
 };
 
-pub fn render(frame: &mut Frame, area: Rect, app: &App) {
+pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &crate::theme::ColorPalette) {
     // Determine border style based on focus
     let is_focused = app.focus == Focus::Sidebar;
     let border_style = if is_focused {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(theme.border_focused)
     } else {
-        Style::default().fg(Color::Gray)
+        Style::default().fg(theme.border_unfocused)
     };
 
     let block = Block::default()
         .title(" Groups ")
         .borders(Borders::ALL)
-        .border_style(border_style);
+        .border_style(border_style)
+        .style(Style::default().bg(theme.bg_primary));
 
     // Build group list items
     let mut items: Vec<ListItem> = Vec::new();
@@ -37,22 +38,23 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let all_selected = app.selected_group == 0;
     let all_style = if all_selected && is_focused {
         Style::default()
-            .fg(Color::Black)
-            .bg(Color::White)
+            .bg(theme.bg_selected)
+            .fg(theme.fg_selected)
             .add_modifier(Modifier::BOLD)
     } else if all_selected {
         Style::default()
-            .fg(Color::Yellow)
+            .fg(theme.accent_primary)
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default()
+        Style::default().fg(theme.fg_primary)
     };
 
-    let all_symbol = if all_selected { "▶ " } else { "  " };
-    items.push(ListItem::new(Line::from(vec![Span::styled(
-        format!("{}{} ({})", all_symbol, "All", all_count),
-        all_style,
-    )])));
+    let all_symbol = if all_selected { "▶" } else { " " };
+    items.push(ListItem::new(Line::from(vec![
+        Span::styled(all_symbol, Style::default().fg(theme.accent_info)),
+        Span::styled(format!(" All "), all_style),
+        Span::styled(format!("({})", all_count), Style::default().fg(theme.fg_muted)),
+    ])));
 
     // Add groups with server counts
     for (index, group) in app.groups.iter().enumerate() {
@@ -62,24 +64,24 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
         let style = if is_selected && is_focused {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::White)
+                .bg(theme.bg_selected)
+                .fg(theme.fg_selected)
                 .add_modifier(Modifier::BOLD)
         } else if is_selected {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.accent_primary)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().fg(theme.fg_primary)
         };
 
-        let symbol = if is_selected { "> " } else { "  " };
-        // Use default color since GroupRecord doesn't have color field
-        let group_color = Color::Cyan;
+        let symbol = if is_selected { "▶" } else { " " };
+        let group_color = theme.accent_secondary;
 
         items.push(ListItem::new(Line::from(vec![
-            Span::styled(format!("{}{} ", symbol, group.name), style.fg(group_color)),
-            Span::styled(format!("({})", count), style.fg(Color::Gray)),
+            Span::styled(symbol, Style::default().fg(theme.accent_info)),
+            Span::styled(format!(" {} ", group.name), style.fg(group_color)),
+            Span::styled(format!("({})", count), Style::default().fg(theme.fg_muted)),
         ])));
     }
 

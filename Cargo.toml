@@ -5,6 +5,7 @@ members = [
     "crates/easyssh-tui",
     "crates/easyssh-platforms/windows/easyssh-winui",
     "crates/easyssh-platforms/linux/easyssh-gtk4",
+    "crates/easyssh-platforms/shared-ui",
     "crates/easyssh-pro-server",
     "crates/easyssh-api-tester/api-core",
     "crates/easyssh-tools/foreground_monitor"
@@ -201,6 +202,7 @@ mime = "0.3"
 # Config
 dotenvy = "0.15"
 config = "0.14"
+toml = "0.8"
 
 # Actix (update server)
 actix-web = { version = "4" }
@@ -218,16 +220,20 @@ whoami = "1.5"
 windows = { version = "0.59", features = ["Win32_Foundation"] }
 windows-sys = { version = "0.59", features = ["Win32_Foundation"] }
 
-# Build profiles for size and performance optimization
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = "thin"
-opt-level = "s"
-strip = true
-overflow-checks = true              # 安全: 启用整数溢出检查
+# ============================================================================
+# Build Profiles
+# ============================================================================
 
-# Ultra-optimized profile for Lite version (smallest binary)
+# Default release profile - balanced optimization
+[profile.release]
+opt-level = 3
+codegen-units = 4
+lto = "thin"
+strip = true
+panic = "abort"
+overflow-checks = true
+
+# Lite version profile - minimal binary size
 [profile.release-lite]
 inherits = "release"
 opt-level = "z"
@@ -235,35 +241,41 @@ codegen-units = 1
 lto = true
 strip = true
 panic = "abort"
-overflow-checks = true              # 安全: 启用整数溢出检查
 
-# Standard version profile with performance focus
+# Standard version profile - balanced performance/size
 [profile.release-standard]
 inherits = "release"
 opt-level = 3
 codegen-units = 4
 lto = "thin"
-strip = true
-panic = "abort"
-overflow-checks = true              # 安全: 启用整数溢出检查
 
-# Pro version profile optimized for server workloads
+# Pro version profile - server performance
 [profile.release-pro]
 inherits = "release"
 opt-level = 3
 codegen-units = 8
 lto = "fat"
-strip = false  # Keep symbols for debugging production issues
-panic = "unwind"  # Enable stack unwinding for better error handling
-overflow-checks = true              # 安全: 启用整数溢出检查
+strip = false           # Keep symbols for debugging
+panic = "unwind"        # Better error handling
 
-# Development profile with fast compilation
+# Development profile - fast compilation
 [profile.dev]
 opt-level = 0
 debug = true
 split-debuginfo = "unpacked"
 
-# Test profile with optimizations for faster test execution
+# Development with some optimizations
+[profile.dev-opt]
+inherits = "dev"
+opt-level = 1
+
+# Test profile
 [profile.test]
 opt-level = 1
 debug = true
+
+# Bench profile
+[profile.bench]
+opt-level = 3
+debug = false
+lto = "thin"

@@ -64,21 +64,24 @@ use crate::error::LiteError;
 const KEYCHAIN_SERVICE: &str = "com.easyssh.lite.crypto";
 
 /// Default Argon2id memory cost (64 MB in KB)
+/// Security note: High memory cost prevents GPU/ASIC attacks
 const ARGON2_MEMORY_KB: u32 = 65536;
 
 /// Default Argon2id iterations
+/// Security note: 3 iterations provides good security/performance balance
 const ARGON2_ITERATIONS: u32 = 3;
 
 /// Default Argon2id parallelism
+/// Security note: 4 lanes matches typical CPU core count
 const ARGON2_PARALLELISM: u32 = 4;
 
-/// AES-256-GCM nonce length
+/// AES-256-GCM nonce length (96 bits as per NIST recommendation)
 const NONCE_LENGTH: usize = 12;
 
-/// AES-256 key length
+/// AES-256 key length (256 bits)
 const KEY_LENGTH: usize = 32;
 
-/// Salt length
+/// Salt length for Argon2id (256 bits)
 const SALT_LENGTH: usize = 32;
 
 // =============================================================================

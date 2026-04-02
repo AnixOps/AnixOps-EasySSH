@@ -464,6 +464,7 @@ pub fn debug_test_pro() -> Result<DebugTestReport, String> {
             "Owner.can_manage_members={}, Viewer.can_manage_members={}",
             owner_can_manage, !viewer_cannot
         )),
+        duration_ms: None,
     });
     if both_correct {
         passed += 1;

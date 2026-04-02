@@ -21,16 +21,24 @@
 //! ```
 
 pub mod defaults;
+pub mod encryption;
+pub mod env;
+pub mod import_export;
 pub mod manager;
 pub mod migration;
+pub mod templates;
 pub mod types;
 pub mod validation;
 
 pub use defaults::*;
+pub use encryption::{ConfigEncryption, EncryptionOptions, EncryptionResult, SecurityLevel, PasswordStrength, password};
+pub use env::{EnvConfig, EnvProfile, EnvDefinitions, EnvVarDefinition, EnvVariable, EnvType, EnvSource};
+pub use import_export::{ImportExportManager, ExportFormat, ImportOptions, ExportOptions, ImportResult, ImportExportError};
 pub use manager::ConfigManager;
 pub use migration::{ConfigMigration, MigrationResult};
+pub use templates::{TemplateManager, Template, TemplateCategory, ConfigOverrides, TemplateError, TemplateSelector};
 pub use types::*;
-pub use validation::{ConfigValidator, ValidationError, ValidationResult};
+pub use validation::{ConfigValidator, ValidationError, ValidationResult, ConfigAutoFix};
 
 use std::sync::Arc;
 use tokio::sync::RwLock;

@@ -2,11 +2,20 @@
 //!
 //! This crate provides a terminal-based user interface for managing SSH connections.
 //! Built with ratatui and crossterm for cross-platform terminal control.
+//!
+//! Features:
+//! - Theme support (Dark, Light, Solarized, Monokai) with 256/True Color
+//! - Virtual list rendering for large server lists
+//! - Enhanced mouse support (click, scroll, double-click)
+//! - Vim-style and arrow key navigation
+//! - Responsive layout (Full/Compact/Minimal modes)
 
 mod app;
 mod events;
 mod keybindings;
+mod theme;
 mod ui;
+mod virtual_list;
 
 use app::{App, AppResult};
 use events::{Event, EventHandler};
@@ -44,6 +53,10 @@ async fn main() -> AppResult<()> {
             Event::Tick => app.tick().await,
             Event::Key(key) => app.handle_key(key).await,
             Event::Mouse(mouse) => app.handle_mouse(mouse).await,
+            Event::MouseDoubleClick { x, y, button } => {
+                // Double-click connects to server
+                app.handle_mouse_double_click(x, y, button).await
+            }
             Event::Resize(w, h) => app.handle_resize(w, h).await,
         }?;
     }

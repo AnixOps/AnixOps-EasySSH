@@ -1,0 +1,45 @@
+[package]
+name = "easyssh-shared-ui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Cross-platform shared UI components for EasySSH"
+
+[dependencies]
+# Core
+easyssh-core = { path = "../../easyssh-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Platform abstraction - removed invalid dependency
+# target-os = "0.1"
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+log = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[features]
+default = ["animations", "accessibility"]
+animations = []
+accessibility = []
+high-contrast = []
+reduced-motion = []
+
+# Platform-specific features
+platform-windows = []
+platform-linux = []
+platform-macos = []

@@ -11,8 +11,11 @@ mod enhanced_app;
 mod models;
 mod server_detail;
 mod server_list;
+mod settings;
 mod sidebar;
 mod terminal_launcher;
+mod theme;
+mod tray;
 mod views;
 mod widgets;
 mod window;
@@ -30,6 +33,9 @@ fn main() -> glib::ExitCode {
 
     tracing::info!("Starting EasySSH Lite GTK4 v{}", VERSION);
 
+    // Check display server type (Wayland vs X11)
+    check_display_server();
+
     // Initialize GTK and libadwaita
     gtk4::init().expect("Failed to initialize GTK");
     libadwaita::init();
@@ -43,6 +49,21 @@ fn main() -> glib::ExitCode {
     app.run()
 }
 
+fn check_display_server() {
+    if let Ok(wayland_display) = std::env::var("WAYLAND_DISPLAY") {
+        tracing::info!("Running on Wayland: {}", wayland_display);
+    } else if let Ok(display) = std::env::var("DISPLAY") {
+        tracing::info!("Running on X11: {}", display);
+    } else {
+        tracing::warn!("No display server detected");
+    }
+
+    // Check for forced backends
+    if let Ok(backend) = std::env::var("GDK_BACKEND") {
+        tracing::info!("Forced GDK backend: {}", backend);
+    }
+}
+
 fn load_css() {
     let provider = gtk4::CssProvider::new();
 
@@ -54,4 +75,19 @@ fn load_css() {
         &provider,
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
+
+    tracing::info!("CSS styles loaded successfully");
+}
+
+/// Get the current GTK theme variant (dark/light)
+pub fn get_theme_variant() -> &'static str {
+    if let Some(settings) = gtk4::Settings::default() {
+        if settings.is_gtk_application_prefer_dark_theme() {
+            "dark"
+        } else {
+            "light"
+        }
+    } else {
+        "light"
+    }
 }

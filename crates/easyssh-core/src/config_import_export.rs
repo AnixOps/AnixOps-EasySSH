@@ -101,10 +101,29 @@ pub struct ServerExport {
     pub tags: Vec<String>,
 }
 
+impl From<&crate::models::Server> for ServerExport {
+    fn from(server: &crate::models::Server) -> Self {
+        Self {
+            id: server.id.clone(),
+            name: server.name.clone(),
+            host: server.host.clone(),
+            port: server.port as i64,
+            username: server.username.clone(),
+            auth_type: server.auth_type(),
+            identity_file: server.identity_file(),
+            group_id: server.group_id.clone(),
+            group_name: None, // Will be populated by caller if needed
+            status: server.status.as_str().to_string(),
+            tags: Vec::new(), // Will be populated by caller if needed
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GroupExport {
     pub id: String,
     pub name: String,
+    pub color: Option<String>,
     pub parent_id: Option<String>,
 }
 
@@ -435,6 +454,7 @@ impl ConfigManager {
                     let new_group = NewGroup {
                         id: uuid::Uuid::new_v4().to_string(),
                         name: group_name.clone(),
+                        color: "#4A90D9".to_string(), // Default blue color
                     };
                     if let Err(e) = db.add_group(&new_group) {
                         result.errors.push(format!("Failed to create group: {}", e));
@@ -541,6 +561,7 @@ impl ConfigManager {
                     let new_group = NewGroup {
                         id: uuid::Uuid::new_v4().to_string(),
                         name: group_name.clone(),
+                        color: "#4A90D9".to_string(), // Default blue color
                     };
                     if let Err(e) = db.add_group(&new_group) {
                         result.errors.push(format!("Failed to create group: {}", e));
@@ -624,6 +645,7 @@ impl ConfigManager {
             .map(|g| GroupExport {
                 id: g.id,
                 name: g.name,
+                color: Some(g.color),
                 parent_id: None, // TODO: Support nested groups
             })
             .collect();
@@ -744,6 +766,7 @@ impl ConfigManager {
                 let new_group = NewGroup {
                     id: new_id.clone(),
                     name: group.name,
+                    color: group.color.unwrap_or_else(|| "#4A90D9".to_string()),
                 };
                 if let Err(e) = db.add_group(&new_group) {
                     result.errors.push(format!("Failed to add group: {}", e));

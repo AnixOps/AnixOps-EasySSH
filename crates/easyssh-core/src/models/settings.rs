@@ -2,16 +2,65 @@
 //!
 //! This module defines the Settings domain model for application configuration.
 //! Settings are organized into logical groups for different aspects of the application.
+//!
+//! # Architecture
+//!
+//! Settings are organized hierarchically:
+//! - `Settings` - Root container with all configuration groups
+//!   - `ApplicationSettings` - General app behavior
+//!   - `TerminalSettings` - Terminal emulation settings
+//!   - `NetworkSettings` - Connection and network settings
+//!   - `SecuritySettings` - Security and privacy settings
+//!   - `AppearanceSettings` - UI theme and appearance
+//!   - `BackupSettings` - Backup and restore settings
+//!   - `EncryptionSettings` - Data encryption configuration
+//!
+//! # Examples
+//!
+//! ```
+//! use easyssh_core::models::{Settings, SettingsBuilder, Validatable};
+//!
+//! // Create settings for a user
+//! let settings = Settings::new("user-123".to_string());
+//! assert!(settings.validate().is_ok());
+//! assert_eq!(settings.theme(), "system");
+//!
+//! // Build with custom settings
+//! let settings = SettingsBuilder::new()
+//!     .user_id("user-456")
+//!     .build();
+//! ```
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::{Validatable, ValidationError, DEFAULT_CONNECTION_TIMEOUT, DEFAULT_HEARTBEAT_INTERVAL};
+use super::{
+    Validatable, ValidationError, DEFAULT_CONNECTION_TIMEOUT, DEFAULT_HEARTBEAT_INTERVAL,
+    MAX_NAME_LENGTH,
+};
+
+/// Current settings schema version
+pub const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 1;
 
 /// Application settings container
 ///
 /// This is the root settings model that contains all configuration
 /// for the EasySSH application.
+///
+/// # Fields
+///
+/// * `id` - Settings record ID
+/// * `user_id` - Owner user ID
+/// * `application` - General application settings
+/// * `terminal` - Terminal-related settings
+/// * `network` - Network/connection settings
+/// * `security` - Security settings
+/// * `appearance` - UI/appearance settings
+/// * `backup` - Backup settings
+/// * `encryption` - Encryption settings
+/// * `created_at` - Creation timestamp
+/// * `updated_at` - Last modification timestamp
+/// * `schema_version` - Data schema version
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     /// Settings ID (usually there's only one settings record per user)
@@ -52,6 +101,18 @@ pub struct Settings {
 
 impl Settings {
     /// Create new settings for a user
+    ///
+    /// # Arguments
+    /// * `user_id` - The user ID these settings belong to
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use easyssh_core::models::Settings;
+    ///
+    /// let settings = Settings::new("user-123".to_string());
+    /// assert_eq!(settings.user_id, "user-123");
+    /// ```
     pub fn new(user_id: String) -> Self {
         let now = Utc::now();
         Self {
@@ -66,11 +127,18 @@ impl Settings {
             encryption: EncryptionSettings::default(),
             created_at: now,
             updated_at: now,
-            schema_version: 1,
+            schema_version: CURRENT_SETTINGS_SCHEMA_VERSION,
         }
     }
 
     /// Create settings with specific ID (for loading from database)
+    ///
+    /// # Arguments
+    /// * `id` - Settings record ID
+    /// * `user_id` - Owner user ID
+    /// * All settings category structs
+    /// * Timestamps
+    #[allow(clippy::too_many_arguments)]
     pub fn with_id(
         id: String,
         user_id: String,
@@ -96,11 +164,14 @@ impl Settings {
             encryption,
             created_at,
             updated_at,
-            schema_version: 1,
+            schema_version: CURRENT_SETTINGS_SCHEMA_VERSION,
         }
     }
 
     /// Update settings and refresh timestamp
+    ///
+    /// # Arguments
+    /// * `f` - Closure that performs the modifications
     pub fn update<F>(&mut self, f: F)
     where
         F: FnOnce(&mut Self),
@@ -110,6 +181,9 @@ impl Settings {
     }
 
     /// Update application settings
+    ///
+    /// # Arguments
+    /// * `f` - Closure that modifies application settings
     pub fn update_application<F>(&mut self, f: F)
     where
         F: FnOnce(&mut ApplicationSettings),
@@ -119,6 +193,9 @@ impl Settings {
     }
 
     /// Update terminal settings
+    ///
+    /// # Arguments
+    /// * `f` - Closure that modifies terminal settings
     pub fn update_terminal<F>(&mut self, f: F)
     where
         F: FnOnce(&mut TerminalSettings),
@@ -128,6 +205,9 @@ impl Settings {
     }
 
     /// Update network settings
+    ///
+    /// # Arguments
+    /// * `f` - Closure that modifies network settings
     pub fn update_network<F>(&mut self, f: F)
     where
         F: FnOnce(&mut NetworkSettings),
@@ -137,6 +217,9 @@ impl Settings {
     }
 
     /// Update security settings
+    ///
+    /// # Arguments
+    /// * `f` - Closure that modifies security settings
     pub fn update_security<F>(&mut self, f: F)
     where
         F: FnOnce(&mut SecuritySettings),
@@ -146,11 +229,38 @@ impl Settings {
     }
 
     /// Update appearance settings
+    ///
+    /// # Arguments
+    /// * `f` - Closure that modifies appearance settings
     pub fn update_appearance<F>(&mut self, f: F)
     where
         F: FnOnce(&mut AppearanceSettings),
     {
         f(&mut self.appearance);
+        self.updated_at = Utc::now();
+    }
+
+    /// Update backup settings
+    ///
+    /// # Arguments
+    /// * `f` - Closure that modifies backup settings
+    pub fn update_backup<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut BackupSettings),
+    {
+        f(&mut self.backup);
+        self.updated_at = Utc::now();
+    }
+
+    /// Update encryption settings
+    ///
+    /// # Arguments
+    /// * `f` - Closure that modifies encryption settings
+    pub fn update_encryption<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut EncryptionSettings),
+    {
+        f(&mut self.encryption);
         self.updated_at = Utc::now();
     }
 
@@ -173,29 +283,117 @@ impl Settings {
     pub fn use_keychain(&self) -> bool {
         self.security.use_keychain
     }
+
+    /// Check if the UI is in compact mode
+    pub fn is_compact_mode(&self) -> bool {
+        self.appearance.compact_mode
+    }
+
+    /// Get font size for terminals
+    pub fn terminal_font_size(&self) -> u16 {
+        self.terminal.font_size
+    }
+
+    /// Get connection timeout
+    pub fn connection_timeout(&self) -> u64 {
+        self.network.connection_timeout
+    }
+
+    /// Check if auto-lock is enabled
+    pub fn auto_lock_enabled(&self) -> bool {
+        self.security.auto_lock
+    }
+
+    /// Clone settings without sensitive data
+    ///
+    /// Creates a copy suitable for logging or API responses.
+    pub fn clone_redacted(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            user_id: self.user_id.clone(),
+            application: self.application.clone(),
+            terminal: self.terminal.clone(),
+            network: self.network.clone(),
+            security: SecuritySettings {
+                // Redact sensitive security settings
+                use_keychain: self.security.use_keychain,
+                auto_lock: self.security.auto_lock,
+                auto_lock_timeout: self.security.auto_lock_timeout,
+                require_password_unlock: self.security.require_password_unlock,
+                clear_clipboard_on_exit: self.security.clear_clipboard_on_exit,
+                clipboard_timeout: self.security.clipboard_timeout,
+                enable_biometric: self.security.enable_biometric,
+                session_retention_days: self.security.session_retention_days,
+                strict_host_key_checking: self.security.strict_host_key_checking,
+                known_hosts_file: self.security.known_hosts_file.clone(),
+            },
+            appearance: self.appearance.clone(),
+            backup: self.backup.clone(),
+            encryption: EncryptionSettings {
+                // Redact encryption settings
+                enable_encryption: self.encryption.enable_encryption,
+                kdf_algorithm: self.encryption.kdf_algorithm.clone(),
+                cipher: self.encryption.cipher.clone(),
+                kdf_iterations: self.encryption.kdf_iterations,
+                use_hardware_security: self.encryption.use_hardware_security,
+            },
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            schema_version: self.schema_version,
+        }
+    }
 }
 
 impl Validatable for Settings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
         // Validate user_id
-        if self.user_id.is_empty() {
-            return Err(ValidationError::MissingField("user_id".to_string()));
+        if self.user_id.trim().is_empty() {
+            errors.push(ValidationError::missing_field("user_id"));
         }
 
         // Validate all sub-settings
-        self.application.validate()?;
-        self.terminal.validate()?;
-        self.network.validate()?;
-        self.security.validate()?;
-        self.appearance.validate()?;
-        self.backup.validate()?;
-        self.encryption.validate()?;
+        if let Err(e) = self.application.validate() {
+            errors.push(e);
+        }
+        if let Err(e) = self.terminal.validate() {
+            errors.push(e);
+        }
+        if let Err(e) = self.network.validate() {
+            errors.push(e);
+        }
+        if let Err(e) = self.security.validate() {
+            errors.push(e);
+        }
+        if let Err(e) = self.appearance.validate() {
+            errors.push(e);
+        }
+        if let Err(e) = self.backup.validate() {
+            errors.push(e);
+        }
+        if let Err(e) = self.encryption.validate() {
+            errors.push(e);
+        }
 
-        Ok(())
+        // Validate schema version
+        if self.schema_version > CURRENT_SETTINGS_SCHEMA_VERSION {
+            errors.push(ValidationError::invalid_field(
+                "schema_version",
+                format!(
+                    "Schema version {} is not supported (max: {})",
+                    self.schema_version, CURRENT_SETTINGS_SCHEMA_VERSION
+                ),
+            ));
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
 /// General application settings
+///
+/// Controls core application behavior.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApplicationSettings {
     /// Whether to auto-connect to last server on startup
@@ -253,32 +451,45 @@ impl Default for ApplicationSettings {
 
 impl Validatable for ApplicationSettings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
         // Validate update channel
         let valid_channels = ["stable", "beta", "nightly"];
         if !valid_channels.contains(&self.update_channel.as_str()) {
-            return Err(ValidationError::InvalidField {
-                field: "application.update_channel".to_string(),
-                message: format!(
+            errors.push(ValidationError::invalid_field(
+                "application.update_channel",
+                format!(
                     "Invalid update channel: {}. Must be one of: {:?}",
                     self.update_channel, valid_channels
                 ),
-            });
+            ));
         }
 
-        Ok(())
+        // Validate idle timeout
+        if self.idle_timeout_minutes > 1440 {
+            // Max 24 hours
+            errors.push(ValidationError::invalid_field(
+                "application.idle_timeout_minutes",
+                "Idle timeout cannot exceed 24 hours (1440 minutes)",
+            ));
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
 /// Terminal-related settings
+///
+/// Controls terminal emulation behavior and appearance.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TerminalSettings {
     /// Default font family
     #[serde(default = "default_font_family")]
     pub font_family: String,
-    /// Default font size (in points)
+    /// Default font size (in points, 8-72)
     #[serde(default = "default_font_size")]
     pub font_size: u16,
-    /// Line height multiplier
+    /// Line height multiplier (1.0 = normal)
     #[serde(default = "default_line_height")]
     pub line_height: f32,
     /// Whether to enable ligatures
@@ -293,7 +504,7 @@ pub struct TerminalSettings {
     /// Whether to enable mouse support
     #[serde(default = "default_true")]
     pub mouse_support: bool,
-    /// Scrollback buffer size (in lines)
+    /// Scrollback buffer size (in lines, max 100000)
     #[serde(default = "default_scrollback_lines")]
     pub scrollback_lines: u32,
     /// Whether to copy on select
@@ -339,45 +550,67 @@ impl Default for TerminalSettings {
 
 impl Validatable for TerminalSettings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
         // Validate font size
         if self.font_size < 8 || self.font_size > 72 {
-            return Err(ValidationError::OutOfRange {
-                field: "terminal.font_size".to_string(),
-                min: 8,
-                max: 72,
-                actual: self.font_size as i64,
-            });
+            errors.push(ValidationError::out_of_range(
+                "terminal.font_size",
+                8,
+                72,
+                self.font_size as i64,
+            ));
         }
 
         // Validate cursor style
         let valid_styles = ["block", "line", "bar"];
         if !valid_styles.contains(&self.cursor_style.as_str()) {
-            return Err(ValidationError::InvalidField {
-                field: "terminal.cursor_style".to_string(),
-                message: format!(
+            errors.push(ValidationError::invalid_field(
+                "terminal.cursor_style",
+                format!(
                     "Invalid cursor style: {}. Must be one of: {:?}",
                     self.cursor_style, valid_styles
                 ),
-            });
+            ));
         }
 
-        Ok(())
+        // Validate scrollback lines
+        if self.scrollback_lines > 100_000 {
+            errors.push(ValidationError::invalid_field(
+                "terminal.scrollback_lines",
+                "Scrollback lines cannot exceed 100,000",
+            ));
+        }
+
+        // Validate line height
+        if self.line_height < 0.5 || self.line_height > 3.0 {
+            errors.push(ValidationError::out_of_range(
+                "terminal.line_height",
+                0.5 as i64,
+                3.0 as i64,
+                (self.line_height * 10.0) as i64,
+            ));
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
 /// Network and connection settings
+///
+/// Controls SSH connection behavior and network options.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NetworkSettings {
-    /// Default connection timeout (in seconds)
+    /// Default connection timeout (in seconds, 1-300)
     #[serde(default = "default_connection_timeout")]
     pub connection_timeout: u64,
-    /// SSH keepalive interval (in seconds, 0 = disabled)
+    /// SSH keepalive interval (in seconds, 0 = disabled, max 3600)
     #[serde(default = "default_heartbeat_interval")]
     pub keepalive_interval: u64,
-    /// Maximum retry attempts for failed connections
+    /// Maximum retry attempts for failed connections (0-10)
     #[serde(default = "default_retry_attempts")]
     pub max_retry_attempts: u32,
-    /// Delay between retry attempts (in seconds)
+    /// Delay between retry attempts (in seconds, 1-60)
     #[serde(default = "default_retry_delay")]
     pub retry_delay_seconds: u32,
     /// Whether to use compression
@@ -388,7 +621,7 @@ pub struct NetworkSettings {
     pub compression_level: u8,
     /// SOCKS proxy address (optional)
     pub proxy_address: Option<String>,
-    /// SOCKS proxy port
+    /// SOCKS proxy port (1-65535)
     #[serde(default = "default_proxy_port")]
     pub proxy_port: u16,
     /// Proxy username (optional)
@@ -399,7 +632,7 @@ pub struct NetworkSettings {
     /// Whether to use IPv6 only
     #[serde(default)]
     pub ipv6_only: bool,
-    /// ServerAliveCountMax (number of keepalive messages)
+    /// ServerAliveCountMax (number of keepalive messages, 1-10)
     #[serde(default = "default_alive_count_max")]
     pub alive_count_max: u32,
 }
@@ -425,29 +658,90 @@ impl Default for NetworkSettings {
 
 impl Validatable for NetworkSettings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
+        // Validate connection timeout
+        if self.connection_timeout == 0 || self.connection_timeout > 300 {
+            errors.push(ValidationError::out_of_range(
+                "network.connection_timeout",
+                1,
+                300,
+                self.connection_timeout as i64,
+            ));
+        }
+
+        // Validate keepalive interval
+        if self.keepalive_interval > 3600 {
+            errors.push(ValidationError::out_of_range(
+                "network.keepalive_interval",
+                0,
+                3600,
+                self.keepalive_interval as i64,
+            ));
+        }
+
         // Validate compression level
         if self.compression_level > 9 {
-            return Err(ValidationError::OutOfRange {
-                field: "network.compression_level".to_string(),
-                min: 1,
-                max: 9,
-                actual: self.compression_level as i64,
-            });
+            errors.push(ValidationError::out_of_range(
+                "network.compression_level",
+                1,
+                9,
+                self.compression_level as i64,
+            ));
         }
 
-        // Validate proxy port if proxy is set
+        // Validate retry settings
+        if self.max_retry_attempts > 10 {
+            errors.push(ValidationError::out_of_range(
+                "network.max_retry_attempts",
+                0,
+                10,
+                self.max_retry_attempts as i64,
+            ));
+        }
+
+        if self.retry_delay_seconds == 0 || self.retry_delay_seconds > 60 {
+            errors.push(ValidationError::out_of_range(
+                "network.retry_delay_seconds",
+                1,
+                60,
+                self.retry_delay_seconds as i64,
+            ));
+        }
+
+        // Validate alive count max
+        if self.alive_count_max == 0 || self.alive_count_max > 10 {
+            errors.push(ValidationError::out_of_range(
+                "network.alive_count_max",
+                1,
+                10,
+                self.alive_count_max as i64,
+            ));
+        }
+
+        // Validate proxy settings
         if self.proxy_address.is_some() && (self.proxy_port == 0 || self.proxy_port > 65535) {
-            return Err(ValidationError::InvalidField {
-                field: "network.proxy_port".to_string(),
-                message: format!("Invalid proxy port: {}", self.proxy_port),
-            });
+            errors.push(ValidationError::invalid_field(
+                "network.proxy_port",
+                format!("Invalid proxy port: {}", self.proxy_port),
+            ));
         }
 
-        Ok(())
+        // Validate IP settings
+        if self.ipv4_only && self.ipv6_only {
+            errors.push(ValidationError::invalid_field(
+                "network.ip_family",
+                "Cannot enable both ipv4_only and ipv6_only",
+            ));
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
 /// Security settings
+///
+/// Controls security-related features and behaviors.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SecuritySettings {
     /// Whether to use system keychain for passwords
@@ -456,7 +750,7 @@ pub struct SecuritySettings {
     /// Whether to lock the app after inactivity
     #[serde(default)]
     pub auto_lock: bool,
-    /// Auto-lock timeout (in minutes)
+    /// Auto-lock timeout (in minutes, 1-60)
     #[serde(default = "default_lock_timeout")]
     pub auto_lock_timeout: u32,
     /// Whether to require password to unlock
@@ -501,19 +795,49 @@ impl Default for SecuritySettings {
 
 impl Validatable for SecuritySettings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
         // Validate auto-lock timeout
-        if self.auto_lock && self.auto_lock_timeout == 0 {
-            return Err(ValidationError::InvalidField {
-                field: "security.auto_lock_timeout".to_string(),
-                message: "Auto-lock timeout must be > 0 when auto-lock is enabled".to_string(),
-            });
+        if self.auto_lock {
+            if self.auto_lock_timeout == 0 || self.auto_lock_timeout > 60 {
+                errors.push(ValidationError::out_of_range(
+                    "security.auto_lock_timeout",
+                    1,
+                    60,
+                    self.auto_lock_timeout as i64,
+                ));
+            }
         }
 
-        Ok(())
+        // Validate clipboard timeout
+        if self.clear_clipboard_on_exit && self.clipboard_timeout > 300 {
+            // Max 5 minutes
+            errors.push(ValidationError::out_of_range(
+                "security.clipboard_timeout",
+                0,
+                300,
+                self.clipboard_timeout as i64,
+            ));
+        }
+
+        // Validate session retention
+        if self.session_retention_days > 365 {
+            // Max 1 year
+            errors.push(ValidationError::out_of_range(
+                "security.session_retention_days",
+                0,
+                365,
+                self.session_retention_days as i64,
+            ));
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
 /// Appearance/UI settings
+///
+/// Controls the visual appearance of the application.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AppearanceSettings {
     /// UI theme (light, dark, system)
@@ -522,7 +846,7 @@ pub struct AppearanceSettings {
     /// UI language code
     #[serde(default = "default_language")]
     pub language: String,
-    /// Sidebar width (in pixels)
+    /// Sidebar width (in pixels, 200-500)
     #[serde(default = "default_sidebar_width")]
     pub sidebar_width: u32,
     /// Whether to show server status indicators
@@ -567,44 +891,58 @@ impl Default for AppearanceSettings {
 
 impl Validatable for AppearanceSettings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
         // Validate theme
         let valid_themes = ["light", "dark", "system"];
         if !valid_themes.contains(&self.theme.as_str()) {
-            return Err(ValidationError::InvalidField {
-                field: "appearance.theme".to_string(),
-                message: format!(
+            errors.push(ValidationError::invalid_field(
+                "appearance.theme",
+                format!(
                     "Invalid theme: {}. Must be one of: {:?}",
                     self.theme, valid_themes
                 ),
-            });
+            ));
         }
 
         // Validate density
         let valid_densities = ["compact", "normal", "spacious"];
         if !valid_densities.contains(&self.density.as_str()) {
-            return Err(ValidationError::InvalidField {
-                field: "appearance.density".to_string(),
-                message: format!(
+            errors.push(ValidationError::invalid_field(
+                "appearance.density",
+                format!(
                     "Invalid density: {}. Must be one of: {:?}",
                     self.density, valid_densities
                 ),
-            });
+            ));
         }
 
-        Ok(())
+        // Validate sidebar width
+        if self.sidebar_width < 200 || self.sidebar_width > 500 {
+            errors.push(ValidationError::out_of_range(
+                "appearance.sidebar_width",
+                200,
+                500,
+                self.sidebar_width as i64,
+            ));
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
 /// Backup settings
+///
+/// Controls automatic backup behavior.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BackupSettings {
     /// Whether automatic backup is enabled
     #[serde(default)]
     pub auto_backup: bool,
-    /// Backup interval (in hours)
+    /// Backup interval (in hours, 1-168)
     #[serde(default = "default_backup_interval")]
     pub backup_interval_hours: u32,
-    /// Maximum number of backups to keep
+    /// Maximum number of backups to keep (1-100)
     #[serde(default = "default_max_backups")]
     pub max_backups: u32,
     /// Backup destination path (empty = default)
@@ -636,27 +974,48 @@ impl Default for BackupSettings {
 
 impl Validatable for BackupSettings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
         // Validate backup interval if auto backup is enabled
-        if self.auto_backup && self.backup_interval_hours == 0 {
-            return Err(ValidationError::InvalidField {
-                field: "backup.backup_interval_hours".to_string(),
-                message: "Backup interval must be > 0 when auto backup is enabled".to_string(),
-            });
+        if self.auto_backup {
+            if self.backup_interval_hours == 0 || self.backup_interval_hours > 168 {
+                errors.push(ValidationError::out_of_range(
+                    "backup.backup_interval_hours",
+                    1,
+                    168,
+                    self.backup_interval_hours as i64,
+                ));
+            }
         }
 
         // Validate max backups
-        if self.max_backups == 0 {
-            return Err(ValidationError::InvalidField {
-                field: "backup.max_backups".to_string(),
-                message: "Max backups must be > 0".to_string(),
-            });
+        if self.max_backups == 0 || self.max_backups > 100 {
+            errors.push(ValidationError::out_of_range(
+                "backup.max_backups",
+                1,
+                100,
+                self.max_backups as i64,
+            ));
         }
 
-        Ok(())
+        // Validate backup path if specified
+        if !self.backup_path.is_empty() {
+            let path = std::path::Path::new(&self.backup_path);
+            if path.file_name().is_none() {
+                errors.push(ValidationError::invalid_format(
+                    "backup.backup_path",
+                    "valid filesystem path",
+                ));
+            }
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
 /// Encryption settings for data storage
+///
+/// Controls how data is encrypted at rest.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EncryptionSettings {
     /// Whether database encryption is enabled
@@ -668,7 +1027,7 @@ pub struct EncryptionSettings {
     /// Encryption algorithm
     #[serde(default = "default_cipher")]
     pub cipher: String,
-    /// Key derivation iterations (higher = more secure but slower)
+    /// Key derivation iterations (higher = more secure but slower, min 3)
     #[serde(default = "default_kdf_iterations")]
     pub kdf_iterations: u32,
     /// Whether to use hardware security module if available
@@ -690,41 +1049,51 @@ impl Default for EncryptionSettings {
 
 impl Validatable for EncryptionSettings {
     fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = Vec::new();
+
         // Validate KDF algorithm
         let valid_kdfs = ["argon2id"];
         if !valid_kdfs.contains(&self.kdf_algorithm.as_str()) {
-            return Err(ValidationError::InvalidField {
-                field: "encryption.kdf_algorithm".to_string(),
-                message: format!(
+            errors.push(ValidationError::invalid_field(
+                "encryption.kdf_algorithm",
+                format!(
                     "Invalid KDF algorithm: {}. Must be one of: {:?}",
                     self.kdf_algorithm, valid_kdfs
                 ),
-            });
+            ));
         }
 
         // Validate cipher
         let valid_ciphers = ["aes-256-gcm", "chacha20-poly1305"];
         if !valid_ciphers.contains(&self.cipher.as_str()) {
-            return Err(ValidationError::InvalidField {
-                field: "encryption.cipher".to_string(),
-                message: format!(
+            errors.push(ValidationError::invalid_field(
+                "encryption.cipher",
+                format!(
                     "Invalid cipher: {}. Must be one of: {:?}",
                     self.cipher, valid_ciphers
                 ),
-            });
+            ));
         }
 
         // Validate KDF iterations
         if self.kdf_iterations < 3 {
-            return Err(ValidationError::OutOfRange {
-                field: "encryption.kdf_iterations".to_string(),
-                min: 3,
-                max: i64::MAX,
-                actual: self.kdf_iterations as i64,
-            });
+            errors.push(ValidationError::out_of_range(
+                "encryption.kdf_iterations",
+                3,
+                i64::MAX,
+                self.kdf_iterations as i64,
+            ));
         }
 
-        Ok(())
+        // Validate reasonable upper bound for iterations
+        if self.kdf_iterations > 1_000_000 {
+            errors.push(ValidationError::invalid_field(
+                "encryption.kdf_iterations",
+                "KDF iterations exceed reasonable limit (max: 1000000)",
+            ));
+        }
+
+        ValidationError::combine(errors)
     }
 }
 
@@ -842,6 +1211,18 @@ fn default_kdf_iterations() -> u32 {
 }
 
 /// Builder for creating Settings instances
+///
+/// Provides a fluent API for constructing Settings objects with validation.
+///
+/// # Example
+///
+/// ```
+/// use easyssh_core::models::SettingsBuilder;
+///
+/// let settings = SettingsBuilder::new()
+///     .user_id("user-123")
+///     .build();
+/// ```
 #[derive(Debug, Default)]
 pub struct SettingsBuilder {
     id: Option<String>,
@@ -867,7 +1248,7 @@ impl SettingsBuilder {
         self
     }
 
-    /// Set the user ID
+    /// Set the user ID (required)
     pub fn user_id(mut self, user_id: impl Into<String>) -> Self {
         self.user_id = Some(user_id.into());
         self
@@ -916,6 +1297,10 @@ impl SettingsBuilder {
     }
 
     /// Build the Settings instance
+    ///
+    /// # Panics
+    ///
+    /// Panics if `user_id` is not set.
     pub fn build(self) -> Settings {
         let now = Utc::now();
         Settings {
@@ -930,11 +1315,13 @@ impl SettingsBuilder {
             encryption: self.encryption.unwrap_or_default(),
             created_at: now,
             updated_at: now,
-            schema_version: 1,
+            schema_version: CURRENT_SETTINGS_SCHEMA_VERSION,
         }
     }
 
     /// Build with validation
+    ///
+    /// Validates the settings after construction and returns an error if invalid.
     pub fn build_validated(self) -> Result<Settings, ValidationError> {
         let settings = self.build();
         settings.validate()?;
@@ -989,9 +1376,10 @@ mod tests {
     fn test_settings_new() {
         let settings = Settings::new("user-123".to_string());
         assert_eq!(settings.user_id, "user-123");
-        assert_eq!(settings.schema_version, 1);
+        assert_eq!(settings.schema_version, CURRENT_SETTINGS_SCHEMA_VERSION);
         assert_eq!(settings.appearance.theme, "system");
         assert_eq!(settings.appearance.language, "zh-CN");
+        assert!(!settings.id.is_empty());
     }
 
     #[test]
@@ -1003,9 +1391,18 @@ mod tests {
     #[test]
     fn test_settings_validation_empty_user_id() {
         let settings = Settings::new("".to_string());
-        assert!(
-            matches!(settings.validate(), Err(ValidationError::MissingField(field)) if field == "user_id")
-        );
+        let result = settings.validate();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().field(), Some("user_id"));
+    }
+
+    #[test]
+    fn test_settings_validation_future_schema_version() {
+        let mut settings = Settings::new("user-123".to_string());
+        settings.schema_version = 999; // Future version
+        let result = settings.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Schema version"));
     }
 
     #[test]
@@ -1043,6 +1440,11 @@ mod tests {
         assert!(settings.show_notifications);
         assert!(!settings.sound_enabled);
         assert_eq!(settings.update_channel, "stable");
+        assert_eq!(settings.max_recent_connections, 10);
+        assert!(settings.auto_save);
+        assert_eq!(settings.idle_timeout_minutes, 0);
+        assert!(settings.confirm_before_close);
+        assert!(settings.auto_check_updates);
     }
 
     #[test]
@@ -1055,6 +1457,12 @@ mod tests {
             ..Default::default()
         };
         assert!(invalid.validate().is_err());
+
+        let invalid_timeout = ApplicationSettings {
+            idle_timeout_minutes: 2000, // > 24 hours
+            ..Default::default()
+        };
+        assert!(invalid_timeout.validate().is_err());
     }
 
     #[test]
@@ -1064,6 +1472,10 @@ mod tests {
         assert_eq!(settings.cursor_style, "block");
         assert!(settings.cursor_blink);
         assert_eq!(settings.scrollback_lines, 10000);
+        assert!(settings.mouse_support);
+        assert!(!settings.copy_on_select);
+        assert_eq!(settings.line_height, 1.2);
+        assert!(!settings.enable_ligatures);
     }
 
     #[test]
@@ -1075,15 +1487,25 @@ mod tests {
             font_size: 5,
             ..Default::default()
         };
-        assert!(
-            matches!(invalid_font_size.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "terminal.font_size")
-        );
+        assert!(invalid_font_size.validate().is_err());
+
+        let invalid_font_size_high = TerminalSettings {
+            font_size: 80,
+            ..Default::default()
+        };
+        assert!(invalid_font_size_high.validate().is_err());
 
         let invalid_cursor = TerminalSettings {
             cursor_style: "invalid".to_string(),
             ..Default::default()
         };
         assert!(invalid_cursor.validate().is_err());
+
+        let invalid_scrollback = TerminalSettings {
+            scrollback_lines: 200_000, // > 100,000
+            ..Default::default()
+        };
+        assert!(invalid_scrollback.validate().is_err());
     }
 
     #[test]
@@ -1093,6 +1515,9 @@ mod tests {
         assert_eq!(settings.keepalive_interval, DEFAULT_HEARTBEAT_INTERVAL);
         assert_eq!(settings.max_retry_attempts, 3);
         assert!(settings.use_compression);
+        assert_eq!(settings.compression_level, 6);
+        assert_eq!(settings.proxy_port, 1080);
+        assert_eq!(settings.alive_count_max, 3);
     }
 
     #[test]
@@ -1104,9 +1529,26 @@ mod tests {
             compression_level: 10,
             ..Default::default()
         };
-        assert!(
-            matches!(invalid_compression.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "network.compression_level")
-        );
+        assert!(invalid_compression.validate().is_err());
+
+        let invalid_timeout = NetworkSettings {
+            connection_timeout: 0,
+            ..Default::default()
+        };
+        assert!(invalid_timeout.validate().is_err());
+
+        let invalid_retry = NetworkSettings {
+            max_retry_attempts: 20, // > 10
+            ..Default::default()
+        };
+        assert!(invalid_retry.validate().is_err());
+
+        let conflicting_ip = NetworkSettings {
+            ipv4_only: true,
+            ipv6_only: true,
+            ..Default::default()
+        };
+        assert!(conflicting_ip.validate().is_err());
     }
 
     #[test]
@@ -1114,17 +1556,36 @@ mod tests {
         let settings = SecuritySettings::default();
         assert!(settings.use_keychain);
         assert!(!settings.auto_lock);
+        assert_eq!(settings.auto_lock_timeout, 15);
         assert!(settings.strict_host_key_checking);
+        assert_eq!(settings.clipboard_timeout, 0);
+        assert!(!settings.enable_biometric);
     }
 
     #[test]
     fn test_security_settings_validation() {
-        let invalid = SecuritySettings {
+        let valid = SecuritySettings::default();
+        assert!(valid.validate().is_ok());
+
+        let invalid_lock_timeout = SecuritySettings {
             auto_lock: true,
             auto_lock_timeout: 0,
             ..Default::default()
         };
-        assert!(invalid.validate().is_err());
+        assert!(invalid_lock_timeout.validate().is_err());
+
+        let invalid_clipboard = SecuritySettings {
+            clear_clipboard_on_exit: true,
+            clipboard_timeout: 400, // > 300
+            ..Default::default()
+        };
+        assert!(invalid_clipboard.validate().is_err());
+
+        let invalid_retention = SecuritySettings {
+            session_retention_days: 400, // > 365
+            ..Default::default()
+        };
+        assert!(invalid_retention.validate().is_err());
     }
 
     #[test]
@@ -1133,11 +1594,17 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.language, "zh-CN");
         assert_eq!(settings.sidebar_width, 280);
+        assert!(settings.show_status_indicators);
         assert!(settings.enable_animations);
+        assert!(!settings.compact_mode);
+        assert_eq!(settings.density, "normal");
     }
 
     #[test]
     fn test_appearance_settings_validation() {
+        let valid = AppearanceSettings::default();
+        assert!(valid.validate().is_ok());
+
         let invalid_theme = AppearanceSettings {
             theme: "invalid".to_string(),
             ..Default::default()
@@ -1149,6 +1616,12 @@ mod tests {
             ..Default::default()
         };
         assert!(invalid_density.validate().is_err());
+
+        let invalid_sidebar = AppearanceSettings {
+            sidebar_width: 100, // < 200
+            ..Default::default()
+        };
+        assert!(invalid_sidebar.validate().is_err());
     }
 
     #[test]
@@ -1158,10 +1631,15 @@ mod tests {
         assert_eq!(settings.backup_interval_hours, 24);
         assert_eq!(settings.max_backups, 7);
         assert!(settings.encrypt_backups);
+        assert!(!settings.include_history);
+        assert!(settings.backup_path.is_empty());
     }
 
     #[test]
     fn test_backup_settings_validation() {
+        let valid = BackupSettings::default();
+        assert!(valid.validate().is_ok());
+
         let invalid = BackupSettings {
             auto_backup: true,
             backup_interval_hours: 0,
@@ -1174,6 +1652,19 @@ mod tests {
             ..Default::default()
         };
         assert!(zero_backups.validate().is_err());
+
+        let too_many_backups = BackupSettings {
+            max_backups: 200, // > 100
+            ..Default::default()
+        };
+        assert!(too_many_backups.validate().is_err());
+
+        let invalid_interval = BackupSettings {
+            auto_backup: true,
+            backup_interval_hours: 200, // > 168 (1 week)
+            ..Default::default()
+        };
+        assert!(invalid_interval.validate().is_err());
     }
 
     #[test]
@@ -1183,10 +1674,14 @@ mod tests {
         assert_eq!(settings.kdf_algorithm, "argon2id");
         assert_eq!(settings.cipher, "aes-256-gcm");
         assert_eq!(settings.kdf_iterations, 3);
+        assert!(!settings.use_hardware_security);
     }
 
     #[test]
     fn test_encryption_settings_validation() {
+        let valid = EncryptionSettings::default();
+        assert!(valid.validate().is_ok());
+
         let invalid_kdf = EncryptionSettings {
             kdf_algorithm: "invalid".to_string(),
             ..Default::default()
@@ -1204,6 +1699,12 @@ mod tests {
             ..Default::default()
         };
         assert!(invalid_iterations.validate().is_err());
+
+        let too_many_iterations = EncryptionSettings {
+            kdf_iterations: 2_000_000,
+            ..Default::default()
+        };
+        assert!(too_many_iterations.validate().is_err());
     }
 
     #[test]
@@ -1221,12 +1722,59 @@ mod tests {
     }
 
     #[test]
+    fn test_settings_update_methods() {
+        let mut settings = Settings::new("user-123".to_string());
+
+        settings.update_terminal(|t| {
+            t.font_size = 16;
+        });
+        assert_eq!(settings.terminal.font_size, 16);
+
+        settings.update_network(|n| {
+            n.connection_timeout = 60;
+        });
+        assert_eq!(settings.network.connection_timeout, 60);
+
+        settings.update_security(|s| {
+            s.auto_lock = true;
+        });
+        assert!(settings.security.auto_lock);
+
+        settings.update_appearance(|a| {
+            a.theme = "dark".to_string();
+        });
+        assert_eq!(settings.appearance.theme, "dark");
+
+        settings.update_backup(|b| {
+            b.auto_backup = true;
+        });
+        assert!(settings.backup.auto_backup);
+
+        settings.update_encryption(|e| {
+            e.kdf_iterations = 5;
+        });
+        assert_eq!(settings.encryption.kdf_iterations, 5);
+    }
+
+    #[test]
     fn test_settings_convenience_methods() {
         let settings = Settings::new("user-123".to_string());
         assert_eq!(settings.theme(), "system");
         assert_eq!(settings.language(), "zh-CN");
         assert!(!settings.auto_connect());
         assert!(settings.use_keychain());
+        assert!(!settings.is_compact_mode());
+        assert_eq!(settings.terminal_font_size(), 14);
+        assert_eq!(settings.connection_timeout(), 30);
+        assert!(!settings.auto_lock_enabled());
+    }
+
+    #[test]
+    fn test_settings_clone_redacted() {
+        let settings = Settings::new("user-123".to_string());
+        let redacted = settings.clone_redacted();
+        assert_eq!(redacted.id, settings.id);
+        assert_eq!(redacted.user_id, settings.user_id);
     }
 
     #[test]
@@ -1238,6 +1786,30 @@ mod tests {
 
         let deserialized: Settings = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.user_id, "user-123");
+        assert_eq!(deserialized.appearance.theme, "system");
+    }
+
+    #[test]
+    fn test_settings_with_id() {
+        let created_at = Utc::now();
+        let updated_at = Utc::now();
+
+        let settings = Settings::with_id(
+            "settings-123".to_string(),
+            "user-456".to_string(),
+            ApplicationSettings::default(),
+            TerminalSettings::default(),
+            NetworkSettings::default(),
+            SecuritySettings::default(),
+            AppearanceSettings::default(),
+            BackupSettings::default(),
+            EncryptionSettings::default(),
+            created_at,
+            updated_at,
+        );
+
+        assert_eq!(settings.id, "settings-123");
+        assert_eq!(settings.user_id, "user-456");
     }
 
     #[test]
@@ -1245,7 +1817,9 @@ mod tests {
         let json = r##"{
             "user_id": "user-456",
             "application": {
-                "auto_connect": true,
+                "auto_connect": true
+            },
+            "appearance": {
                 "theme": "dark"
             }
         }"##;
@@ -1253,5 +1827,31 @@ mod tests {
         let dto: CreateSettingsDto = serde_json::from_str(json).unwrap();
         assert_eq!(dto.user_id, "user-456");
         assert!(dto.application.is_some());
+        assert!(dto.appearance.is_some());
+        assert!(dto.terminal.is_none());
+    }
+
+    #[test]
+    fn test_update_settings_dto() {
+        let json = r##"{
+            "appearance": {
+                "theme": "light"
+            },
+            "terminal": {
+                "font_size": 16
+            }
+        }"##;
+
+        let dto: UpdateSettingsDto = serde_json::from_str(json).unwrap();
+        assert!(dto.appearance.is_some());
+        assert!(dto.terminal.is_some());
+        assert!(dto.network.is_none());
+    }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(CURRENT_SETTINGS_SCHEMA_VERSION, 1);
+        assert_eq!(DEFAULT_CONNECTION_TIMEOUT, 30);
+        assert_eq!(DEFAULT_HEARTBEAT_INTERVAL, 30);
     }
 }

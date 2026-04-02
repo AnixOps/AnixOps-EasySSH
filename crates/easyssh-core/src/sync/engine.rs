@@ -487,6 +487,9 @@ impl SyncManager {
                     continue;
                 }
 
+                // Store local_json for conflict detection before moving
+                let local_json_for_conflict = local_json.clone();
+
                 let local_as_doc = SyncDocument {
                     id: local_raw.id.clone(),
                     doc_type: local_raw.doc_type.clone(),
@@ -504,7 +507,7 @@ impl SyncManager {
 
                 if local_as_doc.has_conflict_with(remote_doc) {
                     let field_conflicts = ConflictResolver::detect_field_conflicts(
-                        &local_json,
+                        &local_json_for_conflict,
                         &remote_decrypted,
                         &local_raw.doc_type,
                     )?;
@@ -723,19 +726,22 @@ impl SyncManager {
             SyncDocumentType::Group => {
                 if let Some(obj) = data.as_object() {
                     let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                    let color = obj.get("color").and_then(|v| v.as_str()).unwrap_or("#4A90D9");
                     let groups = db.get_groups()?;
                     let exists = groups.iter().any(|g| g.id == doc.id);
 
                     if exists {
                         let update = crate::db::UpdateGroup {
                             id: doc.id.clone(),
-                            name: name.to_string(),
+                            name: Some(name.to_string()),
+                            color: Some(color.to_string()),
                         };
                         db.update_group(&update)?;
                     } else {
                         let new_group = crate::db::NewGroup {
                             id: doc.id.clone(),
                             name: name.to_string(),
+                            color: color.to_string(),
                         };
                         db.add_group(&new_group)?;
                     }

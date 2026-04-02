@@ -153,6 +153,9 @@ pub struct TestContext {
     pub temp_dirs: Vec<TempDir>,
 }
 
+/// Data generation utilities
+pub mod data_generator;
+
 impl TestContext {
     pub fn new() -> Self {
         Self { temp_dirs: Vec::new() }

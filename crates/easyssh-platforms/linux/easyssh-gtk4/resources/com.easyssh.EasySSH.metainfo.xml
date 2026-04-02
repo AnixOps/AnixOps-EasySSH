@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.easyssh.EasySSH</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>EasySSH</name>
+  <summary>A lightweight SSH client for Linux</summary>
+  <description>
+    <p>
+      EasySSH is a modern, lightweight SSH client designed for Linux desktop environments.
+      It provides a clean, intuitive interface for managing SSH connections with native
+      GTK4/libadwaita integration.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Secure server configuration storage with encryption</li>
+      <li>Native terminal integration with auto-detection</li>
+      <li>Server grouping and organization</li>
+      <li>Quick search and filtering</li>
+      <li>GNOME HIG compliant interface</li>
+      <li>Dark and light theme support</li>
+      <li>Keyboard shortcut support</li>
+      <li>Desktop notifications</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.easyssh.EasySSH.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main window showing server list</caption>
+      <image>https://github.com/easyssh/easyssh/raw/main/screenshots/main-window.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Dark mode interface</caption>
+      <image>https://github.com/easyssh/easyssh/raw/main/screenshots/dark-mode.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Server detail view</caption>
+      <image>https://github.com/easyssh/easyssh/raw/main/screenshots/server-detail.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/easyssh/easyssh</url>
+  <url type="bugtracker">https://github.com/easyssh/easyssh/issues</url>
+  <url type="vcs-browser">https://github.com/easyssh/easyssh</url>
+  <url type="help">https://github.com/easyssh/easyssh/blob/main/docs/README.md</url>
+
+  <releases>
+    <release version="0.3.0" date="2026-04-02">
+      <description>
+        <p>Initial release with:</p>
+        <ul>
+          <li>GTK4 and libadwaita 1.5 support</li>
+          <li>GNOME HIG compliant design</li>
+          <li>Dark/Light theme switching</li>
+          <li>Terminal auto-detection for 20+ terminals</li>
+          <li>Desktop notifications</li>
+          <li>Keyboard shortcuts</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-info">mild</content_attribute>
+  </content_rating>
+
+  <developer_name>EasySSH Team</developer_name>
+  <update_contact>dev@easyssh.com</update_contact>
+
+  <requires>
+    <display_length compare="ge">800</display_length>
+  </requires>
+
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </recommends>
+
+  <provides>
+    <binary>easyssh</binary>
+    <mediatype>x-scheme-handler/ssh</mediatype>
+  </provides>
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+
+  <categories>
+    <category>Network</category>
+    <category>RemoteAccess</category>
+    <category>System</category>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>ssh</keyword>
+    <keyword>terminal</keyword>
+    <keyword>remote</keyword>
+    <keyword>server</keyword>
+    <keyword>connection</keyword>
+    <keyword>network</keyword>
+  </keywords>
+</component>

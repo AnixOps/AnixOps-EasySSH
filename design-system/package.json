@@ -1,6 +1,6 @@
 {
   "name": "@easyssh/design-system",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "EasySSH Design System - Apple-level native UI components",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,6 +16,10 @@
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     },
+    "./components": {
+      "import": "./dist/components/index.js",
+      "types": "./dist/components/index.d.ts"
+    },
     "./tokens": {
       "import": "./dist/tokens/design-tokens.js",
       "types": "./dist/tokens/design-tokens.d.ts"
@@ -28,9 +32,17 @@
       "import": "./dist/hooks/index.js",
       "types": "./dist/hooks/index.d.ts"
     },
+    "./icons": {
+      "import": "./dist/icons/index.js",
+      "types": "./dist/icons/index.d.ts"
+    },
     "./utils": {
       "import": "./dist/utils/index.js",
       "types": "./dist/utils/index.d.ts"
+    },
+    "./animations": {
+      "import": "./dist/animations/index.js",
+      "types": "./dist/animations/index.d.ts"
     }
   },
   "scripts": {
@@ -45,7 +57,8 @@
     "components",
     "tailwind",
     "ssh",
-    "terminal"
+    "terminal",
+    "react"
   ],
   "author": "EasySSH Team",
   "license": "MIT",
@@ -59,5 +72,9 @@
     "@types/react-dom": "^18.2.0",
     "typescript": "^5.4.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.0"
+  }
 }

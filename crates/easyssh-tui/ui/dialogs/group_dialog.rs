@@ -4,8 +4,11 @@
 //! Fields:
 //! - Name (required)
 //! - Color (hex color code)
+//!
+//! Styled with theme support.
 
 use super::{Dialog, DialogResult, GroupData};
+use crate::theme::ColorPalette;
 use crate::ui::dialogs::handle_text_input;
 use crossterm::event::{KeyCode, KeyEvent};
 use easyssh_core::GroupRecord;
@@ -50,8 +53,8 @@ impl GroupDialog {
             title,
             data,
             focused_field: Field::Name,
-            cursor_name: 0,
-            cursor_color: 0,
+            cursor_name: data.name.len(),
+            cursor_color: data.color.len(),
             preset_colors: vec![
                 "#EF4444", // Red
                 "#F97316", // Orange
@@ -135,13 +138,14 @@ impl Dialog for GroupDialog {
         DialogResult::Continue
     }
 
-    fn render(&self, frame: &mut Frame, area: Rect) {
+    fn render(&self, frame: &mut Frame, area: Rect, theme: &ColorPalette) {
         frame.render_widget(Clear, area);
 
         let block = Block::default()
-            .title(self.title.as_str())
+            .title(format!(" {} ", self.title))
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan));
+            .border_style(Style::default().fg(theme.accent_secondary))
+            .style(Style::default().bg(theme.bg_dialog));
 
         let inner = block.inner(area);
         frame.render_widget(block, area);
@@ -151,7 +155,7 @@ impl Dialog for GroupDialog {
             .margin(2)
             .constraints([
                 Constraint::Length(3), // Name
-                Constraint::Length(5), // Color + presets
+                Constraint::Length(6), // Color + presets
                 Constraint::Length(2), // Help
             ])
             .split(inner);
@@ -164,26 +168,28 @@ impl Dialog for GroupDialog {
             value: &str,
             is_focused: bool,
             cursor_pos: usize,
+            theme: &ColorPalette,
+            is_valid: bool,
         ) {
-            let style = if is_focused {
-                Style::default().fg(Color::Black).bg(Color::White)
-            } else {
+            let label_style = Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(theme.fg_secondary);
+
+            let value_style = if is_focused {
                 Style::default()
+                    .fg(theme.fg_primary)
+                    .bg(theme.bg_highlight)
+            } else if !is_valid && value.is_empty() {
+                Style::default().fg(theme.accent_error)
+            } else {
+                Style::default().fg(theme.fg_primary)
             };
 
-            let text = if is_focused {
-                Line::from(vec![
-                    Span::styled(label, Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(" "),
-                    Span::styled(value, style),
-                ])
-            } else {
-                Line::from(vec![
-                    Span::styled(label, Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(" "),
-                    Span::raw(value),
-                ])
-            };
+            let text = Line::from(vec![
+                Span::styled(label, label_style),
+                Span::raw(" "),
+                Span::styled(value, value_style),
+            ]);
 
             let para = Paragraph::new(text);
             frame.render_widget(para, area);
@@ -194,6 +200,7 @@ impl Dialog for GroupDialog {
         }
 
         // Name field
+        let name_valid = !self.data.name.is_empty();
         render_field(
             frame,
             chunks[0],
@@ -201,13 +208,17 @@ impl Dialog for GroupDialog {
             &self.data.name,
             self.focused_field == Field::Name,
             self.cursor_name,
+            theme,
+            name_valid,
         );
 
         // Color field with preview
         let color_style = if self.focused_field == Field::Color {
-            Style::default().fg(Color::Black).bg(Color::White)
-        } else {
             Style::default()
+                .fg(theme.fg_primary)
+                .bg(theme.bg_highlight)
+        } else {
+            Style::default().fg(theme.fg_primary)
         };
 
         let color_rgb = if self.is_valid_color() {
@@ -222,7 +233,7 @@ impl Dialog for GroupDialog {
         );
 
         let color_line = Line::from(vec![
-            Span::styled("Color:", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled("Color:", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
             Span::styled(format!(" {} ", self.data.color), color_style),
             color_preview,
         ]);
@@ -230,31 +241,45 @@ impl Dialog for GroupDialog {
         let color_para = Paragraph::new(color_line);
         frame.render_widget(color_para, chunks[1]);
 
-        // Preset colors
-        let mut preset_spans = vec![Span::styled("Presets: ", Style::default().fg(Color::Gray))];
+        // Preset colors - show first 10 with numbers
+        let mut preset_spans = vec![
+            Span::styled("Presets: ", Style::default().fg(theme.fg_secondary)),
+        ];
 
-        for (idx, &color) in [
-            "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#0EA5E9", "#3B82F6", "#A855F7", "#EC4899",
-            "#6B7280",
-        ]
-        .iter()
-        .enumerate()
-        {
+        for (idx, &color) in self.preset_colors.iter().take(10).enumerate() {
             let rgb = parse_hex_color(color);
-            preset_spans.push(Span::styled(
-                format!("{}  ", idx),
+            let is_selected = self.data.color == color;
+
+            let style = if is_selected {
                 Style::default()
                     .bg(Color::Rgb(rgb.0, rgb.1, rgb.2))
-                    .fg(Color::White),
-            ));
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD)
+                    .add_modifier(Modifier::UNDERLINED)
+            } else {
+                Style::default().bg(Color::Rgb(rgb.0, rgb.1, rgb.2)).fg(Color::White)
+            };
+
+            preset_spans.push(Span::styled(format!(" {}", idx), style));
         }
 
         let presets_para = Paragraph::new(Line::from(preset_spans));
-        frame.render_widget(presets_para, chunks[1]); // Overlay on color area
+        frame.render_widget(presets_para, chunks[1].offset(0, 1));
 
-        // Help text
-        let help_para = Paragraph::new("0-8: Select preset  |  Enter: Save  |  Esc: Cancel")
-            .style(Style::default().fg(Color::Gray));
+        // Help text with theme
+        let help_style = if self.is_valid() {
+            Style::default().fg(theme.fg_muted)
+        } else {
+            Style::default().fg(theme.accent_warning)
+        };
+
+        let help_text = if self.is_valid() {
+            "0-9: Select preset  |  Enter: Save  |  Esc: Cancel"
+        } else {
+            "⚠ Group name is required"
+        };
+
+        let help_para = Paragraph::new(help_text).style(help_style);
         frame.render_widget(help_para, chunks[2]);
     }
 
@@ -273,6 +298,12 @@ fn parse_hex_color(hex: &str) -> (u8, u8, u8) {
         let r = u8::from_str_radix(&hex[1..3], 16).unwrap_or(128);
         let g = u8::from_str_radix(&hex[3..5], 16).unwrap_or(128);
         let b = u8::from_str_radix(&hex[5..7], 16).unwrap_or(128);
+        (r, g, b)
+    } else if hex.len() >= 4 && hex.starts_with('#') {
+        // Short hex format #RGB
+        let r = u8::from_str_radix(&hex[1..2].repeat(2), 16).unwrap_or(128);
+        let g = u8::from_str_radix(&hex[2..3].repeat(2), 16).unwrap_or(128);
+        let b = u8::from_str_radix(&hex[3..4].repeat(2), 16).unwrap_or(128);
         (r, g, b)
     } else {
         (128, 128, 128)

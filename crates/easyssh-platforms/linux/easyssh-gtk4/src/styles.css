@@ -1,14 +1,25 @@
 /* EasySSH GTK4 Styles - Adwaita Theme */
+/* Version: 0.3.0 - libadwaita 1.5+ compatible */
 
-/* Server list styling */
+/* ============================================
+   CSS Variables - Adwaita Color Palette
+   ============================================ */
+
+/* Light/Dark mode variables handled automatically by libadwaita */
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
 .server-list {
     background: transparent;
 }
 
 .server-list row {
-    border-radius: 6px;
-    margin: 2px 6px;
-    padding: 6px;
+    border-radius: 12px;
+    margin: 3px 8px;
+    padding: 8px 12px;
+    transition: all 200ms ease;
 }
 
 .server-list row:selected {
@@ -17,29 +28,53 @@
 }
 
 .server-list row:hover {
-    background: alpha(@window_fg_color, 0.05);
+    background: alpha(@window_fg_color, 0.06);
 }
 
 .server-list row:selected:hover {
     background: alpha(@accent_color, 0.2);
 }
 
-/* Sidebar styling */
+/* ============================================
+   Sidebar Styling - Navigation Sidebar Pattern
+   ============================================ */
+
 .sidebar {
     background: @sidebar_bg_color;
+    border-right: 1px solid @borders;
 }
 
 .sidebar row {
-    border-radius: 6px;
-    margin: 2px 8px;
+    border-radius: 8px;
+    margin: 2px 10px;
+    padding: 8px 12px;
 }
 
 .sidebar row:selected {
     background: @selected_bg_color;
     color: @selected_fg_color;
+    font-weight: 500;
 }
 
-/* Status colors */
+/* ============================================
+   Header Bar - Adwaita Style
+   ============================================ */
+
+headerbar {
+    background: @headerbar_bg_color;
+    color: @headerbar_fg_color;
+    border-bottom: 1px solid @borders;
+}
+
+headerbar.flat {
+    background: transparent;
+    border-bottom: none;
+}
+
+/* ============================================
+   Status Colors - Semantic Colors
+   ============================================ */
+
 .success {
     color: @success_color;
 }
@@ -52,89 +87,204 @@
     color: @warning_color;
 }
 
-/* Status page icon size */
+.accent {
+    color: @accent_color;
+}
+
+/* ============================================
+   Status Page - Adwaita Pattern
+   ============================================ */
+
+statuspage {
+    padding: 36px;
+}
+
 statuspage > image {
-    icon-size: 96px;
+    icon-size: 128px;
+    margin-bottom: 24px;
 }
 
-/* Dialog styling */
-dialog headerbar {
+statuspage > .title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+statuspage > .description {
+    font-size: 14px;
+    color: alpha(@window_fg_color, 0.6);
+}
+
+/* ============================================
+   Dialog Styling - Modal Dialogs
+   ============================================ */
+
+window.dialog headerbar {
     border-bottom: none;
+    background: transparent;
 }
 
-/* Entry focus styling */
+window.dialog .dialog-content {
+    padding: 24px;
+}
+
+/* ============================================
+   Entry and Form Styling
+   ============================================ */
+
+entry {
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
 entry:focus {
     border-color: @accent_color;
+    box-shadow: 0 0 0 2px alpha(@accent_color, 0.2);
 }
 
-/* Button hover effects */
+/* ============================================
+   Button Styling
+   ============================================ */
+
+button {
+    border-radius: 8px;
+    transition: all 150ms ease;
+}
+
 button.suggested-action:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.05);
+    transform: translateY(-1px);
 }
 
 button.destructive-action:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.05);
+    transform: translateY(-1px);
 }
 
-/* Scrolled window styling */
+button.pill {
+    border-radius: 9999px;
+    padding: 8px 20px;
+}
+
+/* ============================================
+   Scrolled Window
+   ============================================ */
+
 scrolledwindow {
     border: none;
 }
 
-/* Separator styling */
+scrolledwindow undershoot.top,
+scrolledwindow undershoot.bottom,
+scrolledwindow undershoot.left,
+scrolledwindow undershoot.right {
+    background: none;
+}
+
+/* ============================================
+   Separator Styling
+   ============================================ */
+
 separator {
     background: alpha(@borders, 0.5);
-}
-
-/* Tooltip styling */
-tooltip {
-    border-radius: 6px;
-    padding: 6px 10px;
-}
-
-/* Paned styling */
-paned > separator {
-    background: transparent;
     min-width: 1px;
     min-height: 1px;
 }
 
-paned > separator.wide {
+/* ============================================
+   Tooltip Styling
+   ============================================ */
+
+tooltip {
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: alpha(@window_bg_color, 0.95);
+    border: 1px solid alpha(@borders, 0.5);
+}
+
+/* ============================================
+   Paned/Split View Styling
+   ============================================ */
+
+paned > separator {
+    background: transparent;
     min-width: 6px;
     min-height: 6px;
 }
 
-/* Header bar styling */
-headerbar {
-    background: @headerbar_bg_color;
-    color: @headerbar_fg_color;
+paned > separator.wide {
+    min-width: 8px;
+    min-height: 8px;
 }
 
-/* Preferences group styling */
+paned > separator:hover {
+    background: alpha(@accent_color, 0.1);
+}
+
+/* ============================================
+   Preferences Group - Adwaita Pattern
+   ============================================ */
+
 preferencesgroup {
-    margin: 12px 0;
+    margin: 16px 0;
 }
 
-/* Card-like containers */
+preferencesgroup > .title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: alpha(@window_fg_color, 0.7);
+    margin-bottom: 8px;
+}
+
+/* ============================================
+   Card Styling - Adwaita Card Pattern
+   ============================================ */
+
 .card {
     background: @card_bg_color;
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid alpha(@borders, 0.5);
 }
 
-/* Monospace text */
+.card-hover:hover {
+    box-shadow: 0 2px 8px alpha(@window_fg_color, 0.1);
+    transform: translateY(-1px);
+    transition: all 200ms ease;
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+
 .monospace {
-    font-family: monospace;
+    font-family: "Source Code Pro", "Fira Code", "JetBrains Mono", monospace;
+    font-size: 13px;
 }
 
-/* Compact list rows */
+.heading {
+    font-weight: 600;
+}
+
+.caption {
+    font-size: 12px;
+}
+
+/* ============================================
+   Compact List Rows
+   ============================================ */
+
 .compact row {
-    min-height: 32px;
-    padding: 4px 12px;
+    min-height: 36px;
+    padding: 6px 14px;
 }
 
-/* Connection status indicators */
+/* ============================================
+   Connection Status Indicators
+   ============================================ */
+
 .status-connected {
     color: @success_color;
 }
@@ -147,46 +297,171 @@ preferencesgroup {
     color: @error_color;
 }
 
-/* Search entry styling */
-searchentry {
-    border-radius: 999px;
+.status-connecting {
+    color: @warning_color;
 }
 
-/* Popover menu styling */
+/* ============================================
+   Search Entry - Adwaita Style
+   ============================================ */
+
+searchentry {
+    border-radius: 999px;
+    padding: 8px 16px;
+    background: alpha(@window_fg_color, 0.05);
+    border: 1px solid transparent;
+}
+
+searchentry:focus {
+    background: @card_bg_color;
+    border-color: @accent_color;
+}
+
+/* ============================================
+   Popover Menu - Adwaita Pattern
+   ============================================ */
+
 popover.menu {
-    padding: 6px;
+    padding: 8px;
+    border-radius: 12px;
 }
 
 popover.menu modelbutton {
-    border-radius: 6px;
-    padding: 6px 12px;
+    border-radius: 8px;
+    padding: 8px 16px;
+    min-height: 32px;
 }
 
-/* Toast notification styling */
+popover.menu modelbutton:hover {
+    background: alpha(@accent_color, 0.1);
+}
+
+/* ============================================
+   Toast Notification - Adwaita Pattern
+   ============================================ */
+
 toast {
     border-radius: 12px;
-    margin: 12px;
+    margin: 16px;
+    padding: 12px 16px;
+    background: @card_bg_color;
+    border: 1px solid alpha(@borders, 0.5);
 }
 
-/* Responsive breakpoints styling */
+/* ============================================
+   Window Background States
+   ============================================ */
+
+.window-backdrop {
+    background: @window_bg_color;
+}
+
+.window-maximized {
+    border-radius: 0;
+}
+
+/* ============================================
+   Responsive Breakpoints
+   ============================================ */
+
 @media (max-width: 800px) {
     .sidebar {
-        min-width: 200px;
+        min-width: 180px;
+    }
+
+    .server-list {
+        min-width: 240px;
     }
 }
 
-/* Dark mode specific adjustments */
+@media (max-width: 600px) {
+    .sidebar {
+        min-width: 160px;
+    }
+
+    .server-list {
+        min-width: 200px;
+    }
+
+    statuspage {
+        padding: 24px;
+    }
+
+    statuspage > image {
+        icon-size: 96px;
+    }
+}
+
+/* ============================================
+   Dark Mode Specific Adjustments
+   ============================================ */
+
 @media (prefers-color-scheme: dark) {
     .server-list row:hover {
         background: alpha(@window_fg_color, 0.08);
     }
 
     .card {
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        border-color: alpha(@borders, 0.3);
+    }
+
+    searchentry {
+        background: alpha(@window_fg_color, 0.08);
+    }
+
+    searchentry:focus {
+        background: @card_bg_color;
+    }
+
+    /* Subtle glow effects for dark mode */
+    button.suggested-action {
+        box-shadow: 0 0 12px alpha(@accent_color, 0.2);
+    }
+
+    /* Adjusted dim-label for better visibility */
+    .dim-label {
+        color: alpha(@window_fg_color, 0.55);
     }
 }
 
-/* Legacy compatibility styles */
+/* ============================================
+   High Contrast Mode Support
+   ============================================ */
+
+@media (prefers-contrast: high) {
+    .server-list row:selected {
+        outline: 2px solid @accent_color;
+        outline-offset: -2px;
+    }
+
+    button:focus {
+        outline: 2px solid @accent_color;
+        outline-offset: 2px;
+    }
+
+    entry:focus {
+        border-width: 2px;
+    }
+}
+
+/* ============================================
+   Reduced Motion Support
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ============================================
+   Legacy Component Styles
+   ============================================ */
+
 .connection-button {
     min-width: 120px;
 }
@@ -194,13 +469,15 @@ toast {
 .terminal-container {
     background-color: #1e1e1e;
     color: #ffffff;
-    font-family: monospace;
-    padding: 8px;
+    font-family: "Source Code Pro", "Fira Code", "JetBrains Mono", monospace;
+    padding: 12px;
+    border-radius: 8px;
 }
 
 .server-card {
-    border-radius: 12px;
-    margin: 8px;
+    border-radius: 16px;
+    margin: 10px;
+    padding: 16px;
 }
 
 .server-sidebar {
@@ -209,9 +486,9 @@ toast {
 }
 
 .server-row {
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin: 2px 6px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin: 3px 8px;
 }
 
 .server-row:hover {
@@ -224,9 +501,12 @@ toast {
 
 /* Group header styling */
 .group-header {
-    font-weight: bold;
-    padding: 4px 12px;
+    font-weight: 700;
+    padding: 6px 14px;
     color: alpha(@window_fg_color, 0.7);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Status indicators */
@@ -236,39 +516,43 @@ toast {
 
 /* Monitor panel */
 .monitor-panel {
-    background-color: alpha(@card_bg_color, 0.5);
-    border-radius: 8px;
-    padding: 12px;
+    background-color: alpha(@card_bg_color, 0.8);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid alpha(@borders, 0.3);
 }
 
 .monitor-value {
-    font-weight: bold;
-    font-size: 14px;
+    font-weight: 700;
+    font-size: 18px;
+    font-family: "Source Code Pro", "Fira Code", monospace;
 }
 
 .monitor-label {
     font-size: 12px;
     color: alpha(@window_fg_color, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Search entry */
 .search-entry {
     border-radius: 20px;
-    padding: 6px 12px;
+    padding: 8px 16px;
 }
 
 /* Dialog buttons */
 .dialog-actions {
-    padding: 12px;
+    padding: 16px;
     border-top: 1px solid @borders;
 }
 
 /* Connection status badge */
 .status-badge {
     border-radius: 12px;
-    padding: 2px 8px;
+    padding: 4px 10px;
     font-size: 11px;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 .status-badge-connected {
@@ -279,6 +563,11 @@ toast {
 .status-badge-disconnected {
     background-color: alpha(@error_color, 0.15);
     color: @error_color;
+}
+
+.status-badge-connecting {
+    background-color: alpha(@warning_color, 0.15);
+    color: @warning_color;
 }
 
 /* Empty state */
@@ -293,13 +582,14 @@ toast {
 /* Card styling */
 .info-card {
     background-color: @card_bg_color;
-    border-radius: 8px;
-    padding: 16px;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid alpha(@borders, 0.5);
 }
 
 /* Favorite button */
 .favorite-button {
-    padding: 4px;
+    padding: 6px;
     border-radius: 50%;
 }
 
@@ -307,21 +597,31 @@ toast {
     background-color: alpha(@warning_color, 0.1);
 }
 
+.favorite-button.active {
+    color: @warning_color;
+}
+
 /* Session tabs */
 .session-tab {
-    padding: 6px 12px;
-    border-radius: 4px;
-    margin-right: 4px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    margin-right: 6px;
+    font-weight: 500;
 }
 
 .session-tab-active {
-    background-color: alpha(@success_color, 0.2);
+    background-color: alpha(@success_color, 0.15);
     color: @success_color;
+}
+
+.session-tab:hover {
+    background-color: alpha(@window_fg_color, 0.05);
 }
 
 /* File browser */
 .file-row {
-    padding: 6px 12px;
+    padding: 8px 14px;
+    border-radius: 6px;
 }
 
 .file-row:hover {
@@ -338,4 +638,21 @@ toast {
 
 .file-icon-file {
     color: alpha(@window_fg_color, 0.6);
+}
+
+/* Activity indicator/spinner */
+.spinner {
+    color: @accent_color;
+}
+
+/* Focus rings for accessibility */
+*:focus-visible {
+    outline: 2px solid @accent_color;
+    outline-offset: 2px;
+}
+
+/* Selection styling */
+selection {
+    background-color: alpha(@accent_color, 0.3);
+    color: inherit;
 }

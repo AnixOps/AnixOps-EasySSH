@@ -5,11 +5,24 @@
 //! - Encrypted fallback file storage using AES-256-GCM
 //! - Automatic migration from legacy unencrypted storage
 //!
-//! # Security
+//! # Security Architecture
 //!
-//! - Uses `RwLock` for concurrent access to the crypto state
+//! ## Threat Model
+//! - Protects against: Local attackers with file system access
+//! - Does NOT protect against: Memory dumps, kernel-level attacks, physical access
+//!
+//! ## Security Properties
 //! - All credentials are encrypted at rest using AES-256-GCM
-//! - Master password never stored, only its hash
+//! - Master password never stored, only used for key derivation
+//! - Platform keychain is primary storage (more secure)
+//! - Encrypted file is fallback (portable but less secure)
+//!
+//! # Security Best Practices
+//!
+//! 1. Always verify crypto state is unlocked before operations
+//! 2. Handle keyring errors gracefully - never panic
+//! 3. Clear sensitive data from memory when done
+//! 4. Use constant-time comparison for password verification
 //!
 //! # Example
 //!
@@ -36,13 +49,17 @@ use std::path::PathBuf;
 use zeroize::Zeroize;
 
 /// Service name for Keychain
+/// SECURITY: Uses reverse DNS notation for unique identification
 const SERVICE_NAME: &str = "com.easyssh.lite";
 
 /// Encrypted fallback store entry
+/// SECURITY: All fields are base64 encoded encrypted data
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 struct EncryptedEntry {
-    encrypted_data: String, // base64 encoded encrypted data
-    nonce: String,          // base64 encoded nonce
+    /// Base64 encoded encrypted data (ciphertext only, nonce stored separately)
+    encrypted_data: String,
+    /// Base64 encoded nonce (12 bytes for AES-GCM)
+    nonce: String,
 }
 
 impl Zeroize for EncryptedEntry {

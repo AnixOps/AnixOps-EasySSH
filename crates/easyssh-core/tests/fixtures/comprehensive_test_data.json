@@ -1,0 +1,283 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Comprehensive test data for EasySSH testing",
+    "generated": "2026-04-02"
+  },
+  "servers": [
+    {
+      "id": "srv-001",
+      "name": "Production Web Server 1",
+      "host": "10.0.1.10",
+      "port": 22,
+      "username": "deploy",
+      "auth_type": "key",
+      "identity_file": "~/.ssh/production",
+      "group_id": "grp-001",
+      "tags": ["production", "web", "frontend"],
+      "description": "Main production web server"
+    },
+    {
+      "id": "srv-002",
+      "name": "Production Database Master",
+      "host": "10.0.2.10",
+      "port": 22,
+      "username": "dbadmin",
+      "auth_type": "key",
+      "identity_file": "~/.ssh/database",
+      "group_id": "grp-001",
+      "tags": ["production", "database", "postgres"],
+      "description": "Primary database server"
+    },
+    {
+      "id": "srv-003",
+      "name": "Production Database Replica",
+      "host": "10.0.2.11",
+      "port": 22,
+      "username": "dbadmin",
+      "auth_type": "key",
+      "identity_file": "~/.ssh/database",
+      "group_id": "grp-001",
+      "tags": ["production", "database", "postgres", "replica"],
+      "description": "Database replica for read operations"
+    },
+    {
+      "id": "srv-004",
+      "name": "Staging Web Server",
+      "host": "10.1.1.10",
+      "port": 22,
+      "username": "deploy",
+      "auth_type": "password",
+      "password": "staging_pass_123",
+      "group_id": "grp-002",
+      "tags": ["staging", "web"],
+      "description": "Staging environment web server"
+    },
+    {
+      "id": "srv-005",
+      "name": "Staging Database",
+      "host": "10.1.2.10",
+      "port": 22,
+      "username": "dbadmin",
+      "auth_type": "password",
+      "password": "staging_db_pass",
+      "group_id": "grp-002",
+      "tags": ["staging", "database"],
+      "description": "Staging database server"
+    },
+    {
+      "id": "srv-006",
+      "name": "Development Workstation 1",
+      "host": "192.168.10.101",
+      "port": 22,
+      "username": "developer",
+      "auth_type": "agent",
+      "group_id": "grp-003",
+      "tags": ["development", "workstation"],
+      "description": "Developer workstation"
+    },
+    {
+      "id": "srv-007",
+      "name": "Development Workstation 2",
+      "host": "192.168.10.102",
+      "port": 22,
+      "username": "developer",
+      "auth_type": "agent",
+      "group_id": "grp-003",
+      "tags": ["development", "workstation"],
+      "description": "Developer workstation"
+    },
+    {
+      "id": "srv-008",
+      "name": "CI/CD Build Server",
+      "host": "10.50.1.10",
+      "port": 22,
+      "username": "ci",
+      "auth_type": "key",
+      "identity_file": "~/.ssh/ci_key",
+      "group_id": "grp-004",
+      "tags": ["ci-cd", "build", "jenkins"],
+      "description": "Continuous integration server"
+    },
+    {
+      "id": "srv-009",
+      "name": "Monitoring Server",
+      "host": "10.50.1.20",
+      "port": 22,
+      "username": "monitoring",
+      "auth_type": "key",
+      "identity_file": "~/.ssh/monitoring",
+      "group_id": "grp-004",
+      "tags": ["monitoring", "grafana", "prometheus"],
+      "description": "Central monitoring server"
+    },
+    {
+      "id": "srv-010",
+      "name": "Bastion/Jump Host",
+      "host": "bastion.example.com",
+      "port": 2222,
+      "username": "jumper",
+      "auth_type": "key",
+      "identity_file": "~/.ssh/bastion",
+      "group_id": "grp-005",
+      "tags": ["infrastructure", "bastion", "security"],
+      "description": "Jump host for accessing internal network"
+    }
+  ],
+  "groups": [
+    {
+      "id": "grp-001",
+      "name": "Production",
+      "color": "#FF4136",
+      "icon": "server",
+      "description": "Production environment servers"
+    },
+    {
+      "id": "grp-002",
+      "name": "Staging",
+      "color": "#FFDC00",
+      "icon": "test",
+      "description": "Staging environment servers"
+    },
+    {
+      "id": "grp-003",
+      "name": "Development",
+      "color": "#2ECC40",
+      "icon": "code",
+      "description": "Development workstations and VMs"
+    },
+    {
+      "id": "grp-004",
+      "name": "Infrastructure",
+      "color": "#0074D9",
+      "icon": "cog",
+      "description": "Infrastructure and tooling servers"
+    },
+    {
+      "id": "grp-005",
+      "name": "Security",
+      "color": "#B10DC9",
+      "icon": "shield",
+      "description": "Security-related servers"
+    }
+  ],
+  "identities": [
+    {
+      "id": "id-001",
+      "name": "Personal SSH Key",
+      "type": "key",
+      "private_key_path": "~/.ssh/id_rsa",
+      "public_key_path": "~/.ssh/id_rsa.pub",
+      "passphrase": null
+    },
+    {
+      "id": "id-002",
+      "name": "Work SSH Key",
+      "type": "key",
+      "private_key_path": "~/.ssh/id_ed25519",
+      "public_key_path": "~/.ssh/id_ed25519.pub",
+      "passphrase": "work_key_secure_pass"
+    },
+    {
+      "id": "id-003",
+      "name": "Production Deploy Key",
+      "type": "key",
+      "private_key_path": "~/.ssh/production_deploy",
+      "public_key_path": "~/.ssh/production_deploy.pub",
+      "passphrase": null
+    },
+    {
+      "id": "id-004",
+      "name": "Database Admin Password",
+      "type": "password",
+      "password": "db_secure_password_123"
+    },
+    {
+      "id": "id-005",
+      "name": "Service Account",
+      "type": "key",
+      "private_key_path": "~/.ssh/service_account",
+      "public_key_path": "~/.ssh/service_account.pub",
+      "passphrase": "service_pass_2024"
+    }
+  ],
+  "tags": [
+    { "id": "tag-001", "name": "production", "color": "#FF4136" },
+    { "id": "tag-002", "name": "staging", "color": "#FFDC00" },
+    { "id": "tag-003", "name": "development", "color": "#2ECC40" },
+    { "id": "tag-004", "name": "web", "color": "#0074D9" },
+    { "id": "tag-005", "name": "database", "color": "#B10DC9" },
+    { "id": "tag-006", "name": "postgres", "color": "#39CCCC" },
+    { "id": "tag-007", "name": "replica", "color": "#01FF70" },
+    { "id": "tag-008", "name": "workstation", "color": "#FF851B" },
+    { "id": "tag-009", "name": "ci-cd", "color": "#F012BE" },
+    { "id": "tag-010", "name": "build", "color": "#85144b" },
+    { "id": "tag-011", "name": "jenkins", "color": "#3D9970" },
+    { "id": "tag-012", "name": "monitoring", "color": "#111111" },
+    { "id": "tag-013", "name": "grafana", "color": "#AAAAAA" },
+    { "id": "tag-014", "name": "prometheus", "color": "#DDDDDD" },
+    { "id": "tag-015", "name": "infrastructure", "color": "#001f3f" },
+    { "id": "tag-016", "name": "bastion", "color": "#0074D9" },
+    { "id": "tag-017", "name": "security", "color": "#FF4136" },
+    { "id": "tag-018", "name": "frontend", "color": "#7FDBFF" },
+    { "id": "tag-019", "name": "api", "color": "#39CCCC" },
+    { "id": "tag-020", "name": "backend", "color": "#3D9970" }
+  ],
+  "ssh_configs": [
+    {
+      "name": "GitHub Personal",
+      "config": "Host github-personal\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/id_rsa_personal\n    IdentitiesOnly yes"
+    },
+    {
+      "name": "GitHub Work",
+      "config": "Host github-work\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/id_rsa_work\n    IdentitiesOnly yes"
+    },
+    {
+      "name": "Production Pattern",
+      "config": "Host prod-*\n    HostName %h.example.com\n    User admin\n    Port 22\n    StrictHostKeyChecking yes\n    UserKnownHostsFile ~/.ssh/known_hosts_prod"
+    },
+    {
+      "name": "Bastion Host",
+      "config": "Host bastion\n    HostName bastion.example.com\n    User jumper\n    Port 2222\n    IdentityFile ~/.ssh/bastion_key"
+    }
+  ],
+  "test_credentials": {
+    "master_password": "TestMasterPass123!",
+    "wrong_password": "WrongPass456!",
+    "weak_password": "123",
+    "encryption_test_data": "This is test data for encryption testing - includes unicode: 中文测试",
+    "ssh_test_server": {
+      "host": "localhost",
+      "port": 2222,
+      "username": "test",
+      "password": "test"
+    }
+  },
+  "edge_cases": {
+    "empty_strings": ["", "   ", "\t\n"],
+    "long_strings": [
+      "a".repeat(255),
+      "a".repeat(1000),
+      "a".repeat(10000)
+    ],
+    "special_characters": [
+      "'; DROP TABLE servers; --",
+      "<script>alert('xss')</script>",
+      "../../../etc/passwd",
+      "$(rm -rf /)",
+      "`whoami`",
+      "${USER}",
+      "%s%s%s%s%n"
+    ],
+    "unicode_strings": [
+      "测试中文",
+      "日本語テスト",
+      "한국어테스트",
+      "العربية",
+      "עברית",
+      "🎉🚀💻🔒🐛",
+      "𝕦𝕟𝕚𝕔𝕠𝕕𝕖",
+      "ñáéíóúü"
+    ]
+  }
+}

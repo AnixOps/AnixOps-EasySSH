@@ -4,6 +4,7 @@ use std::cell::RefCell;
 
 use crate::models::ServerGroup;
 
+/// Sidebar component with navigation pattern for GNOME HIG
 pub struct Sidebar {
     widget: gtk4::Box,
     list_box: gtk4::ListBox,
@@ -15,28 +16,31 @@ impl Sidebar {
     pub fn new() -> Self {
         let widget = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
         widget.add_css_class("sidebar");
+        widget.set_width_request(200);
 
-        // Title
+        // Title header
         let title_label = gtk4::Label::new(Some("Groups"));
-        title_label.add_css_class("title-4");
+        title_label.add_css_class("heading");
         title_label.set_halign(gtk4::Align::Start);
-        title_label.set_margin_start(12);
-        title_label.set_margin_end(12);
-        title_label.set_margin_top(12);
-        title_label.set_margin_bottom(6);
+        title_label.set_margin_start(16);
+        title_label.set_margin_end(16);
+        title_label.set_margin_top(16);
+        title_label.set_margin_bottom(12);
         widget.append(&title_label);
 
-        // All servers row
+        // Create navigation list
         let list_box = gtk4::ListBox::new();
         list_box.set_selection_mode(gtk4::SelectionMode::Single);
         list_box.add_css_class("navigation-sidebar");
 
         // Add "All Servers" item
-        let all_row = create_group_row("All Servers", None, "computer-symbolic");
+        let all_row = create_navigation_row("All Servers", None, "computer-symbolic", 0);
         list_box.append(&all_row);
 
         // Separator
         let separator = gtk4::Separator::new(gtk4::Orientation::Horizontal);
+        separator.set_margin_start(8);
+        separator.set_margin_end(8);
         widget.append(&separator);
 
         // Scrolled window for groups
@@ -44,6 +48,7 @@ impl Sidebar {
             .child(&list_box)
             .hscrollbar_policy(gtk4::PolicyType::Never)
             .vexpand(true)
+            .propagate_natural_height(true)
             .build();
 
         widget.append(&scrolled);
@@ -82,11 +87,12 @@ impl Sidebar {
         }
 
         // Add new groups
-        for group in &groups {
-            let row = create_group_row(
+        for (index, group) in groups.iter().enumerate() {
+            let row = create_navigation_row(
                 &format!("{} ({})", group.name, group.server_count),
                 Some(&group.id),
                 "folder-symbolic",
+                index as i32 + 1,
             );
             self.list_box.append(&row);
         }
@@ -104,6 +110,21 @@ impl Sidebar {
     pub fn widget(&self) -> &gtk4::Box {
         &self.widget
     }
+
+    pub fn select_all_servers(&self) {
+        if let Some(first_row) = self.list_box.row_at_index(0) {
+            self.list_box.select_row(Some(&first_row));
+        }
+    }
+
+    pub fn get_selected_group(&self) -> Option<String> {
+        if let Some(row) = self.list_box.selected_row() {
+            if let Some(group_id) = row.data::<String>("group-id") {
+                return Some(group_id.as_ref().clone());
+            }
+        }
+        None
+    }
 }
 
 impl Clone for Sidebar {
@@ -117,23 +138,49 @@ impl Clone for Sidebar {
     }
 }
 
-fn create_group_row(label: &str, group_id: Option<&str>, icon_name: &str) -> gtk4::ListBoxRow {
+fn create_navigation_row(
+    label: &str,
+    group_id: Option<&str>,
+    icon_name: &str,
+    _index: i32,
+) -> gtk4::ListBoxRow {
     let row = gtk4::ListBoxRow::new();
+    row.set_selectable(true);
+    row.set_activatable(true);
 
     let hbox = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
     hbox.set_margin_start(12);
     hbox.set_margin_end(12);
-    hbox.set_margin_top(8);
-    hbox.set_margin_bottom(8);
+    hbox.set_margin_top(10);
+    hbox.set_margin_bottom(10);
 
+    // Icon
     let icon = gtk4::Image::from_icon_name(icon_name);
     icon.set_pixel_size(16);
+    icon.add_css_class("dim-label");
     hbox.append(&icon);
 
+    // Label
     let label_widget = gtk4::Label::new(Some(label));
     label_widget.set_halign(gtk4::Align::Start);
     label_widget.set_hexpand(true);
+    label_widget.set_ellipsize(gtk4::pango::EllipsizeMode::End);
+    label_widget.set_max_width_chars(20);
     hbox.append(&label_widget);
+
+    // Count badge (if applicable)
+    if label.contains('(') {
+        // Extract count for badge
+        if let Some(start) = label.rfind('(') {
+            if let Some(end) = label.rfind(')') {
+                let count = &label[start + 1..end];
+                let badge = gtk4::Label::new(Some(count));
+                badge.add_css_class("dim-label");
+                badge.add_css_class("caption");
+                hbox.append(&badge);
+            }
+        }
+    }
 
     row.set_child(Some(&hbox));
 
@@ -141,5 +188,21 @@ fn create_group_row(label: &str, group_id: Option<&str>, icon_name: &str) -> gtk
         row.set_data("group-id", id.to_string());
     }
 
+    // Accessibility
+    row.set_accessible_role(gtk4::AccessibleRole::ListItem);
+    row.set_accessible_label(Some(label));
+
     row
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sidebar_creation() {
+        // Just verify it compiles
+        let _sidebar = Sidebar::new();
+    }
+}
+

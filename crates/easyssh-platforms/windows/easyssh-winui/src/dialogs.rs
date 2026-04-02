@@ -11,12 +11,257 @@ use crate::viewmodels::{AppViewModel, GroupViewModel, ServerViewModel};
 use egui::{Align, Button, Layout, Response, RichText, TextEdit, Ui, Vec2, Window};
 use zeroize::Zeroize;
 
+/// Animation state for master password dialog
+#[derive(Debug, Clone, Copy)]
+pub struct DialogAnimation {
+    pub open_progress: f32,
+    pub error_shake: f32,
+    pub success_pulse: f32,
+    pub target_progress: f32,
+}
+
+impl Default for DialogAnimation {
+    fn default() -> Self {
+        Self {
+            open_progress: 0.0,
+            error_shake: 0.0,
+            success_pulse: 0.0,
+            target_progress: 1.0,
+        }
+    }
+}
+
+impl DialogAnimation {
+    pub fn update(&mut self, ctx: &egui::Context, dt: f32) {
+        // Smooth open animation
+        let speed = 8.0;
+        self.open_progress = egui::lerp(
+            self.open_progress..=self.target_progress,
+            (speed * dt).min(1.0),
+        );
+
+        // Decay error shake
+        self.error_shake *= (1.0 - 10.0 * dt).max(0.0);
+
+        // Decay success pulse
+        self.success_pulse *= (1.0 - 5.0 * dt).max(0.0);
+
+        // Request continuous updates during animation
+        if self.open_progress < 1.0 || self.error_shake > 0.01 || self.success_pulse > 0.01 {
+            ctx.request_repaint_after(std::time::Duration::from_millis(16));
+        }
+    }
+
+    pub fn trigger_error(&mut self) {
+        self.error_shake = 1.0;
+    }
+
+    pub fn trigger_success(&mut self) {
+        self.success_pulse = 1.0;
+    }
+
+    pub fn get_scale(&self) -> f32 {
+        0.9 + 0.1 * self.open_progress
+    }
+
+    pub fn get_alpha(&self) -> f32 {
+        self.open_progress
+    }
+
+    pub fn get_shake_offset(&self) -> egui::Vec2 {
+        if self.error_shake > 0.01 {
+            let shake_x = (self.error_shake * 10.0).sin() * self.error_shake * 10.0;
+            egui::vec2(shake_x, 0.0)
+        } else {
+            egui::Vec2::ZERO
+        }
+    }
+}
+
+/// Color picker preset for groups
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GroupColor {
+    Default,
+    Blue,
+    Green,
+    Red,
+    Orange,
+    Purple,
+    Pink,
+    Cyan,
+    Yellow,
+}
+
+impl GroupColor {
+    pub fn as_color32(&self) -> egui::Color32 {
+        match self {
+            GroupColor::Default => egui::Color32::GRAY,
+            GroupColor::Blue => egui::Color32::from_rgb(59, 130, 246),
+            GroupColor::Green => egui::Color32::from_rgb(34, 197, 94),
+            GroupColor::Red => egui::Color32::from_rgb(239, 68, 68),
+            GroupColor::Orange => egui::Color32::from_rgb(249, 115, 22),
+            GroupColor::Purple => egui::Color32::from_rgb(168, 85, 247),
+            GroupColor::Pink => egui::Color32::from_rgb(236, 72, 153),
+            GroupColor::Cyan => egui::Color32::from_rgb(6, 182, 212),
+            GroupColor::Yellow => egui::Color32::from_rgb(234, 179, 8),
+        }
+    }
+
+    pub fn all_colors() -> &'static [GroupColor] {
+        &[
+            GroupColor::Blue,
+            GroupColor::Green,
+            GroupColor::Red,
+            GroupColor::Orange,
+            GroupColor::Purple,
+            GroupColor::Pink,
+            GroupColor::Cyan,
+            GroupColor::Yellow,
+        ]
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            GroupColor::Default => "Default",
+            GroupColor::Blue => "Blue",
+            GroupColor::Green => "Green",
+            GroupColor::Red => "Red",
+            GroupColor::Orange => "Orange",
+            GroupColor::Purple => "Purple",
+            GroupColor::Pink => "Pink",
+            GroupColor::Cyan => "Cyan",
+            GroupColor::Yellow => "Yellow",
+        }
+    }
+}
+
 /// Dialog result type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DialogResult {
     Ok,
     Cancel,
     None,
+}
+
+/// Group color picker dialog
+pub struct GroupColorPicker {
+    pub open: bool,
+    pub selected_color: GroupColor,
+}
+
+impl Default for GroupColorPicker {
+    fn default() -> Self {
+        Self {
+            open: false,
+            selected_color: GroupColor::Default,
+        }
+    }
+}
+
+impl GroupColorPicker {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn open(&mut self, current_color: GroupColor) {
+        self.open = true;
+        self.selected_color = current_color;
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+    }
+
+    pub fn show(&mut self, ctx: &egui::Context) -> Option<GroupColor> {
+        if !self.open {
+            return None;
+        }
+
+        let mut selected = None;
+        let mut should_close = false;
+
+        egui::Window::new("Choose Group Color")
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.label("Select a color for this group:");
+                ui.add_space(8.0);
+
+                // Color grid
+                let colors = GroupColor::all_colors();
+                let colors_per_row = 4;
+
+                for row in colors.chunks(colors_per_row) {
+                    ui.horizontal(|ui| {
+                        for color in row {
+                            let is_selected = self.selected_color == *color;
+                            let color_value = color.as_color32();
+
+                            let button_size = egui::vec2(48.0, 48.0);
+                            let (rect, response) = ui.allocate_exact_size(button_size, egui::Sense::click());
+
+                            // Draw color circle
+                            let painter = ui.painter();
+                            let center = rect.center();
+                            let radius = if is_selected { 20.0 } else { 18.0 };
+
+                            // Shadow for depth
+                            painter.circle_filled(center + egui::vec2(0.0, 2.0), radius, color_value.linear_multiply(0.7));
+                            painter.circle_filled(center, radius, color_value);
+
+                            // Selection indicator
+                            if is_selected {
+                                painter.circle_stroke(center, radius + 3.0, egui::Stroke::new(3.0, egui::Color32::WHITE));
+                                painter.circle_stroke(center, radius + 3.0, egui::Stroke::new(1.0, egui::Color32::BLACK.linear_multiply(0.3)));
+                            }
+
+                            // Checkmark for selected
+                            if is_selected {
+                                let check_color = if color_value.r() + color_value.g() + color_value.b() > 384 {
+                                    egui::Color32::BLACK
+                                } else {
+                                    egui::Color32::WHITE
+                                };
+                                painter.text(
+                                    center,
+                                    egui::Align2::CENTER_CENTER,
+                                    "✓",
+                                    egui::FontId::proportional(20.0),
+                                    check_color,
+                                );
+                            }
+
+                            if response.clicked() {
+                                self.selected_color = *color;
+                                selected = Some(*color);
+                                should_close = true;
+                            }
+
+                            // Tooltip
+                            response.on_hover_text(color.name());
+                        }
+                    });
+                    ui.add_space(8.0);
+                }
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Cancel").clicked() {
+                            should_close = true;
+                            selected = None;
+                        }
+                    });
+                });
+            });
+
+        if should_close {
+            self.close();
+        }
+
+        selected
+    }
 }
 
 /// Add Server Dialog state
@@ -983,6 +1228,9 @@ pub struct MasterPasswordDialog {
     pub max_attempts: u32,
     pub last_input_time: f64,
     pub copy_paste_attempts: u32,
+    // Animation support
+    pub animation: DialogAnimation,
+    pub opening_time: f64,
 }
 
 impl Default for MasterPasswordDialog {
@@ -1002,6 +1250,8 @@ impl Default for MasterPasswordDialog {
             max_attempts: 5,
             last_input_time: 0.0,
             copy_paste_attempts: 0,
+            animation: DialogAnimation::default(),
+            opening_time: 0.0,
         }
     }
 }
@@ -1012,38 +1262,50 @@ impl MasterPasswordDialog {
     }
 
     /// Open dialog for first-time setup
-    pub fn open_setup(&mut self) {
+    pub fn open_setup(&mut self, ctx: &egui::Context) {
         self.open = true;
         self.mode = MasterPasswordMode::Setup;
         self.clear_all_fields();
         self.error_message = None;
         self.attempt_count = 0;
+        self.opening_time = ctx.input(|i| i.time);
+        self.animation = DialogAnimation::default();
+        self.animation.target_progress = 1.0;
     }
 
     /// Open dialog for password verification on startup
-    pub fn open_verify(&mut self) {
+    pub fn open_verify(&mut self, ctx: &egui::Context) {
         self.open = true;
         self.mode = MasterPasswordMode::Verify;
         self.clear_all_fields();
         self.error_message = None;
         self.attempt_count = 0;
+        self.opening_time = ctx.input(|i| i.time);
+        self.animation = DialogAnimation::default();
+        self.animation.target_progress = 1.0;
     }
 
     /// Open dialog for changing password
-    pub fn open_change(&mut self) {
+    pub fn open_change(&mut self, ctx: &egui::Context) {
         self.open = true;
         self.mode = MasterPasswordMode::Change;
         self.clear_all_fields();
         self.error_message = None;
         self.attempt_count = 0;
+        self.opening_time = ctx.input(|i| i.time);
+        self.animation = DialogAnimation::default();
+        self.animation.target_progress = 1.0;
     }
 
     /// Open dialog for reset warning
-    pub fn open_reset(&mut self) {
+    pub fn open_reset(&mut self, ctx: &egui::Context) {
         self.open = true;
         self.mode = MasterPasswordMode::Reset;
         self.clear_all_fields();
         self.error_message = None;
+        self.opening_time = ctx.input(|i| i.time);
+        self.animation = DialogAnimation::default();
+        self.animation.target_progress = 1.0;
     }
 
     fn clear_all_fields(&mut self) {
@@ -1215,6 +1477,15 @@ impl MasterPasswordDialog {
             return MasterPasswordDialogResult::None;
         }
 
+        // Update animation
+        let dt = ctx.input(|i| i.stable_dt).max(0.001).min(0.1);
+        self.animation.update(ctx, dt);
+
+        // Trigger error animation when error message is set
+        if self.error_message.is_some() && self.animation.error_shake < 0.01 {
+            self.animation.trigger_error();
+        }
+
         let mut result = MasterPasswordDialogResult::None;
         let mut should_close = false;
 
@@ -1225,7 +1496,7 @@ impl MasterPasswordDialog {
             MasterPasswordMode::Reset => "Reset Master Password",
         };
 
-        // Center the dialog
+        // Center the dialog with animation
         let screen_rect = ctx.screen_rect();
         let window_size = egui::vec2(
             450.0,
@@ -1236,34 +1507,59 @@ impl MasterPasswordDialog {
                 MasterPasswordMode::Reset => 320.0,
             },
         );
-        let window_pos = screen_rect.center() - window_size * 0.5;
+        let base_pos = screen_rect.center() - window_size * 0.5;
+        let shake_offset = self.animation.get_shake_offset();
+        let animated_pos = base_pos + shake_offset;
+
+        // Apply scale transform through layer manipulation
+        let scale = self.animation.get_scale();
+        let alpha = self.animation.get_alpha();
 
         egui::Window::new(title)
             .collapsible(false)
             .resizable(false)
             .fixed_size(window_size)
-            .fixed_pos(window_pos)
+            .fixed_pos(animated_pos)
+            .title_bar(true)
+            .frame(egui::Frame::window(&ctx.style()).multiply_with_opacity(alpha))
             .show(ctx, |ui| {
                 ui.spacing_mut().item_spacing.y = 12.0;
 
-                match self.mode {
-                    MasterPasswordMode::Setup => {
-                        self.show_setup_ui(ui, &mut result, &mut should_close);
-                    }
-                    MasterPasswordMode::Verify => {
-                        self.show_verify_ui(ui, &mut result, &mut should_close);
-                    }
-                    MasterPasswordMode::Change => {
-                        self.show_change_ui(ui, &mut result, &mut should_close);
-                    }
-                    MasterPasswordMode::Reset => {
-                        self.show_reset_ui(ui, &mut result, &mut should_close);
-                    }
-                }
+                // Apply scale to content
+                let available_size = ui.available_size();
+                let centered_pos = ui.cursor().min + (available_size - available_size * scale) * 0.5;
+
+                ui.allocate_ui_at_rect(
+                    egui::Rect::from_min_size(centered_pos, available_size * scale),
+                    |ui| {
+                        ui.set_clip_rect(ui.max_rect());
+
+                        match self.mode {
+                            MasterPasswordMode::Setup => {
+                                self.show_setup_ui(ui, &mut result, &mut should_close);
+                            }
+                            MasterPasswordMode::Verify => {
+                                self.show_verify_ui(ui, &mut result, &mut should_close);
+                            }
+                            MasterPasswordMode::Change => {
+                                self.show_change_ui(ui, &mut result, &mut should_close);
+                            }
+                            MasterPasswordMode::Reset => {
+                                self.show_reset_ui(ui, &mut result, &mut should_close);
+                            }
+                        }
+                    },
+                );
             });
 
         if should_close {
-            self.close();
+            // Fade out animation before closing
+            if self.animation.target_progress > 0.0 {
+                self.animation.target_progress = 0.0;
+                ctx.request_repaint_after(std::time::Duration::from_millis(16));
+            } else if self.animation.open_progress < 0.01 {
+                self.close();
+            }
         }
 
         result
@@ -1630,6 +1926,17 @@ impl MasterPasswordDialog {
     /// Set error message (used by external verification failures)
     pub fn set_error(&mut self, error: String) {
         self.error_message = Some(error);
+        self.animation.trigger_error();
+    }
+
+    /// Trigger error animation
+    pub fn trigger_error_animation(&mut self) {
+        self.animation.trigger_error();
+    }
+
+    /// Trigger success animation
+    pub fn trigger_success_animation(&mut self) {
+        self.animation.trigger_success();
     }
 
     /// Check if max attempts reached

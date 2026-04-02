@@ -1,6 +1,7 @@
 //! Server Dialog
 //!
 //! Form dialog for creating or editing servers.
+//! Features theme-aware styling and improved UX.
 //! Fields:
 //! - Name (required)
 //! - Host (required)
@@ -10,6 +11,7 @@
 //! - Group
 
 use super::{Dialog, DialogResult, ServerData};
+use crate::theme::ColorPalette;
 use crate::ui::dialogs::{handle_dialog_keys, handle_text_input};
 use crossterm::event::{KeyCode, KeyEvent};
 use easyssh_core::{AuthMethod, ServerRecord};
@@ -101,11 +103,11 @@ impl ServerDialog {
             data,
             focused_field: Field::Name,
             groups,
-            cursor_name: 0,
-            cursor_host: 0,
-            cursor_port: 0,
-            cursor_username: 0,
-            cursor_identity: 0,
+            cursor_name: data.name.len(),
+            cursor_host: data.host.len(),
+            cursor_port: data.port.to_string().len(),
+            cursor_username: data.username.len(),
+            cursor_identity: data.identity_file.as_ref().map(|s| s.len()).unwrap_or(0),
         }
     }
 
@@ -208,13 +210,14 @@ impl Dialog for ServerDialog {
         DialogResult::Continue
     }
 
-    fn render(&self, frame: &mut Frame, area: Rect) {
+    fn render(&self, frame: &mut Frame, area: Rect, theme: &ColorPalette) {
         frame.render_widget(Clear, area);
 
         let block = Block::default()
-            .title(self.title.as_str())
+            .title(format!(" {} ", self.title))
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan));
+            .border_style(Style::default().fg(theme.accent_primary))
+            .style(Style::default().bg(theme.bg_dialog));
 
         let inner = block.inner(area);
         frame.render_widget(block, area);
@@ -233,7 +236,7 @@ impl Dialog for ServerDialog {
             ])
             .split(inner);
 
-        // Helper function to render field
+        // Helper function to render field with theme
         fn render_field(
             frame: &mut Frame,
             area: Rect,
@@ -241,26 +244,28 @@ impl Dialog for ServerDialog {
             value: &str,
             is_focused: bool,
             cursor_pos: usize,
+            theme: &ColorPalette,
+            is_valid: bool,
         ) {
-            let style = if is_focused {
-                Style::default().fg(Color::Black).bg(Color::White)
-            } else {
+            let label_style = Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(theme.fg_secondary);
+
+            let value_style = if is_focused {
                 Style::default()
+                    .fg(theme.fg_primary)
+                    .bg(theme.bg_highlight)
+            } else if !is_valid && value.is_empty() {
+                Style::default().fg(theme.accent_error)
+            } else {
+                Style::default().fg(theme.fg_primary)
             };
 
-            let text = if is_focused {
-                Line::from(vec![
-                    Span::styled(label, Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(" "),
-                    Span::styled(value, style),
-                ])
-            } else {
-                Line::from(vec![
-                    Span::styled(label, Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(" "),
-                    Span::raw(value),
-                ])
-            };
+            let text = Line::from(vec![
+                Span::styled(label, label_style),
+                Span::raw(" "),
+                Span::styled(value, value_style),
+            ]);
 
             let para = Paragraph::new(text);
             frame.render_widget(para, area);
@@ -271,6 +276,10 @@ impl Dialog for ServerDialog {
         }
 
         // Render each field
+        let name_valid = !self.data.name.is_empty();
+        let host_valid = !self.data.host.is_empty();
+        let user_valid = !self.data.username.is_empty();
+
         render_field(
             frame,
             chunks[0],
@@ -278,6 +287,8 @@ impl Dialog for ServerDialog {
             &self.data.name,
             self.focused_field == Field::Name,
             self.cursor_name,
+            theme,
+            name_valid,
         );
 
         render_field(
@@ -287,6 +298,8 @@ impl Dialog for ServerDialog {
             &self.data.host,
             self.focused_field == Field::Host,
             self.cursor_host,
+            theme,
+            host_valid,
         );
 
         render_field(
@@ -296,6 +309,8 @@ impl Dialog for ServerDialog {
             &self.data.port.to_string(),
             self.focused_field == Field::Port,
             self.cursor_port,
+            theme,
+            true,
         );
 
         render_field(
@@ -305,38 +320,42 @@ impl Dialog for ServerDialog {
             &self.data.username,
             self.focused_field == Field::Username,
             self.cursor_username,
+            theme,
+            user_valid,
         );
 
-        // Auth method field
-        let auth_style = if self.focused_field == Field::AuthMethod {
-            Style::default().fg(Color::Black).bg(Color::White)
-        } else {
-            Style::default()
-        };
+        // Auth method field with theme
+        let is_auth_focused = self.focused_field == Field::AuthMethod;
 
-        let auth_text = format!(
-            "Auth: [1] Agent {}  [2] Password {}  [3] Key {}",
-            if matches!(self.data.auth_method, AuthMethod::Agent) {
-                "(*)"
-            } else {
-                "( )"
-            },
-            if matches!(self.data.auth_method, AuthMethod::Password { .. }) {
-                "(*)"
-            } else {
-                "( )"
-            },
-            if matches!(self.data.auth_method, AuthMethod::PrivateKey { .. }) {
-                "(*)"
-            } else {
-                "( )"
-            },
+        let auth_options = vec![
+            ("1", "Agent", matches!(self.data.auth_method, AuthMethod::Agent)),
+            ("2", "Password", matches!(self.data.auth_method, AuthMethod::Password { .. })),
+            ("3", "Key", matches!(self.data.auth_method, AuthMethod::PrivateKey { .. })),
+        ];
+
+        let auth_spans: Vec<Span> = auth_options
+            .iter()
+            .map(|(key, label, selected)| {
+                let style = if *selected {
+                    Style::default()
+                        .fg(theme.bg_primary)
+                        .bg(theme.accent_success)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(theme.fg_muted)
+                };
+
+                Span::styled(format!("[{}] {}  ", key, label), style)
+            })
+            .collect();
+
+        let auth_line = Line::from(
+            std::iter::once(Span::styled("Auth: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)))
+                .chain(auth_spans)
+                .collect::<Vec<_>>(),
         );
 
-        let auth_para = Paragraph::new(Line::from(vec![
-            Span::styled("Auth:", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(auth_text.trim_start_matches("Auth:"), auth_style),
-        ]));
+        let auth_para = Paragraph::new(auth_line);
         frame.render_widget(auth_para, chunks[4]);
 
         // Identity file (only if key auth selected)
@@ -348,36 +367,47 @@ impl Dialog for ServerDialog {
                 self.data.identity_file.as_deref().unwrap_or(""),
                 self.focused_field == Field::IdentityFile,
                 self.cursor_identity,
+                theme,
+                self.data.identity_file.as_ref().map(|s| !s.is_empty()).unwrap_or(false),
             );
         }
 
-        // Group selection
+        // Group selection with theme
         let group_style = if self.focused_field == Field::Group {
-            Style::default().fg(Color::Black).bg(Color::White)
+            Style::default().fg(theme.accent_primary)
         } else {
-            Style::default()
+            Style::default().fg(theme.fg_primary)
         };
 
-        let mut group_text = String::from("Group: [0] None ");
-        for (idx, group) in self.groups.iter().enumerate() {
+        let mut group_text = String::from("[0] None ");
+        for (idx, group) in self.groups.iter().enumerate().take(9) {
             let is_selected = self.data.group_id.as_ref() == Some(&group.id);
-            group_text.push_str(&format!(
-                "[{}] {}{} ",
-                idx + 1,
-                group.name,
-                if is_selected { "(*)" } else { "( )" }
-            ));
+            let marker = if is_selected { "●" } else { "○" };
+            group_text.push_str(&format!("[{}] {}{} ", idx + 1, group.name, marker));
         }
 
-        let group_para = Paragraph::new(Line::from(vec![
-            Span::styled("Group:", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(group_text.trim_start_matches("Group:"), group_style),
-        ]));
+        let group_line = Line::from(vec![
+            Span::styled("Group:", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+            Span::styled(group_text, group_style),
+        ]);
+
+        let group_para = Paragraph::new(group_line);
         frame.render_widget(group_para, chunks[5]);
 
-        // Help text
-        let help_para = Paragraph::new("Tab: Next field  |  Enter: Save  |  Esc: Cancel")
-            .style(Style::default().fg(Color::Gray));
+        // Help text with theme
+        let help_style = if self.is_valid() {
+            Style::default().fg(theme.fg_muted)
+        } else {
+            Style::default().fg(theme.accent_warning)
+        };
+
+        let help_text = if self.is_valid() {
+            "Tab: Next  |  Enter: Save  |  Esc: Cancel"
+        } else {
+            "⚠ Name, Host, and Username are required"
+        };
+
+        let help_para = Paragraph::new(help_text).style(help_style);
         frame.render_widget(help_para, chunks[6]);
     }
 

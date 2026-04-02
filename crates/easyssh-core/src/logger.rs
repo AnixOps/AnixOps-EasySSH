@@ -5,9 +5,23 @@
 //! - Multiple log levels (Error, Warn, Info, Debug, Trace)
 //! - Rotating file logs with size-based rotation
 //! - Structured logging with JSON format support
+//! - Log compression for rotated files (gzip)
 //! - Context tracking (request_id, session_id, etc.)
 //! - Optional remote log reporting (Pro feature)
 //! - Thread-safe async logging
+//! - Performance metrics tracking
+//!
+//! # Log Format
+//!
+//! Plain text format:
+//! ```text
+//! [2024-01-15 10:30:45.123 +0800] [INFO] [module::path] [request_id=xxx] Message
+//! ```
+//!
+//! JSON format:
+//! ```json
+//! {"timestamp":"2024-01-15T10:30:45.123+08:00","level":"INFO","module":"module::path","message":"Message","ctx.request_id":"xxx"}
+//! ```
 //!
 //! # Example
 //!
@@ -15,21 +29,26 @@
 //! use easyssh_core::logger::{Logger, LogLevel, LogContext};
 //!
 //! // Initialize the logger
-//! let logger = Logger::new()
+//! let logger = Logger::builder()
 //!     .with_level(LogLevel::Debug)
 //!     .with_file_output("logs/easyssh.log")
-//!     .init()
+//!     .with_rotation(RotationConfig::default())
+//!     .build()
 //!     .expect("Failed to initialize logger");
 //!
 //! // Log with context
-//! let ctx = LogContext::new().with_request_id("req-123");
+//! let ctx = LogContext::new()
+//!     .with_request_id("req-123")
+//!     .with_session_id("sess-456");
 //! logger.info_with_context("Application started", &ctx);
 //! ```
 
 use chrono::{DateTime, Local, Utc};
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
@@ -234,6 +253,27 @@ impl LogEntry {
     }
 }
 
+/// Log statistics for monitoring
+#[derive(Debug, Clone, Default)]
+pub struct LogStats {
+    /// Number of log files
+    pub file_count: usize,
+    /// Total size in bytes
+    pub total_size_bytes: u64,
+    /// Total size in MB
+    pub total_size_mb: f64,
+}
+
+impl LogStats {
+    /// Format size as human-readable string
+    pub fn format_size(&self) -> String {
+        if self.total_size_mb >= 1024.0 {
+            format!("{:.2} GB", self.total_size_mb / 1024.0)
+        } else {
+            format!("{:.2} MB", self.total_size_mb)
+        }
+    }
+}
 /// Log output destination
 #[derive(Debug, Clone)]
 pub enum LogOutput {
@@ -248,12 +288,14 @@ pub enum LogOutput {
 /// Configuration for log rotation
 #[derive(Debug, Clone)]
 pub struct RotationConfig {
-    /// Maximum file size in bytes before rotation
+    /// Maximum file size in bytes before rotation (default: 10MB)
     pub max_size: u64,
-    /// Maximum number of backup files to keep
+    /// Maximum number of backup files to keep (default: 5)
     pub max_files: usize,
-    /// Whether to compress rotated files
+    /// Whether to compress rotated files (default: true)
     pub compress: bool,
+    /// Compression level (1-9, default: 6)
+    pub compression_level: u32,
 }
 
 impl Default for RotationConfig {
@@ -262,7 +304,32 @@ impl Default for RotationConfig {
             max_size: 10 * 1024 * 1024, // 10 MB
             max_files: 5,
             compress: true,
+            compression_level: 6,
         }
+    }
+}
+
+impl RotationConfig {
+    /// Create a new rotation config with custom max size
+    pub fn with_max_size(max_size_mb: u64) -> Self {
+        Self {
+            max_size: max_size_mb * 1024 * 1024,
+            ..Default::default()
+        }
+    }
+
+    /// Create a new rotation config with custom max files
+    pub fn with_max_files(max_files: usize) -> Self {
+        Self {
+            max_files,
+            ..Default::default()
+        }
+    }
+
+    /// Disable compression
+    pub fn without_compression(mut self) -> Self {
+        self.compress = false;
+        self
     }
 }
 
@@ -486,35 +553,156 @@ impl Logger {
         }
     }
 
-    /// Rotate log file
+    /// Rotate log file with compression support
     fn rotate_file(&self, path: &Path) {
         let base_path = path.to_string_lossy();
 
-        // Remove oldest file if at max
-        let oldest = format!("{}.{}.gz", base_path, self.rotation.max_files);
+        // Get exclusive lock for rotation
+        let mut handles = match self.file_handles.lock() {
+            Ok(guard) => guard,
+            Err(e) => {
+                eprintln!("Failed to lock file handles for rotation: {}", e);
+                return;
+            }
+        };
+
+        // Close current file before rotation
+        handles.remove(path);
+        drop(handles); // Release lock during rotation
+
+        // Remove oldest file if at max capacity
+        let oldest_num = self.rotation.max_files;
+        let oldest = if self.rotation.compress {
+            format!("{}.{}.gz", base_path, oldest_num)
+        } else {
+            format!("{}.{}", base_path, oldest_num)
+        };
         let _ = fs::remove_file(&oldest);
 
-        // Shift existing files
+        // Shift existing backup files
         for i in (1..self.rotation.max_files).rev() {
             let old_path = format!("{}.{}", base_path, i);
             let new_path = format!("{}.{}", base_path, i + 1);
-            let _ = fs::rename(&old_path, &new_path);
+
+            if self.rotation.compress {
+                let old_gz = format!("{}.gz", old_path);
+                let new_gz = format!("{}.gz", new_path);
+
+                // Check if compressed version exists
+                if fs::metadata(&old_gz).is_ok() {
+                    let _ = fs::rename(&old_gz, &new_gz);
+                } else if fs::metadata(&old_path).is_ok() {
+                    // Compress if not already compressed
+                    let _ = fs::rename(&old_path, &old_gz);
+                    let _ = fs::rename(&old_gz, &new_gz);
+                }
+            } else {
+                let _ = fs::rename(&old_path, &new_path);
+            }
         }
 
-        // Move current file to .1
-        let current_backup = format!("{}.1", base_path);
-        let _ = fs::rename(path, &current_backup);
+        // Move current file to .1 (optionally compress)
+        let backup_path = format!("{}.1", base_path);
+        if let Err(e) = fs::rename(path, &backup_path) {
+            eprintln!("Failed to rotate log file: {}", e);
+            // Try to reopen file anyway
+        } else if self.rotation.compress {
+            // Compress the rotated file in a background thread
+            let backup = backup_path.clone();
+            let compress_path = format!("{}.gz", backup);
+            thread::spawn(move || {
+                if let Err(e) = Self::compress_file(&backup, &compress_path) {
+                    eprintln!("Failed to compress log file: {}", e);
+                }
+            });
+        }
 
         // Reopen file
-        if let Ok(mut handles) = self.file_handles.lock() {
-            if let Ok(file) = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .truncate(true)
-                .open(path)
-            {
-                handles.insert(path.to_path_buf(), file);
+        match self.file_handles.lock() {
+            Ok(mut handles) => {
+                match OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .truncate(true)
+                    .open(path)
+                {
+                    Ok(file) => {
+                        handles.insert(path.to_path_buf(), file);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to reopen log file after rotation: {}", e);
+                    }
+                }
             }
+            Err(e) => {
+                eprintln!("Failed to lock file handles after rotation: {}", e);
+            }
+        }
+    }
+
+    /// Compress a file using gzip
+    fn compress_file(src: &str, dst: &str) -> io::Result<()> {
+        use std::io::Read;
+
+        let mut input = fs::File::open(src)?;
+        let output = fs::File::create(dst)?;
+
+        let mut encoder = GzEncoder::new(output, Compression::default());
+        let mut buffer = [0u8; 8192];
+
+        loop {
+            let bytes_read = input.read(&mut buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+            encoder.write_all(&buffer[..bytes_read])?;
+        }
+
+        encoder.finish()?;
+
+        // Remove original file after successful compression
+        fs::remove_file(src)?;
+
+        Ok(())
+    }
+
+    /// Get log file statistics
+    pub fn log_stats(&self) -> LogStats {
+        let outputs = match self.outputs.lock() {
+            Ok(guard) => guard.clone(),
+            Err(_) => return LogStats::default(),
+        };
+
+        let mut file_count = 0;
+        let mut total_size = 0u64;
+
+        for output in outputs {
+            if let LogOutput::File(path) = output {
+                file_count += 1;
+                if let Ok(metadata) = fs::metadata(&path) {
+                    total_size += metadata.len();
+                }
+
+                // Count rotated files
+                for i in 1..=self.rotation.max_files {
+                    let rotated = format!("{}.{}", path.to_string_lossy(), i);
+                    if let Ok(metadata) = fs::metadata(&rotated) {
+                        file_count += 1;
+                        total_size += metadata.len();
+                    }
+                    let rotated_gz = format!("{}.gz", rotated);
+                    if let Ok(metadata) = fs::metadata(&rotated_gz) {
+                        file_count += 1;
+                        total_size += metadata.len();
+                    }
+                }
+            }
+        }
+
+        LogStats {
+            file_count,
+            total_size_bytes: total_size,
+            total_size_mb: total_size as f64 / (1024.0 * 1024.0),
         }
     }
 
@@ -855,5 +1043,62 @@ mod tests {
             Some(v) => env::set_var("EASYSSH_LOG_JSON", v),
             None => env::remove_var("EASYSSH_LOG_JSON"),
         }
+    }
+
+    #[test]
+    fn test_log_stats() {
+        let stats = LogStats {
+            file_count: 3,
+            total_size_bytes: 15 * 1024 * 1024,
+            total_size_mb: 15.0,
+        };
+        assert_eq!(stats.format_size(), "15.00 MB");
+
+        let stats = LogStats {
+            file_count: 5,
+            total_size_bytes: 2048 * 1024 * 1024,
+            total_size_mb: 2048.0,
+        };
+        assert_eq!(stats.format_size(), "2.00 GB");
+    }
+
+    #[test]
+    fn test_rotation_config_builder() {
+        let config = RotationConfig::with_max_size(50);
+        assert_eq!(config.max_size, 50 * 1024 * 1024);
+
+        let config = RotationConfig::with_max_files(10);
+        assert_eq!(config.max_files, 10);
+
+        let config = RotationConfig::default().without_compression();
+        assert!(!config.compress);
+    }
+
+    #[test]
+    fn test_logger_stats() {
+        let temp_dir = TempDir::new().unwrap();
+        let log_file = temp_dir.path().join("test_stats.log");
+
+        let logger = Logger::builder()
+            .with_file(&log_file)
+            .build()
+            .unwrap();
+
+        logger.info("test message");
+
+        // Give it a moment to write
+        thread::sleep(Duration::from_millis(100));
+
+        let stats = logger.log_stats();
+        assert_eq!(stats.file_count, 1);
+        assert!(stats.total_size_bytes > 0);
+    }
+
+    #[test]
+    fn test_log_stats_default() {
+        let stats = LogStats::default();
+        assert_eq!(stats.file_count, 0);
+        assert_eq!(stats.total_size_bytes, 0);
+        assert_eq!(stats.total_size_mb, 0.0);
     }
 }

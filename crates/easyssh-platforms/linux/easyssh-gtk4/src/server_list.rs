@@ -4,9 +4,11 @@ use std::cell::RefCell;
 
 use crate::models::{AuthType, Server, ServerStatus};
 
+/// Server list component with modern GNOME HIG styling
 pub struct ServerList {
     widget: gtk4::Box,
     list_box: gtk4::ListBox,
+    header_box: gtk4::Box,
     servers: RefCell<Vec<Server>>,
     selected_callback: RefCell<Option<Box<dyn Fn(Server) + 'static>>>,
     connect_callback: RefCell<Option<Box<dyn Fn(Server) + 'static>>>,
@@ -18,40 +20,46 @@ impl ServerList {
     pub fn new() -> Self {
         let widget = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
         widget.add_css_class("server-list");
+        widget.set_width_request(300);
 
-        // Header with count
+        // Header with title and count
         let header = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
-        header.set_margin_start(12);
-        header.set_margin_end(12);
-        header.set_margin_top(12);
-        header.set_margin_bottom(6);
+        header.set_margin_start(16);
+        header.set_margin_end(16);
+        header.set_margin_top(16);
+        header.set_margin_bottom(12);
 
         let title = gtk4::Label::new(Some("Servers"));
-        title.add_css_class("title-4");
+        title.add_css_class("heading");
         title.set_halign(gtk4::Align::Start);
         title.set_hexpand(true);
         header.append(&title);
 
         let count_label = gtk4::Label::new(Some("0"));
         count_label.add_css_class("dim-label");
+        count_label.add_css_class("caption");
         header.append(&count_label);
 
         widget.append(&header);
 
         // Separator
         let separator = gtk4::Separator::new(gtk4::Orientation::Horizontal);
+        separator.set_margin_start(8);
+        separator.set_margin_end(8);
         widget.append(&separator);
 
-        // List box
+        // List box with modern styling
         let list_box = gtk4::ListBox::new();
         list_box.set_selection_mode(gtk4::SelectionMode::Single);
         list_box.add_css_class("server-list");
+        list_box.set_vexpand(true);
 
         // Scrolled window
         let scrolled = gtk4::ScrolledWindow::builder()
             .child(&list_box)
             .hscrollbar_policy(gtk4::PolicyType::Never)
             .vexpand(true)
+            .propagate_natural_height(true)
             .build();
 
         widget.append(&scrolled);
@@ -59,6 +67,7 @@ impl ServerList {
         let server_list = Self {
             widget,
             list_box,
+            header_box: header,
             servers: RefCell::new(Vec::new()),
             selected_callback: RefCell::new(None),
             connect_callback: RefCell::new(None),
@@ -186,17 +195,18 @@ impl ServerList {
         }
 
         // Update count in header
-        if let Some(header) = self.widget.first_child() {
-            if let Some(hbox) = header.downcast_ref::<gtk4::Box>() {
-                if let Some(count_label) = hbox.last_child() {
-                    if let Some(label) = count_label.downcast_ref::<gtk4::Label>() {
-                        label.set_text(&servers.len().to_string());
-                    }
-                }
-            }
-        }
+        self.update_count(servers.len());
 
         self.servers.replace(servers);
+    }
+
+    fn update_count(&self, count: usize) {
+        // Find the count label in header
+        if let Some(header) = self.header_box.last_child() {
+            if let Some(label) = header.downcast_ref::<gtk4::Label>() {
+                label.set_text(&count.to_string());
+            }
+        }
     }
 
     pub fn connect_server_selected<F>(&self, callback: F)
@@ -230,6 +240,22 @@ impl ServerList {
     pub fn widget(&self) -> &gtk4::Box {
         &self.widget
     }
+
+    pub fn select_first(&self) {
+        if let Some(first_row) = self.list_box.row_at_index(0) {
+            self.list_box.select_row(Some(&first_row));
+        }
+    }
+
+    pub fn get_selected_server(&self) -> Option<Server> {
+        if let Some(row) = self.list_box.selected_row() {
+            if let Some(server_id) = row.data::<String>("server-id") {
+                let id = server_id.as_ref();
+                return self.servers.borrow().iter().find(|s| s.id == *id).cloned();
+            }
+        }
+        None
+    }
 }
 
 impl Clone for ServerList {
@@ -237,6 +263,7 @@ impl Clone for ServerList {
         Self {
             widget: self.widget.clone(),
             list_box: self.list_box.clone(),
+            header_box: self.header_box.clone(),
             servers: self.servers.clone(),
             selected_callback: RefCell::new(None),
             connect_callback: RefCell::new(None),
@@ -249,35 +276,47 @@ impl Clone for ServerList {
 fn create_server_row(server: &Server) -> gtk4::ListBoxRow {
     let row = gtk4::ListBoxRow::new();
     row.set_data("server-id", server.id.clone());
+    row.set_selectable(true);
+    row.set_activatable(true);
 
     let hbox = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
-    hbox.set_margin_start(12);
-    hbox.set_margin_end(12);
-    hbox.set_margin_top(10);
-    hbox.set_margin_bottom(10);
+    hbox.set_margin_start(16);
+    hbox.set_margin_end(16);
+    hbox.set_margin_top(12);
+    hbox.set_margin_bottom(12);
 
-    // Status icon
+    // Status icon with appropriate styling
     let status_icon = gtk4::Image::from_icon_name(server.status.icon_name());
     status_icon.set_pixel_size(16);
-    status_icon.add_css_class("dim-label");
+    match server.status {
+        ServerStatus::Connected => status_icon.add_css_class("success"),
+        ServerStatus::Error => status_icon.add_css_class("error"),
+        _ => status_icon.add_css_class("dim-label"),
+    }
     hbox.append(&status_icon);
 
-    // Server info
-    let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 2);
+    // Server info container
+    let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 4);
     vbox.set_hexpand(true);
 
+    // Server name
     let name_label = gtk4::Label::new(Some(&server.name));
     name_label.set_halign(gtk4::Align::Start);
     name_label.add_css_class("heading");
+    name_label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
+    name_label.set_max_width_chars(25);
     vbox.append(&name_label);
 
+    // Connection details
     let details = gtk4::Label::new(Some(&format!(
-        "{}@{}:{}",
-        server.username, server.host, server.port
+        "{}@{}",
+        server.username, server.host
     )));
     details.set_halign(gtk4::Align::Start);
     details.add_css_class("dim-label");
     details.add_css_class("caption");
+    details.set_ellipsize(gtk4::pango::EllipsizeMode::End);
+    details.set_max_width_chars(30);
     vbox.append(&details);
 
     hbox.append(&vbox);
@@ -298,6 +337,34 @@ fn create_server_row(server: &Server) -> gtk4::ListBoxRow {
     }));
     hbox.append(&auth_icon);
 
+    // Port badge if non-standard
+    if server.port != 22 {
+        let port_label = gtk4::Label::new(Some(&format!(":{}", server.port)));
+        port_label.add_css_class("dim-label");
+        port_label.add_css_class("caption");
+        port_label.set_tooltip_text(Some("Non-standard SSH port"));
+        hbox.append(&port_label);
+    }
+
     row.set_child(Some(&hbox));
+
+    // Accessibility
+    row.set_accessible_role(gtk4::AccessibleRole::ListItem);
+    row.set_accessible_label(Some(&format!(
+        "{} - {}@{}",
+        server.name, server.username, server.host
+    )));
+
     row
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_server_list_creation() {
+        // Just verify it compiles
+        let _list = ServerList::new();
+    }
 }

@@ -209,6 +209,7 @@ impl AppViewModel {
         let new_group = easyssh_core::NewGroup {
             id: id.clone(),
             name: name.to_string(),
+            color: "#4A90D9".to_string(),
         };
         easyssh_core::add_group(&state, &new_group)?;
         info!("Added group: {} (id: {})", name, id);
@@ -220,6 +221,7 @@ impl AppViewModel {
         let update = easyssh_core::UpdateGroup {
             id: id.to_string(),
             name: Some(name.to_string()),
+            color: None,
         };
         easyssh_core::update_group(&state, &update)?;
         info!("Updated group {}: {}", id, name);

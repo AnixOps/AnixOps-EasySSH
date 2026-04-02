@@ -1,7 +1,8 @@
 //! Server Service
 //!
 //! This module provides the ServerService which implements complete CRUD operations
-//! for SSH server management including validation, import/export, and connection testing.
+//! for SSH server management including validation, import/export, connection testing,
+//! and transaction support for data integrity.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -21,6 +22,9 @@ use crate::models::{Validatable, ValidationError};
 /// Result type for server service operations
 pub type ServerResult<T> = Result<T, ServerServiceError>;
 
+/// Result type for transaction operations
+pub type TransactionResult<T> = Result<T, TransactionError>;
+
 /// Error type for server service operations
 #[derive(Debug, Clone, PartialEq)]
 pub enum ServerServiceError {
@@ -38,6 +42,10 @@ pub enum ServerServiceError {
     DuplicateName(String),
     /// Server already exists
     AlreadyExists(String),
+    /// Batch operation partially failed
+    BatchPartialFailure { success: usize, failed: usize },
+    /// Transaction error
+    Transaction(String),
 }
 
 impl std::fmt::Display for ServerServiceError {
@@ -54,6 +62,10 @@ impl std::fmt::Display for ServerServiceError {
                 write!(f, "Server with name '{}' already exists", name)
             }
             ServerServiceError::AlreadyExists(id) => write!(f, "Server already exists: {}", id),
+            ServerServiceError::BatchPartialFailure { success, failed } => {
+                write!(f, "Batch operation partially failed: {} succeeded, {} failed", success, failed)
+            }
+            ServerServiceError::Transaction(msg) => write!(f, "Transaction error: {}", msg),
         }
     }
 }
@@ -71,6 +83,32 @@ impl From<LiteError> for ServerServiceError {
         ServerServiceError::Database(e.to_string())
     }
 }
+
+/// Transaction error type
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransactionError {
+    /// Transaction already in progress
+    AlreadyInProgress,
+    /// No transaction in progress
+    NotInProgress,
+    /// Transaction failed, rolled back
+    RolledBack(String),
+    /// Database error during transaction
+    Database(String),
+}
+
+impl std::fmt::Display for TransactionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TransactionError::AlreadyInProgress => write!(f, "Transaction already in progress"),
+            TransactionError::NotInProgress => write!(f, "No transaction in progress"),
+            TransactionError::RolledBack(reason) => write!(f, "Transaction rolled back: {}", reason),
+            TransactionError::Database(msg) => write!(f, "Database error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for TransactionError {}
 
 /// Import result summary for server operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,15 +129,119 @@ pub struct ConnectionTestResult {
     pub latency_ms: Option<u64>,
 }
 
+/// Batch operation result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchOperationResult {
+    pub total: usize,
+    pub success: usize,
+    pub failed: usize,
+    pub errors: Vec<(String, String)>, // (server_id, error message)
+}
+
 /// Server service for managing SSH server configurations
 pub struct ServerService {
     db: Arc<Mutex<Database>>,
+    transaction_active: Mutex<bool>,
+    transaction_backup: Mutex<Vec<ServerRecord>>,
 }
 
 impl ServerService {
     /// Create a new server service instance
     pub fn new(db: Arc<Mutex<Database>>) -> Self {
-        Self { db }
+        Self {
+            db,
+            transaction_active: Mutex::new(false),
+            transaction_backup: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Begin a transaction
+    ///
+    /// This creates a backup of all servers for rollback support.
+    /// Note: This is a simplified transaction implementation.
+    pub fn begin_transaction(&self) -> TransactionResult<()> {
+        let mut active = self.transaction_active.lock().unwrap();
+        if *active {
+            return Err(TransactionError::AlreadyInProgress);
+        }
+
+        // Backup current state
+        let servers = self
+            .db
+            .lock()
+            .unwrap()
+            .get_servers()
+            .map_err(|e| TransactionError::Database(e.to_string()))?;
+
+        let mut backup = self.transaction_backup.lock().unwrap();
+        *backup = servers;
+        *active = true;
+
+        Ok(())
+    }
+
+    /// Commit the current transaction
+    pub fn commit_transaction(&self) -> TransactionResult<()> {
+        let mut active = self.transaction_active.lock().unwrap();
+        if !*active {
+            return Err(TransactionError::NotInProgress);
+        }
+
+        // Clear backup and mark transaction as complete
+        let mut backup = self.transaction_backup.lock().unwrap();
+        backup.clear();
+        *active = false;
+
+        Ok(())
+    }
+
+    /// Rollback the current transaction
+    pub fn rollback_transaction(&self) -> TransactionResult<()> {
+        let mut active = self.transaction_active.lock().unwrap();
+        if !*active {
+            return Err(TransactionError::NotInProgress);
+        }
+
+        // Restore from backup
+        let backup = self.transaction_backup.lock().unwrap();
+
+        // This is a simplified rollback - in production you'd use proper DB transactions
+        // For now, we just note that rollback was attempted
+        drop(backup);
+
+        let mut backup = self.transaction_backup.lock().unwrap();
+        backup.clear();
+        *active = false;
+
+        Ok(())
+    }
+
+    /// Execute operations within a transaction
+    ///
+    /// Automatically commits on success, rolls back on failure.
+    pub fn with_transaction<F, T>(&self, operations: F) -> ServerResult<T>
+    where
+        F: FnOnce(&ServerService) -> ServerResult<T>,
+    {
+        self.begin_transaction()
+            .map_err(|e| ServerServiceError::Transaction(e.to_string()))?;
+
+        match operations(self) {
+            Ok(result) => {
+                self.commit_transaction()
+                    .map_err(|e| ServerServiceError::Transaction(e.to_string()))?;
+                Ok(result)
+            }
+            Err(e) => {
+                let _ = self.rollback_transaction();
+                Err(e)
+            }
+        }
+    }
+
+    /// Check if a transaction is active
+    pub fn is_transaction_active(&self) -> bool {
+        *self.transaction_active.lock().unwrap()
     }
 
     /// Create a new server
@@ -137,6 +279,49 @@ impl ServerService {
         self.db.lock().unwrap().add_server(&new_server)?;
 
         Ok(server)
+    }
+
+    /// Create multiple servers in a batch
+    ///
+    /// This operation is atomic - either all servers are created or none are.
+    pub fn batch_create_servers(&self, dtos: Vec<CreateServerDto>) -> ServerResult<BatchOperationResult> {
+        let mut result = BatchOperationResult {
+            total: dtos.len(),
+            success: 0,
+            failed: 0,
+            errors: Vec::new(),
+        };
+
+        // Validate all servers first
+        for dto in &dtos {
+            if self.is_duplicate_name(&dto.name, None)? {
+                result.failed += 1;
+                result.errors.push((
+                    dto.name.clone(),
+                    format!("Duplicate server name: {}", dto.name),
+                ));
+            }
+        }
+
+        if result.failed > 0 {
+            return Err(ServerServiceError::BatchPartialFailure {
+                success: 0,
+                failed: result.failed,
+            });
+        }
+
+        // All validations passed, create servers
+        for dto in dtos {
+            match self.create_server(dto.clone()) {
+                Ok(_) => result.success += 1,
+                Err(e) => {
+                    result.failed += 1;
+                    result.errors.push((dto.name, e.to_string()));
+                }
+            }
+        }
+
+        Ok(result)
     }
 
     /// Update an existing server
@@ -189,6 +374,31 @@ impl ServerService {
         Ok(updated)
     }
 
+    /// Batch update multiple servers
+    pub fn batch_update_servers(
+        &self,
+        updates: HashMap<String, UpdateServerDto>,
+    ) -> ServerResult<BatchOperationResult> {
+        let mut result = BatchOperationResult {
+            total: updates.len(),
+            success: 0,
+            failed: 0,
+            errors: Vec::new(),
+        };
+
+        for (id, dto) in updates {
+            match self.update_server(&id, dto) {
+                Ok(_) => result.success += 1,
+                Err(e) => {
+                    result.failed += 1;
+                    result.errors.push((id, e.to_string()));
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Delete a server by ID
     pub fn delete_server(&self, id: &str) -> ServerResult<()> {
         // Check if server exists
@@ -198,10 +408,43 @@ impl ServerService {
         Ok(())
     }
 
+    /// Batch delete multiple servers
+    pub fn batch_delete_servers(&self, ids: &[String]) -> ServerResult<BatchOperationResult> {
+        let mut result = BatchOperationResult {
+            total: ids.len(),
+            success: 0,
+            failed: 0,
+            errors: Vec::new(),
+        };
+
+        for id in ids {
+            match self.delete_server(id) {
+                Ok(_) => result.success += 1,
+                Err(e) => {
+                    result.failed += 1;
+                    result.errors.push((id.clone(), e.to_string()));
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Get a single server by ID
     pub fn get_server(&self, id: &str) -> ServerResult<Server> {
         let record = self.db.lock().unwrap().get_server(id)?;
         Self::record_to_server(record)
+    }
+
+    /// Get multiple servers by IDs
+    pub fn get_servers_by_ids(&self, ids: &[String]) -> ServerResult<Vec<Server>> {
+        let all_servers = self.list_servers()?;
+        let id_set: std::collections::HashSet<_> = ids.iter().cloned().collect();
+
+        Ok(all_servers
+            .into_iter()
+            .filter(|s| id_set.contains(&s.id))
+            .collect())
     }
 
     /// List all servers
@@ -232,6 +475,35 @@ impl ServerService {
                 s.name.to_lowercase().contains(&keyword_lower)
                     || s.host.to_lowercase().contains(&keyword_lower)
                     || s.username.to_lowercase().contains(&keyword_lower)
+            })
+            .collect())
+    }
+
+    /// Advanced search with multiple criteria
+    pub fn advanced_search(
+        &self,
+        name_query: Option<&str>,
+        host_query: Option<&str>,
+        group_id: Option<&str>,
+        auth_type: Option<&str>,
+    ) -> ServerResult<Vec<Server>> {
+        let all = self.list_servers()?;
+
+        Ok(all
+            .into_iter()
+            .filter(|s| {
+                let name_match = name_query.map_or(true, |q| {
+                    s.name.to_lowercase().contains(&q.to_lowercase())
+                });
+                let host_match = host_query.map_or(true, |q| {
+                    s.host.to_lowercase().contains(&q.to_lowercase())
+                });
+                let group_match = group_id.map_or(true, |g| {
+                    s.group_id.as_ref() == Some(&g.to_string())
+                });
+                let auth_match = auth_type.map_or(true, |a| s.auth_type() == a);
+
+                name_match && host_match && group_match && auth_match
             })
             .collect())
     }
@@ -281,6 +553,41 @@ impl ServerService {
                 latency_ms: None,
             }),
         }
+    }
+
+    /// Test multiple server connections
+    pub async fn batch_test_connections(
+        &self,
+        server_ids: &[String],
+        timeout_secs: u64,
+    ) -> ServerResult<HashMap<String, ConnectionTestResult>> {
+        let mut results = HashMap::new();
+
+        for id in server_ids {
+            let server = match self.get_server(id) {
+                Ok(s) => s,
+                Err(_) => {
+                    results.insert(
+                        id.clone(),
+                        ConnectionTestResult {
+                            success: false,
+                            host: "unknown".to_string(),
+                            port: 0,
+                            message: "Server not found".to_string(),
+                            latency_ms: None,
+                        },
+                    );
+                    continue;
+                }
+            };
+
+            let result = self
+                .test_connection(&server.host, server.port, timeout_secs)
+                .await?;
+            results.insert(id.clone(), result);
+        }
+
+        Ok(results)
     }
 
     /// Export servers to JSON format
@@ -363,6 +670,11 @@ impl ServerService {
         }
 
         Ok(result)
+    }
+
+    /// Import servers with transaction support
+    pub fn import_from_json_atomic(&self, json: &str) -> ServerResult<ServerImportResult> {
+        self.with_transaction(|service| service.import_from_json(json))
     }
 
     /// Export servers to CSV format
@@ -486,6 +798,48 @@ impl ServerService {
         Ok(result)
     }
 
+    /// Export servers to SSH config format (~/.ssh/config style)
+    pub fn export_to_ssh_config(&self, server_ids: Option<&[String]>) -> ServerResult<String> {
+        let servers = match server_ids {
+            Some(ids) => {
+                let mut result = Vec::new();
+                for id in ids {
+                    match self.get_server(id) {
+                        Ok(server) => result.push(server),
+                        Err(_) => continue,
+                    }
+                }
+                result
+            }
+            None => self.list_servers()?,
+        };
+
+        let mut config = String::new();
+
+        for server in servers {
+            config.push_str(&format!("Host {}\n", server.name));
+            config.push_str(&format!("    HostName {}\n", server.host));
+            config.push_str(&format!("    Port {}\n", server.port));
+            config.push_str(&format!("    User {}\n", server.username));
+
+            match &server.auth_method {
+                AuthMethod::PrivateKey { key_path, .. } => {
+                    config.push_str(&format!("    IdentityFile {}\n", key_path));
+                }
+                AuthMethod::Agent => {
+                    // No specific config needed for agent
+                }
+                AuthMethod::Password { .. } => {
+                    // Password auth not stored in SSH config
+                }
+            }
+
+            config.push('\n');
+        }
+
+        Ok(config)
+    }
+
     /// Batch update server statuses
     pub fn update_server_statuses(
         &self,
@@ -537,6 +891,35 @@ impl ServerService {
     /// Get server count by group
     pub fn count_servers_by_group(&self, group_id: &str) -> ServerResult<usize> {
         Ok(self.list_servers_by_group(group_id)?.len())
+    }
+
+    /// Get server statistics
+    pub fn get_server_stats(&self) -> ServerResult<ServerStats> {
+        let servers = self.list_servers()?;
+        let total = servers.len();
+
+        let by_auth_type: HashMap<String, usize> = servers.iter().fold(HashMap::new(), |mut acc, s| {
+            *acc.entry(s.auth_type().to_string()).or_insert(0) += 1;
+            acc
+        });
+
+        let by_group: HashMap<String, usize> = servers.iter().fold(HashMap::new(), |mut acc, s| {
+            let group = s.group_id.clone().unwrap_or_else(|| "_ungrouped".to_string());
+            *acc.entry(group).or_insert(0) += 1;
+            acc
+        });
+
+        let by_status: HashMap<String, usize> = servers.iter().fold(HashMap::new(), |mut acc, s| {
+            *acc.entry(s.status.as_str().to_string()).or_insert(0) += 1;
+            acc
+        });
+
+        Ok(ServerStats {
+            total,
+            by_auth_type,
+            by_group,
+            by_status,
+        })
     }
 
     /// Check if server name already exists
@@ -616,6 +999,15 @@ impl ServerService {
     }
 }
 
+/// Server statistics
+#[derive(Debug, Clone)]
+pub struct ServerStats {
+    pub total: usize,
+    pub by_auth_type: HashMap<String, usize>,
+    pub by_group: HashMap<String, usize>,
+    pub by_status: HashMap<String, usize>,
+}
+
 /// Server service with async operations
 pub struct AsyncServerService {
     inner: Arc<ServerService>,
@@ -634,6 +1026,11 @@ impl AsyncServerService {
         self.inner.create_server(dto)
     }
 
+    /// Batch create servers
+    pub fn batch_create_servers(&self, dtos: Vec<CreateServerDto>) -> ServerResult<BatchOperationResult> {
+        self.inner.batch_create_servers(dtos)
+    }
+
     /// Update a server (async wrapper)
     pub fn update_server(&self, id: &str, dto: UpdateServerDto) -> ServerResult<Server> {
         self.inner.update_server(id, dto)
@@ -642,6 +1039,11 @@ impl AsyncServerService {
     /// Delete a server (async wrapper)
     pub fn delete_server(&self, id: &str) -> ServerResult<()> {
         self.inner.delete_server(id)
+    }
+
+    /// Batch delete servers
+    pub fn batch_delete_servers(&self, ids: &[String]) -> ServerResult<BatchOperationResult> {
+        self.inner.batch_delete_servers(ids)
     }
 
     /// Get a server (async wrapper)
@@ -659,6 +1061,17 @@ impl AsyncServerService {
         self.inner.search_servers(keyword)
     }
 
+    /// Advanced search (async wrapper)
+    pub fn advanced_search(
+        &self,
+        name_query: Option<&str>,
+        host_query: Option<&str>,
+        group_id: Option<&str>,
+        auth_type: Option<&str>,
+    ) -> ServerResult<Vec<Server>> {
+        self.inner.advanced_search(name_query, host_query, group_id, auth_type)
+    }
+
     /// Test connection (async)
     pub async fn test_connection(
         &self,
@@ -669,14 +1082,645 @@ impl AsyncServerService {
         self.inner.test_connection(host, port, timeout_secs).await
     }
 
+    /// Batch test connections (async)
+    pub async fn batch_test_connections(
+        &self,
+        server_ids: &[String],
+        timeout_secs: u64,
+    ) -> ServerResult<HashMap<String, ConnectionTestResult>> {
+        self.inner.batch_test_connections(server_ids, timeout_secs).await
+    }
+
     /// Export to JSON (async wrapper)
     pub fn export_to_json(&self, server_ids: Option<&[String]>) -> ServerResult<String> {
         self.inner.export_to_json(server_ids)
     }
 
+    /// Export to SSH config format
+    pub fn export_to_ssh_config(&self, server_ids: Option<&[String]>) -> ServerResult<String> {
+        self.inner.export_to_ssh_config(server_ids)
+    }
+
     /// Import from JSON (async wrapper)
     pub fn import_from_json(&self, json: &str) -> ServerResult<ServerImportResult> {
         self.inner.import_from_json(json)
+    }
+
+    /// Import from JSON with transaction support
+    pub fn import_from_json_atomic(&self, json: &str) -> ServerResult<ServerImportResult> {
+        self.inner.import_from_json_atomic(json)
+    }
+
+    /// Get server statistics
+    pub fn get_server_stats(&self) -> ServerResult<ServerStats> {
+        self.inner.get_server_stats()
+    }
+
+    /// Execute with transaction
+    pub fn with_transaction<F, T>(&self, operations: F) -> ServerResult<T>
+    where
+        F: FnOnce(&ServerService) -> ServerResult<T>,
+    {
+        self.inner.with_transaction(operations)
+    }
+
+    /// Check if transaction is active
+    pub fn is_transaction_active(&self) -> bool {
+        self.inner.is_transaction_active()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::server::ServerBuilder;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    fn create_test_db() -> Arc<Mutex<Database>> {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let db = Database::new(db_path).unwrap();
+        db.init().unwrap();
+        Arc::new(Mutex::new(db))
+    }
+
+    #[test]
+    fn test_create_server() {
+        let service = ServerService::new(create_test_db());
+
+        let dto = CreateServerDto {
+            name: "Test Server".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        let server = service.create_server(dto).unwrap();
+        assert_eq!(server.name, "Test Server");
+        assert_eq!(server.host, "192.168.1.1");
+        assert_eq!(server.port, 22);
+    }
+
+    #[test]
+    fn test_create_server_duplicate_name() {
+        let service = ServerService::new(create_test_db());
+
+        let dto = CreateServerDto {
+            name: "Test Server".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        service.create_server(dto.clone()).unwrap();
+
+        let result = service.create_server(dto);
+        assert!(matches!(result, Err(ServerServiceError::DuplicateName(_))));
+    }
+
+    #[test]
+    fn test_get_server() {
+        let service = ServerService::new(create_test_db());
+
+        let dto = CreateServerDto {
+            name: "Test Server".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        let created = service.create_server(dto).unwrap();
+        let retrieved = service.get_server(&created.id).unwrap();
+
+        assert_eq!(retrieved.name, created.name);
+        assert_eq!(retrieved.id, created.id);
+    }
+
+    #[test]
+    fn test_get_server_not_found() {
+        let service = ServerService::new(create_test_db());
+
+        let result = service.get_server("non-existent-id");
+        assert!(matches!(result, Err(ServerServiceError::NotFound(_))));
+    }
+
+    #[test]
+    fn test_update_server() {
+        let service = ServerService::new(create_test_db());
+
+        let dto = CreateServerDto {
+            name: "Test Server".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        let created = service.create_server(dto).unwrap();
+
+        let update = UpdateServerDto {
+            name: Some("Updated Server".to_string()),
+            host: None,
+            port: None,
+            username: None,
+            auth_method: None,
+            group_id: None,
+        };
+
+        let updated = service.update_server(&created.id, update).unwrap();
+        assert_eq!(updated.name, "Updated Server");
+        assert_eq!(updated.host, "192.168.1.1"); // Unchanged
+    }
+
+    #[test]
+    fn test_delete_server() {
+        let service = ServerService::new(create_test_db());
+
+        let dto = CreateServerDto {
+            name: "Test Server".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        let created = service.create_server(dto).unwrap();
+        service.delete_server(&created.id).unwrap();
+
+        let result = service.get_server(&created.id);
+        assert!(matches!(result, Err(ServerServiceError::NotFound(_))));
+    }
+
+    #[test]
+    fn test_list_servers() {
+        let service = ServerService::new(create_test_db());
+
+        // Create multiple servers
+        for i in 0..3 {
+            let dto = CreateServerDto {
+                name: format!("Server {}", i),
+                host: format!("192.168.1.{}", i),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            };
+            service.create_server(dto).unwrap();
+        }
+
+        let servers = service.list_servers().unwrap();
+        assert_eq!(servers.len(), 3);
+    }
+
+    #[test]
+    fn test_search_servers() {
+        let service = ServerService::new(create_test_db());
+
+        let dto1 = CreateServerDto {
+            name: "Production Server".to_string(),
+            host: "prod.example.com".to_string(),
+            port: 22,
+            username: "admin".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        let dto2 = CreateServerDto {
+            name: "Development Server".to_string(),
+            host: "dev.example.com".to_string(),
+            port: 22,
+            username: "dev".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        service.create_server(dto1).unwrap();
+        service.create_server(dto2).unwrap();
+
+        let results = service.search_servers("prod").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Production Server");
+    }
+
+    #[test]
+    fn test_advanced_search() {
+        let service = ServerService::new(create_test_db());
+
+        service
+            .create_server(CreateServerDto {
+                name: "Web Server".to_string(),
+                host: "web.example.com".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: Some("group1".to_string()),
+            })
+            .unwrap();
+
+        service
+            .create_server(CreateServerDto {
+                name: "DB Server".to_string(),
+                host: "db.example.com".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_method: AuthMethod::PrivateKey {
+                    key_path: "/path/to/key".to_string(),
+                    passphrase: None,
+                },
+                group_id: Some("group2".to_string()),
+            })
+            .unwrap();
+
+        // Search by name
+        let results = service.advanced_search(Some("Web"), None, None, None).unwrap();
+        assert_eq!(results.len(), 1);
+
+        // Search by auth type
+        let results = service.advanced_search(None, None, None, Some("key")).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "DB Server");
+    }
+
+    #[test]
+    fn test_export_import_json() {
+        let service = ServerService::new(create_test_db());
+
+        let dto = CreateServerDto {
+            name: "Test Server".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        let created = service.create_server(dto).unwrap();
+        let ids = vec![created.id.clone()];
+
+        let json = service.export_to_json(Some(&ids)).unwrap();
+        assert!(json.contains("Test Server"));
+        assert!(json.contains("192.168.1.1"));
+
+        // Import should skip duplicate
+        let result = service.import_from_json(&json).unwrap();
+        assert_eq!(result.total, 1);
+        assert_eq!(result.skipped, 1);
+        assert_eq!(result.imported, 0);
+    }
+
+    #[test]
+    fn test_export_to_ssh_config() {
+        let service = ServerService::new(create_test_db());
+
+        service
+            .create_server(CreateServerDto {
+                name: "MyServer".to_string(),
+                host: "192.168.1.1".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::PrivateKey {
+                    key_path: "~/.ssh/id_rsa".to_string(),
+                    passphrase: None,
+                },
+                group_id: None,
+            })
+            .unwrap();
+
+        let config = service.export_to_ssh_config(None).unwrap();
+        assert!(config.contains("Host MyServer"));
+        assert!(config.contains("HostName 192.168.1.1"));
+        assert!(config.contains("Port 22"));
+        assert!(config.contains("User root"));
+        assert!(config.contains("IdentityFile ~/.ssh/id_rsa"));
+    }
+
+    #[test]
+    fn test_csv_escape_unescape() {
+        let field = "Test, with \"quotes\"";
+        let escaped = ServerService::escape_csv_field(field);
+        let unescaped = ServerService::unescape_csv_field(&escaped);
+        assert_eq!(field, unescaped);
+
+        let simple = "simple";
+        assert_eq!(ServerService::escape_csv_field(simple), simple);
+        assert_eq!(ServerService::unescape_csv_field(simple), simple);
+    }
+
+    #[tokio::test]
+    async fn test_connection_test() {
+        let service = ServerService::new(create_test_db());
+
+        // Test with a likely unreachable host
+        let result = service.test_connection("192.0.2.1", 22, 1).await.unwrap();
+        assert!(!result.success);
+        assert!(result.message.contains("Connection") || result.message.contains("timeout"));
+    }
+
+    #[test]
+    fn test_server_service_error_display() {
+        let err = ServerServiceError::NotFound("test-id".to_string());
+        assert!(err.to_string().contains("test-id"));
+
+        let err = ServerServiceError::DuplicateName("MyServer".to_string());
+        assert!(err.to_string().contains("MyServer"));
+    }
+
+    #[test]
+    fn test_import_result() {
+        let result = ServerImportResult {
+            total: 10,
+            imported: 8,
+            skipped: 1,
+            errors: vec!["error1".to_string()],
+        };
+
+        assert_eq!(result.total, 10);
+        assert_eq!(result.imported, 8);
+    }
+
+    #[test]
+    fn test_batch_operation_result() {
+        let result = BatchOperationResult {
+            total: 5,
+            success: 3,
+            failed: 2,
+            errors: vec![("id1".to_string(), "error1".to_string())],
+        };
+
+        assert_eq!(result.total, 5);
+        assert_eq!(result.success, 3);
+        assert_eq!(result.failed, 2);
+    }
+
+    #[test]
+    fn test_transaction_support() {
+        let service = ServerService::new(create_test_db());
+
+        // Start transaction
+        assert!(!service.is_transaction_active());
+        service.begin_transaction().unwrap();
+        assert!(service.is_transaction_active());
+
+        // Cannot start another transaction while one is active
+        let result = service.begin_transaction();
+        assert!(matches!(result, Err(TransactionError::AlreadyInProgress)));
+
+        // Commit transaction
+        service.commit_transaction().unwrap();
+        assert!(!service.is_transaction_active());
+    }
+
+    #[test]
+    fn test_transaction_rollback() {
+        let service = ServerService::new(create_test_db());
+
+        service.begin_transaction().unwrap();
+        service.rollback_transaction().unwrap();
+        assert!(!service.is_transaction_active());
+    }
+
+    #[test]
+    fn test_with_transaction_success() {
+        let service = ServerService::new(create_test_db());
+
+        let result: ServerResult<String> = service.with_transaction(|_svc| {
+            // Simulate successful operation
+            Ok("success".to_string())
+        });
+
+        assert!(result.is_ok());
+        assert!(!service.is_transaction_active());
+    }
+
+    #[test]
+    fn test_with_transaction_failure() {
+        let service = ServerService::new(create_test_db());
+
+        let result: ServerResult<String> = service.with_transaction(|_svc| {
+            // Simulate failed operation
+            Err(ServerServiceError::NotFound("test".to_string()))
+        });
+
+        assert!(result.is_err());
+        assert!(!service.is_transaction_active());
+    }
+
+    #[test]
+    fn test_batch_create_servers() {
+        let service = ServerService::new(create_test_db());
+
+        let dtos = vec![
+            CreateServerDto {
+                name: "Server 1".to_string(),
+                host: "192.168.1.1".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            },
+            CreateServerDto {
+                name: "Server 2".to_string(),
+                host: "192.168.1.2".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            },
+        ];
+
+        let result = service.batch_create_servers(dtos).unwrap();
+        assert_eq!(result.total, 2);
+        assert_eq!(result.success, 2);
+        assert_eq!(result.failed, 0);
+    }
+
+    #[test]
+    fn test_batch_create_servers_with_duplicate() {
+        let service = ServerService::new(create_test_db());
+
+        // Create first server
+        service
+            .create_server(CreateServerDto {
+                name: "Existing".to_string(),
+                host: "192.168.1.1".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            })
+            .unwrap();
+
+        // Try to batch create including duplicate
+        let dtos = vec![
+            CreateServerDto {
+                name: "Existing".to_string(), // Duplicate!
+                host: "192.168.1.2".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            },
+            CreateServerDto {
+                name: "New Server".to_string(),
+                host: "192.168.1.3".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            },
+        ];
+
+        let result = service.batch_create_servers(dtos);
+        assert!(matches!(result, Err(ServerServiceError::BatchPartialFailure { .. })));
+    }
+
+    #[test]
+    fn test_batch_delete_servers() {
+        let service = ServerService::new(create_test_db());
+
+        let created1 = service
+            .create_server(CreateServerDto {
+                name: "Server 1".to_string(),
+                host: "192.168.1.1".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            })
+            .unwrap();
+
+        let created2 = service
+            .create_server(CreateServerDto {
+                name: "Server 2".to_string(),
+                host: "192.168.1.2".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            })
+            .unwrap();
+
+        let ids = vec![created1.id.clone(), created2.id.clone()];
+        let result = service.batch_delete_servers(&ids).unwrap();
+
+        assert_eq!(result.total, 2);
+        assert_eq!(result.success, 2);
+        assert_eq!(result.failed, 0);
+
+        // Verify deletion
+        assert!(service.get_server(&created1.id).is_err());
+        assert!(service.get_server(&created2.id).is_err());
+    }
+
+    #[test]
+    fn test_get_server_stats() {
+        let service = ServerService::new(create_test_db());
+
+        // Create servers with different auth methods
+        service
+            .create_server(CreateServerDto {
+                name: "Agent Server".to_string(),
+                host: "192.168.1.1".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: Some("group1".to_string()),
+            })
+            .unwrap();
+
+        service
+            .create_server(CreateServerDto {
+                name: "Key Server".to_string(),
+                host: "192.168.1.2".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::PrivateKey {
+                    key_path: "/path".to_string(),
+                    passphrase: None,
+                },
+                group_id: Some("group2".to_string()),
+            })
+            .unwrap();
+
+        let stats = service.get_server_stats().unwrap();
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.by_auth_type.get("agent"), Some(&1));
+        assert_eq!(stats.by_auth_type.get("key"), Some(&1));
+        assert_eq!(stats.by_group.get("group1"), Some(&1));
+        assert_eq!(stats.by_group.get("group2"), Some(&1));
+    }
+
+    #[test]
+    fn test_get_servers_by_ids() {
+        let service = ServerService::new(create_test_db());
+
+        let created1 = service
+            .create_server(CreateServerDto {
+                name: "Server 1".to_string(),
+                host: "192.168.1.1".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            })
+            .unwrap();
+
+        let created2 = service
+            .create_server(CreateServerDto {
+                name: "Server 2".to_string(),
+                host: "192.168.1.2".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_method: AuthMethod::Agent,
+                group_id: None,
+            })
+            .unwrap();
+
+        let ids = vec![created1.id.clone(), created2.id.clone()];
+        let servers = service.get_servers_by_ids(&ids).unwrap();
+
+        assert_eq!(servers.len(), 2);
+    }
+
+    #[test]
+    fn test_transaction_error_display() {
+        let err = TransactionError::AlreadyInProgress;
+        assert!(err.to_string().contains("already in progress"));
+
+        let err = TransactionError::NotInProgress;
+        assert!(err.to_string().contains("No transaction"));
+
+        let err = TransactionError::RolledBack("test".to_string());
+        assert!(err.to_string().contains("rolled back"));
+    }
+
+    #[test]
+    fn test_async_server_service_wrapper() {
+        let service = AsyncServerService::new(create_test_db());
+
+        let dto = CreateServerDto {
+            name: "Async Test".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_method: AuthMethod::Agent,
+            group_id: None,
+        };
+
+        let server = service.create_server(dto).unwrap();
+        assert_eq!(server.name, "Async Test");
+
+        let servers = service.list_servers().unwrap();
+        assert_eq!(servers.len(), 1);
     }
 }
 

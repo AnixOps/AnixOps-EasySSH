@@ -23,6 +23,7 @@ impl Database {
             CREATE TABLE IF NOT EXISTS groups (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
+                color TEXT NOT NULL DEFAULT '#4A90D9',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -381,15 +382,16 @@ impl Database {
     pub fn get_groups(&self) -> Result<Vec<GroupRecord>, LiteError> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, name, created_at, updated_at FROM groups ORDER BY name")?;
+            .prepare("SELECT id, name, color, created_at, updated_at FROM groups ORDER BY name")?;
 
         let groups = stmt
             .query_map([], |row| {
                 Ok(GroupRecord {
                     id: row.get(0)?,
                     name: row.get(1)?,
-                    created_at: row.get(2)?,
-                    updated_at: row.get(3)?,
+                    color: row.get(2)?,
+                    created_at: row.get(3)?,
+                    updated_at: row.get(4)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -397,11 +399,29 @@ impl Database {
         Ok(groups)
     }
 
+    pub fn get_group(&self, id: &str) -> Result<GroupRecord, LiteError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, color, created_at, updated_at FROM groups WHERE id = ?")?;
+
+        let group = stmt.query_row([id], |row| {
+            Ok(GroupRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                created_at: row.get(3)?,
+                updated_at: row.get(4)?,
+            })
+        })?;
+
+        Ok(group)
+    }
+
     pub fn add_group(&self, group: &NewGroup) -> Result<(), LiteError> {
         let now = chrono_now();
         self.conn.execute(
-            "INSERT INTO groups (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            params![group.id, group.name, now, now],
+            "INSERT INTO groups (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            params![group.id, group.name, group.color, now, now],
         )?;
         Ok(())
     }
@@ -412,6 +432,12 @@ impl Database {
             self.conn.execute(
                 "UPDATE groups SET name = ?, updated_at = ? WHERE id = ?",
                 params![name, now, group.id],
+            )?;
+        }
+        if let Some(color) = &group.color {
+            self.conn.execute(
+                "UPDATE groups SET color = ?, updated_at = ? WHERE id = ?",
+                params![color, now, group.id],
             )?;
         }
         Ok(())
@@ -1346,6 +1372,7 @@ pub struct UpdateServer {
 pub struct GroupRecord {
     pub id: String,
     pub name: String,
+    pub color: String,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -1354,12 +1381,14 @@ pub struct GroupRecord {
 pub struct NewGroup {
     pub id: String,
     pub name: String,
+    pub color: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UpdateGroup {
     pub id: String,
     pub name: Option<String>,
+    pub color: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, serde::Deserialize)]
@@ -1871,6 +1900,7 @@ mod tests {
             // 创建分组
             let group = NewGroup {
                 id: "grp-1".to_string(),
+                color: "#4A90D9".to_string(),
                 name: "Test Group".to_string(),
             };
             db.add_group(&group).unwrap();
@@ -1898,14 +1928,14 @@ mod tests {
             // 更新服务器
             let update = UpdateServer {
                 id: "srv-1".to_string(),
-                name: "Updated Server".to_string(),
-                host: "192.168.1.200".to_string(),
-                port: 2222,
-                username: "root".to_string(),
-                auth_type: "key".to_string(),
+                name: Some("Updated Server".to_string()),
+                host: Some("192.168.1.200".to_string()),
+                port: Some(2222),
+                username: Some("root".to_string()),
+                auth_type: Some("key".to_string()),
                 identity_file: Some("/path/to/key".to_string()),
                 group_id: None,
-                status: "offline".to_string(),
+                status: Some("offline".to_string()),
             };
             db.update_server(&update).unwrap();
 
@@ -1943,11 +1973,13 @@ mod tests {
             // 创建分组
             let group1 = NewGroup {
                 id: "grp-1".to_string(),
+                color: "#4A90D9".to_string(),
                 name: "Development".to_string(),
             };
             let group2 = NewGroup {
                 id: "grp-2".to_string(),
                 name: "Production".to_string(),
+                color: "#D0021B".to_string(),
             };
             db.add_group(&group1).unwrap();
             db.add_group(&group2).unwrap();
@@ -1959,7 +1991,8 @@ mod tests {
             // 更新分组
             let update = UpdateGroup {
                 id: "grp-1".to_string(),
-                name: "Dev Team".to_string(),
+                color: "#4A90D9".to_string(),
+                name: Some("Dev Team".to_string()),
             };
             db.update_group(&update).unwrap();
             let groups = db.get_groups().unwrap();
@@ -2373,6 +2406,7 @@ mod tests {
             // Create group first (for foreign key)
             let group = NewGroup {
                 id: "grp-1".to_string(),
+                color: "#4A90D9".to_string(),
                 name: "Test Group".to_string(),
             };
             db.add_group(&group).unwrap();
@@ -3017,6 +3051,7 @@ mod tests {
                 let group = NewGroup {
                     id: format!("grp-{}", i),
                     name: format!("Group {}", i),
+                    color: "#4A90D9".to_string(),
                 };
                 db.add_group(&group).unwrap();
             }

@@ -951,7 +951,8 @@ fn test_server_group_assignment() {
 - [调试指南](./DEBUGGING.md) - 故障排查
 - [性能分析指南](./PROFILING.md) - 性能优化
 - [故障排除指南](./TROUBLESHOOTING.md) - 常见问题
+- [核心测试框架](../../crates/easyssh-core/tests/README.md) - EasySSH Core测试框架
 
 ---
 
-*最后更新: 2026-04-01*
+*最后更新: 2026-04-02*

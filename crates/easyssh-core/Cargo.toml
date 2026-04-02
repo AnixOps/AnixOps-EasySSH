@@ -34,6 +34,8 @@ dirs = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }
 lazy_static = { workspace = true }
+once_cell = { workspace = true }
+toml = { workspace = true, optional = true }
 futures-util = { workspace = true }
 tokio-tungstenite = { workspace = true }
 whoami = { workspace = true }
@@ -135,7 +137,7 @@ default = ["lite"]
 
 # ===== Version Features =====
 # Lite: SSH配置保险箱 - 基础SSH连接和配置管理
-lite = ["keychain", "config-crypto", "dev-tools", "update-checker"]
+lite = ["keychain", "config-crypto", "dev-tools", "update-checker", "serde_yaml", "toml"]
 
 # Standard: 全功能客户端 - 在Lite基础上增加终端、分屏、监控、文件管理
 standard = [
@@ -189,7 +191,7 @@ port-forwarding = []
 snippets = []
 
 # Database client
-database = ["dep:sqlx"]
+database = ["dep:sqlx", "dep:hex"]
 database-client = ["database"]
 mysql-driver = ["database", "dep:mysql_async"]
 postgres-driver = ["database", "dep:tokio-postgres"]
@@ -307,6 +309,11 @@ harness = false
 name = "sftp_bench"
 harness = false
 required-features = ["sftp"]
+
+[[bench]]
+name = "performance_opt_bench"
+harness = false
+required-features = ["lite"]
 
 [[bench]]
 name = "workflow_bench"

@@ -5,19 +5,53 @@
 //!
 //! - Hierarchical error types (EasySSHErrors as the top-level enum)
 //! - Automatic error conversion via #[from] attributes
-//! - User-friendly error messages with translation keys
-//! - Error codes for searching and debugging
+//! - User-friendly error messages with Chinese localization
+//! - Error codes for searching and debugging (e.g., E1000-E9900)
 //! - Retry suggestions for transient errors
+//! - Error recovery strategies for automatic error handling
+//!
+//! # Error Code Ranges
+//!
+//! | Range | Category |
+//! |-------|----------|
+//! | E1000-E1099 | Crypto errors |
+//! | E1100-E1199 | Authentication errors |
+//! | E1200-E1299 | Not found errors |
+//! | E1300-E1399 | Permission errors |
+//! | E1400-E1499 | Feature availability |
+//! | E2000-E2999 | Database errors |
+//! | E3000-E3999 | SSH errors |
+//! | E4000-E4999 | I/O errors |
+//! | E5000-E5999 | Configuration errors |
+//! | E6000-E6999 | Validation errors |
+//! | E7000-E7999 | User cancellation |
+//! | E8000-E8999 | Serialization errors |
+//! | E9000-E9999 | Network errors |
+//! | E9900+ | Internal errors |
 //!
 //! # Example
 //!
 //! ```rust
-//! use easyssh_core::error::{EasySSHErrors, Result};
+//! use easyssh_core::error::{EasySSHErrors, Result, ErrorRecovery};
 //!
 //! fn may_fail() -> Result<String> {
 //!     // Returns EasySSHErrors::Io on failure
 //!     let content = std::fs::read_to_string("config.txt")?;
 //!     Ok(content)
+//! }
+//!
+//! fn handle_with_recovery() -> Result<String> {
+//!     match may_fail() {
+//!         Ok(v) => Ok(v),
+//!         Err(e) => {
+//!             // Try automatic recovery
+//!             if let Some(recovery) = e.recovery_strategy() {
+//!                 recovery.attempt_recover(&e)
+//!             } else {
+//!                 Err(e)
+//!             }
+//!         }
+//!     }
 //! }
 //! ```
 
@@ -193,7 +227,174 @@ pub enum CoreSshError {
     SessionPoolFull,
 }
 
-/// Error severity levels for logging and user notification
+/// Error recovery strategies for automatic error handling
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoveryStrategy {
+    /// Retry with exponential backoff
+    RetryWithBackoff { max_attempts: u32, base_delay_ms: u64 },
+    /// Refresh connection/session
+    RefreshConnection,
+    /// Re-initialize component
+    Reinitialize,
+    /// Clear cache and retry
+    ClearCacheRetry,
+    /// Fallback to offline mode
+    FallbackOffline,
+    /// No recovery possible
+    NoRecovery,
+}
+
+impl RecoveryStrategy {
+    /// Attempt to recover from the given error
+    pub fn attempt_recover<T, F>(&self, mut operation: F) -> Result<T>
+    where
+        F: FnMut() -> Result<T>,
+    {
+        match self {
+            RecoveryStrategy::RetryWithBackoff { max_attempts, base_delay_ms } => {
+                Self::retry_with_backoff(*max_attempts, *base_delay_ms, operation)
+            }
+            _ => {
+                // For other strategies, caller needs to handle them specifically
+                operation()
+            }
+        }
+    }
+
+    /// Retry operation with exponential backoff
+    fn retry_with_backoff<T, F>(max_attempts: u32, base_delay_ms: u64, mut operation: F) -> Result<T>
+    where
+        F: FnMut() -> Result<T>,
+    {
+        for attempt in 0..max_attempts {
+            match operation() {
+                Ok(result) => return Ok(result),
+                Err(_e) if attempt < max_attempts - 1 => {
+                    let delay = base_delay_ms * (2_u64.pow(attempt));
+                    std::thread::sleep(std::time::Duration::from_millis(delay.min(30000)));
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        panic!("Retry loop exited unexpectedly")
+    }
+
+    /// Get human-readable description of the strategy
+    pub fn description(&self) -> &'static str {
+        match self {
+            RecoveryStrategy::RetryWithBackoff { .. } => "稍后自动重试",
+            RecoveryStrategy::RefreshConnection => "刷新连接",
+            RecoveryStrategy::Reinitialize => "重新初始化",
+            RecoveryStrategy::ClearCacheRetry => "清除缓存并重试",
+            RecoveryStrategy::FallbackOffline => "切换至离线模式",
+            RecoveryStrategy::NoRecovery => "需要手动处理",
+        }
+    }
+}
+
+/// Trait for types that can provide error recovery strategies
+pub trait ErrorRecovery {
+    /// Get the recommended recovery strategy for this error
+    fn recovery_strategy(&self) -> Option<RecoveryStrategy>;
+    /// Attempt automatic recovery
+    fn attempt_recovery<T, F>(&self, operation: F) -> EasySSHResult<T>
+    where
+        F: FnMut() -> EasySSHResult<T>;
+}
+
+impl ErrorRecovery for EasySSHErrors {
+    fn recovery_strategy(&self) -> Option<RecoveryStrategy> {
+        match self {
+            // Network errors - retry with backoff
+            EasySSHErrors::Ssh(CoreSshError::ConnectionFailed { .. }) => {
+                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 1000 })
+            }
+            EasySSHErrors::Ssh(CoreSshError::ConnectionTimeout) => {
+                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 2000 })
+            }
+            EasySSHErrors::Ssh(CoreSshError::SessionDisconnected(_)) => {
+                Some(RecoveryStrategy::RefreshConnection)
+            }
+            EasySSHErrors::Network(_) => {
+                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 5, base_delay_ms: 1000 })
+            }
+            EasySSHErrors::Timeout => {
+                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 1000 })
+            }
+
+            // Database errors
+            EasySSHErrors::Database(CoreDatabaseError::LockTimeout) => {
+                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 5, base_delay_ms: 100 })
+            }
+            EasySSHErrors::Database(CoreDatabaseError::Connection(_)) => {
+                Some(RecoveryStrategy::Reinitialize)
+            }
+
+            // I/O errors
+            EasySSHErrors::Io(e) if e.kind() == std::io::ErrorKind::Interrupted => {
+                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 100 })
+            }
+            EasySSHErrors::Io(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 50 })
+            }
+
+            // No recovery for these
+            EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword) => None,
+            EasySSHErrors::Authentication(_) => None,
+            EasySSHErrors::PermissionDenied(_) => None,
+            EasySSHErrors::Validation(_) => None,
+            EasySSHErrors::UserCancelled => None,
+            EasySSHErrors::FeatureNotAvailable { .. } => None,
+            _ => None,
+        }
+    }
+
+    fn attempt_recovery<T, F>(&self, mut operation: F) -> EasySSHResult<T>
+    where
+        F: FnMut() -> EasySSHResult<T>,
+    {
+        if let Some(strategy) = self.recovery_strategy() {
+            match strategy {
+                RecoveryStrategy::RetryWithBackoff { max_attempts, base_delay_ms } => {
+                    RecoveryStrategy::retry_with_backoff(max_attempts, base_delay_ms, &mut operation)
+                }
+                _ => operation(),
+            }
+        } else {
+            Err(self.clone())
+        }
+    }
+}
+
+impl Clone for EasySSHErrors {
+    fn clone(&self) -> Self {
+        match self {
+            EasySSHErrors::Crypto(e) => EasySSHErrors::Crypto(e.clone()),
+            EasySSHErrors::Database(e) => EasySSHErrors::Database(e.clone()),
+            EasySSHErrors::Ssh(e) => EasySSHErrors::Ssh(e.clone()),
+            EasySSHErrors::Io(e) => EasySSHErrors::Io(std::io::Error::new(e.kind(), e.to_string())),
+            EasySSHErrors::Config(s) => EasySSHErrors::Config(s.clone()),
+            EasySSHErrors::Validation(s) => EasySSHErrors::Validation(s.clone()),
+            EasySSHErrors::UserCancelled => EasySSHErrors::UserCancelled,
+            EasySSHErrors::Serialization(e) => {
+                // Can't clone serde_json::Error directly, convert to string
+                EasySSHErrors::Serialization(serde_json::from_str::<serde_json::Value>("null").unwrap_err())
+            }
+            EasySSHErrors::Network(s) => EasySSHErrors::Network(s.clone()),
+            EasySSHErrors::Authentication(s) => EasySSHErrors::Authentication(s.clone()),
+            EasySSHErrors::Timeout => EasySSHErrors::Timeout,
+            EasySSHErrors::NotFound(s) => EasySSHErrors::NotFound(s.clone()),
+            EasySSHErrors::PermissionDenied(s) => EasySSHErrors::PermissionDenied(s.clone()),
+            EasySSHErrors::FeatureNotAvailable { feature, edition } => {
+                EasySSHErrors::FeatureNotAvailable {
+                    feature: feature.clone(),
+                    edition: edition.clone(),
+                }
+            }
+            EasySSHErrors::Internal(s) => EasySSHErrors::Internal(s.clone()),
+        }
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorSeverity {
     Critical,
@@ -204,9 +405,9 @@ pub enum ErrorSeverity {
 
 /// Error display information for user-friendly messages
 pub struct ErrorDisplay {
-    /// Error code for searching documentation
-    pub code: &'static str,
-    /// User-friendly message (translated)
+    /// Error code for searching documentation (e.g., "E1001")
+    pub code: String,
+    /// User-friendly message (translated to Chinese)
     pub message: String,
     /// Suggested action for the user
     pub suggestion: Option<String>,
@@ -214,6 +415,8 @@ pub struct ErrorDisplay {
     pub retryable: bool,
     /// Error severity
     pub severity: ErrorSeverity,
+    /// Recovery strategy if available
+    pub recovery: Option<RecoveryStrategy>,
 }
 
 impl EasySSHErrors {
@@ -222,24 +425,105 @@ impl EasySSHErrors {
         EasySSHErrors::Config(msg.into())
     }
 
-    /// Get the error code for documentation lookup
-    pub fn error_code(&self) -> &'static str {
+    /// Get the detailed error code for documentation lookup
+    ///
+    /// Error codes follow this pattern:
+    /// - E1000-E1099: Crypto errors
+    /// - E1100-E1199: Authentication errors
+    /// - E1200-E1299: Not found errors
+    /// - E1300-E1399: Permission errors
+    /// - E1400-E1499: Feature availability
+    /// - E2000-E2999: Database errors
+    /// - E3000-E3999: SSH errors
+    /// - E4000-E4999: I/O errors
+    /// - E5000-E5999: Configuration errors
+    /// - E6000-E6999: Validation errors
+    /// - E7000-E7999: User cancellation
+    /// - E8000-E8999: Serialization errors
+    /// - E9000-E9999: Network errors
+    /// - E9900+: Internal errors
+    pub fn error_code(&self) -> String {
         match self {
-            EasySSHErrors::Crypto(_) => "E1000",
-            EasySSHErrors::Database(_) => "E2000",
-            EasySSHErrors::Ssh(_) => "E3000",
-            EasySSHErrors::Io(_) => "E4000",
-            EasySSHErrors::Config(_) => "E5000",
-            EasySSHErrors::Validation(_) => "E6000",
-            EasySSHErrors::UserCancelled => "E7000",
-            EasySSHErrors::Serialization(_) => "E8000",
-            EasySSHErrors::Network(_) => "E9000",
-            EasySSHErrors::Authentication(_) => "E1001",
-            EasySSHErrors::Timeout => "E1100",
-            EasySSHErrors::NotFound(_) => "E1200",
-            EasySSHErrors::PermissionDenied(_) => "E1300",
-            EasySSHErrors::FeatureNotAvailable { .. } => "E1400",
-            EasySSHErrors::Internal(_) => "E9900",
+            // Crypto errors - E1000
+            EasySSHErrors::Crypto(e) => match e {
+                CoreCryptoError::KeyDerivation(_) => "E1001".to_string(),
+                CoreCryptoError::Encryption(_) => "E1002".to_string(),
+                CoreCryptoError::Decryption(_) => "E1003".to_string(),
+                CoreCryptoError::InvalidMasterPassword => "E1004".to_string(),
+                CoreCryptoError::Keychain(_) => "E1005".to_string(),
+                CoreCryptoError::InvalidKeyFormat(_) => "E1006".to_string(),
+                CoreCryptoError::RngError(_) => "E1007".to_string(),
+            },
+            // Database errors - E2000
+            EasySSHErrors::Database(e) => match e {
+                CoreDatabaseError::Connection(_) => "E2001".to_string(),
+                CoreDatabaseError::Query(_) => "E2002".to_string(),
+                CoreDatabaseError::Migration(_) => "E2003".to_string(),
+                CoreDatabaseError::UniqueViolation(_) => "E2004".to_string(),
+                CoreDatabaseError::ForeignKeyViolation(_) => "E2005".to_string(),
+                CoreDatabaseError::RecordNotFound { .. } => "E2006".to_string(),
+                CoreDatabaseError::Transaction(_) => "E2007".to_string(),
+                CoreDatabaseError::LockTimeout => "E2008".to_string(),
+            },
+            // SSH errors - E3000
+            EasySSHErrors::Ssh(e) => match e {
+                CoreSshError::ConnectionFailed { .. } => "E3001".to_string(),
+                CoreSshError::AuthFailed { .. } => "E3002".to_string(),
+                CoreSshError::SessionNotFound(_) => "E3003".to_string(),
+                CoreSshError::SessionDisconnected(_) => "E3004".to_string(),
+                CoreSshError::ConnectionTimeout => "E3005".to_string(),
+                CoreSshError::ChannelFailed(_) => "E3006".to_string(),
+                CoreSshError::CommandFailed(_) => "E3007".to_string(),
+                CoreSshError::Sftp(_) => "E3008".to_string(),
+                CoreSshError::PortForward(_) => "E3009".to_string(),
+                CoreSshError::ProxyJump(_) => "E3010".to_string(),
+                CoreSshError::HostKeyVerification(_) => "E3011".to_string(),
+                CoreSshError::SessionPoolFull => "E3012".to_string(),
+            },
+            // I/O errors - E4000
+            EasySSHErrors::Io(e) => match e.kind() {
+                std::io::ErrorKind::NotFound => "E4001".to_string(),
+                std::io::ErrorKind::PermissionDenied => "E4002".to_string(),
+                std::io::ErrorKind::ConnectionRefused => "E4003".to_string(),
+                std::io::ErrorKind::ConnectionReset => "E4004".to_string(),
+                std::io::ErrorKind::ConnectionAborted => "E4005".to_string(),
+                std::io::ErrorKind::NotConnected => "E4006".to_string(),
+                std::io::ErrorKind::AddrInUse => "E4007".to_string(),
+                std::io::ErrorKind::AddrNotAvailable => "E4008".to_string(),
+                std::io::ErrorKind::BrokenPipe => "E4009".to_string(),
+                std::io::ErrorKind::AlreadyExists => "E4010".to_string(),
+                std::io::ErrorKind::WouldBlock => "E4011".to_string(),
+                std::io::ErrorKind::InvalidInput => "E4012".to_string(),
+                std::io::ErrorKind::InvalidData => "E4013".to_string(),
+                std::io::ErrorKind::TimedOut => "E4014".to_string(),
+                std::io::ErrorKind::WriteZero => "E4015".to_string(),
+                std::io::ErrorKind::Interrupted => "E4016".to_string(),
+                std::io::ErrorKind::UnexpectedEof => "E4017".to_string(),
+                std::io::ErrorKind::OutOfMemory => "E4018".to_string(),
+                _ => "E4099".to_string(),
+            },
+            // Config errors - E5000
+            EasySSHErrors::Config(_) => "E5001".to_string(),
+            // Validation errors - E6000
+            EasySSHErrors::Validation(_) => "E6001".to_string(),
+            // User cancelled - E7000
+            EasySSHErrors::UserCancelled => "E7001".to_string(),
+            // Serialization errors - E8000
+            EasySSHErrors::Serialization(_) => "E8001".to_string(),
+            // Network errors - E9000
+            EasySSHErrors::Network(_) => "E9001".to_string(),
+            // Authentication errors - E1100
+            EasySSHErrors::Authentication(_) => "E1101".to_string(),
+            // Timeout - E1100
+            EasySSHErrors::Timeout => "E1102".to_string(),
+            // Not found - E1200
+            EasySSHErrors::NotFound(_) => "E1201".to_string(),
+            // Permission denied - E1300
+            EasySSHErrors::PermissionDenied(_) => "E1301".to_string(),
+            // Feature not available - E1400
+            EasySSHErrors::FeatureNotAvailable { .. } => "E1401".to_string(),
+            // Internal errors - E9900
+            EasySSHErrors::Internal(_) => "E9901".to_string(),
         }
     }
 
@@ -328,50 +612,270 @@ impl EasySSHErrors {
         }
     }
 
-    /// Get user-friendly error display information
-    pub fn display_info(&self) -> ErrorDisplay {
-        ErrorDisplay {
-            code: self.error_code(),
-            message: self.to_string(),
-            suggestion: self.retry_suggestion().map(|s| s.to_string()),
-            retryable: self.is_retryable(),
-            severity: self.severity(),
+    /// Get detailed user-friendly error message in Chinese
+    pub fn user_message(&self) -> String {
+        let base_msg = self.to_string();
+        let suggestion = self.suggestion_message();
+
+        if let Some(sugg) = suggestion {
+            format!("{}\n\n💡 建议: {}", base_msg, sugg)
+        } else {
+            base_msg
         }
     }
 
-    /// Get detailed context information for logging
-    pub fn context(&self) -> Vec<(&'static str, String)> {
+    /// Get user-friendly suggestion message
+    fn suggestion_message(&self) -> Option<String> {
         match self {
-            EasySSHErrors::Crypto(e) => vec![("crypto_error", e.to_string())],
-            EasySSHErrors::Database(e) => vec![("database_error", e.to_string())],
+            // Crypto errors
+            EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword) => {
+                Some("请确认主密码正确，或使用密码重置功能".to_string())
+            }
+            EasySSHErrors::Crypto(CoreCryptoError::KeyDerivation(_)) => {
+                Some("请检查系统内存是否充足".to_string())
+            }
+            EasySSHErrors::Crypto(CoreCryptoError::InvalidKeyFormat(_)) => {
+                Some("请检查密钥格式是否为OpenSSH或PEM格式".to_string())
+            }
+
+            // Database errors
+            EasySSHErrors::Database(CoreDatabaseError::Connection(_)) => {
+                Some("请检查数据库文件是否存在且未被其他程序占用".to_string())
+            }
+            EasySSHErrors::Database(CoreDatabaseError::UniqueViolation(_)) => {
+                Some("该名称已存在，请使用其他名称".to_string())
+            }
+            EasySSHErrors::Database(CoreDatabaseError::RecordNotFound { table, id }) => {
+                Some(format!("请在{}列表中检查ID '{}'是否存在", table, id))
+            }
+
+            // SSH errors
+            EasySSHErrors::Ssh(CoreSshError::ConnectionFailed { host, port, message }) => {
+                Some(format!(
+                    "请检查:\n1. 服务器 {}:{} 是否在线\n2. 防火墙是否允许SSH连接\n3. 网络连接是否正常\n\n错误详情: {}",
+                    host, port, message
+                ))
+            }
+            EasySSHErrors::Ssh(CoreSshError::AuthFailed { host, username }) => {
+                Some(format!(
+                    "请检查:\n1. 用户名 '{}' 是否正确\n2. 密码或私钥是否正确\n3. 服务器 {} 是否允许该用户登录",
+                    username, host
+                ))
+            }
+            EasySSHErrors::Ssh(CoreSshError::HostKeyVerification(_)) => {
+                Some("服务器身份验证失败。如果更换了服务器，请在设置中清除该主机的已知主机密钥".to_string())
+            }
+            EasySSHErrors::Ssh(CoreSshError::ConnectionTimeout) => {
+                Some("连接超时，请检查:\n1. 服务器地址和端口是否正确\n2. 网络是否可达\n3. 防火墙设置".to_string())
+            }
+
+            // I/O errors
+            EasySSHErrors::Io(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Some("找不到指定文件或目录，请检查路径是否正确".to_string())
+            }
+            EasySSHErrors::Io(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                Some("权限不足，请检查文件权限或以管理员身份运行".to_string())
+            }
+
+            // Config errors
+            EasySSHErrors::Config(_) => {
+                Some("请检查配置文件格式或重置为默认配置".to_string())
+            }
+
+            // Validation errors
+            EasySSHErrors::Validation(msg) => {
+                Some(format!("请检查输入: {}", msg))
+            }
+
+            // Feature not available
+            EasySSHErrors::FeatureNotAvailable { feature, edition } => {
+                Some(format!("此功能 '{}' 仅在 {} 版本中可用，请升级您的版本", feature, edition))
+            }
+
+            // Not found
+            EasySSHErrors::NotFound(item) => {
+                Some(format!("'{}' 不存在，请检查名称拼写或重新创建", item))
+            }
+
+            // Permission denied
+            EasySSHErrors::PermissionDenied(action) => {
+                Some(format!("您没有权限执行 '{}'，请联系管理员", action))
+            }
+
+            // Network errors
+            EasySSHErrors::Network(msg) => {
+                Some(format!("网络问题: {}，请检查网络连接", msg))
+            }
+
+            // Authentication
+            EasySSHErrors::Authentication(msg) => {
+                Some(format!("认证失败: {}，请检查凭证", msg))
+            }
+
+            _ => None,
+        }
+    }
+
+    /// Get the error display information
+    pub fn display_info(&self) -> ErrorDisplay {
+        ErrorDisplay {
+            code: self.error_code(),
+            message: self.user_message(),
+            suggestion: self.suggestion_message(),
+            retryable: self.is_retryable(),
+            severity: self.severity(),
+            recovery: self.recovery_strategy(),
+        }
+    }
+
+    /// Get detailed context information for debugging
+    ///
+    /// Returns a vector of key-value pairs containing:
+    /// - Error code
+    /// - Error category
+    /// - Detailed context from the specific error
+    /// - Recovery strategy if available
+    pub fn context(&self) -> Vec<(&'static str, String)> {
+        let mut ctx = vec![
+            ("error_code", self.error_code()),
+            ("error_type", self.error_type_name()),
+            ("retryable", self.is_retryable().to_string()),
+            ("severity", format!("{:?}", self.severity())),
+        ];
+
+        if let Some(recovery) = self.recovery_strategy() {
+            ctx.push(("recovery", recovery.description().to_string()));
+        }
+
+        // Add specific context based on error type
+        match self {
+            EasySSHErrors::Crypto(e) => {
+                ctx.push(("crypto_error", e.to_string()));
+                ctx.push(("error_category", "crypto".to_string()));
+            }
+            EasySSHErrors::Database(e) => {
+                ctx.push(("database_error", e.to_string()));
+                ctx.push(("error_category", "database".to_string()));
+                if let CoreDatabaseError::RecordNotFound { table, id } = e {
+                    ctx.push(("table", table.clone()));
+                    ctx.push(("record_id", id.clone()));
+                }
+            }
             EasySSHErrors::Ssh(CoreSshError::ConnectionFailed {
                 host,
                 port,
                 message,
-            }) => vec![
-                ("host", host.clone()),
-                ("port", port.to_string()),
-                ("message", message.clone()),
-            ],
+            }) => {
+                ctx.push(("host", host.clone()));
+                ctx.push(("port", port.to_string()));
+                ctx.push(("message", message.clone()));
+                ctx.push(("error_category", "ssh_connection".to_string()));
+            }
             EasySSHErrors::Ssh(CoreSshError::AuthFailed { host, username }) => {
-                vec![("host", host.clone()), ("username", username.clone())]
+                ctx.push(("host", host.clone()));
+                ctx.push(("username", username.clone()));
+                ctx.push(("error_category", "ssh_auth".to_string()));
             }
             EasySSHErrors::Ssh(CoreSshError::SessionNotFound(id))
             | EasySSHErrors::Ssh(CoreSshError::SessionDisconnected(id)) => {
-                vec![("session_id", id.clone())]
+                ctx.push(("session_id", id.clone()));
+                ctx.push(("error_category", "ssh_session".to_string()));
             }
-            EasySSHErrors::NotFound(item) => vec![("item", item.clone())],
-            EasySSHErrors::Config(key) => vec![("config_key", key.clone())],
-            EasySSHErrors::Validation(msg) => vec![("validation_msg", msg.clone())],
-            EasySSHErrors::Network(msg) => vec![("network_msg", msg.clone())],
-            EasySSHErrors::Authentication(msg) => vec![("auth_msg", msg.clone())],
-            EasySSHErrors::PermissionDenied(msg) => vec![("permission_msg", msg.clone())],
-            EasySSHErrors::Internal(msg) => vec![("internal_msg", msg.clone())],
+            EasySSHErrors::Ssh(e) => {
+                ctx.push(("ssh_error", e.to_string()));
+                ctx.push(("error_category", "ssh".to_string()));
+            }
+            EasySSHErrors::Io(e) => {
+                ctx.push(("io_kind", format!("{:?}", e.kind())));
+                ctx.push(("io_message", e.to_string()));
+                ctx.push(("error_category", "io".to_string()));
+            }
+            EasySSHErrors::NotFound(item) => {
+                ctx.push(("item", item.clone()));
+                ctx.push(("error_category", "not_found".to_string()));
+            }
+            EasySSHErrors::Config(key) => {
+                ctx.push(("config_key", key.clone()));
+                ctx.push(("error_category", "config".to_string()));
+            }
+            EasySSHErrors::Validation(msg) => {
+                ctx.push(("validation_msg", msg.clone()));
+                ctx.push(("error_category", "validation".to_string()));
+            }
+            EasySSHErrors::Network(msg) => {
+                ctx.push(("network_msg", msg.clone()));
+                ctx.push(("error_category", "network".to_string()));
+            }
+            EasySSHErrors::Authentication(msg) => {
+                ctx.push(("auth_msg", msg.clone()));
+                ctx.push(("error_category", "authentication".to_string()));
+            }
+            EasySSHErrors::PermissionDenied(msg) => {
+                ctx.push(("permission_msg", msg.clone()));
+                ctx.push(("error_category", "permission".to_string()));
+            }
+            EasySSHErrors::Internal(msg) => {
+                ctx.push(("internal_msg", msg.clone()));
+                ctx.push(("error_category", "internal".to_string()));
+            }
             EasySSHErrors::FeatureNotAvailable { feature, edition } => {
-                vec![("feature", feature.clone()), ("edition", edition.clone())]
+                ctx.push(("feature", feature.clone()));
+                ctx.push(("current_edition", edition.clone()));
+                ctx.push(("error_category", "feature_unavailable".to_string()));
             }
-            _ => vec![],
+            EasySSHErrors::Serialization(e) => {
+                ctx.push(("serialization_error", e.to_string()));
+                ctx.push(("error_category", "serialization".to_string()));
+            }
+            EasySSHErrors::Timeout => {
+                ctx.push(("error_category", "timeout".to_string()));
+            }
+            EasySSHErrors::UserCancelled => {
+                ctx.push(("error_category", "user_cancelled".to_string()));
+            }
         }
+
+        ctx
+    }
+
+    /// Get the error type name for categorization
+    fn error_type_name(&self) -> String {
+        match self {
+            EasySSHErrors::Crypto(_) => "crypto",
+            EasySSHErrors::Database(_) => "database",
+            EasySSHErrors::Ssh(_) => "ssh",
+            EasySSHErrors::Io(_) => "io",
+            EasySSHErrors::Config(_) => "config",
+            EasySSHErrors::Validation(_) => "validation",
+            EasySSHErrors::UserCancelled => "user_cancelled",
+            EasySSHErrors::Serialization(_) => "serialization",
+            EasySSHErrors::Network(_) => "network",
+            EasySSHErrors::Authentication(_) => "authentication",
+            EasySSHErrors::Timeout => "timeout",
+            EasySSHErrors::NotFound(_) => "not_found",
+            EasySSHErrors::PermissionDenied(_) => "permission_denied",
+            EasySSHErrors::FeatureNotAvailable { .. } => "feature_unavailable",
+            EasySSHErrors::Internal(_) => "internal",
+        }
+        .to_string()
+    }
+
+    /// Format error for log output with full context
+    pub fn format_for_log(&self) -> String {
+        let mut parts = vec![
+            format!("[{}] {}", self.error_code(), self.error_type_name()),
+            self.to_string(),
+        ];
+
+        let context = self.context();
+        if !context.is_empty() {
+            parts.push("Context:".to_string());
+            for (k, v) in context {
+                parts.push(format!("  {}: {}", k, v));
+            }
+        }
+
+        parts.join("\n")
     }
 }
 
@@ -752,10 +1256,17 @@ mod tests {
     #[test]
     fn test_error_code_assignment() {
         let err = EasySSHErrors::Config("test".to_string());
-        assert_eq!(err.error_code(), "E5000");
+        assert_eq!(err.error_code(), "E5001");
 
         let err = EasySSHErrors::UserCancelled;
-        assert_eq!(err.error_code(), "E7000");
+        assert_eq!(err.error_code(), "E7001");
+
+        // Test detailed error codes
+        let err = EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword);
+        assert_eq!(err.error_code(), "E1004");
+
+        let err = EasySSHErrors::Ssh(CoreSshError::ConnectionTimeout);
+        assert_eq!(err.error_code(), "E3005");
     }
 
     #[test]
@@ -812,7 +1323,7 @@ mod tests {
     fn test_display_info() {
         let err = EasySSHErrors::Ssh(CoreSshError::ConnectionTimeout);
         let info = err.display_info();
-        assert_eq!(info.code, "E3000");
+        assert_eq!(info.code, "E3005");
         assert!(info.retryable);
         assert!(info.suggestion.is_some());
     }
@@ -825,9 +1336,63 @@ mod tests {
             message: "refused".to_string(),
         });
         let context = err.context();
-        assert_eq!(context.len(), 3);
-        assert_eq!(context[0], ("host", "192.168.1.1".to_string()));
-        assert_eq!(context[1], ("port", "22".to_string()));
+        // Now includes: error_code, error_type, retryable, severity, host, port, message, error_category
+        assert!(context.len() >= 7);
+        assert!(context.iter().any(|(k, _)| *k == "host"));
+        assert!(context.iter().any(|(k, _)| *k == "port"));
+        assert!(context.iter().any(|(k, _)| *k == "error_code"));
+    }
+
+    #[test]
+    fn test_recovery_strategy() {
+        // Should have retry strategy
+        let err = EasySSHErrors::Ssh(CoreSshError::ConnectionFailed {
+            host: "test".to_string(),
+            port: 22,
+            message: "timeout".to_string(),
+        });
+        let recovery = err.recovery_strategy();
+        assert!(recovery.is_some());
+        assert!(matches!(recovery.unwrap(), RecoveryStrategy::RetryWithBackoff { .. }));
+
+        // Should not have recovery strategy
+        let err = EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword);
+        assert!(err.recovery_strategy().is_none());
+
+        let err = EasySSHErrors::UserCancelled;
+        assert!(err.recovery_strategy().is_none());
+    }
+
+    #[test]
+    fn test_user_message() {
+        let err = EasySSHErrors::Ssh(CoreSshError::ConnectionFailed {
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            message: "timeout".to_string(),
+        });
+        let msg = err.user_message();
+        assert!(msg.contains("192.168.1.1"));
+        assert!(msg.contains("💡 建议"));
+    }
+
+    #[test]
+    fn test_format_for_log() {
+        let err = EasySSHErrors::Config("test key".to_string());
+        let log_msg = err.format_for_log();
+        assert!(log_msg.contains("E5001"));
+        assert!(log_msg.contains("config"));
+        assert!(log_msg.contains("Context"));
+    }
+
+    #[test]
+    fn test_io_error_codes() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let err = EasySSHErrors::Io(io_err);
+        assert_eq!(err.error_code(), "E4001");
+
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+        let err = EasySSHErrors::Io(io_err);
+        assert_eq!(err.error_code(), "E4002");
     }
 
     #[test]
@@ -927,7 +1492,7 @@ mod tests {
             feature: "pro".to_string(),
             edition: "lite".to_string(),
         };
-        assert_eq!(err.error_code(), "E1400");
+        assert_eq!(err.error_code(), "E1401");
         assert!(!err.is_retryable());
     }
 
@@ -937,5 +1502,20 @@ mod tests {
         assert_eq!(format!("{}", ErrorSeverity::Error), "ERROR");
         assert_eq!(format!("{}", ErrorSeverity::Warning), "WARNING");
         assert_eq!(format!("{}", ErrorSeverity::Info), "INFO");
+    }
+
+    #[test]
+    fn test_recovery_strategy_descriptions() {
+        assert_eq!(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 1000 }.description(), "稍后自动重试");
+        assert_eq!(RecoveryStrategy::RefreshConnection.description(), "刷新连接");
+        assert_eq!(RecoveryStrategy::NoRecovery.description(), "需要手动处理");
+    }
+
+    #[test]
+    fn test_log_stats_format() {
+        // This is for LogStats struct in logger.rs but we can test ErrorDisplay here
+        let err = EasySSHErrors::Timeout;
+        let info = err.display_info();
+        assert!(info.recovery.is_some()); // Timeout has recovery strategy
     }
 }

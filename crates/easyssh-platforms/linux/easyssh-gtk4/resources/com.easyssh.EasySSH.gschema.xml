@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="easyssh">
+  <schema id="com.easyssh.EasySSH" path="/com/easyssh/EasySSH/">
+    <key name="window-width" type="i">
+      <default>1280</default>
+      <summary>Window width</summary>
+      <description>Width of the main window in pixels</description>
+    </key>
+
+    <key name="window-height" type="i">
+      <default>800</default>
+      <summary>Window height</summary>
+      <description>Height of the main window in pixels</description>
+    </key>
+
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Window maximized</summary>
+      <description>Whether the window is maximized</description>
+    </key>
+
+    <key name="sidebar-visible" type="b">
+      <default>true</default>
+      <summary>Sidebar visible</summary>
+      <description>Whether the sidebar is visible</description>
+    </key>
+
+    <key name="sidebar-width" type="i">
+      <default>220</default>
+      <summary>Sidebar width</summary>
+      <description>Width of the sidebar in pixels</description>
+    </key>
+
+    <key name="server-list-width" type="i">
+      <default>320</default>
+      <summary>Server list width</summary>
+      <description>Width of the server list panel in pixels</description>
+    </key>
+
+    <key name="color-scheme" type="s">
+      <default>'default'</default>
+      <summary>Color scheme</summary>
+      <description>Preferred color scheme: 'default', 'light', or 'dark'</description>
+    </key>
+
+    <key name="terminal-emulator" type="s">
+      <default>'auto'</default>
+      <summary>Terminal emulator</summary>
+      <description>Preferred terminal emulator (auto-detect if 'auto')</description>
+    </key>
+
+    <key name="connection-timeout" type="i">
+      <default>30</default>
+      <range min="5" max="300"/>
+      <summary>Connection timeout</summary>
+      <description>Timeout in seconds for SSH connection attempts</description>
+    </key>
+
+    <key name="show-notifications" type="b">
+      <default>true</default>
+      <summary>Show notifications</summary>
+      <description>Whether to show desktop notifications</description>
+    </key>
+
+    <key name="confirm-deletions" type="b">
+      <default>true</default>
+      <summary>Confirm deletions</summary>
+      <description>Whether to show confirmation dialog before deleting servers</description>
+    </key>
+
+    <key name="last-selected-server" type="s">
+      <default>''</default>
+      <summary>Last selected server</summary>
+      <description>ID of the last selected server</description>
+    </key>
+
+    <key name="last-selected-group" type="s">
+      <default>''</default>
+      <summary>Last selected group</summary>
+      <description>ID of the last selected group</description>
+    </key>
+
+    <key name="search-history" type="as">
+      <default>[]</default>
+      <summary>Search history</summary>
+      <description>List of recent search queries</description>
+    </key>
+
+    <key name="first-run" type="b">
+      <default>true</default>
+      <summary>First run</summary>
+      <description>Whether this is the first time the application has been run</description>
+    </key>
+  </schema>
+</schemalist>

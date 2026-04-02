@@ -1,6 +1,7 @@
 //! Confirmation Dialog
 //!
 //! Simple yes/no confirmation dialog for destructive actions.
+//! Styled with theme support.
 
 use super::{Dialog, DialogResult};
 use crossterm::event::{KeyCode, KeyEvent};
@@ -47,7 +48,7 @@ impl Dialog for ConfirmDialog {
                 DialogResult::Confirm(self.action.clone())
             }
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => DialogResult::Cancel,
-            KeyCode::Left | KeyCode::Right => {
+            KeyCode::Left | KeyCode::Right | KeyCode::Tab => {
                 self.confirmed = !self.confirmed;
                 DialogResult::Continue
             }
@@ -55,14 +56,15 @@ impl Dialog for ConfirmDialog {
         }
     }
 
-    fn render(&self, frame: &mut Frame, area: Rect) {
+    fn render(&self, frame: &mut Frame, area: Rect, theme: &crate::theme::ColorPalette) {
         // Clear background
         frame.render_widget(Clear, area);
 
         let block = Block::default()
-            .title(self.title.as_str())
+            .title(format!(" {} ", self.title))
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Red));
+            .border_style(Style::default().fg(theme.accent_error))
+            .style(Style::default().bg(theme.bg_dialog));
 
         let inner = block.inner(area);
 
@@ -79,28 +81,32 @@ impl Dialog for ConfirmDialog {
             ])
             .split(inner);
 
-        // Message
-        let message_para =
-            Paragraph::new(self.message.clone()).wrap(ratatui::widgets::Wrap { trim: true });
+        // Message with warning styling
+        let message_para = Paragraph::new(
+            Line::from(vec![
+                Span::styled("⚠ ", Style::default().fg(theme.accent_warning).add_modifier(Modifier::BOLD)),
+                Span::styled(self.message.clone(), Style::default().fg(theme.fg_primary)),
+            ])
+        ).wrap(ratatui::widgets::Wrap { trim: true });
         frame.render_widget(message_para, chunks[0]);
 
-        // Buttons
+        // Buttons with theme styling
         let yes_style = if self.confirmed {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::White)
+                .fg(theme.bg_primary)
+                .bg(theme.accent_success)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.accent_success)
         };
 
         let no_style = if !self.confirmed {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::White)
+                .fg(theme.bg_primary)
+                .bg(theme.accent_error)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.accent_error)
         };
 
         let buttons = Paragraph::new(Line::from(vec![
@@ -111,6 +117,15 @@ impl Dialog for ConfirmDialog {
         .alignment(Alignment::Center);
 
         frame.render_widget(buttons, chunks[1]);
+
+        // Warning hint
+        let hint = Paragraph::new(
+            Span::styled(
+                "⚠ This action cannot be undone",
+                Style::default().fg(theme.accent_warning),
+            )
+        ).alignment(Alignment::Center);
+        frame.render_widget(hint, chunks[2]);
     }
 
     fn is_valid(&self) -> bool {
@@ -121,3 +136,4 @@ impl Dialog for ConfirmDialog {
         &self.title
     }
 }
+
