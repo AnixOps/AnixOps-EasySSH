@@ -64,36 +64,62 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &crate::theme::Co
 
         vec![
             Line::from(""),
-            Line::from(vec![
-                Span::styled(
-                    &server.name,
-                    Style::default()
-                        .fg(theme.accent_primary)
-                        .add_modifier(Modifier::BOLD)
-                        .add_modifier(Modifier::UNDERLINED),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                &server.name,
+                Style::default()
+                    .fg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD)
+                    .add_modifier(Modifier::UNDERLINED),
+            )]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("Host: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+                Span::styled(
+                    "Host: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.fg_secondary),
+                ),
                 Span::styled(&server.host, Style::default().fg(theme.fg_primary)),
             ]),
             Line::from(vec![
-                Span::styled("Port: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
-                Span::styled(server.port.to_string(), Style::default().fg(theme.fg_primary)),
+                Span::styled(
+                    "Port: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.fg_secondary),
+                ),
+                Span::styled(
+                    server.port.to_string(),
+                    Style::default().fg(theme.fg_primary),
+                ),
             ]),
             Line::from(vec![
-                Span::styled("Username: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+                Span::styled(
+                    "Username: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.fg_secondary),
+                ),
                 Span::styled(&server.username, Style::default().fg(theme.fg_primary)),
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("Auth: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+                Span::styled(
+                    "Auth: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.fg_secondary),
+                ),
                 Span::styled(auth_display, Style::default().fg(theme.accent_secondary)),
             ]),
             if let Some(ref identity) = server.identity_file {
                 Line::from(vec![
-                    Span::styled("Key: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+                    Span::styled(
+                        "Key: ",
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(theme.fg_secondary),
+                    ),
                     Span::styled(identity, Style::default().fg(theme.fg_muted)),
                 ])
             } else {
@@ -101,27 +127,40 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &crate::theme::Co
             },
             Line::from(""),
             Line::from(vec![
-                Span::styled("Group: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+                Span::styled(
+                    "Group: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.fg_secondary),
+                ),
                 Span::styled(group_name, Style::default().fg(theme.accent_info)),
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+                Span::styled(
+                    "Status: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.fg_secondary),
+                ),
                 Span::styled(
                     format!("{} {}", status_symbol, &server.status),
                     Style::default().fg(status_color),
                 ),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled(
-                    "Press Enter to connect  |  e to edit  |  d to delete",
-                    Style::default().fg(theme.fg_muted),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                "Press Enter to connect  |  e to edit  |  d to delete",
+                Style::default().fg(theme.fg_muted),
+            )]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("ID: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_muted)),
+                Span::styled(
+                    "ID: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(theme.fg_muted),
+                ),
                 Span::styled(&server.id, Style::default().fg(theme.fg_muted)),
             ]),
         ]
@@ -130,7 +169,9 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &crate::theme::Co
             Line::from(""),
             Line::from(Span::styled(
                 "No server selected",
-                Style::default().fg(theme.fg_muted).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(theme.fg_muted)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(Span::styled(
@@ -138,9 +179,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &crate::theme::Co
                 Style::default().fg(theme.fg_muted),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Keyboard Shortcuts:", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Keyboard Shortcuts:",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(theme.fg_secondary),
+            )]),
             Line::from(vec![
                 Span::styled("  ↑/k  ", Style::default().fg(theme.accent_info)),
                 Span::styled("Navigate up", Style::default().fg(theme.fg_primary)),

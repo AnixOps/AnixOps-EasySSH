@@ -9,45 +9,35 @@
 //!
 //! # 模块结构
 //!
-//! - [`types`]: 核心数据类型 (FileInfo, TransferTask, 等)
-//! - [`client`]: SFTP客户端连接管理
-//! - [`transfer`]: 文件传输实现
-//! - [`remote_fs`]: 远程文件系统操作
-//! - [`queue`]: 传输队列管理
-//! - [`progress`]: 进度追踪
+//! - `types`: 核心数据类型 (FileInfo, TransferTask, 等)
+//! - `client`: SFTP客户端连接管理
+//! - `transfer`: 文件传输实现
+//! - `remote_fs`: 远程文件系统操作
+//! - `queue`: 传输队列管理
+//! - `progress`: 进度追踪
 
-pub mod types;
 pub mod client;
-pub mod transfer;
-pub mod remote_fs;
-pub mod queue;
 pub mod progress;
+pub mod queue;
+pub mod remote_fs;
+pub mod transfer;
+pub mod types;
 
 // 公共导出
 pub use types::{
-    FileInfo, TransferDirection, TransferStatus, TransferTask, TransferOptions,
-    FileType, TransferResult, TransferStats, FilePermission,
+    FileInfo, FilePermission, FileType, TransferDirection, TransferOptions, TransferResult,
+    TransferStats, TransferStatus, TransferTask,
 };
 
-pub use client::{
-    SftpClient, SftpClientConfig, ConnectionState,
-};
+pub use client::{ConnectionState, SftpClient, SftpClientConfig};
 
-pub use transfer::{
-    FileTransfer, TransferHandle, TransferError, ChunkConfig,
-};
+pub use transfer::{ChunkConfig, FileTransfer, TransferError, TransferHandle};
 
-pub use remote_fs::{
-    RemoteFs, RemoteDir, RemoteFile, FileSystemWatcher, ContentType,
-};
+pub use remote_fs::{ContentType, FileSystemWatcher, RemoteDir, RemoteFile, RemoteFs};
 
-pub use queue::{
-    TransferQueue, QueueConfig, QueueStats, QueueEvent,
-};
+pub use queue::{QueueConfig, QueueEvent, QueueStats, TransferQueue};
 
-pub use progress::{
-    ProgressTracker, ProgressCallback, ProgressSnapshot, SpeedCalculator,
-};
+pub use progress::{ProgressCallback, ProgressSnapshot, ProgressTracker, SpeedCalculator};
 
 use crate::error::LiteError;
 use std::sync::Arc;
@@ -139,7 +129,8 @@ mod client_pool {
 
         pub async fn add(&mut self, client: SftpClient) -> String {
             let id = uuid::Uuid::new_v4().to_string();
-            self.clients.insert(id.clone(), Arc::new(RwLock::new(client)));
+            self.clients
+                .insert(id.clone(), Arc::new(RwLock::new(client)));
             id
         }
 

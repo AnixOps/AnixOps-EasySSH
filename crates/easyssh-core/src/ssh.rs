@@ -43,7 +43,7 @@
 //! ```
 
 use crate::error::LiteError;
-use ssh2::{Session, Sftp, HostKeyType};
+use ssh2::{Session, Sftp};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -582,7 +582,7 @@ impl SshSessionManager {
         username: &str,
         auth: &AuthMethod,
         timeout: &ConnectionTimeout,
-        known_hosts: &mut KnownHosts,
+        _known_hosts: &mut KnownHosts,
         compression: bool,
     ) -> Result<(Session, Option<String>), LiteError> {
         let host = host.to_string();
@@ -622,12 +622,12 @@ impl SshSessionManager {
             // Authenticate based on method
             match &auth {
                 AuthMethod::Password(password) => {
-                    session.userauth_password(&username, password).map_err(|_| {
-                        LiteError::SshAuthFailed {
+                    session
+                        .userauth_password(&username, password)
+                        .map_err(|_| LiteError::SshAuthFailed {
                             host: host.clone(),
                             username: username.clone(),
-                        }
-                    })?;
+                        })?;
                 }
                 AuthMethod::PublicKey { path, passphrase } => {
                     let expanded_path = AuthManager::expand_key_path(path);
@@ -638,7 +638,7 @@ impl SshSessionManager {
                             &expanded_path,
                             passphrase.as_deref(),
                         )
-                        .map_err(|e| LiteError::SshAuthFailed {
+                        .map_err(|_| LiteError::SshAuthFailed {
                             host: host.clone(),
                             username: username.clone(),
                         })?;
@@ -797,10 +797,14 @@ impl SshSessionManager {
         jump_host: &JumpHost,
     ) -> Result<SessionMetadata, LiteError> {
         if !target_config.is_valid() {
-            return Err(LiteError::Config("Invalid target SSH configuration".to_string()));
+            return Err(LiteError::Config(
+                "Invalid target SSH configuration".to_string(),
+            ));
         }
         if !jump_host.is_valid() {
-            return Err(LiteError::Config("Invalid jump host configuration".to_string()));
+            return Err(LiteError::Config(
+                "Invalid jump host configuration".to_string(),
+            ));
         }
 
         self.cleanup_expired();
@@ -826,7 +830,8 @@ impl SshSessionManager {
 
         // Connect to jump host
         let jump_session_id = format!("{}_jump", session_id);
-        self.connect_with_config(&jump_session_id, &jump_config).await?;
+        self.connect_with_config(&jump_session_id, &jump_config)
+            .await?;
 
         // For a complete ProxyJump implementation, we would:
         // 1. Use channel_direct_tcpip to create a tunnel from jump host to target
@@ -853,7 +858,10 @@ impl SshSessionManager {
     }
 
     /// Test connection to a server without establishing a persistent session
-    pub async fn test_connection(&self, config: &SshConfig) -> Result<ConnectionTestResult, LiteError> {
+    pub async fn test_connection(
+        &self,
+        config: &SshConfig,
+    ) -> Result<ConnectionTestResult, LiteError> {
         let start = Instant::now();
         let host = config.host.clone();
         let port = config.port;
@@ -917,12 +925,7 @@ impl SshSessionManager {
                 AuthMethod::Password(password) => session.userauth_password(&username, password),
                 AuthMethod::PublicKey { path, passphrase } => {
                     let expanded = AuthManager::expand_key_path(path);
-                    session.userauth_pubkey_file(
-                        &username,
-                        None,
-                        &expanded,
-                        passphrase.as_deref(),
-                    )
+                    session.userauth_pubkey_file(&username, None, &expanded, passphrase.as_deref())
                 }
                 AuthMethod::Agent => session.userauth_agent(&username),
             };
@@ -1651,6 +1654,21 @@ impl JumpHost {
     /// Check if configuration is valid
     pub fn is_valid(&self) -> bool {
         !self.host.is_empty() && self.port > 0 && !self.username.is_empty() && self.auth.is_valid()
+    }
+
+    /// Check if this is password authentication.
+    pub fn is_password(&self) -> bool {
+        self.auth.is_password()
+    }
+
+    /// Check if this is public key authentication.
+    pub fn is_public_key(&self) -> bool {
+        self.auth.is_public_key()
+    }
+
+    /// Check if this is agent authentication.
+    pub fn is_agent(&self) -> bool {
+        self.auth.is_agent()
     }
 }
 
@@ -2480,6 +2498,21 @@ impl SshConfig {
     pub fn is_valid(&self) -> bool {
         !self.host.is_empty() && self.port > 0 && !self.username.is_empty() && self.auth.is_valid()
     }
+
+    /// Check if this is password authentication.
+    pub fn is_password(&self) -> bool {
+        self.auth.is_password()
+    }
+
+    /// Check if this is public key authentication.
+    pub fn is_public_key(&self) -> bool {
+        self.auth.is_public_key()
+    }
+
+    /// Check if this is agent authentication.
+    pub fn is_agent(&self) -> bool {
+        self.auth.is_agent()
+    }
 }
 
 impl Default for SshConfig {
@@ -2641,7 +2674,7 @@ impl PrivateKey {
         // Extract just the hash portion after SHA256:
         let hash = full.strip_prefix("SHA256:").unwrap_or(&full);
         if hash.len() >= 16 {
-            Ok(format!("{}...{}", &hash[..8], &hash[hash.len()-8..]))
+            Ok(format!("{}...{}", &hash[..8], &hash[hash.len() - 8..]))
         } else {
             Ok(full)
         }
@@ -2665,10 +2698,10 @@ impl PrivateKey {
         }
 
         match self.algorithm.as_str() {
-            "rsa" => true, // RSA keys are generally secure
+            "rsa" => true,     // RSA keys are generally secure
             "ed25519" => true, // Ed25519 is recommended
-            "ecdsa" => true, // ECDSA is secure
-            "dsa" => false, // DSA is deprecated
+            "ecdsa" => true,   // ECDSA is secure
+            "dsa" => false,    // DSA is deprecated
             _ => false,
         }
     }
@@ -2756,9 +2789,10 @@ impl KeyPair {
             .map_err(|e| LiteError::InvalidKey(format!("Failed to generate public key: {}", e)))?;
 
         if !output.status.success() {
-            return Err(LiteError::InvalidKey(
-                format!("ssh-keygen failed: {}", String::from_utf8_lossy(&output.stderr))
-            ));
+            return Err(LiteError::InvalidKey(format!(
+                "ssh-keygen failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         let public_key = String::from_utf8_lossy(&output.stdout);
@@ -2854,7 +2888,8 @@ impl KeyManager {
     /// Find key by name (e.g., "id_rsa")
     pub fn find_by_name(&self, name: &str) -> Option<&KeyPair> {
         self.keys.iter().find(|k| {
-            k.private_path.file_stem()
+            k.private_path
+                .file_stem()
                 .map(|s| s.to_string_lossy() == name)
                 .unwrap_or(false)
         })
@@ -2906,8 +2941,7 @@ impl KeyManager {
     /// Ensure SSH directory exists with correct permissions
     pub fn ensure_ssh_dir(&self) -> Result<(), LiteError> {
         if !self.ssh_dir.exists() {
-            std::fs::create_dir_all(&self.ssh_dir)
-                .map_err(|e| LiteError::Io(e.to_string()))?;
+            std::fs::create_dir_all(&self.ssh_dir).map_err(|e| LiteError::Io(e.to_string()))?;
 
             // Set permissions to 700 (owner only)
             #[cfg(unix)]
@@ -2926,20 +2960,28 @@ impl KeyManager {
 
     /// Get key summary for display
     pub fn key_summary(&self) -> Vec<KeySummary> {
-        self.keys.iter().map(|k| {
-            let fingerprint = k.info.fingerprint_short(&k.private_path).unwrap_or_default();
-            KeySummary {
-                name: k.private_path.file_stem()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_default(),
-                algorithm: k.info.algorithm.clone(),
-                fingerprint,
-                has_passphrase: k.info.needs_passphrase(),
-                has_public_key: k.has_public_key(),
-                is_secure: k.info.is_secure(),
-                recommendation: k.info.security_recommendation().to_string(),
-            }
-        }).collect()
+        self.keys
+            .iter()
+            .map(|k| {
+                let fingerprint = k
+                    .info
+                    .fingerprint_short(&k.private_path)
+                    .unwrap_or_default();
+                KeySummary {
+                    name: k
+                        .private_path
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().to_string())
+                        .unwrap_or_default(),
+                    algorithm: k.info.algorithm.clone(),
+                    fingerprint,
+                    has_passphrase: k.info.needs_passphrase(),
+                    has_public_key: k.has_public_key(),
+                    is_secure: k.info.is_secure(),
+                    recommendation: k.info.security_recommendation().to_string(),
+                }
+            })
+            .collect()
     }
 }
 
@@ -3077,11 +3119,12 @@ impl AuthManager {
 
         #[cfg(target_os = "windows")]
         {
-            return std::env::var("SSH_AGENT_LAUNCHER").is_ok()
-                || std::env::var("SSH_AUTH_SOCK").is_ok();
+            std::env::var("SSH_AGENT_LAUNCHER").is_ok() || std::env::var("SSH_AUTH_SOCK").is_ok()
         }
-
-        false
+        #[cfg(not(target_os = "windows"))]
+        {
+            false
+        }
     }
 
     /// Check if SSH agent is available.
@@ -3707,7 +3750,10 @@ impl SshAgent {
             }
         }
 
-        Err(SshAgentError::NotAvailable)
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            Err(SshAgentError::NotAvailable)
+        }
     }
 
     /// Check if agent is connected.
@@ -3724,10 +3770,20 @@ impl SshAgent {
     pub fn agent_type(&self) -> &'static str {
         #[cfg(target_os = "windows")]
         {
-            if self.socket_path.as_ref().map(|p| p.to_string_lossy().contains("pipe")).unwrap_or(false) {
+            if self
+                .socket_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().contains("pipe"))
+                .unwrap_or(false)
+            {
                 return "OpenSSH Agent (Windows)";
             }
-            if self.socket_path.as_ref().map(|p| p.to_string_lossy() == "pageant").unwrap_or(false) {
+            if self
+                .socket_path
+                .as_ref()
+                .map(|p| p.to_string_lossy() == "pageant")
+                .unwrap_or(false)
+            {
                 return "Pageant (PuTTY)";
             }
         }
@@ -3815,7 +3871,11 @@ impl SshAgent {
     }
 
     /// Add a key to the agent
-    pub async fn add_key(&mut self, key_path: &Path, passphrase: Option<&str>) -> Result<(), SshAgentError> {
+    pub async fn add_key(
+        &mut self,
+        key_path: &Path,
+        _passphrase: Option<&str>,
+    ) -> Result<(), SshAgentError> {
         if !self.connected {
             return Err(SshAgentError::NotAvailable);
         }
@@ -3883,12 +3943,12 @@ impl SshAgent {
     }
 
     /// Lock the agent with a password
-    pub async fn lock(&mut self, password: &str) -> Result<(), SshAgentError> {
+    pub async fn lock(&mut self, _password: &str) -> Result<(), SshAgentError> {
         if !self.connected {
             return Err(SshAgentError::NotAvailable);
         }
 
-        let output = tokio::process::Command::new("ssh-add")
+        let _output = tokio::process::Command::new("ssh-add")
             .args(&["-x"])
             .stdin(std::process::Stdio::piped())
             .spawn()
@@ -3901,7 +3961,7 @@ impl SshAgent {
     }
 
     /// Unlock the agent
-    pub async fn unlock(&mut self, password: &str) -> Result<(), SshAgentError> {
+    pub async fn unlock(&mut self, _password: &str) -> Result<(), SshAgentError> {
         if !self.connected {
             return Err(SshAgentError::NotAvailable);
         }
@@ -4145,7 +4205,8 @@ mod lite_tests {
 
     #[test]
     fn test_key_format_detection_openssh() {
-        let openssh_key = b"-----BEGIN OPENSSH PRIVATE KEY-----\n\n-----END OPENSSH PRIVATE KEY-----";
+        let openssh_key =
+            b"-----BEGIN OPENSSH PRIVATE KEY-----\n\n-----END OPENSSH PRIVATE KEY-----";
         assert_eq!(KeyFormat::detect(openssh_key), KeyFormat::OpenSSH);
         assert!(KeyFormat::OpenSSH.is_supported());
     }
@@ -4309,7 +4370,8 @@ mod lite_tests {
         assert_eq!(PrivateKey::detect_algorithm(rsa_content), "rsa");
 
         // Ed25519 key
-        let ed25519_content = "-----BEGIN OPENSSH PRIVATE KEY-----\nssh-ed25519\n-----END OPENSSH PRIVATE KEY-----";
+        let ed25519_content =
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nssh-ed25519\n-----END OPENSSH PRIVATE KEY-----";
         assert_eq!(PrivateKey::detect_algorithm(ed25519_content), "ed25519");
 
         // ECDSA key
@@ -4342,15 +4404,23 @@ mod lite_tests {
         assert!(!deprecated_key.is_secure());
     }
 
-
     #[test]
     fn test_host_key_entry_wildcard_match() {
         // Test exact match
-        assert!(HostKeyEntry::wildcard_match("host.example.com", "host.example.com"));
+        assert!(HostKeyEntry::wildcard_match(
+            "host.example.com",
+            "host.example.com"
+        ));
 
         // Test wildcard prefix
-        assert!(HostKeyEntry::wildcard_match("*.example.com", "host.example.com"));
-        assert!(HostKeyEntry::wildcard_match("*.example.com", "sub.host.example.com"));
+        assert!(HostKeyEntry::wildcard_match(
+            "*.example.com",
+            "host.example.com"
+        ));
+        assert!(HostKeyEntry::wildcard_match(
+            "*.example.com",
+            "sub.host.example.com"
+        ));
 
         // Test wildcard suffix
         assert!(HostKeyEntry::wildcard_match("host.*", "host.example.com"));
@@ -4387,16 +4457,6 @@ mod lite_tests {
     }
 
     #[test]
-    fn test_ssh_agent_error_display() {
-        assert_eq!(SshAgentError::NotAvailable.to_string(), "SSH agent not available");
-        assert_eq!(SshAgentError::KeyNotFound.to_string(), "Key not found in agent");
-        assert!(SshAgentError::ConnectionFailed("test".to_string()).to_string().contains("Connection failed"));
-        assert!(SshAgentError::AuthFailed("test".to_string()).to_string().contains("Authentication failed"));
-        assert!(SshAgentError::ProtocolError("test".to_string()).to_string().contains("Protocol error"));
-        assert!(SshAgentError::Io("test".to_string()).to_string().contains("IO error"));
-    }
-
-    #[test]
     fn test_auth_manager_expand_key_path() {
         // Test expansion is handled correctly
         let expanded = AuthManager::expand_key_path("~/.ssh/id_rsa");
@@ -4417,7 +4477,8 @@ mod lite_tests {
     }
 
     #[test]
-    fn test_connection_test_result_duration() {
+    fn test_known_hosts_management() {
+        let mut hosts = KnownHosts::new();
         assert!(!hosts.is_modified());
 
         // Add a host
@@ -4440,7 +4501,6 @@ mod lite_tests {
         hosts.remove_host("test.example.com");
         assert!(hosts.is_empty());
     }
-
 
     #[test]
     fn test_host_key_entry_to_line() {

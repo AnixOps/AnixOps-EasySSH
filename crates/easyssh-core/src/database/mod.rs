@@ -56,8 +56,8 @@ pub use error::{DatabaseError, Result};
 pub use group_repository::{GroupRepository, GroupWithCount};
 pub use index_manager::{IndexDefinition, IndexInfo, IndexManager, QueryPlan, RECOMMENDED_INDEXES};
 pub use maintenance::{
-    AutoMaintenanceConfig, CompressionResult, FragmentationInfo, MaintenanceManager,
-    MaintenanceOp, MaintenanceResult, TableStats, WalInfo,
+    AutoMaintenanceConfig, CompressionResult, FragmentationInfo, MaintenanceManager, MaintenanceOp,
+    MaintenanceResult, TableStats, WalInfo,
 };
 pub use migrations::{Migration, MigrationManager, MigrationStatus};
 pub use models::{
@@ -252,15 +252,10 @@ impl DatabaseManager {
         let mut issues = Vec::new();
 
         // Check connection
-        let connected = self
-            .pool
-            .acquire()
-            .await
-            .map(|_| true)
-            .unwrap_or_else(|e| {
-                issues.push(format!("Connection failed: {}", e));
-                false
-            });
+        let connected = self.pool.acquire().await.map(|_| true).unwrap_or_else(|e| {
+            issues.push(format!("Connection failed: {}", e));
+            false
+        });
 
         // Check file existence
         let file_exists = std::path::Path::new(&self.db_path).exists();

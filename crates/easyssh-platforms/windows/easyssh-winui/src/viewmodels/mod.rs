@@ -6,9 +6,7 @@ use std::sync::Mutex;
 use crate::viewmodels::port_forward::PortForwardViewModel;
 use easyssh_core::keychain::{delete_password, get_password, store_password};
 use easyssh_core::sftp::{SftpEntry, SftpManager};
-use easyssh_core::{
-    AppState, GroupRecord, NewServer, ServerRecord, SshSessionManager,
-};
+use easyssh_core::{AppState, GroupRecord, NewServer, ServerRecord, SshSessionManager};
 use easyssh_core::{
     ConfigConflictResolution as ConflictResolution, ConfigManager, ExportFormat, ImportFormat,
     ImportResult,

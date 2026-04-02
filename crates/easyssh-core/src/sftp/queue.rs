@@ -110,7 +110,10 @@ pub enum QueueEvent {
         speed: f64,
     },
     /// 任务已完成
-    TaskCompleted { task_id: String, result: TransferResult },
+    TaskCompleted {
+        task_id: String,
+        result: TransferResult,
+    },
     /// 任务失败
     TaskFailed { task_id: String, error: String },
     /// 任务已暂停
@@ -195,8 +198,10 @@ impl TransferQueue {
         }
 
         // 发送事件
-        self.send_event(QueueEvent::TaskAdded { task_id: id.clone() })
-            .await;
+        self.send_event(QueueEvent::TaskAdded {
+            task_id: id.clone(),
+        })
+        .await;
 
         // 如果自动开始且未暂停，尝试启动任务
         if self.config.auto_start && !self.paused.load(Ordering::Relaxed) {
@@ -763,7 +768,8 @@ impl BatchTransfer {
             if let Some(task) = self.queue.get(task_id).await {
                 if task.status == TransferStatus::Completed {
                     // 构造结果
-                    let result = TransferResult::new(task_id, task.transferred_bytes, Duration::ZERO);
+                    let result =
+                        TransferResult::new(task_id, task.transferred_bytes, Duration::ZERO);
                     results.push(result);
                 }
             }

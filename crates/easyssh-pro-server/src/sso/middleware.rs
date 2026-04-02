@@ -165,10 +165,7 @@ pub async fn provider_validation_middleware(
                 .unwrap_or(false);
 
             if !provider_exists {
-                return Err((
-                    StatusCode::NOT_FOUND,
-                    "SSO provider not found or disabled",
-                ));
+                return Err((StatusCode::NOT_FOUND, "SSO provider not found or disabled"));
             }
         }
     }

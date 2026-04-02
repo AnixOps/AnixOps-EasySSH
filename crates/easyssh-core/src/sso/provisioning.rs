@@ -5,8 +5,8 @@
 use crate::error::LiteError;
 use crate::sso::{
     ConflictResolution, ConflictResolutionStrategy, ConflictType, ExistingUserInfo,
-    GroupToRoleMapping, IdentityConflict, IdentityConflictResolver,
-    IdentityMapper, MappedIdentity, SsoProvider, SsoUserInfo, TeamSsoMapping,
+    GroupToRoleMapping, IdentityConflict, IdentityConflictResolver, IdentityMapper, MappedIdentity,
+    SsoProvider, SsoUserInfo, TeamSsoMapping,
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -186,9 +186,7 @@ impl JustInTimeProvisioning {
         Self::new(
             JitProvisioningConfig::default(),
             IdentityMapper::new("easyssh.local"),
-            IdentityConflictResolver::new(
-                crate::sso::ConflictResolutionStrategy::CreateNew,
-            ),
+            IdentityConflictResolver::new(crate::sso::ConflictResolutionStrategy::CreateNew),
         )
     }
 
@@ -239,8 +237,9 @@ impl JustInTimeProvisioning {
         }
 
         // 3. 检测冲突
-        let provisioned_user = if let Some(conflict) =
-            self.conflict_resolver.detect_conflicts(&mapped_identity, existing_users)
+        let provisioned_user = if let Some(conflict) = self
+            .conflict_resolver
+            .detect_conflicts(&mapped_identity, existing_users)
         {
             // 4. 解决冲突
             match self.conflict_resolver.resolve_conflict(&conflict) {
@@ -257,12 +256,11 @@ impl JustInTimeProvisioning {
                 Ok(ConflictResolution::CreateNewUser) => {
                     // 创建新用户 (使用不同的用户名)
                     let mut identity = mapped_identity.clone();
-                    let existing_usernames: Vec<String> = existing_users
-                        .iter()
-                        .map(|u| u.username.clone())
-                        .collect();
-                    identity.username =
-                        self.identity_mapper.suggest_username(&identity.username, &existing_usernames);
+                    let existing_usernames: Vec<String> =
+                        existing_users.iter().map(|u| u.username.clone()).collect();
+                    identity.username = self
+                        .identity_mapper
+                        .suggest_username(&identity.username, &existing_usernames);
                     self.create_new_user(&identity, provider).await?
                 }
                 Err(e) => {
@@ -439,7 +437,8 @@ impl JustInTimeProvisioning {
             }
 
             // 如果没有匹配但启用了默认角色
-            if !assigned_teams.iter().any(|t| t.team_id == mapping.team_id) && mapping.auto_provision
+            if !assigned_teams.iter().any(|t| t.team_id == mapping.team_id)
+                && mapping.auto_provision
             {
                 assigned_teams.push(AssignedTeam {
                     team_id: mapping.team_id.clone(),
@@ -512,19 +511,33 @@ impl JustInTimeProvisioning {
         let successful = self
             .provisioning_history
             .iter()
-            .filter(|r| r.result == ProvisioningResult::Success || r.result == ProvisioningResult::SuccessLinked)
+            .filter(|r| {
+                r.result == ProvisioningResult::Success
+                    || r.result == ProvisioningResult::SuccessLinked
+            })
             .count();
         let failed = self
             .provisioning_history
             .iter()
-            .filter(|r| matches!(r.result, ProvisioningResult::FailedConflict | ProvisioningResult::FailedError | ProvisioningResult::FailedValidation))
+            .filter(|r| {
+                matches!(
+                    r.result,
+                    ProvisioningResult::FailedConflict
+                        | ProvisioningResult::FailedError
+                        | ProvisioningResult::FailedValidation
+                )
+            })
             .count();
 
         ProvisioningStatistics {
             total_records: total,
             successful,
             failed,
-            linked: self.provisioning_history.iter().filter(|r| r.result == ProvisioningResult::SuccessLinked).count(),
+            linked: self
+                .provisioning_history
+                .iter()
+                .filter(|r| r.result == ProvisioningResult::SuccessLinked)
+                .count(),
         }
     }
 }
@@ -564,7 +577,10 @@ impl JustInTimeProvisioning {
         let mut failed = Vec::new();
 
         for user in request.users {
-            match self.provision_user(&user, &request.provider, existing_users).await {
+            match self
+                .provision_user(&user, &request.provider, existing_users)
+                .await
+            {
                 Ok(record) => {
                     if record.result == ProvisioningResult::Success
                         || record.result == ProvisioningResult::SuccessLinked
@@ -673,13 +689,11 @@ mod tests {
             result: ProvisioningResult::Success,
             created_user_id: Some("user_789".to_string()),
             assigned_roles: vec!["admin".to_string()],
-            assigned_teams: vec![
-                AssignedTeam {
-                    team_id: "team_1".to_string(),
-                    role: "Member".to_string(),
-                    provisioned_at: Utc::now(),
-                },
-            ],
+            assigned_teams: vec![AssignedTeam {
+                team_id: "team_1".to_string(),
+                role: "Member".to_string(),
+                provisioned_at: Utc::now(),
+            }],
             provisioned_at: Utc::now(),
             error_message: None,
         };

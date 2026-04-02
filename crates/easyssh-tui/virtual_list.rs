@@ -83,7 +83,8 @@ impl VirtualListState {
         self.scroll_offset = self.scroll_offset.min(max_offset);
 
         // Update table state
-        self.table_state.select(Some(self.selected - self.scroll_offset));
+        self.table_state
+            .select(Some(self.selected - self.scroll_offset));
     }
 
     /// Navigate up
@@ -117,7 +118,8 @@ impl VirtualListState {
 
     /// Navigate page down
     pub fn page_down(&mut self) {
-        self.selected = (self.selected + self.visible_count).min(self.total_items.saturating_sub(1));
+        self.selected =
+            (self.selected + self.visible_count).min(self.total_items.saturating_sub(1));
     }
 
     /// Get visible range
@@ -197,8 +199,7 @@ pub fn render_virtual_server_list(
             ])),
             Cell::from(item.name.clone()).style(style),
             Cell::from(item.connection.clone()).style(style),
-            Cell::from(item.group.clone())
-                .style(style.fg(theme.fg_muted)),
+            Cell::from(item.group.clone()).style(style.fg(theme.fg_muted)),
         ];
 
         rows.push(Row::new(cells));
@@ -240,17 +241,18 @@ pub fn render_virtual_server_list(
     let table = Table::new(
         rows,
         [
-            Constraint::Length(4),    // Indicator + status
-            Constraint::Length(25),   // Name
-            Constraint::Length(35),   // Connection
-            Constraint::Length(15),   // Group
+            Constraint::Length(4),  // Indicator + status
+            Constraint::Length(25), // Name
+            Constraint::Length(35), // Connection
+            Constraint::Length(15), // Group
         ],
     )
     .header(
-        Row::new(vec!["", "Name", "Connection", "Group"])
-            .style(Style::default()
+        Row::new(vec!["", "Name", "Connection", "Group"]).style(
+            Style::default()
                 .add_modifier(Modifier::BOLD)
-                .fg(theme.fg_secondary)),
+                .fg(theme.fg_secondary),
+        ),
     )
     .block(block);
 
@@ -267,10 +269,7 @@ pub fn render_virtual_server_list(
                 width: 6,
                 height: 1,
             };
-            frame.render_widget(
-                ratatui::widgets::Paragraph::new(indicator),
-                indicator_area,
-            );
+            frame.render_widget(ratatui::widgets::Paragraph::new(indicator), indicator_area);
         }
 
         // Bottom scroll indicator
@@ -282,10 +281,7 @@ pub fn render_virtual_server_list(
                 width: 6,
                 height: 1,
             };
-            frame.render_widget(
-                ratatui::widgets::Paragraph::new(indicator),
-                indicator_area,
-            );
+            frame.render_widget(ratatui::widgets::Paragraph::new(indicator), indicator_area);
         }
     }
 }
@@ -362,11 +358,19 @@ pub fn render_virtual_group_list(
     let all_symbol = if all_selected { "▶" } else { " " };
     list_items.push(Line::from(vec![
         Span::styled(format!("{}{} ", all_symbol, "All"), all_style),
-        Span::styled(format!("({})", total_count), Style::default().fg(theme.fg_muted)),
+        Span::styled(
+            format!("({})", total_count),
+            Style::default().fg(theme.fg_muted),
+        ),
     ]));
 
     // Add visible groups
-    for (idx, item) in items.iter().enumerate().skip(scroll_offset).take(visible_end - scroll_offset) {
+    for (idx, item) in items
+        .iter()
+        .enumerate()
+        .skip(scroll_offset)
+        .take(visible_end - scroll_offset)
+    {
         let list_idx = idx + 1; // +1 for "All"
         let is_selected = selected == list_idx;
 
@@ -386,7 +390,10 @@ pub fn render_virtual_group_list(
         let symbol = if is_selected { "▶" } else { " " };
         list_items.push(Line::from(vec![
             Span::styled(format!("{}{} ", symbol, item.name), style),
-            Span::styled(format!("({})", item.count), Style::default().fg(theme.fg_muted)),
+            Span::styled(
+                format!("({})", item.count),
+                Style::default().fg(theme.fg_muted),
+            ),
         ]));
     }
 

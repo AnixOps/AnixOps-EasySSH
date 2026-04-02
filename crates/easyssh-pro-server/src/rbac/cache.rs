@@ -93,7 +93,8 @@ impl PermissionCache {
             let interval = config.cleanup_interval;
 
             tokio::spawn(async move {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(interval));
+                let mut interval =
+                    tokio::time::interval(tokio::time::Duration::from_secs(interval));
 
                 loop {
                     interval.tick().await;
@@ -377,7 +378,9 @@ mod tests {
         let permission = create_test_permission();
 
         // 设置缓存
-        cache.set(&ctx, &permission, CheckResult::allowed(), None).await;
+        cache
+            .set(&ctx, &permission, CheckResult::allowed(), None)
+            .await;
 
         // 由于TTL为0，应该立即过期
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -392,8 +395,12 @@ mod tests {
         let ctx2 = create_test_context("user2");
         let permission = create_test_permission();
 
-        cache.set(&ctx1, &permission, CheckResult::allowed(), None).await;
-        cache.set(&ctx2, &permission, CheckResult::allowed(), None).await;
+        cache
+            .set(&ctx1, &permission, CheckResult::allowed(), None)
+            .await;
+        cache
+            .set(&ctx2, &permission, CheckResult::allowed(), None)
+            .await;
 
         assert_eq!(cache.size().await, 2);
 
@@ -423,7 +430,9 @@ mod tests {
         assert_eq!(stats.cache_misses, 1);
 
         // 设置并命中
-        cache.set(&ctx, &permission, CheckResult::allowed(), None).await;
+        cache
+            .set(&ctx, &permission, CheckResult::allowed(), None)
+            .await;
         cache.get(&ctx, &permission).await;
         let stats = cache.get_stats().await;
         assert_eq!(stats.total_requests, 3);

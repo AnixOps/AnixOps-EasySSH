@@ -135,8 +135,7 @@ impl QueryOptimizer {
 
         // Analyze plan for optimization opportunities
         let uses_index = steps.iter().any(|s| {
-            s.detail.to_uppercase().contains("INDEX")
-                || s.detail.to_uppercase().contains("USING")
+            s.detail.to_uppercase().contains("INDEX") || s.detail.to_uppercase().contains("USING")
         });
 
         let full_scan = steps.iter().any(|s| {
@@ -233,7 +232,7 @@ impl QueryOptimizer {
             WHERE type = 'index'
             GROUP BY name
             ORDER BY total_bytes DESC
-            "#
+            "#,
         )
         .fetch_all(&self.pool)
         .await
@@ -243,12 +242,11 @@ impl QueryOptimizer {
             Ok(stats) => Ok(stats),
             Err(_) => {
                 // dbstat not available, try alternative approach
-                let indexes: Vec<(String, String)> = sqlx::query_as(
-                    "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index'"
-                )
-                .fetch_all(&self.pool)
-                .await
-                .map_err(|e| DatabaseError::SqlError(e))?;
+                let indexes: Vec<(String, String)> =
+                    sqlx::query_as("SELECT name, tbl_name FROM sqlite_master WHERE type = 'index'")
+                        .fetch_all(&self.pool)
+                        .await
+                        .map_err(|e| DatabaseError::SqlError(e))?;
 
                 Ok(indexes
                     .into_iter()
@@ -269,7 +267,7 @@ impl QueryOptimizer {
 
         // Get all tables
         let tables: Vec<(String,)> = sqlx::query_as(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
         )
         .fetch_all(&self.pool)
         .await
@@ -277,12 +275,11 @@ impl QueryOptimizer {
 
         for (table,) in tables {
             // Get table info
-            let columns: Vec<(i64, String, String, i64, Option<String>, i64)> = sqlx::query_as(
-                &format!("PRAGMA table_info({})", table)
-            )
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            let columns: Vec<(i64, String, String, i64, Option<String>, i64)> =
+                sqlx::query_as(&format!("PRAGMA table_info({})", table))
+                    .fetch_all(&self.pool)
+                    .await
+                    .map_err(|e| DatabaseError::SqlError(e))?;
 
             // Check for foreign key columns
             for (_, name, _, _, _, _) in &columns {
@@ -313,9 +310,8 @@ impl QueryOptimizer {
                 .cmp(&b.table)
                 .then_with(|| a.columns.join(",").cmp(&b.columns.join(",")))
         });
-        recommendations.dedup_by(|a, b| {
-            a.table == b.table && a.columns.join(",") == b.columns.join(",")
-        });
+        recommendations
+            .dedup_by(|a, b| a.table == b.table && a.columns.join(",") == b.columns.join(","));
 
         Ok(recommendations)
     }
@@ -392,8 +388,10 @@ impl QueryMonitor {
     pub fn record_query(&mut self, query: &str, duration: Duration) {
         let sanitized = self.sanitize_query(query);
 
-        let metrics = self.metrics.entry(sanitized.clone()).or_insert_with(|| {
-            QueryMetrics {
+        let metrics = self
+            .metrics
+            .entry(sanitized.clone())
+            .or_insert_with(|| QueryMetrics {
                 query: sanitized.clone(),
                 execution_count: 0,
                 total_duration: Duration::ZERO,
@@ -401,8 +399,7 @@ impl QueryMonitor {
                 max_duration: Duration::ZERO,
                 min_duration: Duration::MAX,
                 last_executed: None,
-            }
-        });
+            });
 
         metrics.execution_count += 1;
         metrics.total_duration += duration;
@@ -443,9 +440,7 @@ impl QueryMonitor {
     pub fn get_slow_queries(&self) -> Vec<&QueryMetrics> {
         self.metrics
             .values()
-            .filter(|m| {
-                m.avg_duration.as_millis() as u64 >= self.config.slow_query_threshold_ms
-            })
+            .filter(|m| m.avg_duration.as_millis() as u64 >= self.config.slow_query_threshold_ms)
             .collect()
     }
 
@@ -525,11 +520,7 @@ impl QueryMonitor {
             unique_queries: self.metrics.len() as u64,
             avg_query_duration: avg_duration,
             slow_query_count: slow_queries.len() as u64,
-            top_slow_queries: slow_queries
-                .into_iter()
-                .take(10)
-                .cloned()
-                .collect(),
+            top_slow_queries: slow_queries.into_iter().take(10).cloned().collect(),
             hot_queries: self.get_hot_queries(10).into_iter().cloned().collect(),
         }
     }
@@ -573,7 +564,10 @@ mod tests {
 
         let optimizer = QueryOptimizer::new(pool);
 
-        let plan = optimizer.analyze("SELECT * FROM test WHERE id = 1").await.unwrap();
+        let plan = optimizer
+            .analyze("SELECT * FROM test WHERE id = 1")
+            .await
+            .unwrap();
         assert!(!plan.steps.is_empty());
     }
 
@@ -595,10 +589,9 @@ mod tests {
             .unwrap();
 
         // Should suggest adding index
-        assert!(
-            suggestions.iter().any(|s| s.message.contains("full table scan")
-                || s.recommendation.contains("index"))
-        );
+        assert!(suggestions
+            .iter()
+            .any(|s| s.message.contains("full table scan") || s.recommendation.contains("index")));
     }
 
     #[tokio::test]
@@ -607,7 +600,7 @@ mod tests {
 
         // Create test table with foreign key-like column
         sqlx::query(
-            "CREATE TABLE servers (id TEXT PRIMARY KEY, group_id TEXT, name TEXT, data TEXT)"
+            "CREATE TABLE servers (id TEXT PRIMARY KEY, group_id TEXT, name TEXT, data TEXT)",
         )
         .execute(&pool)
         .await
@@ -619,7 +612,9 @@ mod tests {
         assert!(!recommendations.is_empty());
 
         // Should recommend index on group_id
-        assert!(recommendations.iter().any(|r| r.columns.contains(&"group_id".to_string())));
+        assert!(recommendations
+            .iter()
+            .any(|r| r.columns.contains(&"group_id".to_string())));
     }
 
     #[tokio::test]

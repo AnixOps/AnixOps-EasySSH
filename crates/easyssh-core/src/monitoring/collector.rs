@@ -227,7 +227,9 @@ impl MetricsCollector {
             let servers = self.servers.read().await;
             servers
                 .get(server_id)
-                .ok_or_else(|| MonitoringError::Collection(format!("Server {} not found", server_id)))?
+                .ok_or_else(|| {
+                    MonitoringError::Collection(format!("Server {} not found", server_id))
+                })?
                 .config
                 .clone()
         };
@@ -475,7 +477,8 @@ fn parse_system_metrics_output(output: &str) -> Result<SystemMetrics, Monitoring
                 let memory_buffers = buffers_kb * 1024;
                 let memory_cached = cached_kb * 1024;
 
-                memory_used = memory_total.saturating_sub(memory_free + memory_buffers + memory_cached);
+                memory_used =
+                    memory_total.saturating_sub(memory_free + memory_buffers + memory_cached);
             }
         } else if line.starts_with("DISK:") {
             let disk_data = &line[5..];
@@ -856,7 +859,13 @@ impl SimpleCollector {
         }
     }
 
-    pub fn connect(&mut self, host: &str, port: u16, username: &str, password: &str) -> Result<(), MonitoringError> {
+    pub fn connect(
+        &mut self,
+        host: &str,
+        port: u16,
+        username: &str,
+        password: &str,
+    ) -> Result<(), MonitoringError> {
         let tcp = std::net::TcpStream::connect(format!("{}:{}", host, port))
             .map_err(|e| MonitoringError::Ssh(format!("TCP connection failed: {}", e)))?;
 
@@ -865,10 +874,12 @@ impl SimpleCollector {
 
         session.set_tcp_stream(tcp);
 
-        session.handshake()
+        session
+            .handshake()
             .map_err(|e| MonitoringError::Ssh(format!("SSH handshake failed: {}", e)))?;
 
-        session.userauth_password(username, password)
+        session
+            .userauth_password(username, password)
             .map_err(|e| MonitoringError::Ssh(format!("Password auth failed: {}", e)))?;
 
         self.session = Some(session);

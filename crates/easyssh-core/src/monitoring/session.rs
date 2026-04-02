@@ -128,8 +128,7 @@ impl MonitoringSession {
         let mut session = ssh2::Session::new()
             .map_err(|e| MonitoringError::Ssh(format!("Failed to create SSH session: {}", e)))?;
 
-        session
-            .set_tcp_stream(tcp);
+        session.set_tcp_stream(tcp);
 
         session
             .handshake()
@@ -142,16 +141,14 @@ impl MonitoringSession {
                     .userauth_password(&config.username, &password)
                     .map_err(|e| MonitoringError::Ssh(format!("Password auth failed: {}", e)))?;
             }
-            AuthMethod::PrivateKey { key_path, passphrase } => {
+            AuthMethod::PrivateKey {
+                key_path,
+                passphrase,
+            } => {
                 let pubkey = std::path::Path::new(&key_path);
                 if pubkey.exists() {
                     session
-                        .userauth_pubkey_file(
-                            &config.username,
-                            None,
-                            pubkey,
-                            passphrase.as_deref(),
-                        )
+                        .userauth_pubkey_file(&config.username, None, pubkey, passphrase.as_deref())
                         .map_err(|e| MonitoringError::Ssh(format!("Key auth failed: {}", e)))?;
                 } else {
                     return Err(MonitoringError::Ssh(format!(
@@ -404,7 +401,8 @@ echo "LOAD:$load1 $load5 $load15"
                     let memory_cached = cached_kb * 1024;
 
                     // Calculate used memory (excluding buffers/cache)
-                    memory_used = memory_total.saturating_sub(memory_free + memory_buffers + memory_cached);
+                    memory_used =
+                        memory_total.saturating_sub(memory_free + memory_buffers + memory_cached);
                 }
             } else if line.starts_with("DISK:") {
                 // Parse: DISK:total,used
@@ -476,7 +474,9 @@ echo "LOAD:$load1 $load5 $load15"
             // Extract value based on metric type
             let value = match rule.metric_type {
                 crate::monitoring::metrics::MetricType::CpuUsage => metrics.cpu_percent as f64,
-                crate::monitoring::metrics::MetricType::MemoryUsage => metrics.memory_percent() as f64,
+                crate::monitoring::metrics::MetricType::MemoryUsage => {
+                    metrics.memory_percent() as f64
+                }
                 crate::monitoring::metrics::MetricType::DiskUsage => metrics.disk_percent() as f64,
                 crate::monitoring::metrics::MetricType::CpuLoad1 => metrics.load_avg[0] as f64,
                 crate::monitoring::metrics::MetricType::CpuLoad5 => metrics.load_avg[1] as f64,
@@ -618,10 +618,7 @@ impl ChartData {
     }
 
     /// Generate time series data for charts
-    pub fn generate_timeseries(
-        history: &[SystemMetrics],
-        metric_type: &str,
-    ) -> Vec<(i64, f64)> {
+    pub fn generate_timeseries(history: &[SystemMetrics], metric_type: &str) -> Vec<(i64, f64)> {
         let values = Self::generate_sparkline(history, metric_type);
         history
             .iter()
@@ -661,9 +658,7 @@ impl ChartData {
     }
 
     /// Generate bar chart data for resource usage comparison
-    pub fn generate_resource_comparison(
-        history: &[SystemMetrics],
-    ) -> Vec<(String, f64, String)> {
+    pub fn generate_resource_comparison(history: &[SystemMetrics]) -> Vec<(String, f64, String)> {
         if history.is_empty() {
             return Vec::new();
         }

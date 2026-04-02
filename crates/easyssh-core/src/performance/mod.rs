@@ -96,9 +96,9 @@ mod tests {
     fn test_check_performance_targets() {
         let metrics = PerformanceMetrics {
             startup_time_ms: 1000,
-            search_time_us: 50_000, // 50 ms
+            search_time_us: 50_000,               // 50 ms
             memory_usage_bytes: 70 * 1024 * 1024, // 70 MB
-            db_query_time_us: 5_000, // 5 ms
+            db_query_time_us: 5_000,              // 5 ms
             ..Default::default()
         };
 

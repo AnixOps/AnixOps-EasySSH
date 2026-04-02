@@ -507,18 +507,23 @@ impl EnterpriseVault {
         }
 
         // SAFETY: Handle mutex poisoning in unlock operations
-        *self.is_unlocked.lock().map_err(|e| {
-            LiteError::Crypto(format!("Vault state lock failed: {}", e))
-        })? = true;
+        *self
+            .is_unlocked
+            .lock()
+            .map_err(|e| LiteError::Crypto(format!("Vault state lock failed: {}", e)))? = true;
 
-        *self.last_unlocked.lock().map_err(|e| {
-            LiteError::Crypto(format!("Vault timestamp lock failed: {}", e))
-        })? = Some(Utc::now());
+        *self
+            .last_unlocked
+            .lock()
+            .map_err(|e| LiteError::Crypto(format!("Vault timestamp lock failed: {}", e)))? =
+            Some(Utc::now());
 
         if let Some(timeout) = options.timeout_minutes {
-            *self.auto_lock_timeout.lock().map_err(|e| {
-                LiteError::Crypto(format!("Vault config lock failed: {}", e))
-            })? = timeout;
+            *self
+                .auto_lock_timeout
+                .lock()
+                .map_err(|e| LiteError::Crypto(format!("Vault config lock failed: {}", e)))? =
+                timeout;
         }
 
         Ok(true)
@@ -536,15 +541,17 @@ impl EnterpriseVault {
         *is_unlocked = false;
 
         // SAFETY: Same poisoning handling for last_unlocked
-        let mut last_unlocked = self.last_unlocked.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        });
+        let mut last_unlocked = self
+            .last_unlocked
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         *last_unlocked = None;
 
         // Clear sensitive data from memory
-        let mut items = self.items.lock().unwrap_or_else(|poisoned| {
-            poisoned.into_inner()
-        });
+        let mut items = self
+            .items
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         for (_, item) in items.iter_mut() {
             item.zeroize();
         }
@@ -618,10 +625,12 @@ impl EnterpriseVault {
         }
 
         let should_lock = if let Ok(last_unlocked) = self.last_unlocked.lock() {
-            last_unlocked.map(|last| {
-                let elapsed = Utc::now() - last;
-                elapsed.num_minutes() >= timeout as i64
-            }).unwrap_or(false)
+            last_unlocked
+                .map(|last| {
+                    let elapsed = Utc::now() - last;
+                    elapsed.num_minutes() >= timeout as i64
+                })
+                .unwrap_or(false)
         } else {
             // Lock on error for safety
             true
@@ -2033,9 +2042,10 @@ impl EnterpriseVault {
     /// Ensure vault is unlocked - SECURITY: Re-checks after auto-lock
     fn ensure_unlocked(&self) -> Result<(), LiteError> {
         // SECURITY: First check
-        let unlocked = self.is_unlocked.lock().map_err(|e| {
-            LiteError::Crypto(format!("Vault state lock failed: {}", e))
-        })?;
+        let unlocked = self
+            .is_unlocked
+            .lock()
+            .map_err(|e| LiteError::Crypto(format!("Vault state lock failed: {}", e)))?;
 
         if !*unlocked {
             return Err(LiteError::InvalidMasterPassword);
@@ -2046,9 +2056,10 @@ impl EnterpriseVault {
         self.check_auto_lock();
 
         // Re-check after auto-lock check
-        let unlocked = self.is_unlocked.lock().map_err(|e| {
-            LiteError::Crypto(format!("Vault state lock failed: {}", e))
-        })?;
+        let unlocked = self
+            .is_unlocked
+            .lock()
+            .map_err(|e| LiteError::Crypto(format!("Vault state lock failed: {}", e)))?;
 
         if !*unlocked {
             return Err(LiteError::InvalidMasterPassword);

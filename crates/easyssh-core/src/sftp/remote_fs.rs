@@ -61,7 +61,11 @@ impl RemoteFs {
         client.rmdir(path).await
     }
 
-    pub async fn rename(&self, old: impl AsRef<Path>, new: impl AsRef<Path>) -> Result<(), LiteError> {
+    pub async fn rename(
+        &self,
+        old: impl AsRef<Path>,
+        new: impl AsRef<Path>,
+    ) -> Result<(), LiteError> {
         let client = self.client.read().await;
         client.rename(old, new).await
     }

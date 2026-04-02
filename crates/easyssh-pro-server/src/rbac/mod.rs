@@ -10,8 +10,11 @@ pub mod cache;
 pub mod middleware;
 pub mod resolver;
 
-pub use cache::{PermissionCache, CacheConfig};
-pub use middleware::{RbacMiddlewareConfig, rbac_middleware, require_permission, require_role, require_team_permission, RbacRequestExt};
+pub use cache::{CacheConfig, PermissionCache};
+pub use middleware::{
+    rbac_middleware, require_permission, require_role, require_team_permission,
+    RbacMiddlewareConfig, RbacRequestExt,
+};
 pub use resolver::{DatabaseResourceResolver, ServerResourceResolver};
 
 use axum::extract::Request;

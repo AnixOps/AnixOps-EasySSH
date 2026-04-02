@@ -183,12 +183,11 @@ fn run_lite_app() -> eframe::Result {
         Ok(vm) => Arc::new(Mutex::new(vm)),
         Err(e) => {
             error!("Failed to initialize: {}", e);
-            return Err(eframe::Error::AppCreation(
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to initialize: {}", e)
-                )) as Box<dyn std::error::Error + Send + Sync>
-            ));
+            return Err(eframe::Error::AppCreation(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to initialize: {}", e),
+            ))
+                as Box<dyn std::error::Error + Send + Sync>));
         }
     };
 
@@ -203,17 +202,21 @@ fn run_lite_app() -> eframe::Result {
     eframe::run_native(
         "EasySSH Lite",
         options,
-        Box::new(move |_cc| -> Result<Box<dyn eframe::App>, Box<dyn std::error::Error + Send + Sync>> {
-            match EasySshApp::new(view_model) {
-                Ok(app) => Ok(Box::new(app)),
-                Err(e) => {
-                    let err: Box<dyn std::error::Error + Send + Sync> = Box::new(
-                        std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to create app: {}", e))
-                    );
-                    Err(err)
+        Box::new(
+            move |_cc| -> Result<Box<dyn eframe::App>, Box<dyn std::error::Error + Send + Sync>> {
+                match EasySshApp::new(view_model) {
+                    Ok(app) => Ok(Box::new(app)),
+                    Err(e) => {
+                        let err: Box<dyn std::error::Error + Send + Sync> =
+                            Box::new(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                format!("Failed to create app: {}", e),
+                            ));
+                        Err(err)
+                    }
                 }
-            }
-        }),
+            },
+        ),
     )
 }
 

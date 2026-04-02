@@ -176,7 +176,11 @@ impl SftpClient {
         Ok(())
     }
 
-    pub async fn rename(&self, _old: impl AsRef<Path>, _new: impl AsRef<Path>) -> Result<(), LiteError> {
+    pub async fn rename(
+        &self,
+        _old: impl AsRef<Path>,
+        _new: impl AsRef<Path>,
+    ) -> Result<(), LiteError> {
         Ok(())
     }
 }
@@ -203,7 +207,8 @@ impl ClientPool {
 
     pub async fn add(&mut self, client: SftpClient) -> String {
         let id = client.id().to_string();
-        self.clients.insert(id.clone(), Arc::new(RwLock::new(client)));
+        self.clients
+            .insert(id.clone(), Arc::new(RwLock::new(client)));
         id
     }
 

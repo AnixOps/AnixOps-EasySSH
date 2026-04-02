@@ -512,7 +512,7 @@ impl Connection {
 
     /// Get connection summary
     ///
-    /// Format: "username@host:port [status] - duration"
+    /// Format: `username@host:port [status] - duration`
     pub fn summary(&self) -> String {
         format!(
             "{}@{}:{} [{}] - {}",
@@ -616,7 +616,10 @@ impl Validatable for Connection {
         // Validate duration consistency
         if let Some(duration) = self.duration_seconds {
             if let Some(ended) = self.ended_at {
-                let calculated = ended.signed_duration_since(self.started_at).num_seconds().max(0) as u64;
+                let calculated = ended
+                    .signed_duration_since(self.started_at)
+                    .num_seconds()
+                    .max(0) as u64;
                 // Allow small discrepancy due to rounding
                 if duration > calculated + 1 {
                     errors.push(ValidationError::invalid_field(
@@ -1220,12 +1223,30 @@ mod tests {
 
     #[test]
     fn test_connection_status_from_str() {
-        assert!(matches!(ConnectionStatus::from_str("connecting"), ConnectionStatus::Connecting));
-        assert!(matches!(ConnectionStatus::from_str("connected"), ConnectionStatus::Connected));
-        assert!(matches!(ConnectionStatus::from_str("disconnected"), ConnectionStatus::Disconnected));
-        assert!(matches!(ConnectionStatus::from_str("failed"), ConnectionStatus::Failed));
-        assert!(matches!(ConnectionStatus::from_str("timeout"), ConnectionStatus::Timeout));
-        assert!(matches!(ConnectionStatus::from_str("invalid"), ConnectionStatus::Connecting));
+        assert!(matches!(
+            ConnectionStatus::from_str("connecting"),
+            ConnectionStatus::Connecting
+        ));
+        assert!(matches!(
+            ConnectionStatus::from_str("connected"),
+            ConnectionStatus::Connected
+        ));
+        assert!(matches!(
+            ConnectionStatus::from_str("disconnected"),
+            ConnectionStatus::Disconnected
+        ));
+        assert!(matches!(
+            ConnectionStatus::from_str("failed"),
+            ConnectionStatus::Failed
+        ));
+        assert!(matches!(
+            ConnectionStatus::from_str("timeout"),
+            ConnectionStatus::Timeout
+        ));
+        assert!(matches!(
+            ConnectionStatus::from_str("invalid"),
+            ConnectionStatus::Connecting
+        ));
     }
 
     #[test]
@@ -1458,7 +1479,10 @@ mod tests {
 
         let redacted = conn.clone_redacted();
         assert_eq!(redacted.get_metadata("password"), Some(&"***".to_string()));
-        assert_eq!(redacted.get_metadata("passphrase"), Some(&"***".to_string()));
+        assert_eq!(
+            redacted.get_metadata("passphrase"),
+            Some(&"***".to_string())
+        );
     }
 
     #[test]

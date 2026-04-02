@@ -3,8 +3,8 @@
 //! 这个示例展示了如何使用监控模块的核心功能。
 
 use easyssh_core::monitoring::{
-    AlertCondition, AlertRule, AlertSeverity, AuthMethod, ChartData, MetricStats,
-    MetricType, MonitoringConfig, MonitoringManager, MonitoringSession, ServerConnectionConfig,
+    AlertCondition, AlertRule, AlertSeverity, AuthMethod, ChartData, MetricStats, MetricType,
+    MonitoringConfig, MonitoringManager, MonitoringSession, ServerConnectionConfig,
     ServerHealthStatus, SystemMetrics, TimeRange,
 };
 use std::sync::Arc;
@@ -57,10 +57,46 @@ async fn example_monitoring_session() -> Result<(), Box<dyn std::error::Error>> 
 fn example_chart_data() {
     // 创建模拟的历史数据
     let history = vec![
-        SystemMetrics::new(10.0, 4 * 1024 * 1024 * 1024, 16 * 1024 * 1024 * 1024, 100, 500, 0, 0, [0.1, 0.1, 0.1]),
-        SystemMetrics::new(20.0, 5 * 1024 * 1024 * 1024, 16 * 1024 * 1024 * 1024, 110, 500, 1024, 512, [0.2, 0.2, 0.2]),
-        SystemMetrics::new(30.0, 6 * 1024 * 1024 * 1024, 16 * 1024 * 1024 * 1024, 120, 500, 2048, 1024, [0.3, 0.3, 0.3]),
-        SystemMetrics::new(25.0, 5 * 1024 * 1024 * 1024, 16 * 1024 * 1024 * 1024, 115, 500, 1536, 768, [0.25, 0.25, 0.25]),
+        SystemMetrics::new(
+            10.0,
+            4 * 1024 * 1024 * 1024,
+            16 * 1024 * 1024 * 1024,
+            100,
+            500,
+            0,
+            0,
+            [0.1, 0.1, 0.1],
+        ),
+        SystemMetrics::new(
+            20.0,
+            5 * 1024 * 1024 * 1024,
+            16 * 1024 * 1024 * 1024,
+            110,
+            500,
+            1024,
+            512,
+            [0.2, 0.2, 0.2],
+        ),
+        SystemMetrics::new(
+            30.0,
+            6 * 1024 * 1024 * 1024,
+            16 * 1024 * 1024 * 1024,
+            120,
+            500,
+            2048,
+            1024,
+            [0.3, 0.3, 0.3],
+        ),
+        SystemMetrics::new(
+            25.0,
+            5 * 1024 * 1024 * 1024,
+            16 * 1024 * 1024 * 1024,
+            115,
+            500,
+            1536,
+            768,
+            [0.25, 0.25, 0.25],
+        ),
     ];
 
     // 生成 sparkline 数据（紧凑折线图）
@@ -73,7 +109,10 @@ fn example_chart_data() {
 
     // 计算统计信息
     let stats = ChartData::calculate_stats(&history, "cpu");
-    println!("CPU Stats: min={:.1}%, max={:.1}%, avg={:.1}%", stats.min, stats.max, stats.avg);
+    println!(
+        "CPU Stats: min={:.1}%, max={:.1}%, avg={:.1}%",
+        stats.min, stats.max, stats.avg
+    );
 
     // 生成资源对比数据
     let comparison = ChartData::generate_resource_comparison(&history);
@@ -146,8 +185,10 @@ async fn example_monitoring_manager() -> Result<(), Box<dyn std::error::Error>> 
     // 获取健康摘要
     let summary = manager.get_health_summary().await?;
     println!("Total servers: {}", summary.total_servers);
-    println!("Healthy: {}, Warning: {}, Critical: {}",
-        summary.healthy, summary.warning, summary.critical);
+    println!(
+        "Healthy: {}, Warning: {}, Critical: {}",
+        summary.healthy, summary.warning, summary.critical
+    );
 
     // 获取实时指标
     let metrics = manager.get_realtime_metrics("server-001").await?;
@@ -267,14 +308,14 @@ fn example_alert_rules() -> Vec<AlertRule> {
 fn example_system_metrics() {
     // 创建新的系统指标
     let metrics = SystemMetrics::new(
-        45.5,                              // CPU 使用率
-        4 * 1024 * 1024 * 1024,          // 内存使用: 4GB
-        16 * 1024 * 1024 * 1024,         // 总内存: 16GB
-        100 * 1024 * 1024 * 1024,        // 磁盘使用: 100GB
-        500 * 1024 * 1024 * 1024,        // 总磁盘: 500GB
-        1024 * 1024,                     // 网络接收: 1MB
-        512 * 1024,                      // 网络发送: 512KB
-        [0.5, 0.3, 0.2],                 // 负载平均值 (1min, 5min, 15min)
+        45.5,                     // CPU 使用率
+        4 * 1024 * 1024 * 1024,   // 内存使用: 4GB
+        16 * 1024 * 1024 * 1024,  // 总内存: 16GB
+        100 * 1024 * 1024 * 1024, // 磁盘使用: 100GB
+        500 * 1024 * 1024 * 1024, // 总磁盘: 500GB
+        1024 * 1024,              // 网络接收: 1MB
+        512 * 1024,               // 网络发送: 512KB
+        [0.5, 0.3, 0.2],          // 负载平均值 (1min, 5min, 15min)
     );
 
     // 使用指标
@@ -315,7 +356,12 @@ async fn main() {
     println!("示例 4: 告警规则配置");
     let rules = example_alert_rules();
     for rule in &rules {
-        println!("  - {}: {} [{}]", rule.id, rule.name, format!("{:?}", rule.severity));
+        println!(
+            "  - {}: {} [{}]",
+            rule.id,
+            rule.name,
+            format!("{:?}", rule.severity)
+        );
     }
     println!();
 

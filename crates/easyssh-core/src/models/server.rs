@@ -224,7 +224,10 @@ impl ServerStatus {
 
     /// Check if the server is currently connectable
     pub fn is_connectable(&self) -> bool {
-        matches!(self, ServerStatus::Unknown | ServerStatus::Online | ServerStatus::Offline)
+        matches!(
+            self,
+            ServerStatus::Unknown | ServerStatus::Online | ServerStatus::Offline
+        )
     }
 
     /// Check if the server is in an active connecting state
@@ -491,7 +494,10 @@ impl Validatable for Server {
 
         // Validate name
         if self.name.trim().is_empty() {
-            errors.push(ValidationError::invalid_field("name", "Name cannot be empty"));
+            errors.push(ValidationError::invalid_field(
+                "name",
+                "Name cannot be empty",
+            ));
         } else if self.name.len() > MAX_NAME_LENGTH {
             errors.push(ValidationError::invalid_field(
                 "name",
@@ -501,7 +507,10 @@ impl Validatable for Server {
 
         // Validate host
         if self.host.trim().is_empty() {
-            errors.push(ValidationError::invalid_field("host", "Host cannot be empty"));
+            errors.push(ValidationError::invalid_field(
+                "host",
+                "Host cannot be empty",
+            ));
         } else if !is_valid_host(&self.host) {
             errors.push(ValidationError::invalid_format(
                 "host",
@@ -1039,7 +1048,10 @@ mod tests {
     #[test]
     fn test_auth_method_needs_refresh() {
         assert!(!AuthMethod::Agent.needs_refresh());
-        assert!(AuthMethod::Password { password: "".to_string() }.needs_refresh());
+        assert!(AuthMethod::Password {
+            password: "".to_string()
+        }
+        .needs_refresh());
         assert!(!AuthMethod::PrivateKey {
             key_path: "".to_string(),
             passphrase: None,
@@ -1050,7 +1062,10 @@ mod tests {
     #[test]
     fn test_auth_method_stores_credentials() {
         assert!(!AuthMethod::Agent.stores_credentials());
-        assert!(AuthMethod::Password { password: "".to_string() }.stores_credentials());
+        assert!(AuthMethod::Password {
+            password: "".to_string()
+        }
+        .stores_credentials());
         assert!(AuthMethod::PrivateKey {
             key_path: "".to_string(),
             passphrase: None,
@@ -1222,7 +1237,10 @@ mod tests {
             },
             None,
         );
-        assert_eq!(server_with_key.identity_file(), Some("/path/to/key".to_string()));
+        assert_eq!(
+            server_with_key.identity_file(),
+            Some("/path/to/key".to_string())
+        );
 
         let server_with_agent = Server::new(
             "Test".to_string(),
@@ -1242,7 +1260,9 @@ mod tests {
             "example.com".to_string(),
             22,
             "user".to_string(),
-            AuthMethod::Password { password: "secret".to_string() },
+            AuthMethod::Password {
+                password: "secret".to_string(),
+            },
             None,
         );
         assert!(!password_server.uses_secure_auth());
@@ -1355,7 +1375,10 @@ mod tests {
         let deserialized: Server = serde_json::from_str(&json).unwrap();
 
         match deserialized.auth_method {
-            AuthMethod::PrivateKey { key_path, passphrase } => {
+            AuthMethod::PrivateKey {
+                key_path,
+                passphrase,
+            } => {
                 assert_eq!(key_path, "/path/to/key");
                 assert_eq!(passphrase, Some("secret".to_string()));
             }

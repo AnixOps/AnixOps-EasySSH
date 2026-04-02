@@ -53,7 +53,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &crate::theme::Co
     items.push(ListItem::new(Line::from(vec![
         Span::styled(all_symbol, Style::default().fg(theme.accent_info)),
         Span::styled(format!(" All "), all_style),
-        Span::styled(format!("({})", all_count), Style::default().fg(theme.fg_muted)),
+        Span::styled(
+            format!("({})", all_count),
+            Style::default().fg(theme.fg_muted),
+        ),
     ])));
 
     // Add groups with server counts

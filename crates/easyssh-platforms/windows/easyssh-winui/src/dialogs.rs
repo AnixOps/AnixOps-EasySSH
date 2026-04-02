@@ -198,7 +198,8 @@ impl GroupColorPicker {
                             let color_value = color.as_color32();
 
                             let button_size = egui::vec2(48.0, 48.0);
-                            let (rect, response) = ui.allocate_exact_size(button_size, egui::Sense::click());
+                            let (rect, response) =
+                                ui.allocate_exact_size(button_size, egui::Sense::click());
 
                             // Draw color circle
                             let painter = ui.painter();
@@ -206,22 +207,38 @@ impl GroupColorPicker {
                             let radius = if is_selected { 20.0 } else { 18.0 };
 
                             // Shadow for depth
-                            painter.circle_filled(center + egui::vec2(0.0, 2.0), radius, color_value.linear_multiply(0.7));
+                            painter.circle_filled(
+                                center + egui::vec2(0.0, 2.0),
+                                radius,
+                                color_value.linear_multiply(0.7),
+                            );
                             painter.circle_filled(center, radius, color_value);
 
                             // Selection indicator
                             if is_selected {
-                                painter.circle_stroke(center, radius + 3.0, egui::Stroke::new(3.0, egui::Color32::WHITE));
-                                painter.circle_stroke(center, radius + 3.0, egui::Stroke::new(1.0, egui::Color32::BLACK.linear_multiply(0.3)));
+                                painter.circle_stroke(
+                                    center,
+                                    radius + 3.0,
+                                    egui::Stroke::new(3.0, egui::Color32::WHITE),
+                                );
+                                painter.circle_stroke(
+                                    center,
+                                    radius + 3.0,
+                                    egui::Stroke::new(
+                                        1.0,
+                                        egui::Color32::BLACK.linear_multiply(0.3),
+                                    ),
+                                );
                             }
 
                             // Checkmark for selected
                             if is_selected {
-                                let check_color = if color_value.r() + color_value.g() + color_value.b() > 384 {
-                                    egui::Color32::BLACK
-                                } else {
-                                    egui::Color32::WHITE
-                                };
+                                let check_color =
+                                    if color_value.r() + color_value.g() + color_value.b() > 384 {
+                                        egui::Color32::BLACK
+                                    } else {
+                                        egui::Color32::WHITE
+                                    };
                                 painter.text(
                                     center,
                                     egui::Align2::CENTER_CENTER,
@@ -1527,7 +1544,8 @@ impl MasterPasswordDialog {
 
                 // Apply scale to content
                 let available_size = ui.available_size();
-                let centered_pos = ui.cursor().min + (available_size - available_size * scale) * 0.5;
+                let centered_pos =
+                    ui.cursor().min + (available_size - available_size * scale) * 0.5;
 
                 ui.allocate_ui_at_rect(
                     egui::Rect::from_min_size(centered_pos, available_size * scale),

@@ -416,7 +416,7 @@ impl User {
         }
     }
 
-    /// Get full display label (Name <username>)
+    /// Get full display label (Name `<username>`)
     pub fn display_label(&self) -> String {
         if self.display_name() != self.username {
             format!("{} ({})", self.display_name(), self.username)

@@ -49,7 +49,7 @@ pub fn check_tcp_connectivity(host: &str, port: u16, timeout_ms: u64) -> Network
 
     // 尝试连接
     let timeout = Duration::from_millis(timeout_ms);
-    for addr in addrs {
+    if let Some(addr) = addrs.into_iter().next() {
         match TcpStream::connect_timeout(&addr, timeout) {
             Ok(_) => {
                 let latency = start.elapsed().as_secs_f64() * 1000.0;
@@ -203,7 +203,7 @@ pub struct NetworkInterface {
 }
 
 fn gethostname() -> String {
-    whoami::hostname()
+    whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string())
 }
 
 #[cfg(test)]

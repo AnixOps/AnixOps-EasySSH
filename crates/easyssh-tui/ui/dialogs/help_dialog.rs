@@ -57,22 +57,27 @@ impl Dialog for HelpDialog {
 
         // Header
         let header = Paragraph::new(vec![
+            Line::from(vec![Span::styled(
+                "EasySSH Lite TUI",
+                Style::default()
+                    .fg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(vec![
+                Span::styled("Use ", Style::default().fg(theme.fg_secondary)),
                 Span::styled(
-                    "EasySSH Lite TUI",
+                    "hjkl",
                     Style::default()
-                        .fg(theme.accent_primary)
+                        .fg(theme.accent_info)
                         .add_modifier(Modifier::BOLD),
                 ),
-            ]),
-            Line::from(vec![
-                Span::styled(
-                    "Use ",
-                    Style::default().fg(theme.fg_secondary),
-                ),
-                Span::styled("hjkl", Style::default().fg(theme.accent_info).add_modifier(Modifier::BOLD)),
                 Span::styled(" or ", Style::default().fg(theme.fg_secondary)),
-                Span::styled("arrows", Style::default().fg(theme.accent_info).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "arrows",
+                    Style::default()
+                        .fg(theme.accent_info)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(" for navigation", Style::default().fg(theme.fg_secondary)),
             ]),
         ])
@@ -87,15 +92,13 @@ impl Dialog for HelpDialog {
 
         // Category styling function
         let category_header = |name: &str| -> Line {
-            Line::from(vec![
-                Span::styled(
-                    format!("  {}  ", name),
-                    Style::default()
-                        .add_modifier(Modifier::BOLD)
-                        .fg(theme.accent_secondary)
-                        .bg(theme.bg_highlight),
-                ),
-            ])
+            Line::from(vec![Span::styled(
+                format!("  {}  ", name),
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(theme.accent_secondary)
+                    .bg(theme.bg_highlight),
+            )])
         };
 
         // Navigation section
@@ -117,7 +120,10 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::Cancel
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::styled(
+                        format!("  {:<15}", key),
+                        Style::default().fg(theme.accent_info),
+                    ),
                     Span::raw(desc),
                 ]));
             }
@@ -140,7 +146,10 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::Refresh
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::styled(
+                        format!("  {:<15}", key),
+                        Style::default().fg(theme.accent_info),
+                    ),
                     Span::raw(desc),
                 ]));
             }
@@ -158,7 +167,10 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::DeleteGroup
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::styled(
+                        format!("  {:<15}", key),
+                        Style::default().fg(theme.accent_info),
+                    ),
                     Span::raw(desc),
                 ]));
             }
@@ -176,7 +188,10 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::Quit
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<15}", key), Style::default().fg(theme.accent_info)),
+                    Span::styled(
+                        format!("  {:<15}", key),
+                        Style::default().fg(theme.accent_info),
+                    ),
                     Span::raw(desc),
                 ]));
             }

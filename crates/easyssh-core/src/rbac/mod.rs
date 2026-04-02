@@ -6,16 +6,18 @@
 //! - 策略引擎
 //! - 资源解析
 
-pub mod types;
 pub mod checker;
 pub mod manager;
 pub mod policy;
+pub mod types;
 
 // 重新导出主要类型
+pub use checker::{CheckContext, CheckResult, PermissionChecker};
+pub use manager::{RoleChangeEvent, RoleChangeListener, RoleFilter, RoleManager, RoleManagerStats};
+pub use policy::{
+    Policy, PolicyCondition, PolicyDecision, PolicyEffect, PolicyEngine, PolicyEngineStats,
+};
 pub use types::*;
-pub use checker::{PermissionChecker, CheckContext, CheckResult};
-pub use manager::{RoleManager, RoleChangeEvent, RoleChangeListener, RoleFilter, RoleManagerStats};
-pub use policy::{PolicyEngine, Policy, PolicyEffect, PolicyCondition, PolicyDecision, PolicyEngineStats};
 
 /// 向后兼容类型别名
 pub type RbacManager = RoleManager;
@@ -115,8 +117,9 @@ macro_rules! require_permission {
             Ok(result) if result.allowed => (),
             Ok(result) => {
                 return Err($crate::rbac::RbacError::PermissionDenied(
-                    result.reason.unwrap_or_else(|| "Access denied".to_string())
-                ).into());
+                    result.reason.unwrap_or_else(|| "Access denied".to_string()),
+                )
+                .into());
             }
             Err(e) => return Err(e.into()),
         }
@@ -131,8 +134,9 @@ macro_rules! require_any_permission {
             Ok(result) if result.allowed => (),
             Ok(result) => {
                 return Err($crate::rbac::RbacError::PermissionDenied(
-                    result.reason.unwrap_or_else(|| "Access denied".to_string())
-                ).into());
+                    result.reason.unwrap_or_else(|| "Access denied".to_string()),
+                )
+                .into());
             }
             Err(e) => return Err(e.into()),
         }
@@ -159,10 +163,7 @@ fn create_super_admin_role() -> RoleDefinition {
     // 添加所有资源的所有权限
     for resource_type in ResourceType::all() {
         for operation in Operation::all() {
-            role.add_permission(Permission::new(
-                Resource::all(resource_type),
-                operation,
-            ));
+            role.add_permission(Permission::new(Resource::all(resource_type), operation));
         }
     }
 
@@ -176,12 +177,26 @@ fn create_team_admin_role() -> RoleDefinition {
         .as_system();
 
     // 团队管理权限
-    for operation in [Operation::Create, Operation::Read, Operation::Update, Operation::Delete] {
-        role.add_permission(Permission::new(Resource::all(ResourceType::Team), operation));
-        role.add_permission(Permission::new(Resource::all(ResourceType::Member), operation));
+    for operation in [
+        Operation::Create,
+        Operation::Read,
+        Operation::Update,
+        Operation::Delete,
+    ] {
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Team),
+            operation,
+        ));
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Member),
+            operation,
+        ));
     }
     // 审计权限
-    role.add_permission(Permission::new(Resource::all(ResourceType::AuditLog), Operation::Read));
+    role.add_permission(Permission::new(
+        Resource::all(ResourceType::AuditLog),
+        Operation::Read,
+    ));
 
     role
 }
@@ -193,16 +208,41 @@ fn create_team_member_role() -> RoleDefinition {
         .as_system();
 
     // 服务器相关权限
-    for operation in [Operation::Create, Operation::Read, Operation::Update, Operation::Delete, Operation::Execute] {
-        role.add_permission(Permission::new(Resource::all(ResourceType::Server), operation));
-        role.add_permission(Permission::new(Resource::all(ResourceType::Session), operation));
+    for operation in [
+        Operation::Create,
+        Operation::Read,
+        Operation::Update,
+        Operation::Delete,
+        Operation::Execute,
+    ] {
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Server),
+            operation,
+        ));
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Session),
+            operation,
+        ));
     }
     // Snippet权限
-    for operation in [Operation::Create, Operation::Read, Operation::Update, Operation::Delete] {
-        role.add_permission(Permission::new(Resource::all(ResourceType::Snippet), operation));
+    for operation in [
+        Operation::Create,
+        Operation::Read,
+        Operation::Update,
+        Operation::Delete,
+    ] {
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Snippet),
+            operation,
+        ));
     }
     // Key权限
-    for operation in [Operation::Create, Operation::Read, Operation::Update, Operation::Delete] {
+    for operation in [
+        Operation::Create,
+        Operation::Read,
+        Operation::Update,
+        Operation::Delete,
+    ] {
         role.add_permission(Permission::new(Resource::all(ResourceType::Key), operation));
     }
 
@@ -216,9 +256,18 @@ fn create_team_viewer_role() -> RoleDefinition {
         .as_system();
 
     // 只读权限
-    role.add_permission(Permission::new(Resource::all(ResourceType::Server), Operation::Read));
-    role.add_permission(Permission::new(Resource::all(ResourceType::Session), Operation::Read));
-    role.add_permission(Permission::new(Resource::all(ResourceType::Snippet), Operation::Read));
+    role.add_permission(Permission::new(
+        Resource::all(ResourceType::Server),
+        Operation::Read,
+    ));
+    role.add_permission(Permission::new(
+        Resource::all(ResourceType::Session),
+        Operation::Read,
+    ));
+    role.add_permission(Permission::new(
+        Resource::all(ResourceType::Snippet),
+        Operation::Read,
+    ));
 
     role
 }
@@ -230,11 +279,26 @@ fn create_personal_role() -> RoleDefinition {
         .as_system();
 
     // 服务器相关权限
-    for operation in [Operation::Create, Operation::Read, Operation::Update, Operation::Delete, Operation::Execute] {
-        role.add_permission(Permission::new(Resource::all(ResourceType::Server), operation));
+    for operation in [
+        Operation::Create,
+        Operation::Read,
+        Operation::Update,
+        Operation::Delete,
+        Operation::Execute,
+    ] {
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Server),
+            operation,
+        ));
         role.add_permission(Permission::new(Resource::all(ResourceType::Key), operation));
-        role.add_permission(Permission::new(Resource::all(ResourceType::Snippet), operation));
-        role.add_permission(Permission::new(Resource::all(ResourceType::Layout), operation));
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Snippet),
+            operation,
+        ));
+        role.add_permission(Permission::new(
+            Resource::all(ResourceType::Layout),
+            operation,
+        ));
     }
 
     role

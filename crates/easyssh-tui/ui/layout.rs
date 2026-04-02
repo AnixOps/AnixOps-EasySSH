@@ -90,17 +90,16 @@ impl LayoutManager {
         let status_bar = main_layout[1];
 
         // Calculate remaining width for server list
-        let server_list_width = main_area.width.saturating_sub(self.sidebar_width + self.detail_width);
+        let server_list_width = main_area
+            .width
+            .saturating_sub(self.sidebar_width + self.detail_width);
 
         // Split main area horizontally
         let content_layout = if self.mode == LayoutMode::Minimal {
             // Minimal mode: only sidebar and server list
             Layout::default()
                 .direction(Direction::Horizontal)
-                .constraints([
-                    Constraint::Length(self.sidebar_width),
-                    Constraint::Min(0),
-                ])
+                .constraints([Constraint::Length(self.sidebar_width), Constraint::Min(0)])
                 .split(main_area)
         } else {
             // Full/Compact mode: all three panels
@@ -171,4 +170,3 @@ impl Default for LayoutManager {
         Self::new()
     }
 }
-

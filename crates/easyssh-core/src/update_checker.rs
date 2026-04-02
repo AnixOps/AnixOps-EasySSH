@@ -19,7 +19,8 @@ use tokio::time::interval;
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// GitHub Releases API默认端点
-pub const DEFAULT_GITHUB_API_URL: &str = "https://api.github.com/repos/AnixTeam/EasySSH/releases/latest";
+pub const DEFAULT_GITHUB_API_URL: &str =
+    "https://api.github.com/repos/AnixTeam/EasySSH/releases/latest";
 
 /// GitHub Releases页面（用于引导用户下载）
 pub const DEFAULT_GITHUB_RELEASES_URL: &str = "https://github.com/AnixTeam/EasySSH/releases";
@@ -430,8 +431,8 @@ impl UpdateChecker {
             Ok(VersionCompareResult::Same) => UpdateCheckResult::UpToDate,
             Ok(VersionCompareResult::UpdateAvailable) => {
                 // 构建更新信息
-                let release_date = parse_github_date(&release.published_at)
-                    .unwrap_or_else(|_| Utc::now());
+                let release_date =
+                    parse_github_date(&release.published_at).unwrap_or_else(|_| Utc::now());
 
                 let assets: Vec<AssetInfo> = release
                     .assets
@@ -530,10 +531,7 @@ impl UpdateChecker {
 /// 比较两个版本号
 ///
 /// 支持语义化版本格式: major.minor.patch[-prerelease]
-fn compare_versions(
-    current: &str,
-    latest: &str,
-) -> Result<VersionCompareResult, UpdateCheckError> {
+fn compare_versions(current: &str, latest: &str) -> Result<VersionCompareResult, UpdateCheckError> {
     let current_parts = parse_version(current)?;
     let latest_parts = parse_version(latest)?;
 
@@ -562,7 +560,7 @@ fn compare_versions(
     match (current_parts.3.as_ref(), latest_parts.3.as_ref()) {
         (None, None) => Ok(VersionCompareResult::Same),
         (Some(_), None) => Ok(VersionCompareResult::UpdateAvailable), // 当前是预发布，最新是正式版
-        (None, Some(_)) => Ok(VersionCompareResult::CurrentNewer),  // 当前是正式版，最新是预发布
+        (None, Some(_)) => Ok(VersionCompareResult::CurrentNewer),    // 当前是正式版，最新是预发布
         (Some(c), Some(l)) => {
             // 比较预发布版本字符串
             if l > c {
@@ -639,7 +637,9 @@ fn is_asset_for_platform(filename: &str) -> bool {
                 || lowercase.ends_with(".app.tar.gz")
         }
         "linux" => {
-            let is_linux = lowercase.contains("linux") || lowercase.contains("ubuntu") || lowercase.contains("debian");
+            let is_linux = lowercase.contains("linux")
+                || lowercase.contains("ubuntu")
+                || lowercase.contains("debian");
 
             // 检查架构
             let arch_match = match arch {
@@ -730,22 +730,13 @@ mod tests {
 
     #[test]
     fn test_parse_version() {
-        assert_eq!(
-            parse_version("1.2.3").unwrap(),
-            (1, 2, 3, None)
-        );
-        assert_eq!(
-            parse_version("v1.2.3").unwrap(),
-            (1, 2, 3, None)
-        );
+        assert_eq!(parse_version("1.2.3").unwrap(), (1, 2, 3, None));
+        assert_eq!(parse_version("v1.2.3").unwrap(), (1, 2, 3, None));
         assert_eq!(
             parse_version("1.2.3-alpha").unwrap(),
             (1, 2, 3, Some("alpha".to_string()))
         );
-        assert_eq!(
-            parse_version("1.2").unwrap(),
-            (1, 2, 0, None)
-        );
+        assert_eq!(parse_version("1.2").unwrap(), (1, 2, 0, None));
     }
 
     #[test]

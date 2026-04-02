@@ -10,7 +10,7 @@
 //! - **SSH Management**: [`ssh`] module provides connection pooling and session management
 //! - **Cryptography**: [`crypto`] module handles encryption using AES-256-GCM and Argon2id
 //! - **Database**: [`db`] module for SQLite persistence
-//! - **Workflow Automation**: [`workflow_engine`], [`workflow_executor`] for automation
+//! - **Workflow Automation**: `workflow_engine`, `workflow_executor` for automation (feature: workflow)
 //! - **Database Client**: `database_client` (feature: database-client) for connecting to MySQL, PostgreSQL, etc.
 //! - **Internationalization**: [`i18n`] module for multi-language support
 //! - **Keychain**: [`keychain`] for secure credential storage
@@ -124,6 +124,13 @@ pub mod ai_programming {
         pub success: bool,
         pub output: String,
         pub errors: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct EditResult {
+        pub success: bool,
+        pub message: String,
+        pub old_content: Option<String>,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -774,9 +781,10 @@ pub mod security_tests;
 // Performance optimization module
 pub mod performance;
 pub use performance::{
+    check_performance_targets,
     crypto_optimizer::{
-        CryptoOptimizer, EncryptionBufferPool, KeyDerivationCache,
-        detect_aes_ni, get_optimization_recommendations,
+        detect_aes_ni, get_optimization_recommendations, CryptoOptimizer, EncryptionBufferPool,
+        KeyDerivationCache,
     },
     db_optimizer::{
         BatchOperations, DatabaseStats, DbOptimizer, OptimizedDatabase, QueryCache, QueryStats,
@@ -789,10 +797,10 @@ pub use performance::{
         FastStringMatcher, IndexStats, InvertedIndex, PrefixIndex, SearchOptimizer,
     },
     startup_optimizer::{
-        AsyncLazyInitializer, DeferredLoader, LazyInitializer, PhaseReport, PhaseTiming,
-        StartupOptimizer, StartupPhase, StartupReport, StartupSequence, check_startup_readiness,
+        check_startup_readiness, AsyncLazyInitializer, DeferredLoader, LazyInitializer,
+        PhaseReport, PhaseTiming, StartupOptimizer, StartupPhase, StartupReport, StartupSequence,
     },
-    BenchmarkTargets, PerformanceMetrics, check_performance_targets,
+    BenchmarkTargets, PerformanceMetrics,
 };
 
 // Docker Management
@@ -804,8 +812,8 @@ pub mod remote_desktop;
 
 #[cfg(feature = "auto-update")]
 pub mod auto_update;
-pub mod update_checker;
 pub mod port_forward;
+pub mod update_checker;
 
 // Unified Debug Module exports - 统一Debug模块
 #[cfg(feature = "dev-tools")]
@@ -897,11 +905,12 @@ pub use models::{
     UNGROUPED_ID, UNGROUPED_NAME,
 };
 pub use services::{
-    AsyncGroupService, AsyncServerService, BatchOperationResult, ConnectionStatus as SearchConnectionStatus, ConnectionTestResult,
-    GroupImportResult, GroupResult, GroupService, GroupServiceError,
-    SearchAuthMethod, SearchHistoryEntry, SearchQuery, SearchQueryBuilder, SearchResult, SearchService,
-    ServerImportResult, ServerResult, ServerService, ServerServiceError , ServerStats, SortBy, SortOrder,
-    TransactionError, TransactionResult,
+    AsyncGroupService, AsyncServerService, BatchOperationResult,
+    ConnectionStatus as SearchConnectionStatus, ConnectionTestResult, GroupImportResult,
+    GroupResult, GroupService, GroupServiceError, SearchAuthMethod, SearchHistoryEntry,
+    SearchQuery, SearchQueryBuilder, SearchResult, SearchService, ServerImportResult, ServerResult,
+    ServerService, ServerServiceError, ServerStats, SortBy, SortOrder, TransactionError,
+    TransactionResult,
 };
 
 // Version system FFI exports
@@ -945,13 +954,11 @@ pub use logger::{
 // Modular SFTP exports
 #[cfg(feature = "sftp")]
 pub use sftp::{
-    SftpClient, SftpClientConfig, SftpManager, ConnectionState,
-    FileTransfer, TransferHandle, TransferError, ChunkConfig,
-    RemoteFs, RemoteDir, RemoteFile, FileSystemWatcher, ContentType,
-    TransferQueue, QueueConfig, QueueStats, QueueEvent,
-    ProgressTracker, ProgressCallback, ProgressSnapshot, SpeedCalculator,
-    FileInfo, TransferTask, TransferDirection, TransferStatus,
-    TransferOptions, TransferResult, TransferStats, FileType, FilePermission,
+    ChunkConfig, ConnectionState, ContentType, FileInfo, FilePermission, FileSystemWatcher,
+    FileTransfer, FileType, ProgressCallback, ProgressSnapshot, ProgressTracker, QueueConfig,
+    QueueEvent, QueueStats, RemoteDir, RemoteFile, RemoteFs, SftpClient, SftpClientConfig,
+    SftpManager, SpeedCalculator, TransferDirection, TransferError, TransferHandle,
+    TransferOptions, TransferQueue, TransferResult, TransferStats, TransferStatus, TransferTask,
 };
 #[cfg(feature = "sync")]
 pub use sync::{
@@ -986,22 +993,20 @@ pub use monitoring::{
 };
 #[cfg(feature = "pro")]
 pub use rbac::{
-    CheckContext, CheckResult, Permission, PermissionChecker, PermissionConditions,
-    PermissionContext, Policy, PolicyCondition, PolicyDecision, PolicyEffect,
-    PolicyEngine, PolicyEngineStats, RbacAuditEntry, RbacAuditLogger, RbacConfig,
-    RbacError, RbacManager, Resource, ResourceResolver, ResourceScope, RoleChangeEvent,
-    RoleChangeListener, RoleDefinition, RoleFilter, RoleManager, RoleManagerStats,
-    UserRbacInfo, UserRoleAssignment, init_system_roles,
-    PermissionChecker as RbacPermissionChecker,
-    RoleManager as RbacRoleManager,
-    PolicyEngine as RbacPolicyEngine,
+    init_system_roles, CheckContext, CheckResult, Permission, PermissionChecker,
+    PermissionChecker as RbacPermissionChecker, PermissionConditions, PermissionContext, Policy,
+    PolicyCondition, PolicyDecision, PolicyEffect, PolicyEngine, PolicyEngine as RbacPolicyEngine,
+    PolicyEngineStats, RbacAuditEntry, RbacAuditLogger, RbacConfig, RbacError, RbacManager,
+    Resource, ResourceResolver, ResourceScope, RoleChangeEvent, RoleChangeListener, RoleDefinition,
+    RoleFilter, RoleManager, RoleManager as RbacRoleManager, RoleManagerStats, UserRbacInfo,
+    UserRoleAssignment,
 };
 #[cfg(feature = "sso")]
 pub use sso::{
-    GroupToRoleMapping, LdapConfig, OidcAttributeMapping, OidcAuthRequest,
-    OidcConfig, OidcTokenResponse, OidcUserInfo, SamlAttributeMapping, SamlAuthRequest,
-    SamlAuthResponse, SamlConfig, SsoManager, SsoMetadata, SsoProvider,
-    SsoProviderConfig, SsoProviderType, SsoSession, SsoUserInfo, TeamSsoMapping,
+    GroupToRoleMapping, LdapConfig, OidcAttributeMapping, OidcAuthRequest, OidcConfig,
+    OidcTokenResponse, OidcUserInfo, SamlAttributeMapping, SamlAuthRequest, SamlAuthResponse,
+    SamlConfig, SsoManager, SsoMetadata, SsoProvider, SsoProviderConfig, SsoProviderType,
+    SsoSession, SsoUserInfo, TeamSsoMapping,
 };
 #[cfg(feature = "team")]
 pub use team::{Team, TeamInvite, TeamManager, TeamMember, TeamRole};
@@ -1030,9 +1035,9 @@ pub use port_forward::{
 
 // Update checker exports (Lite版本简化更新检测)
 pub use update_checker::{
-    check_update, has_update, AssetInfo, UpdateChannel, UpdateCheckError, UpdateChecker,
-    UpdateCheckerConfig, UpdateCheckResult, UpdateInfo, VersionCompareResult, CURRENT_VERSION,
-    DEFAULT_GITHUB_API_URL, DEFAULT_GITHUB_RELEASES_URL, get_platform_asset_name,
+    check_update, get_platform_asset_name, has_update, AssetInfo, UpdateChannel, UpdateCheckError,
+    UpdateCheckResult, UpdateChecker, UpdateCheckerConfig, UpdateInfo, VersionCompareResult,
+    CURRENT_VERSION, DEFAULT_GITHUB_API_URL, DEFAULT_GITHUB_RELEASES_URL,
 };
 
 #[cfg(feature = "kubernetes")]

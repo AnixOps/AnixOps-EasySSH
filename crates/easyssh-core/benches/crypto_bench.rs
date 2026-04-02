@@ -18,7 +18,7 @@
 //! ```
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use easyssh_core::crypto::{CryptoState, MasterKey, ServerCredential, CredentialEncryption};
+use easyssh_core::crypto::{CredentialEncryption, CryptoState, MasterKey, ServerCredential};
 
 /// Initialize crypto state with a test password
 fn init_crypto_state() -> CryptoState {
@@ -136,7 +136,7 @@ fn bench_credential_encryption(c: &mut Criterion) {
     group.bench_function("ssh_key_credential", |b| {
         let private_key = "-----BEGIN OPENSSH PRIVATE KEY-----\n".to_string()
             + &"b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\n"
-            .repeat(20)
+                .repeat(20)
             + "-----END OPENSSH PRIVATE KEY-----";
 
         let credential = ServerCredential::with_ssh_key(
@@ -154,12 +154,8 @@ fn bench_credential_encryption(c: &mut Criterion) {
     });
 
     group.bench_function("credential_roundtrip", |b| {
-        let credential = ServerCredential::with_password(
-            "server-3",
-            "192.168.1.102",
-            "user",
-            "password123",
-        );
+        let credential =
+            ServerCredential::with_password("server-3", "192.168.1.102", "user", "password123");
         let encrypted = credential.encrypt(&state).unwrap();
 
         b.iter(|| {
@@ -183,7 +179,10 @@ fn bench_key_derivation(c: &mut Criterion) {
     let passwords = [
         ("short_password", "123456"),
         ("medium_password", "my_secure_password_123"),
-        ("long_password", "this_is_a_very_long_password_with_special_chars_!@#$%^&*()"),
+        (
+            "long_password",
+            "this_is_a_very_long_password_with_special_chars_!@#$%^&*()",
+        ),
     ];
 
     for (name, password) in passwords.iter() {
@@ -209,7 +208,9 @@ fn bench_master_key(c: &mut Criterion) {
     group.bench_function("initialization", |b| {
         b.iter(|| {
             let mut master = MasterKey::new();
-            master.initialize(black_box("benchmark_master_password")).unwrap();
+            master
+                .initialize(black_box("benchmark_master_password"))
+                .unwrap();
             black_box(master);
         });
     });
@@ -225,7 +226,9 @@ fn bench_master_key(c: &mut Criterion) {
             // Set salt and attempt unlock
             let mut salt_array = [0u8; 32];
             salt_array.copy_from_slice(&salt);
-            new_master.unlock(black_box("unlock_test_password")).unwrap();
+            new_master
+                .unlock(black_box("unlock_test_password"))
+                .unwrap();
             black_box(new_master);
         });
     });
@@ -279,12 +282,8 @@ fn bench_credential_encryption_sizes(c: &mut Criterion) {
             None
         };
 
-        let mut credential = ServerCredential::with_password(
-            "server-test",
-            "192.168.1.1",
-            "user",
-            "password123",
-        );
+        let mut credential =
+            ServerCredential::with_password("server-test", "192.168.1.1", "user", "password123");
 
         if let Some(meta) = metadata {
             credential.metadata_encrypted = Some(meta);

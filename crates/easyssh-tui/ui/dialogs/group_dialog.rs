@@ -176,9 +176,7 @@ impl Dialog for GroupDialog {
                 .fg(theme.fg_secondary);
 
             let value_style = if is_focused {
-                Style::default()
-                    .fg(theme.fg_primary)
-                    .bg(theme.bg_highlight)
+                Style::default().fg(theme.fg_primary).bg(theme.bg_highlight)
             } else if !is_valid && value.is_empty() {
                 Style::default().fg(theme.accent_error)
             } else {
@@ -214,9 +212,7 @@ impl Dialog for GroupDialog {
 
         // Color field with preview
         let color_style = if self.focused_field == Field::Color {
-            Style::default()
-                .fg(theme.fg_primary)
-                .bg(theme.bg_highlight)
+            Style::default().fg(theme.fg_primary).bg(theme.bg_highlight)
         } else {
             Style::default().fg(theme.fg_primary)
         };
@@ -233,7 +229,12 @@ impl Dialog for GroupDialog {
         );
 
         let color_line = Line::from(vec![
-            Span::styled("Color:", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+            Span::styled(
+                "Color:",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(theme.fg_secondary),
+            ),
             Span::styled(format!(" {} ", self.data.color), color_style),
             color_preview,
         ]);
@@ -242,9 +243,10 @@ impl Dialog for GroupDialog {
         frame.render_widget(color_para, chunks[1]);
 
         // Preset colors - show first 10 with numbers
-        let mut preset_spans = vec![
-            Span::styled("Presets: ", Style::default().fg(theme.fg_secondary)),
-        ];
+        let mut preset_spans = vec![Span::styled(
+            "Presets: ",
+            Style::default().fg(theme.fg_secondary),
+        )];
 
         for (idx, &color) in self.preset_colors.iter().take(10).enumerate() {
             let rgb = parse_hex_color(color);
@@ -257,7 +259,9 @@ impl Dialog for GroupDialog {
                     .add_modifier(Modifier::BOLD)
                     .add_modifier(Modifier::UNDERLINED)
             } else {
-                Style::default().bg(Color::Rgb(rgb.0, rgb.1, rgb.2)).fg(Color::White)
+                Style::default()
+                    .bg(Color::Rgb(rgb.0, rgb.1, rgb.2))
+                    .fg(Color::White)
             };
 
             preset_spans.push(Span::styled(format!(" {}", idx), style));

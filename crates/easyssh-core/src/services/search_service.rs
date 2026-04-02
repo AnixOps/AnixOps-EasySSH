@@ -141,27 +141,111 @@ impl PinyinCache {
         let mut char_map = HashMap::new();
         // Common Chinese character mappings
         let common_chars = [
-            ('服', "fu"), ('务', "wu"), ('器', "qi"), ('主', "zhu"), ('机', "ji"),
-            ('测', "ce"), ('试', "shi"), ('生', "sheng"), ('产', "chan"), ('开', "kai"),
-            ('发', "fa"), ('数', "shu"), ('据', "ju"), ('库', "ku"), ('网', "wang"),
-            ('络', "luo"), ('存', "cun"), ('储', "chu"), ('计', "ji"), ('算', "suan"),
-            ('云', "yun"), ('端', "duan"), ('本', "ben"), ('地', "di"), ('远', "yuan"),
-            ('程', "cheng"), ('连', "lian"), ('接', "jie"), ('配', "pei"), ('置', "zhi"),
-            ('安', "an"), ('全', "quan"), ('密', "mi"), ('码', "ma"), ('密', "mi"),
-            ('钥', "yao"), ('管', "guan"), ('理', "li"), ('监', "jian"), ('控', "kong"),
-            ('预', "yu"), ('警', "jing"), ('报', "bao"), ('警', "jing"), ('告', "gao"),
-            ('错', "cuo"), ('误', "wu"), ('失', "shi"), ('败', "bai"), ('成', "cheng"),
-            ('功', "gong"), ('完', "wan"), ('成', "cheng"), ('新', "xin"), ('建', "jian"),
-            ('删', "shan"), ('除', "chu"), ('修', "xiu"), ('改', "gai"), ('查', "cha"),
-            ('看', "kan"), ('搜', "sou"), ('索', "suo"), ('过', "guo"), ('滤', "lv"),
-            ('排', "pai"), ('序', "xu"), ('组', "zu"), ('分', "fen"), ('类', "lei"),
-            ('标', "biao"), ('签', "qian"), ('备', "bei"), ('注', "zhu"), ('描', "miao"),
-            ('述', "shu"), ('名', "ming"), ('称', "cheng"), ('地', "di"), ('址', "zhi"),
-            ('用', "yong"), ('户', "hu"), ('名', "ming"), ('端', "duan"), ('口', "kou"),
-            ('密', "mi"), ('令', "ling"), ('认', "ren"), ('证', "zheng"), ('授', "shou"),
-            ('权', "quan"), ('组', "zu"), ('织', "zhi"), ('公', "gong"), ('司', "si"),
-            ('部', "bu"), ('门', "men"), ('团', "tuan"), ('队', "dui"), ('项', "xiang"),
-            ('目', "mu"), ('环', "huan"), ('境', "jing"), ('区', "qu"), ('域', "yu"),
+            ('服', "fu"),
+            ('务', "wu"),
+            ('器', "qi"),
+            ('主', "zhu"),
+            ('机', "ji"),
+            ('测', "ce"),
+            ('试', "shi"),
+            ('生', "sheng"),
+            ('产', "chan"),
+            ('开', "kai"),
+            ('发', "fa"),
+            ('数', "shu"),
+            ('据', "ju"),
+            ('库', "ku"),
+            ('网', "wang"),
+            ('络', "luo"),
+            ('存', "cun"),
+            ('储', "chu"),
+            ('计', "ji"),
+            ('算', "suan"),
+            ('云', "yun"),
+            ('端', "duan"),
+            ('本', "ben"),
+            ('地', "di"),
+            ('远', "yuan"),
+            ('程', "cheng"),
+            ('连', "lian"),
+            ('接', "jie"),
+            ('配', "pei"),
+            ('置', "zhi"),
+            ('安', "an"),
+            ('全', "quan"),
+            ('密', "mi"),
+            ('码', "ma"),
+            ('密', "mi"),
+            ('钥', "yao"),
+            ('管', "guan"),
+            ('理', "li"),
+            ('监', "jian"),
+            ('控', "kong"),
+            ('预', "yu"),
+            ('警', "jing"),
+            ('报', "bao"),
+            ('警', "jing"),
+            ('告', "gao"),
+            ('错', "cuo"),
+            ('误', "wu"),
+            ('失', "shi"),
+            ('败', "bai"),
+            ('成', "cheng"),
+            ('功', "gong"),
+            ('完', "wan"),
+            ('成', "cheng"),
+            ('新', "xin"),
+            ('建', "jian"),
+            ('删', "shan"),
+            ('除', "chu"),
+            ('修', "xiu"),
+            ('改', "gai"),
+            ('查', "cha"),
+            ('看', "kan"),
+            ('搜', "sou"),
+            ('索', "suo"),
+            ('过', "guo"),
+            ('滤', "lv"),
+            ('排', "pai"),
+            ('序', "xu"),
+            ('组', "zu"),
+            ('分', "fen"),
+            ('类', "lei"),
+            ('标', "biao"),
+            ('签', "qian"),
+            ('备', "bei"),
+            ('注', "zhu"),
+            ('描', "miao"),
+            ('述', "shu"),
+            ('名', "ming"),
+            ('称', "cheng"),
+            ('地', "di"),
+            ('址', "zhi"),
+            ('用', "yong"),
+            ('户', "hu"),
+            ('名', "ming"),
+            ('端', "duan"),
+            ('口', "kou"),
+            ('密', "mi"),
+            ('令', "ling"),
+            ('认', "ren"),
+            ('证', "zheng"),
+            ('授', "shou"),
+            ('权', "quan"),
+            ('组', "zu"),
+            ('织', "zhi"),
+            ('公', "gong"),
+            ('司', "si"),
+            ('部', "bu"),
+            ('门', "men"),
+            ('团', "tuan"),
+            ('队', "dui"),
+            ('项', "xiang"),
+            ('目', "mu"),
+            ('环', "huan"),
+            ('境', "jing"),
+            ('区', "qu"),
+            ('域', "yu"),
         ];
         for (ch, py) in common_chars {
             char_map.insert(ch, py.to_string());
@@ -250,9 +334,7 @@ impl PinyinCache {
 
         // Pinyin initials (first letter of each segment)
         let segments = self.to_pinyin_segmented(text);
-        let initials: String = segments.iter()
-            .filter_map(|s| s.chars().next())
-            .collect();
+        let initials: String = segments.iter().filter_map(|s| s.chars().next()).collect();
         if initials.len() > 1 {
             variants.push(initials);
         }
@@ -273,6 +355,7 @@ impl PinyinCache {
 
 /// Search index entry for fast lookups
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct SearchIndexEntry {
     host_id: String,
     name: String,
@@ -395,6 +478,7 @@ pub struct SearchMetrics {
 }
 
 /// Server search service
+#[allow(dead_code)]
 pub struct SearchService {
     db: Arc<Database>,
     /// In-memory search index
@@ -782,8 +866,12 @@ impl SearchService {
         let len1 = s1_chars.len();
         let len2 = s2_chars.len();
 
-        if len1 == 0 { return len2; }
-        if len2 == 0 { return len1; }
+        if len1 == 0 {
+            return len2;
+        }
+        if len2 == 0 {
+            return len1;
+        }
 
         let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
@@ -796,12 +884,19 @@ impl SearchService {
 
         for i in 1..=len1 {
             for j in 1..=len2 {
-                let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+                let cost = if s1_chars[i - 1] == s2_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
                 matrix[i][j] = [
-                    matrix[i - 1][j] + 1,      // deletion
-                    matrix[i][j - 1] + 1,      // insertion
+                    matrix[i - 1][j] + 1,        // deletion
+                    matrix[i][j - 1] + 1,        // insertion
                     matrix[i - 1][j - 1] + cost, // substitution
-                ].into_iter().min().unwrap();
+                ]
+                .into_iter()
+                .min()
+                .unwrap();
             }
         }
 
@@ -827,7 +922,8 @@ impl SearchService {
         if text_lower.contains(&keyword_lower) {
             let position = text_lower.find(&keyword_lower).unwrap() as f64;
             let position_penalty = position / text_lower.len() as f64 * 0.2;
-            return 0.7 - position_penalty + (keyword_lower.len() as f64 / text_lower.len() as f64) * 0.2;
+            return 0.7 - position_penalty
+                + (keyword_lower.len() as f64 / text_lower.len() as f64) * 0.2;
         }
 
         // Fuzzy character match
@@ -1134,7 +1230,10 @@ impl SearchService {
 
         // Check for duplicates if deduplication is enabled
         if self.history_config.deduplicate {
-            if let Some(pos) = history.iter().position(|e| e.query.to_lowercase() == query_lower) {
+            if let Some(pos) = history
+                .iter()
+                .position(|e| e.query.to_lowercase() == query_lower)
+            {
                 // Remove existing entry to move it to front
                 history.remove(pos);
             }
@@ -1238,7 +1337,11 @@ impl SearchService {
     }
 
     /// Get intelligent search suggestions with ranking
-    pub fn get_suggestions(&self, partial: &str, limit: usize) -> Result<Vec<SearchSuggestion>, LiteError> {
+    pub fn get_suggestions(
+        &self,
+        partial: &str,
+        limit: usize,
+    ) -> Result<Vec<SearchSuggestion>, LiteError> {
         if partial.len() < 1 {
             // Return recent history and popular searches when no input
             return self.get_default_suggestions(limit);
@@ -1321,7 +1424,9 @@ impl SearchService {
         }
 
         // 5. Pinyin matching for Chinese input
-        let mut pinyin_cache = self.pinyin_cache.lock()
+        let mut pinyin_cache = self
+            .pinyin_cache
+            .lock()
             .map_err(|_| LiteError::Internal("Failed to lock pinyin cache".to_string()))?;
 
         for entry in index.iter() {
@@ -1390,7 +1495,10 @@ impl SearchService {
 
         let filtered: Vec<String> = all_suggestions
             .into_iter()
-            .filter(|s| std::mem::discriminant(&s.suggestion_type) == std::mem::discriminant(&suggestion_type))
+            .filter(|s| {
+                std::mem::discriminant(&s.suggestion_type)
+                    == std::mem::discriminant(&suggestion_type)
+            })
             .take(limit)
             .map(|s| s.text)
             .collect();
@@ -1399,7 +1507,11 @@ impl SearchService {
     }
 
     /// Legacy simple suggestions API (for backward compatibility)
-    pub fn get_simple_suggestions(&self, partial: &str, limit: usize) -> Result<Vec<String>, LiteError> {
+    pub fn get_simple_suggestions(
+        &self,
+        partial: &str,
+        limit: usize,
+    ) -> Result<Vec<String>, LiteError> {
         let suggestions = self.get_suggestions(partial, limit)?;
         Ok(suggestions.into_iter().map(|s| s.text).collect())
     }
@@ -1645,6 +1757,7 @@ impl Default for SearchQueryBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_auth_method_from_str() {
@@ -1893,11 +2006,15 @@ mod tests {
         let service = SearchService::new(db).unwrap();
 
         // Test exact match highlighting
-        let result = service.highlight_fuzzy_matches("production server", "server").unwrap();
+        let result = service
+            .highlight_fuzzy_matches("production server", "server")
+            .unwrap();
         assert!(result.contains("**server**"));
 
         // Test fuzzy highlighting
-        let result = service.highlight_fuzzy_matches("production", "prd").unwrap();
+        let result = service
+            .highlight_fuzzy_matches("production", "prd")
+            .unwrap();
         assert!(result.contains("**"));
 
         // Test empty keyword

@@ -141,8 +141,16 @@ impl Icon {
             "icon icon-{} icon-{} {} {}",
             self.id.as_str(),
             self.size.as_str(),
-            if self.set == IconSet::Lucide { "lucide" } else { "" },
-            if self.decorative { "icon-decorative" } else { "" }
+            if self.set == IconSet::Lucide {
+                "lucide"
+            } else {
+                ""
+            },
+            if self.decorative {
+                "icon-decorative"
+            } else {
+                ""
+            }
         )
     }
 }
@@ -491,18 +499,18 @@ impl IconId {
     pub fn category(&self) -> &'static str {
         use IconId::*;
         match self {
-            Server | Database | Globe | Network | Wifi | WifiOff | Ethernet | Router
-            | Cloud | CloudOffline | CloudUpload | CloudDownload => "network",
+            Server | Database | Globe | Network | Wifi | WifiOff | Ethernet | Router | Cloud
+            | CloudOffline | CloudUpload | CloudDownload => "network",
 
             Connect | Disconnect | Refresh | Reload | Play | Pause | Stop | Restart => "actions",
 
             Home | Back | Forward | ChevronLeft | ChevronRight | ChevronUp | ChevronDown
-            | ArrowLeft | ArrowRight | ArrowUp | ArrowDown | Menu | Close | Maximize
-            | Minimize | Expand | Collapse => "navigation",
+            | ArrowLeft | ArrowRight | ArrowUp | ArrowDown | Menu | Close | Maximize | Minimize
+            | Expand | Collapse => "navigation",
 
             Folder | FolderOpen | File | FileText | FileCode | FileJson | FileKey | FileLock
-            | FilePlus | FileMinus | FileX | Files | Upload | Download | Import | Export
-            | Save | Trash => "files",
+            | FilePlus | FileMinus | FileX | Files | Upload | Download | Import | Export | Save
+            | Trash => "files",
 
             Terminal | Code | Code2 | Braces | Brackets | Command | TerminalSquare | Prompt
             | Cursor => "terminal",
@@ -519,26 +527,30 @@ impl IconId {
             User | Users | UserPlus | UserMinus | UserCheck | UserX | UserCircle | LogIn
             | LogOut | Account | Profile => "user",
 
-            Mail | MessageSquare | MessageCircle | Chat | Phone | Video | Share | Share2
-            | Link | Unlink | ExternalLink | Copy | Clipboard => "communication",
+            Mail | MessageSquare | MessageCircle | Chat | Phone | Video | Share | Share2 | Link
+            | Unlink | ExternalLink | Copy | Clipboard => "communication",
 
-            Clock | Calendar | CalendarClock | CalendarCheck | CalendarX | CalendarPlus
-            | Timer | Stopwatch | Hourglass | History => "time",
+            Clock | Calendar | CalendarClock | CalendarCheck | CalendarX | CalendarPlus | Timer
+            | Stopwatch | Hourglass | History => "time",
 
-            Image | Video2 | Music | Mic | Volume | Volume1 | Volume2 | VolumeX | VolumeOff => "media",
+            Image | Video2 | Music | Mic | Volume | Volume1 | Volume2 | VolumeX | VolumeOff => {
+                "media"
+            }
 
             Layout | LayoutGrid | LayoutList | LayoutTemplate | Sidebar | SidebarLeft
             | SidebarRight | PanelLeft | PanelRight | Split | Columns | Rows | Grid | List
             | ListOrdered => "layout",
 
-            Circle | Square | Triangle | Star | Heart | ThumbsUp | ThumbsDown | Flag
-            | Bookmark | Pin | Zap | Bolt | Activity | Pulse => "indicators",
+            Circle | Square | Triangle | Star | Heart | ThumbsUp | ThumbsDown | Flag | Bookmark
+            | Pin | Zap | Bolt | Activity | Pulse => "indicators",
 
             Edit | Edit2 | Edit3 | Pen | Pencil | Highlighter | Eraser | Type | Bold | Italic
-            | Underline | Strikethrough | AlignLeft | AlignCenter | AlignRight | AlignJustify => "editor",
+            | Underline | Strikethrough | AlignLeft | AlignCenter | AlignRight | AlignJustify => {
+                "editor"
+            }
 
-            BarChart | BarChart2 | LineChart | PieChart | TrendingUp | TrendingDown
-            | Activity2 | Gauge | Percent | DollarSign | CreditCard | Wallet => "data",
+            BarChart | BarChart2 | LineChart | PieChart | TrendingUp | TrendingDown | Activity2
+            | Gauge | Percent | DollarSign | CreditCard | Wallet => "data",
 
             Ssh | KeyPair | Certificate | Tunnel | Port | PortForward | Sftp | Scp | Shell
             | Bash | Zsh | Fish => "ssh",
@@ -637,14 +649,16 @@ impl IconRegistry {
 
     /// Register a custom icon
     pub fn register_custom(&mut self, id: &str, svg_path: &str) {
-        self.custom_icons.insert(id.to_string(), svg_path.to_string());
+        self.custom_icons
+            .insert(id.to_string(), svg_path.to_string());
     }
 
     /// Get SVG path for an icon
     pub fn get_path(&self, icon: &Icon) -> Option<&str> {
         match icon.id {
             IconId::Custom(ref id) => self.custom_icons.get(id).map(|s| s.as_str()),
-            _ => self.sets
+            _ => self
+                .sets
                 .get(&icon.set)
                 .and_then(|set| set.get(&icon.id).copied()),
         }
@@ -738,7 +752,8 @@ fn get_icon_path(id: &IconId) -> Option<&'static str> {
 // SVG Path definitions for Lucide icons (simplified)
 // These would be full SVG path data in production
 
-const SERVER_ICON: &str = "M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM2 11h20";
+const SERVER_ICON: &str =
+    "M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM2 11h20";
 const TERMINAL_ICON: &str = "m4 17 6-6-6-6m8 14h8";
 const SETTINGS_ICON: &str = "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z";
 const SEARCH_ICON: &str = "m21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z";
@@ -752,7 +767,8 @@ const CHEVRON_RIGHT_ICON: &str = "m9 18 6-6-6-6";
 const CHEVRON_DOWN_ICON: &str = "m6 9 6 6 6-6";
 const LOCK_ICON: &str = "M19 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2zm0 0V7a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v4";
 const KEY_ICON: &str = "m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4";
-const CLOUD_ICON: &str = "M17.5 19c0-1.7-1.3-3-3-3h-11c-1.7 0-3 1.3-3 3 0 1.7 1.3 3 3 3h11c1.7 0 3-1.3 3-3z";
+const CLOUD_ICON: &str =
+    "M17.5 19c0-1.7-1.3-3-3-3h-11c-1.7 0-3 1.3-3 3 0 1.7 1.3 3 3 3h11c1.7 0 3-1.3 3-3z";
 const HOME_ICON: &str = "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z";
 const USER_ICON: &str = "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2";
 const BELL_ICON: &str = "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9";
@@ -771,9 +787,12 @@ const MAXIMIZE_ICON: &str = "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7";
 const MINIMIZE_ICON: &str = "M4 14h6v6M20 10h-6V4";
 const PLAY_ICON: &str = "m5 3 14 9-14 9V3z";
 const PAUSE_ICON: &str = "M10 4H6v16h4V4zm8 0h-4v16h4V4z";
-const INFO_ICON: &str = "M12 16v-4M12 8h.01M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z";
-const ALERT_CIRCLE_ICON: &str = "M12 8v4m0 4h.01M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z";
-const ALERT_TRIANGLE_ICON: &str = "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z";
+const INFO_ICON: &str =
+    "M12 16v-4M12 8h.01M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z";
+const ALERT_CIRCLE_ICON: &str =
+    "M12 8v4m0 4h.01M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z";
+const ALERT_TRIANGLE_ICON: &str =
+    "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z";
 const CLOCK_ICON: &str = "M12 6v6l4 2m6-2A10 10 0 1 1 2 12a10 10 0 0 1 20 0z";
 const CALENDAR_ICON: &str = "M8 2v4m8-4v4M3 10h18M4 10v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10";
 const DOWNLOAD_ICON: &str = "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5M12 15V3";
@@ -783,26 +802,33 @@ const EYE_ICON: &str = "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z";
 const EYE_OFF_ICON: &str = "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24";
 const FILTER_ICON: &str = "M22 3H2l8 9.46V19l4 2v-8.54L22 3z";
 const SORT_ICON: &str = "M3 16h18M3 12h12M3 8h6";
-const STAR_ICON: &str = "m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z";
+const STAR_ICON: &str =
+    "m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z";
 const HEART_ICON: &str = "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z";
 const ACTIVITY_ICON: &str = "M22 12h-4l-3 9L9 3l-3 9H2";
 const BAR_CHART_ICON: &str = "M18 20V10M12 20V4M6 20v-6";
 const PIE_CHART_ICON: &str = "M21.21 15.89A10 10 0 1 1 8 2.83";
-const WIFI_ICON: &str = "M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01";
+const WIFI_ICON: &str =
+    "M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01";
 const WIFI_OFF_ICON: &str = "M12 20h.01M8.53 16.11a6 6 0 0 1 6.95 0M6 13.55A11 11 0 0 1 12 11c2.64 0 5.08.96 7 2.54M3 3l18 18";
 const GLOBE_ICON: &str = "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20";
 const DATABASE_ICON: &str = "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83";
 const CPU_ICON: &str = "M4 4h16v16H4z";
 const HARD_DRIVE_ICON: &str = "M22 12h-4l-3 9L9 3l-3 9H2";
-const MONITOR_ICON: &str = "M20 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM12 17v4";
-const SMARTPHONE_ICON: &str = "M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM12 18h.01";
-const MAIL_ICON: &str = "M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z";
+const MONITOR_ICON: &str =
+    "M20 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM12 17v4";
+const SMARTPHONE_ICON: &str =
+    "M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM12 18h.01";
+const MAIL_ICON: &str =
+    "M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z";
 const MESSAGE_SQUARE_ICON: &str = "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z";
 const PHONE_ICON: &str = "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z";
-const VIDEO_ICON: &str = "m22 8-6 4 6 4V8zM2 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z";
+const VIDEO_ICON: &str =
+    "m22 8-6 4 6 4V8zM2 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z";
 const SHARE_ICON: &str = "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8m-4-6-4-4-4 4m4-4v13";
 const LINK_ICON: &str = "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71";
-const CLIPBOARD_ICON: &str = "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2";
+const CLIPBOARD_ICON: &str =
+    "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2";
 
 #[cfg(test)]
 mod tests {
@@ -830,8 +856,7 @@ mod tests {
 
     #[test]
     fn test_icon_set() {
-        let icon = Icon::new(IconId::Server)
-            .with_set(IconSet::Lucide);
+        let icon = Icon::new(IconId::Server).with_set(IconSet::Lucide);
 
         assert!(icon.to_svg().is_some());
     }

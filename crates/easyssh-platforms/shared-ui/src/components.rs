@@ -3,12 +3,12 @@
 //! Cross-platform UI component definitions and utilities.
 //! Platform-specific implementations use these as specifications.
 
-use serde::{Deserialize, Serialize};
-use crate::theme::{Color, Theme};
-use crate::icons::{Icon, IconId, IconSize};
-use crate::layout::{Spacing, Alignment};
 use crate::accessibility::{A11yProps, AriaRole};
 use crate::animations::{Animation, Duration, Easing};
+use crate::icons::{Icon, IconId, IconSize};
+use crate::layout::{Alignment, Spacing};
+use crate::theme::{Color, Theme};
+use serde::{Deserialize, Serialize};
 
 /// Button variants
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -107,9 +107,7 @@ impl Button {
             loading: false,
             disabled: false,
             full_width: false,
-            a11y: A11yProps::new()
-                .role(AriaRole::Button)
-                .focusable(),
+            a11y: A11yProps::new().role(AriaRole::Button).focusable(),
             press_animation: Some(Animation::ScaleOut),
         }
     }
@@ -278,9 +276,7 @@ impl Input {
             clearable: false,
             password_toggle: false,
             focused: false,
-            a11y: A11yProps::new()
-                .role(AriaRole::Textbox)
-                .focusable(),
+            a11y: A11yProps::new().role(AriaRole::Textbox).focusable(),
         }
     }
 
@@ -908,9 +904,7 @@ impl Switch {
             disabled: false,
             loading: false,
             size: SwitchSize::Md,
-            a11y: A11yProps::new()
-                .role(AriaRole::Switch)
-                .focusable(),
+            a11y: A11yProps::new().role(AriaRole::Switch).focusable(),
         }
     }
 
@@ -947,9 +941,7 @@ impl Checkbox {
             checked: Some(false),
             label: label.to_string(),
             disabled: false,
-            a11y: A11yProps::new()
-                .role(AriaRole::Checkbox)
-                .focusable(),
+            a11y: A11yProps::new().role(AriaRole::Checkbox).focusable(),
         }
     }
 
@@ -1002,9 +994,7 @@ impl Radio {
             disabled: false,
             name: name.to_string(),
             value: value.to_string(),
-            a11y: A11yProps::new()
-                .role(AriaRole::Radio)
-                .focusable(),
+            a11y: A11yProps::new().role(AriaRole::Radio).focusable(),
         }
     }
 
@@ -1070,8 +1060,7 @@ impl Progress {
             indeterminate: false,
             size: ProgressSize::Md,
             variant: ProgressVariant::Bar,
-            a11y: A11yProps::new()
-                .role(AriaRole::ProgressBar),
+            a11y: A11yProps::new().role(AriaRole::ProgressBar),
         }
     }
 
@@ -1084,8 +1073,7 @@ impl Progress {
             indeterminate: true,
             size: ProgressSize::Md,
             variant: ProgressVariant::Bar,
-            a11y: A11yProps::new()
-                .role(AriaRole::ProgressBar),
+            a11y: A11yProps::new().role(AriaRole::ProgressBar),
         }
     }
 

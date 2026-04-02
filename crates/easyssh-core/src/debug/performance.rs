@@ -2,7 +2,7 @@
 //!
 //! 提供系统性能监控功能
 
-use crate::debug::access::{check_access, get_access_level};
+use crate::debug::access::get_access_level;
 use crate::debug::types::*;
 use crate::debug::DebugAccessLevel;
 use std::time::Instant;
@@ -283,8 +283,8 @@ impl ThreadSafeProfiler {
     }
 }
 
-/// 全局性能分析器
 lazy_static::lazy_static! {
+    /// 全局性能分析器
     static ref GLOBAL_PROFILER: ThreadSafeProfiler = ThreadSafeProfiler::new();
 }
 

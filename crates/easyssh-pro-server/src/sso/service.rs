@@ -2,13 +2,11 @@
 //!
 //! 提供SSO相关的业务逻辑和数据访问
 
-use sqlx::Row;
 use chrono::Utc;
+use sqlx::Row;
 
 use crate::{db::Database, redis_cache::RedisCache};
-use easyssh_core::sso::{
-    SsoProvider, SsoProviderType, SsoSession, SsoUserInfo,
-};
+use easyssh_core::sso::{SsoProvider, SsoProviderType, SsoSession, SsoUserInfo};
 
 /// SSO数据服务
 pub struct SsoDataService {
@@ -24,8 +22,9 @@ impl SsoDataService {
 
     /// 保存提供商到数据库
     pub async fn save_provider(&self, provider: &SsoProvider) -> Result<(), sqlx::Error> {
-        let config_json = serde_json::to_string(&provider.config)
-            .map_err(|e| sqlx::Error::Protocol(format!("JSON serialization failed: {}", e).into()))?;
+        let config_json = serde_json::to_string(&provider.config).map_err(|e| {
+            sqlx::Error::Protocol(format!("JSON serialization failed: {}", e).into())
+        })?;
 
         sqlx::query(
             r#"
@@ -55,18 +54,19 @@ impl SsoDataService {
     }
 
     /// 从数据库加载提供商
-    pub async fn load_provider(&self, provider_id: &str) -> Result<Option<SsoProvider>, sqlx::Error> {
+    pub async fn load_provider(
+        &self,
+        provider_id: &str,
+    ) -> Result<Option<SsoProvider>, sqlx::Error> {
         // 先检查缓存
         if let Ok(Some(cached)) = self.get_cached_provider(provider_id).await {
             return Ok(Some(cached));
         }
 
-        let row = sqlx::query(
-            "SELECT * FROM sso_providers WHERE id = ?1 AND enabled = true"
-        )
-        .bind(provider_id)
-        .fetch_optional(self.db.pool())
-        .await?;
+        let row = sqlx::query("SELECT * FROM sso_providers WHERE id = ?1 AND enabled = true")
+            .bind(provider_id)
+            .fetch_optional(self.db.pool())
+            .await?;
 
         if let Some(row) = row {
             let provider = self.row_to_provider(row)?;
@@ -82,11 +82,9 @@ impl SsoDataService {
 
     /// 列出所有提供商
     pub async fn list_providers(&self) -> Result<Vec<SsoProvider>, sqlx::Error> {
-        let rows = sqlx::query(
-            "SELECT * FROM sso_providers ORDER BY created_at DESC"
-        )
-        .fetch_all(self.db.pool())
-        .await?;
+        let rows = sqlx::query("SELECT * FROM sso_providers ORDER BY created_at DESC")
+            .fetch_all(self.db.pool())
+            .await?;
 
         let mut providers = Vec::new();
         for row in rows {
@@ -106,7 +104,10 @@ impl SsoDataService {
             .await?;
 
         // 清除缓存
-        let _ = self.redis.delete(&format!("sso:provider:{}", provider_id)).await;
+        let _ = self
+            .redis
+            .delete(&format!("sso:provider:{}", provider_id))
+            .await;
 
         Ok(())
     }
@@ -114,8 +115,8 @@ impl SsoDataService {
     /// 缓存提供商到Redis
     async fn cache_provider(&self, provider: &SsoProvider) -> Result<(), String> {
         let key = format!("sso:provider:{}", provider.id);
-        let value = serde_json::to_string(provider)
-            .map_err(|e| format!("Serialization failed: {}", e))?;
+        let value =
+            serde_json::to_string(provider).map_err(|e| format!("Serialization failed: {}", e))?;
 
         self.redis
             .set(&key, &value, std::time::Duration::from_secs(3600))
@@ -124,10 +125,14 @@ impl SsoDataService {
     }
 
     /// 从Redis获取缓存的提供商
-    pub async fn get_cached_provider(&self, provider_id: &str) -> Result<Option<SsoProvider>, String> {
+    pub async fn get_cached_provider(
+        &self,
+        provider_id: &str,
+    ) -> Result<Option<SsoProvider>, String> {
         let key = format!("sso:provider:{}", provider_id);
 
-        let value = self.redis
+        let value = self
+            .redis
             .get(&key)
             .await
             .map_err(|e| format!("Redis error: {}", e))?;
@@ -153,7 +158,7 @@ impl SsoDataService {
             ON CONFLICT(id) DO UPDATE SET
                 last_used_at = excluded.last_used_at,
                 status = excluded.status
-            "#
+            "#,
         )
         .bind(&session.id)
         .bind(&session.user_id)
@@ -178,7 +183,7 @@ impl SsoDataService {
             SELECT * FROM sso_sessions
             WHERE user_id = ?1 AND expires_at > datetime('now')
             ORDER BY created_at DESC
-            "#
+            "#,
         )
         .bind(user_id)
         .fetch_all(self.db.pool())
@@ -207,7 +212,7 @@ impl SsoDataService {
     /// 清理过期会话
     pub async fn cleanup_expired_sessions(&self) -> Result<u64, sqlx::Error> {
         let result = sqlx::query(
-            "DELETE FROM sso_sessions WHERE expires_at < datetime('now') OR status = 'Revoked'"
+            "DELETE FROM sso_sessions WHERE expires_at < datetime('now') OR status = 'Revoked'",
         )
         .execute(self.db.pool())
         .await?;
@@ -255,19 +260,19 @@ impl SsoDataService {
         &self,
         team_id: &str,
     ) -> Result<Option<easyssh_core::sso::TeamSsoMapping>, sqlx::Error> {
-        let row = sqlx::query(
-            "SELECT * FROM team_sso_mappings WHERE team_id = ?1"
-        )
-        .bind(team_id)
-        .fetch_optional(self.db.pool())
-        .await?;
+        let row = sqlx::query("SELECT * FROM team_sso_mappings WHERE team_id = ?1")
+            .bind(team_id)
+            .fetch_optional(self.db.pool())
+            .await?;
 
         if let Some(row) = row {
             let mapping = easyssh_core::sso::TeamSsoMapping {
                 team_id: row.get("team_id"),
                 provider_id: row.get("provider_id"),
-                group_mappings: serde_json::from_str(row.get::<String, _>("group_mappings").as_str())
-                    .unwrap_or_default(),
+                group_mappings: serde_json::from_str(
+                    row.get::<String, _>("group_mappings").as_str(),
+                )
+                .unwrap_or_default(),
                 auto_provision: row.get("auto_provision"),
                 default_role: row.get("default_role"),
             };
@@ -292,22 +297,30 @@ impl SsoDataService {
         let config = match provider_type {
             SsoProviderType::Saml => {
                 let cfg: easyssh_core::sso::SamlConfig = serde_json::from_str(&config_json)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Config parse error: {}", e).into()))?;
+                    .map_err(|e| {
+                        sqlx::Error::Protocol(format!("Config parse error: {}", e).into())
+                    })?;
                 easyssh_core::sso::SsoProviderConfig::Saml(cfg)
             }
             SsoProviderType::Oidc => {
                 let cfg: easyssh_core::sso::OidcConfig = serde_json::from_str(&config_json)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Config parse error: {}", e).into()))?;
+                    .map_err(|e| {
+                        sqlx::Error::Protocol(format!("Config parse error: {}", e).into())
+                    })?;
                 easyssh_core::sso::SsoProviderConfig::Oidc(cfg)
             }
             SsoProviderType::OAuth2 => {
                 let cfg: easyssh_core::sso::OAuth2Config = serde_json::from_str(&config_json)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Config parse error: {}", e).into()))?;
+                    .map_err(|e| {
+                        sqlx::Error::Protocol(format!("Config parse error: {}", e).into())
+                    })?;
                 easyssh_core::sso::SsoProviderConfig::OAuth2(cfg)
             }
             _ => {
                 let cfg: easyssh_core::sso::OidcConfig = serde_json::from_str(&config_json)
-                    .map_err(|e| sqlx::Error::Protocol(format!("Config parse error: {}", e).into()))?;
+                    .map_err(|e| {
+                        sqlx::Error::Protocol(format!("Config parse error: {}", e).into())
+                    })?;
                 easyssh_core::sso::SsoProviderConfig::Oidc(cfg)
             }
         };
@@ -360,28 +373,45 @@ impl SsoDataService {
 /// Redis扩展方法
 pub trait SsoRedisExt {
     /// 缓存提供商
-    async fn cache_provider(&self, provider_id: &str, provider: &crate::sso::ProviderResponse) -> Result<(), String>;
+    async fn cache_provider(
+        &self,
+        provider_id: &str,
+        provider: &crate::sso::ProviderResponse,
+    ) -> Result<(), String>;
     /// 获取缓存的提供商
-    async fn get_cached_provider(&self, provider_id: &str) -> Result<Option<crate::sso::ProviderResponse>, String>;
+    async fn get_cached_provider(
+        &self,
+        provider_id: &str,
+    ) -> Result<Option<crate::sso::ProviderResponse>, String>;
     /// 删除缓存的提供商
     async fn delete_cached_provider(&self, provider_id: &str) -> Result<(), String>;
 }
 
 impl SsoRedisExt for RedisCache {
-    async fn cache_provider(&self, provider_id: &str, provider: &crate::sso::ProviderResponse) -> Result<(), String> {
+    async fn cache_provider(
+        &self,
+        provider_id: &str,
+        provider: &crate::sso::ProviderResponse,
+    ) -> Result<(), String> {
         let key = format!("sso:provider:{}", provider_id);
-        let value = serde_json::to_string(provider)
-            .map_err(|e| format!("Serialization failed: {}", e))?;
+        let value =
+            serde_json::to_string(provider).map_err(|e| format!("Serialization failed: {}", e))?;
 
         self.set(&key, &value, std::time::Duration::from_secs(3600))
             .await
             .map_err(|e| format!("Redis error: {}", e))
     }
 
-    async fn get_cached_provider(&self, provider_id: &str) -> Result<Option<crate::sso::ProviderResponse>, String> {
+    async fn get_cached_provider(
+        &self,
+        provider_id: &str,
+    ) -> Result<Option<crate::sso::ProviderResponse>, String> {
         let key = format!("sso:provider:{}", provider_id);
 
-        let value = self.get(&key).await.map_err(|e| format!("Redis error: {}", e))?;
+        let value = self
+            .get(&key)
+            .await
+            .map_err(|e| format!("Redis error: {}", e))?;
 
         if let Some(json_str) = value {
             let provider = serde_json::from_str(&json_str)
@@ -394,7 +424,9 @@ impl SsoRedisExt for RedisCache {
 
     async fn delete_cached_provider(&self, provider_id: &str) -> Result<(), String> {
         let key = format!("sso:provider:{}", provider_id);
-        self.delete(&key).await.map_err(|e| format!("Redis error: {}", e))
+        self.delete(&key)
+            .await
+            .map_err(|e| format!("Redis error: {}", e))
     }
 }
 
@@ -412,7 +444,7 @@ pub async fn create_sso_tables(pool: &sqlx::Pool<sqlx::Any>) -> Result<(), sqlx:
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL
         )
-        "#
+        "#,
     )
     .execute(pool)
     .await?;
@@ -434,7 +466,7 @@ pub async fn create_sso_tables(pool: &sqlx::Pool<sqlx::Any>) -> Result<(), sqlx:
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (provider_id) REFERENCES sso_providers(id)
         )
-        "#
+        "#,
     )
     .execute(pool)
     .await?;
@@ -454,7 +486,7 @@ pub async fn create_sso_tables(pool: &sqlx::Pool<sqlx::Any>) -> Result<(), sqlx:
             FOREIGN KEY (team_id) REFERENCES teams(id),
             FOREIGN KEY (provider_id) REFERENCES sso_providers(id)
         )
-        "#
+        "#,
     )
     .execute(pool)
     .await?;
@@ -471,7 +503,7 @@ pub async fn create_sso_tables(pool: &sqlx::Pool<sqlx::Any>) -> Result<(), sqlx:
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (provider_id) REFERENCES sso_providers(id)
         )
-        "#
+        "#,
     )
     .execute(pool)
     .await?;
@@ -481,9 +513,11 @@ pub async fn create_sso_tables(pool: &sqlx::Pool<sqlx::Any>) -> Result<(), sqlx:
         .execute(pool)
         .await?;
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_sso_sessions_provider_id ON sso_sessions(provider_id)")
-        .execute(pool)
-        .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_sso_sessions_provider_id ON sso_sessions(provider_id)",
+    )
+    .execute(pool)
+    .await?;
 
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_sso_sessions_expires ON sso_sessions(expires_at)")
         .execute(pool)
@@ -493,9 +527,11 @@ pub async fn create_sso_tables(pool: &sqlx::Pool<sqlx::Any>) -> Result<(), sqlx:
         .execute(pool)
         .await?;
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_user_sso_external ON user_sso_links(external_user_id)")
-        .execute(pool)
-        .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_user_sso_external ON user_sso_links(external_user_id)",
+    )
+    .execute(pool)
+    .await?;
 
     log::info!("SSO tables created successfully");
 

@@ -8,7 +8,7 @@
 
 use crate::edition::Edition;
 use crate::version::{FullBuildInfo, PlatformInfo, VersionCompatibility};
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::os::raw::{c_char, c_int};
 
 /// 平台信息 C 结构体
@@ -299,6 +299,7 @@ pub extern "C" fn version_get_build_info_json() -> *mut c_char {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::CStr;
 
     #[test]
     fn test_c_platform_info_roundtrip() {

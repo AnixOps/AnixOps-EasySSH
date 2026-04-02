@@ -451,6 +451,7 @@ fn current_config_version() -> u32 {
 
 /// Configuration sections for partial updates
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ConfigSection {
     AppConfig(AppConfig),
     UserPreferences(UserPreferences),

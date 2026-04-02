@@ -14,8 +14,8 @@ use std::sync::{Arc, Mutex};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use crate::db::{Database, GroupRecord, NewGroup, ServerRecord, UpdateGroup};
-use crate::error::{CoreDatabaseError, EasySSHErrors, EasySSHResult};
+use crate::db::{Database, GroupRecord, NewGroup, UpdateGroup};
+use crate::error::{CoreDatabaseError, EasySSHErrors};
 use crate::models::group::{
     CreateGroupRequest, Group, GroupId, GroupStats, GroupWithServers, MoveServerRequest,
     ServerReference, UpdateGroupRequest, UNGROUPED_COLOR, UNGROUPED_ID, UNGROUPED_NAME,
@@ -96,7 +96,9 @@ impl From<GroupServiceError> for EasySSHErrors {
             GroupServiceError::DuplicateName(name) => {
                 EasySSHErrors::Database(CoreDatabaseError::UniqueViolation(name))
             }
-            GroupServiceError::ServerNotFound(id) => EasySSHErrors::NotFound(format!("服务器: {}", id)),
+            GroupServiceError::ServerNotFound(id) => {
+                EasySSHErrors::NotFound(format!("服务器: {}", id))
+            }
             GroupServiceError::CannotDeleteSystem(id) => {
                 EasySSHErrors::Validation(format!("无法删除系统分组: {}", id))
             }
@@ -352,7 +354,10 @@ impl GroupService {
                 self.count_servers_in_group(&group.id)?
             };
 
-            stats.push(GroupStats { group, server_count: count });
+            stats.push(GroupStats {
+                group,
+                server_count: count,
+            });
         }
 
         Ok(stats)
@@ -421,7 +426,11 @@ impl GroupService {
     }
 
     /// Batch move servers to a group
-    pub fn batch_move_servers(&self, server_ids: &[String], target_group_id: Option<GroupId>) -> GroupResult<BatchOperationResult> {
+    pub fn batch_move_servers(
+        &self,
+        server_ids: &[String],
+        target_group_id: Option<GroupId>,
+    ) -> GroupResult<BatchOperationResult> {
         let mut result = BatchOperationResult {
             success: 0,
             failed: 0,
@@ -503,7 +512,11 @@ impl GroupService {
     }
 
     /// Import groups from JSON
-    pub fn import_from_json(&self, json: &str, merge_existing: bool) -> GroupResult<GroupImportResult> {
+    pub fn import_from_json(
+        &self,
+        json: &str,
+        merge_existing: bool,
+    ) -> GroupResult<GroupImportResult> {
         let groups: Vec<Group> = serde_json::from_str(json)
             .map_err(|e| GroupServiceError::ImportExport(e.to_string()))?;
 
@@ -539,7 +552,9 @@ impl GroupService {
                         color: Some(group.color),
                     };
                     if let Err(e) = self.update_group(&existing_group.id, update) {
-                        result.errors.push(format!("Failed to merge {}: {}", group.name, e));
+                        result
+                            .errors
+                            .push(format!("Failed to merge {}: {}", group.name, e));
                     } else {
                         result.merged += 1;
                     }
@@ -564,7 +579,10 @@ impl GroupService {
     }
 
     /// Batch update group colors
-    pub fn batch_update_colors(&self, updates: HashMap<String, String>) -> GroupResult<BatchOperationResult> {
+    pub fn batch_update_colors(
+        &self,
+        updates: HashMap<String, String>,
+    ) -> GroupResult<BatchOperationResult> {
         let mut result = BatchOperationResult {
             success: 0,
             failed: 0,
@@ -574,7 +592,9 @@ impl GroupService {
         for (id, color) in updates {
             if self.is_system_group(&id) {
                 result.failed += 1;
-                result.errors.push((id.clone(), "Cannot modify system group".to_string()));
+                result
+                    .errors
+                    .push((id.clone(), "Cannot modify system group".to_string()));
                 continue;
             }
 
@@ -782,7 +802,11 @@ impl AsyncGroupService {
     }
 
     /// Import from JSON
-    pub fn import_from_json(&self, json: &str, merge_existing: bool) -> GroupResult<GroupImportResult> {
+    pub fn import_from_json(
+        &self,
+        json: &str,
+        merge_existing: bool,
+    ) -> GroupResult<GroupImportResult> {
         self.inner.import_from_json(json, merge_existing)
     }
 
@@ -899,7 +923,10 @@ mod tests {
         };
 
         let result = service.update_group(UNGROUPED_ID, update);
-        assert!(matches!(result, Err(GroupServiceError::CannotModifySystem(_))));
+        assert!(matches!(
+            result,
+            Err(GroupServiceError::CannotModifySystem(_))
+        ));
     }
 
     #[test]
@@ -923,7 +950,10 @@ mod tests {
         let service = GroupService::new(create_test_db());
 
         let result = service.delete_group(UNGROUPED_ID);
-        assert!(matches!(result, Err(GroupServiceError::CannotDeleteSystem(_))));
+        assert!(matches!(
+            result,
+            Err(GroupServiceError::CannotDeleteSystem(_))
+        ));
     }
 
     #[test]
@@ -1012,7 +1042,9 @@ mod tests {
             })
             .unwrap();
 
-        let renamed = service.rename_group(&created.id, "New Name".to_string()).unwrap();
+        let renamed = service
+            .rename_group(&created.id, "New Name".to_string())
+            .unwrap();
         assert_eq!(renamed.name, "New Name");
     }
 
@@ -1027,7 +1059,9 @@ mod tests {
             })
             .unwrap();
 
-        let updated = service.change_group_color(&created.id, "#D0021B".to_string()).unwrap();
+        let updated = service
+            .change_group_color(&created.id, "#D0021B".to_string())
+            .unwrap();
         assert_eq!(updated.color, "#D0021B");
     }
 
@@ -1083,11 +1117,11 @@ mod tests {
     #[test]
     fn test_error_conversions() {
         let err = GroupServiceError::NotFound("test".to_string());
-        let easy_err: EasySSHErrors = err;
+        let easy_err: EasySSHErrors = err.into();
         assert!(matches!(easy_err, EasySSHErrors::Database(_)));
 
         let err = GroupServiceError::DuplicateName("test".to_string());
-        let easy_err: EasySSHErrors = err;
+        let easy_err: EasySSHErrors = err.into();
         assert!(matches!(easy_err, EasySSHErrors::Database(_)));
     }
 

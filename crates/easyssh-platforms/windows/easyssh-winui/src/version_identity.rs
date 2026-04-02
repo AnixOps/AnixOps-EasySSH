@@ -66,27 +66,27 @@ impl Edition {
     /// 主色调 - 返回 Color32
     pub fn primary_color(&self) -> Color32 {
         match self {
-            Edition::Lite => Color32::from_rgb(16, 185, 129),    // Emerald 500 #10B981
+            Edition::Lite => Color32::from_rgb(16, 185, 129), // Emerald 500 #10B981
             Edition::Standard => Color32::from_rgb(59, 130, 246), // Blue 500 #3B82F6
-            Edition::Pro => Color32::from_rgb(139, 92, 246),     // Violet 500 #8B5CF6
+            Edition::Pro => Color32::from_rgb(139, 92, 246),  // Violet 500 #8B5CF6
         }
     }
 
     /// 次色调
     pub fn secondary_color(&self) -> Color32 {
         match self {
-            Edition::Lite => Color32::from_rgb(52, 211, 153),    // Emerald 400 #34D399
+            Edition::Lite => Color32::from_rgb(52, 211, 153), // Emerald 400 #34D399
             Edition::Standard => Color32::from_rgb(96, 165, 250), // Blue 400 #60A5FA
-            Edition::Pro => Color32::from_rgb(167, 139, 250),    // Violet 400 #A78BFA
+            Edition::Pro => Color32::from_rgb(167, 139, 250), // Violet 400 #A78BFA
         }
     }
 
     /// 强调色
     pub fn accent_color(&self) -> Color32 {
         match self {
-            Edition::Lite => Color32::from_rgb(5, 150, 105),     // Emerald 600 #059669
-            Edition::Standard => Color32::from_rgb(37, 99, 235),  // Blue 600 #2563EB
-            Edition::Pro => Color32::from_rgb(124, 58, 237),     // Violet 600 #7C3AED
+            Edition::Lite => Color32::from_rgb(5, 150, 105), // Emerald 600 #059669
+            Edition::Standard => Color32::from_rgb(37, 99, 235), // Blue 600 #2563EB
+            Edition::Pro => Color32::from_rgb(124, 58, 237), // Violet 600 #7C3AED
         }
     }
 

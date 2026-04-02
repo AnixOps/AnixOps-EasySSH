@@ -204,7 +204,10 @@ pub enum TransferStatus {
 
 impl TransferStatus {
     pub fn is_done(&self) -> bool {
-        matches!(self, TransferStatus::Completed | TransferStatus::Failed | TransferStatus::Cancelled)
+        matches!(
+            self,
+            TransferStatus::Completed | TransferStatus::Failed | TransferStatus::Cancelled
+        )
     }
 }
 

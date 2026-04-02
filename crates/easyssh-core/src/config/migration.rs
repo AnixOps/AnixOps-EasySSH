@@ -11,7 +11,7 @@
 //! - Migration audit logging
 
 use super::types::{FullConfig, Theme};
-use super::validation::{ConfigValidator, ValidationError};
+use super::validation::ConfigValidator;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -115,9 +115,9 @@ pub trait MigrationStep: Send + Sync {
     /// Get migration name
     fn name(&self) -> &str;
     /// Get source version
-    fn from_version(&self) -> u32;
+    fn source_version(&self) -> u32;
     /// Get target version
-    fn to_version(&self) -> u32;
+    fn target_version(&self) -> u32;
     /// Execute migration
     fn migrate(&self, config: &mut FullConfig) -> Result<Vec<String>, String>;
     /// Validate after migration
@@ -147,7 +147,7 @@ impl MigrationRegistry {
 
     /// Register a migration step
     pub fn register(&mut self, step: Box<dyn MigrationStep>) {
-        let key = (step.from_version(), step.to_version());
+        let key = (step.source_version(), step.target_version());
         self.steps.insert(key, step);
     }
 
@@ -168,7 +168,10 @@ impl MigrationRegistry {
         }
 
         if from > to {
-            return Err(format!("Cannot migrate backwards from v{} to v{}", from, to));
+            return Err(format!(
+                "Cannot migrate backwards from v{} to v{}",
+                from, to
+            ));
         }
 
         // Simple linear path finding (assumes sequential versions)
@@ -203,16 +206,22 @@ impl MigrationV0ToV1 {
     }
 }
 
+impl Default for MigrationV0ToV1 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MigrationStep for MigrationV0ToV1 {
     fn name(&self) -> &str {
         "v0_to_v1_initial_schema"
     }
 
-    fn from_version(&self) -> u32 {
+    fn source_version(&self) -> u32 {
         0
     }
 
-    fn to_version(&self) -> u32 {
+    fn target_version(&self) -> u32 {
         1
     }
 
@@ -283,7 +292,8 @@ impl MigrationStep for MigrationV0ToV1 {
         match validator.validate(config) {
             Ok(()) => Ok(()),
             Err(errors) => {
-                let msgs: Vec<String> = errors.iter()
+                let msgs: Vec<String> = errors
+                    .iter()
                     .map(|e| format!("{}: {}", e.field, e.message))
                     .collect();
                 Err(msgs)
@@ -448,9 +458,7 @@ pub struct ConfigBackup;
 
 impl ConfigBackup {
     /// Create a backup of the configuration file
-    pub async fn create_backup(
-        config_path: &Path,
-    ) -> Result<std::path::PathBuf, String> {
+    pub async fn create_backup(config_path: &Path) -> Result<std::path::PathBuf, String> {
         if !config_path.exists() {
             return Err("Configuration file does not exist".to_string());
         }
@@ -505,9 +513,7 @@ impl ConfigBackup {
     }
 
     /// List available backups
-    pub async fn list_backups(
-        backup_dir: &Path,
-    ) -> Result<Vec<BackupInfo>, String> {
+    pub async fn list_backups(backup_dir: &Path) -> Result<Vec<BackupInfo>, String> {
         if !backup_dir.exists() {
             return Ok(Vec::new());
         }
@@ -534,7 +540,8 @@ impl ConfigBackup {
 
                 backups.push(BackupInfo {
                     path: path.clone(),
-                    name: path.file_stem()
+                    name: path
+                        .file_stem()
                         .and_then(|s| s.to_str())
                         .unwrap_or("unknown")
                         .to_string(),
@@ -551,10 +558,7 @@ impl ConfigBackup {
     }
 
     /// Restore from a backup
-    pub async fn restore_backup(
-        backup_path: &Path,
-        config_path: &Path,
-    ) -> Result<(), String> {
+    pub async fn restore_backup(backup_path: &Path, config_path: &Path) -> Result<(), String> {
         if !backup_path.exists() {
             return Err("Backup file does not exist".to_string());
         }
@@ -563,7 +567,8 @@ impl ConfigBackup {
         if config_path.exists() {
             let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
             let pre_restore_name = format!("config_pre_restore_{}.json", timestamp);
-            let backup_dir = config_path.parent()
+            let backup_dir = config_path
+                .parent()
                 .map(|p| p.join("backups"))
                 .ok_or("Cannot determine backup directory")?;
             let pre_restore_path = backup_dir.join(pre_restore_name);
@@ -612,8 +617,8 @@ impl ConfigBackup {
         Ok(BackupStats {
             total_backups: backups.len(),
             total_size,
-            oldest_backup: backups.last().map(|b| b.modified.clone()).flatten(),
-            newest_backup: backups.first().map(|b| b.modified.clone()).flatten(),
+            oldest_backup: backups.last().and_then(|b| b.modified.clone()),
+            newest_backup: backups.first().and_then(|b| b.modified.clone()),
         })
     }
 }
@@ -723,7 +728,8 @@ mod tests {
         let failure = MigrationResult::failure(0, 1, vec!["error".to_string()]);
         assert!(failure.summary().contains("failed"));
 
-        let partial = MigrationResult::partial(0, 1, vec!["step1".to_string()], vec!["warning".to_string()]);
+        let partial =
+            MigrationResult::partial(0, 1, vec!["step1".to_string()], vec!["warning".to_string()]);
         assert!(partial.summary().contains("warnings"));
     }
 
@@ -813,7 +819,7 @@ mod tests {
     fn test_migration_step_trait() {
         let step = MigrationV0ToV1::new();
         assert_eq!(step.name(), "v0_to_v1_initial_schema");
-        assert_eq!(step.from_version(), 0);
-        assert_eq!(step.to_version(), 1);
+        assert_eq!(step.source_version(), 0);
+        assert_eq!(step.target_version(), 1);
     }
 }

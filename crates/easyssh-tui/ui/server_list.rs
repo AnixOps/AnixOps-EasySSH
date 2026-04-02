@@ -9,9 +9,14 @@
 //! - Theme-aware styling
 
 use crate::app::{App, Focus};
-use crate::virtual_list::{ServerListItem, render_virtual_server_list};
+use crate::virtual_list::{render_virtual_server_list, ServerListItem};
 
-pub fn render(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, app: &mut App, theme: &crate::theme::ColorPalette) {
+pub fn render(
+    frame: &mut ratatui::Frame,
+    area: ratatui::layout::Rect,
+    app: &mut App,
+    theme: &crate::theme::ColorPalette,
+) {
     let is_focused = app.focus == Focus::ServerList;
 
     // Build server list items from filtered servers

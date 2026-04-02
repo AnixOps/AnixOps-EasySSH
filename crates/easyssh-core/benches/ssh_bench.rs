@@ -23,10 +23,8 @@
 //! feature to be available.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use easyssh_core::ssh::{SshSessionManager, ConnectionHealth, SessionMetadata};
-use easyssh_core::connection_pool::{
-    EnhancedSshManager, EnhancedConnectionState
-};
+use easyssh_core::connection_pool::{EnhancedConnectionState, EnhancedSshManager};
+use easyssh_core::ssh::{ConnectionHealth, SessionMetadata, SshSessionManager};
 use std::time::{Duration, Instant};
 
 /// Benchmark SSH session manager creation
@@ -42,8 +40,7 @@ fn bench_session_manager_creation(c: &mut Criterion) {
 
     group.bench_function("new_with_pool_config", |b| {
         b.iter(|| {
-            let manager = SshSessionManager::new()
-                .with_pool_config(100, 600, 3600);
+            let manager = SshSessionManager::new().with_pool_config(100, 600, 3600);
             black_box(manager);
         });
     });
@@ -113,9 +110,9 @@ fn bench_connection_health(c: &mut Criterion) {
             ];
             for health in healths {
                 match black_box(health) {
-                    ConnectionHealth::Healthy => {},
-                    ConnectionHealth::Degraded => {},
-                    ConnectionHealth::Unhealthy => {},
+                    ConnectionHealth::Healthy => {}
+                    ConnectionHealth::Degraded => {}
+                    ConnectionHealth::Unhealthy => {}
                 }
             }
         });
@@ -390,7 +387,8 @@ fn bench_reconnect_config(c: &mut Criterion) {
 
         b.iter(|| {
             for attempt in 1..=3 {
-                let delay = config.base_delay_ms * (config.backoff_multiplier.powi(attempt - 1) as u64);
+                let delay =
+                    config.base_delay_ms * (config.backoff_multiplier.powi(attempt - 1) as u64);
                 let jitter = (delay as f64 * config.jitter_factor) as u64;
                 let total_delay = std::cmp::min(delay + jitter, config.max_delay_ms);
                 black_box(total_delay);

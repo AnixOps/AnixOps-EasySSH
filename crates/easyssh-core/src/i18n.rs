@@ -1,3 +1,77 @@
+//! Internationalization (i18n) Module
+//!
+//! This module provides multi-language support for EasySSH using Mozilla's Fluent
+//! localization system. It supports 10+ languages with automatic system language
+//! detection and RTL (Right-to-Left) language support.
+//!
+//! # Supported Languages
+//!
+//! | Code | Language | Direction |
+//! |------|----------|-----------|
+//! | en | English | LTR |
+//! | zh-CN | Chinese Simplified | LTR |
+//! | zh-TW | Chinese Traditional | LTR |
+//! | ja | Japanese | LTR |
+//! | ko | Korean | LTR |
+//! | de | German | LTR |
+//! | fr | French | LTR |
+//! | es | Spanish | LTR |
+//! | ru | Russian | LTR |
+//! | ar | Arabic | RTL |
+//! | he | Hebrew | RTL |
+//!
+//! # Architecture
+//!
+//! The i18n system uses:
+//! - `fluent` crate for translation message formatting
+//! - `unic_langid` for language identifier parsing
+//! - Thread-safe storage via `RwLock`
+//! - Lazy static initialization for global access
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use easyssh_core::i18n::{t, t_args, set_language, get_current_language};
+//!
+//! // Initialize with default system language
+//! easyssh_core::i18n::init().expect("Failed to initialize i18n");
+//!
+//! // Get a simple translation
+//! let message = t("welcome-message");
+//! println!("{}", message);
+//!
+//! // Get translation with arguments
+//! let message = t_args("server-connected", &[("host", "192.168.1.1"), ("port", "22")]);
+//! println!("{}", message);
+//!
+//! // Change language
+//! set_language("zh-CN").expect("Failed to set language");
+//! assert_eq!(get_current_language(), "zh-CN");
+//! ```
+//!
+//! # Translation Files
+//!
+//! Translation files are stored in `resources/locales/` with the naming convention:
+//! `{language-code}/main.ftl`
+//!
+//! Example structure:
+//! ```text
+//! resources/locales/
+//! ├── en/
+//! │   └── main.ftl
+//! ├── zh-CN/
+//! │   └── main.ftl
+//! └── ja/
+//!     └── main.ftl
+//! ```
+//!
+//! # DateTime and Number Formatting
+//!
+//! The module also provides locale-aware formatting:
+//! - `format_datetime()` - Format dates and times according to locale
+//! - `format_number()` - Format numbers with locale-specific separators
+//! - `format_date()` - Format dates only
+
 use fluent::{FluentArgs, FluentBundle, FluentResource};
 use fluent_bundle::FluentValue;
 use lazy_static::lazy_static;

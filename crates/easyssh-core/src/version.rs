@@ -25,7 +25,7 @@
 //! let can_upgrade = VersionCompatibility::is_compatible(Edition::Lite, Edition::Standard);
 //! ```
 
-use crate::edition::{BuildType, Edition, VersionInfo};
+use crate::edition::{Edition, VersionInfo};
 use std::fmt;
 use std::sync::OnceLock;
 

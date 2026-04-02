@@ -252,9 +252,7 @@ impl Dialog for ServerDialog {
                 .fg(theme.fg_secondary);
 
             let value_style = if is_focused {
-                Style::default()
-                    .fg(theme.fg_primary)
-                    .bg(theme.bg_highlight)
+                Style::default().fg(theme.fg_primary).bg(theme.bg_highlight)
             } else if !is_valid && value.is_empty() {
                 Style::default().fg(theme.accent_error)
             } else {
@@ -328,9 +326,21 @@ impl Dialog for ServerDialog {
         let is_auth_focused = self.focused_field == Field::AuthMethod;
 
         let auth_options = vec![
-            ("1", "Agent", matches!(self.data.auth_method, AuthMethod::Agent)),
-            ("2", "Password", matches!(self.data.auth_method, AuthMethod::Password { .. })),
-            ("3", "Key", matches!(self.data.auth_method, AuthMethod::PrivateKey { .. })),
+            (
+                "1",
+                "Agent",
+                matches!(self.data.auth_method, AuthMethod::Agent),
+            ),
+            (
+                "2",
+                "Password",
+                matches!(self.data.auth_method, AuthMethod::Password { .. }),
+            ),
+            (
+                "3",
+                "Key",
+                matches!(self.data.auth_method, AuthMethod::PrivateKey { .. }),
+            ),
         ];
 
         let auth_spans: Vec<Span> = auth_options
@@ -350,9 +360,14 @@ impl Dialog for ServerDialog {
             .collect();
 
         let auth_line = Line::from(
-            std::iter::once(Span::styled("Auth: ", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)))
-                .chain(auth_spans)
-                .collect::<Vec<_>>(),
+            std::iter::once(Span::styled(
+                "Auth: ",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(theme.fg_secondary),
+            ))
+            .chain(auth_spans)
+            .collect::<Vec<_>>(),
         );
 
         let auth_para = Paragraph::new(auth_line);
@@ -368,7 +383,11 @@ impl Dialog for ServerDialog {
                 self.focused_field == Field::IdentityFile,
                 self.cursor_identity,
                 theme,
-                self.data.identity_file.as_ref().map(|s| !s.is_empty()).unwrap_or(false),
+                self.data
+                    .identity_file
+                    .as_ref()
+                    .map(|s| !s.is_empty())
+                    .unwrap_or(false),
             );
         }
 
@@ -387,7 +406,12 @@ impl Dialog for ServerDialog {
         }
 
         let group_line = Line::from(vec![
-            Span::styled("Group:", Style::default().add_modifier(Modifier::BOLD).fg(theme.fg_secondary)),
+            Span::styled(
+                "Group:",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(theme.fg_secondary),
+            ),
             Span::styled(group_text, group_style),
         ]);
 

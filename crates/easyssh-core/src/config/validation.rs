@@ -27,7 +27,7 @@ pub struct ValidationError {
 }
 
 /// Validation error codes for programmatic handling
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ValidationErrorCode {
     Required,
     InvalidType,
@@ -40,13 +40,8 @@ pub enum ValidationErrorCode {
     DependencyViolation,
     SecurityRisk,
     Deprecated,
+    #[default]
     Unknown,
-}
-
-impl Default for ValidationErrorCode {
-    fn default() -> Self {
-        ValidationErrorCode::Unknown
-    }
 }
 
 impl ValidationError {
@@ -87,7 +82,12 @@ impl ValidationError {
     }
 
     /// Create an out of range error
-    pub fn out_of_range(field: impl Into<String>, value: impl fmt::Display, min: impl fmt::Display, max: impl fmt::Display) -> Self {
+    pub fn out_of_range(
+        field: impl Into<String>,
+        value: impl fmt::Display,
+        min: impl fmt::Display,
+        max: impl fmt::Display,
+    ) -> Self {
         Self {
             field: field.into(),
             message: format!("Value {} is outside valid range [{}, {}]", value, min, max),
@@ -249,15 +249,20 @@ impl ConfigValidator {
     /// Validate cross-section consistency
     fn validate_consistency(&self, config: &FullConfig, errors: &mut Vec<ValidationError>) {
         // Check that theme and language are consistent with available options
-        if !matches!(config.app_config.theme, super::types::Theme::Light | super::types::Theme::Dark | super::types::Theme::System) {
-            errors.push(ValidationError::new(
-                "app_config.theme",
-                "Invalid theme value",
-            ).with_code(ValidationErrorCode::InvalidValue));
+        if !matches!(
+            config.app_config.theme,
+            super::types::Theme::Light | super::types::Theme::Dark | super::types::Theme::System
+        ) {
+            errors.push(
+                ValidationError::new("app_config.theme", "Invalid theme value")
+                    .with_code(ValidationErrorCode::InvalidValue),
+            );
         }
 
         // Check security setting consistency
-        if config.security_settings.require_password_on_startup && config.security_settings.master_password_timeout == 0 {
+        if config.security_settings.require_password_on_startup
+            && config.security_settings.master_password_timeout == 0
+        {
             errors.push(ValidationError::info(
                 "security_settings",
                 "Password on startup is enabled but timeout is 0 (never). Consider setting a timeout."
@@ -283,7 +288,11 @@ impl ConfigValidator {
     }
 
     /// Validate app configuration
-    pub fn validate_app_config(config: &AppConfig, errors: &mut Vec<ValidationError>, context: &ValidationContext) {
+    pub fn validate_app_config(
+        config: &AppConfig,
+        errors: &mut Vec<ValidationError>,
+        context: &ValidationContext,
+    ) {
         // Validate window geometry
         Self::validate_window_geometry(&config.window_geometry, errors, context);
 
@@ -303,10 +312,13 @@ impl ConfigValidator {
 
         // Validate shortcuts exist
         if config.shortcuts.new_connection.key.is_empty() {
-            errors.push(ValidationError::new(
-                "app_config.shortcuts.new_connection",
-                "Shortcut key cannot be empty",
-            ).with_code(ValidationErrorCode::Required));
+            errors.push(
+                ValidationError::new(
+                    "app_config.shortcuts.new_connection",
+                    "Shortcut key cannot be empty",
+                )
+                .with_code(ValidationErrorCode::Required),
+            );
         }
 
         // Validate terminal setting
@@ -320,7 +332,10 @@ impl ConfigValidator {
         // Check for suspicious terminal path (potential security issue)
         if !config.default_terminal.is_empty() {
             let term_lower = config.default_terminal.to_lowercase();
-            if term_lower.contains("tmp") || term_lower.contains("temp") || term_lower.contains("/var/") {
+            if term_lower.contains("tmp")
+                || term_lower.contains("temp")
+                || term_lower.contains("/var/")
+            {
                 errors.push(ValidationError::security_risk(
                     "app_config.default_terminal",
                     "Terminal path appears to be in a temporary directory, verify this is intentional",
@@ -330,7 +345,11 @@ impl ConfigValidator {
     }
 
     /// Validate window geometry
-    fn validate_window_geometry(geometry: &WindowGeometry, errors: &mut Vec<ValidationError>, _context: &ValidationContext) {
+    fn validate_window_geometry(
+        geometry: &WindowGeometry,
+        errors: &mut Vec<ValidationError>,
+        _context: &ValidationContext,
+    ) {
         // Check for reasonable window dimensions
         if geometry.width < 400 {
             errors.push(ValidationError::warning(
@@ -374,21 +393,28 @@ impl ConfigValidator {
 
         // Check for minimum viable window size
         if geometry.width < 200 || geometry.height < 150 {
-            errors.push(ValidationError::new(
-                "app_config.window_geometry",
-                "Window dimensions are too small to be usable",
-            ).with_code(ValidationErrorCode::OutOfRange));
+            errors.push(
+                ValidationError::new(
+                    "app_config.window_geometry",
+                    "Window dimensions are too small to be usable",
+                )
+                .with_code(ValidationErrorCode::OutOfRange),
+            );
         }
     }
 
     /// Validate user preferences
-    pub fn validate_user_preferences(prefs: &UserPreferences, errors: &mut Vec<ValidationError>, context: &ValidationContext) {
+    pub fn validate_user_preferences(
+        prefs: &UserPreferences,
+        errors: &mut Vec<ValidationError>,
+        context: &ValidationContext,
+    ) {
         // Validate port range
         if prefs.default_port == 0 {
-            errors.push(ValidationError::new(
-                "user_preferences.default_port",
-                "Default port cannot be 0",
-            ).with_code(ValidationErrorCode::OutOfRange));
+            errors.push(
+                ValidationError::new("user_preferences.default_port", "Default port cannot be 0")
+                    .with_code(ValidationErrorCode::OutOfRange),
+            );
         }
         if prefs.default_port < 1024 {
             errors.push(ValidationError::warning(
@@ -451,13 +477,13 @@ impl ConfigValidator {
             }
 
             // Security check: key path permissions
-            if context.security_level >= SecurityValidationLevel::High {
-                if key_path.starts_with("/tmp/") || key_path.starts_with("C:\\Temp\\") {
-                    errors.push(ValidationError::security_risk(
-                        "user_preferences.default_key_path",
-                        "SSH key should not be stored in a temporary directory",
-                    ));
-                }
+            if context.security_level >= SecurityValidationLevel::High
+                && (key_path.starts_with("/tmp/") || key_path.starts_with("C:\\Temp\\"))
+            {
+                errors.push(ValidationError::security_risk(
+                    "user_preferences.default_key_path",
+                    "SSH key should not be stored in a temporary directory",
+                ));
             }
         }
 
@@ -479,10 +505,13 @@ impl ConfigValidator {
 
         // Validate default username
         if prefs.default_username.contains(' ') {
-            errors.push(ValidationError::new(
-                "user_preferences.default_username",
-                "Username cannot contain spaces",
-            ).with_code(ValidationErrorCode::InvalidFormat));
+            errors.push(
+                ValidationError::new(
+                    "user_preferences.default_username",
+                    "Username cannot contain spaces",
+                )
+                .with_code(ValidationErrorCode::InvalidFormat),
+            );
         }
     }
 
@@ -574,14 +603,14 @@ impl ConfigValidator {
     }
 
     /// Validate a specific value against a range
-    pub fn validate_range<T: PartialOrd>(
+    pub fn validate_range<T>(
         value: T,
         min: T,
         max: T,
         field: impl Into<String>,
         errors: &mut Vec<ValidationError>,
     ) where
-        T: fmt::Display,
+        T: PartialOrd + fmt::Display,
     {
         if value < min || value > max {
             errors.push(ValidationError::out_of_range(field, value, min, max));
@@ -596,10 +625,10 @@ impl ConfigValidator {
         errors: &mut Vec<ValidationError>,
     ) {
         if !pattern.is_match(value) {
-            errors.push(ValidationError::new(
-                field,
-                format!("Value does not match required pattern"),
-            ).with_code(ValidationErrorCode::PatternMismatch));
+            errors.push(
+                ValidationError::new(field, "Value does not match required pattern".to_string())
+                    .with_code(ValidationErrorCode::PatternMismatch),
+            );
         }
     }
 
@@ -615,7 +644,9 @@ impl ConfigValidator {
 
         // Limit recent connections to max
         if prefs.recent_connections.len() > prefs.max_recent_connections {
-            prefs.recent_connections.truncate(prefs.max_recent_connections);
+            prefs
+                .recent_connections
+                .truncate(prefs.max_recent_connections);
         }
 
         // Remove empty search history entries
@@ -658,8 +689,8 @@ impl ConfigValidator {
         // Clamp clipboard clear time
         settings.clipboard_clear_time = settings.clipboard_clear_time.min(3600);
 
-        // Clamp password length (max 255 for u8)
-        settings.min_password_length = settings.min_password_length.min(255);
+        // Clamp password length (max 255 for u8) - always true since u8 max is 255
+        // This check is kept for documentation purposes
 
         // Normalize timeouts
         if settings.master_password_timeout > 0 && settings.master_password_timeout < 1 {
@@ -690,14 +721,23 @@ impl ConfigAutoFix {
         }
 
         // Fix search history size
-        if config.user_preferences.search_history.len() > config.user_preferences.max_search_history {
-            config.user_preferences.search_history.truncate(config.user_preferences.max_search_history);
+        if config.user_preferences.search_history.len() > config.user_preferences.max_search_history
+        {
+            config
+                .user_preferences
+                .search_history
+                .truncate(config.user_preferences.max_search_history);
             fixes.push("Truncated search history to max limit".to_string());
         }
 
         // Fix recent connections size
-        if config.user_preferences.recent_connections.len() > config.user_preferences.max_recent_connections {
-            config.user_preferences.recent_connections.truncate(config.user_preferences.max_recent_connections);
+        if config.user_preferences.recent_connections.len()
+            > config.user_preferences.max_recent_connections
+        {
+            config
+                .user_preferences
+                .recent_connections
+                .truncate(config.user_preferences.max_recent_connections);
             fixes.push("Truncated recent connections to max limit".to_string());
         }
 
@@ -724,7 +764,9 @@ impl ConfigAutoFix {
         }
 
         // Fix password length if too short but not zero
-        if config.security_settings.min_password_length > 0 && config.security_settings.min_password_length < 6 {
+        if config.security_settings.min_password_length > 0
+            && config.security_settings.min_password_length < 6
+        {
             config.security_settings.min_password_length = 8;
             fixes.push("Set minimum password length to 8 (was too low)".to_string());
         }
@@ -737,7 +779,10 @@ impl ConfigAutoFix {
 
         // Fix empty strings in lists
         let before_count = config.user_preferences.search_history.len();
-        config.user_preferences.search_history.retain(|s| !s.trim().is_empty());
+        config
+            .user_preferences
+            .search_history
+            .retain(|s| !s.trim().is_empty());
         if config.user_preferences.search_history.len() < before_count {
             fixes.push("Removed empty entries from search history".to_string());
         }
@@ -793,30 +838,37 @@ mod tests {
     #[test]
     fn test_validate_valid_config() {
         let config = FullConfig::default();
-        assert!(ConfigValidator::validate(&config).is_ok());
+        let validator = ConfigValidator::new();
+        assert!(validator.validate(&config).is_ok());
     }
 
     #[test]
     fn test_validate_invalid_port() {
         let mut config = FullConfig::default();
         config.user_preferences.default_port = 0;
-        let result = ConfigValidator::validate(&config);
+        let validator = ConfigValidator::new();
+        let result = validator.validate(&config);
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
         assert!(errors.iter().any(|e| e.field.contains("default_port")));
-        assert!(errors.iter().any(|e| e.code == ValidationErrorCode::OutOfRange));
+        assert!(errors
+            .iter()
+            .any(|e| e.code == ValidationErrorCode::OutOfRange));
     }
 
     #[test]
     fn test_validate_small_window() {
         let mut config = FullConfig::default();
         config.app_config.window_geometry.width = 100;
-        let result = ConfigValidator::validate(&config);
+        let validator = ConfigValidator::new();
+        let result = validator.validate(&config);
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| e.field.contains("window_geometry.width")));
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("window_geometry.width")));
     }
 
     #[test]
@@ -825,13 +877,14 @@ mod tests {
         config.security_settings.min_password_length = 6;
         config.security_settings.strict_host_key_checking = false;
 
-        let validator = ConfigValidator::new()
-            .security_level(SecurityValidationLevel::High);
+        let validator = ConfigValidator::new().security_level(SecurityValidationLevel::High);
 
         let result = validator.validate(&config);
         let errors = result.unwrap_err();
 
-        assert!(errors.iter().any(|e| e.code == ValidationErrorCode::SecurityRisk));
+        assert!(errors
+            .iter()
+            .any(|e| e.code == ValidationErrorCode::SecurityRisk));
     }
 
     #[test]
@@ -883,11 +936,14 @@ mod tests {
             "f".to_string(),
         ];
 
-        let result = ConfigValidator::validate(&config);
+        let validator = ConfigValidator::new();
+        let result = validator.validate(&config);
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| e.message.contains("exceeds configured maximum")));
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("exceeds configured maximum")));
     }
 
     #[test]
@@ -905,8 +961,8 @@ mod tests {
 
     #[test]
     fn test_validation_with_code() {
-        let error = ValidationError::new("field", "message")
-            .with_code(ValidationErrorCode::Required);
+        let error =
+            ValidationError::new("field", "message").with_code(ValidationErrorCode::Required);
         assert_eq!(error.code, ValidationErrorCode::Required);
     }
 
@@ -982,15 +1038,14 @@ mod tests {
         config.security_settings.require_password_on_startup = false;
         config.security_settings.auto_lock_after_idle = 0;
 
-        let validator = ConfigValidator::new()
-            .security_level(SecurityValidationLevel::Maximum);
+        let validator = ConfigValidator::new().security_level(SecurityValidationLevel::Maximum);
 
         let result = validator.validate(&config);
         let errors = result.unwrap_err();
 
         assert!(errors.iter().any(|e| {
-            e.field == "security_settings.require_password_on_startup" &&
-            e.code == ValidationErrorCode::SecurityRisk
+            e.field == "security_settings.require_password_on_startup"
+                && e.code == ValidationErrorCode::SecurityRisk
         }));
     }
 
@@ -1022,13 +1077,14 @@ mod tests {
         let mut config = FullConfig::default();
         config.user_preferences.default_username = "user name".to_string();
 
-        let result = ConfigValidator::validate(&config);
+        let validator = ConfigValidator::new();
+        let result = validator.validate(&config);
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| {
-            e.field.contains("username") && e.message.contains("spaces")
-        }));
+        assert!(errors
+            .iter()
+            .any(|e| { e.field.contains("username") && e.message.contains("spaces") }));
     }
 
     #[test]
@@ -1048,4 +1104,3 @@ mod tests {
         assert_eq!(config.user_preferences.search_history[1], "also valid");
     }
 }
-

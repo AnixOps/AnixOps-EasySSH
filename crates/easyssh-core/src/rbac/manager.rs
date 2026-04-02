@@ -1,22 +1,44 @@
 //! 角色管理器 - 角色和分配的CRUD操作
 
-use super::{
-    types::*,
-    RbacAuditEntry, RbacAuditLogger, RbacError, RbacConfig,
-};
+use super::{types::*, RbacAuditEntry, RbacAuditLogger, RbacConfig, RbacError};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// 角色变更事件
 #[derive(Debug, Clone)]
 pub enum RoleChangeEvent {
-    Created { role_id: String, by_user: String },
-    Updated { role_id: String, by_user: String },
-    Deleted { role_id: String, by_user: String },
-    PermissionAdded { role_id: String, permission: String, by_user: String },
-    PermissionRemoved { role_id: String, permission: String, by_user: String },
-    Assigned { role_id: String, user_id: String, by_user: String },
-    Revoked { role_id: String, user_id: String, by_user: String },
+    Created {
+        role_id: String,
+        by_user: String,
+    },
+    Updated {
+        role_id: String,
+        by_user: String,
+    },
+    Deleted {
+        role_id: String,
+        by_user: String,
+    },
+    PermissionAdded {
+        role_id: String,
+        permission: String,
+        by_user: String,
+    },
+    PermissionRemoved {
+        role_id: String,
+        permission: String,
+        by_user: String,
+    },
+    Assigned {
+        role_id: String,
+        user_id: String,
+        by_user: String,
+    },
+    Revoked {
+        role_id: String,
+        user_id: String,
+        by_user: String,
+    },
 }
 
 /// 角色变更监听器
@@ -380,7 +402,10 @@ impl RoleManager {
     }
 
     /// 获取角色的有效权限（包含继承）
-    pub fn get_role_effective_permissions(&self, role_id: &str) -> Result<HashSet<Permission>, RbacError> {
+    pub fn get_role_effective_permissions(
+        &self,
+        role_id: &str,
+    ) -> Result<HashSet<Permission>, RbacError> {
         let roles = self.roles.read().unwrap();
         let role = roles
             .get(role_id)
@@ -591,10 +616,18 @@ impl RoleManager {
 
         if let Some(logger) = &self.audit_logger {
             match &event {
-                RoleChangeEvent::Assigned { role_id, user_id, by_user } => {
+                RoleChangeEvent::Assigned {
+                    role_id,
+                    user_id,
+                    by_user,
+                } => {
                     logger.log_permission_change(user_id, role_id, "assigned");
                 }
-                RoleChangeEvent::Revoked { role_id, user_id, by_user } => {
+                RoleChangeEvent::Revoked {
+                    role_id,
+                    user_id,
+                    by_user,
+                } => {
                     logger.log_permission_change(user_id, role_id, "revoked");
                 }
                 _ => {}
@@ -631,7 +664,9 @@ mod tests {
     #[test]
     fn test_create_role() {
         let manager = create_test_manager();
-        let role = manager.create_role("Test Role", Some("A test role"), "admin").unwrap();
+        let role = manager
+            .create_role("Test Role", Some("A test role"), "admin")
+            .unwrap();
 
         assert_eq!(role.name, "Test Role");
         assert!(!role.is_system);
@@ -648,7 +683,9 @@ mod tests {
     #[test]
     fn test_assign_role() {
         let manager = create_test_manager();
-        let assignment = manager.assign_role("user1", "super_admin", None, "admin").unwrap();
+        let assignment = manager
+            .assign_role("user1", "super_admin", None, "admin")
+            .unwrap();
 
         assert_eq!(assignment.user_id, "user1");
         assert_eq!(assignment.role_id, "super_admin");
@@ -657,7 +694,9 @@ mod tests {
     #[test]
     fn test_get_user_roles() {
         let manager = create_test_manager();
-        manager.assign_role("user1", "super_admin", None, "admin").unwrap();
+        manager
+            .assign_role("user1", "super_admin", None, "admin")
+            .unwrap();
 
         let roles = manager.get_user_roles("user1");
         assert!(!roles.is_empty());
@@ -680,7 +719,9 @@ mod tests {
     #[test]
     fn test_search_roles() {
         let manager = create_test_manager();
-        manager.create_role("Search Test", Some("For searching"), "admin").unwrap();
+        manager
+            .create_role("Search Test", Some("For searching"), "admin")
+            .unwrap();
 
         let results = manager.search_roles("search");
         assert!(!results.is_empty());
@@ -691,12 +732,11 @@ mod tests {
         let manager = create_test_manager();
         let role = manager.create_role("Test", None, "admin").unwrap();
 
-        let permission = Permission::new(
-            Resource::all(ResourceType::Server),
-            Operation::Read,
-        );
+        let permission = Permission::new(Resource::all(ResourceType::Server), Operation::Read);
 
-        manager.add_permission_to_role(&role.id, permission.clone(), "admin").unwrap();
+        manager
+            .add_permission_to_role(&role.id, permission.clone(), "admin")
+            .unwrap();
 
         let updated_role = manager.get_role(&role.id).unwrap();
         assert!(updated_role.has_permission(&permission));
@@ -705,11 +745,15 @@ mod tests {
     #[test]
     fn test_revoke_role() {
         let manager = create_test_manager();
-        manager.assign_role("user1", "super_admin", None, "admin").unwrap();
+        manager
+            .assign_role("user1", "super_admin", None, "admin")
+            .unwrap();
 
         assert!(manager.user_has_role("user1", "super_admin"));
 
-        manager.revoke_role("user1", Some("super_admin"), None, "admin").unwrap();
+        manager
+            .revoke_role("user1", Some("super_admin"), None, "admin")
+            .unwrap();
 
         assert!(!manager.user_has_role("user1", "super_admin"));
     }
@@ -730,7 +774,9 @@ mod tests {
         // 创建继承关系的角色
         let parent = manager.create_role("Parent", None, "admin").unwrap();
         let perm = Permission::new(Resource::all(ResourceType::Server), Operation::Read);
-        manager.add_permission_to_role(&parent.id, perm.clone(), "admin").unwrap();
+        manager
+            .add_permission_to_role(&parent.id, perm.clone(), "admin")
+            .unwrap();
 
         let child = RoleDefinition::new("child").inherits(vec![&parent.id]);
         {

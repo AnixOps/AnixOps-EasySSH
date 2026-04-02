@@ -2,7 +2,7 @@
 //!
 //! 这是对 `crate::debug_access::DebugFeature` 的扩展
 
-use crate::debug::{can_access_feature, DebugAccessLevel};
+use crate::debug::can_access_feature;
 pub use crate::debug_access::DebugFeature;
 
 /// 获取功能显示名称

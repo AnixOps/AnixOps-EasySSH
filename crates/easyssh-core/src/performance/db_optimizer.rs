@@ -65,9 +65,10 @@ impl<T: Clone> QueryCache<T> {
     {
         // Try to get from cache
         {
-            let cache = self.cache.read().map_err(|_| {
-                LiteError::Internal("Failed to lock cache".to_string())
-            })?;
+            let cache = self
+                .cache
+                .read()
+                .map_err(|_| LiteError::Internal("Failed to lock cache".to_string()))?;
 
             if let Some(entry) = cache.get(key) {
                 if entry.is_valid() {
@@ -80,9 +81,10 @@ impl<T: Clone> QueryCache<T> {
         let result = compute()?;
 
         // Cache result
-        let mut cache = self.cache.write().map_err(|_| {
-            LiteError::Internal("Failed to lock cache".to_string())
-        })?;
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock cache".to_string()))?;
 
         // Clean expired entries if at capacity
         if cache.len() >= self.max_entries {
@@ -102,9 +104,10 @@ impl<T: Clone> QueryCache<T> {
 
     /// Invalidate cache entries matching prefix
     pub fn invalidate_prefix(&self, prefix: &str) -> Result<(), LiteError> {
-        let mut cache = self.cache.write().map_err(|_| {
-            LiteError::Internal("Failed to lock cache".to_string())
-        })?;
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock cache".to_string()))?;
 
         cache.retain(|key, _| !key.starts_with(prefix));
         Ok(())
@@ -112,9 +115,10 @@ impl<T: Clone> QueryCache<T> {
 
     /// Clear all cache
     pub fn clear(&self) -> Result<(), LiteError> {
-        let mut cache = self.cache.write().map_err(|_| {
-            LiteError::Internal("Failed to lock cache".to_string())
-        })?;
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock cache".to_string()))?;
 
         cache.clear();
         Ok(())
@@ -122,9 +126,10 @@ impl<T: Clone> QueryCache<T> {
 
     /// Get cache statistics
     pub fn stats(&self) -> Result<(usize, usize), LiteError> {
-        let cache = self.cache.read().map_err(|_| {
-            LiteError::Internal("Failed to lock cache".to_string())
-        })?;
+        let cache = self
+            .cache
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock cache".to_string()))?;
 
         let total = cache.len();
         let valid = cache.values().filter(|e| e.is_valid()).count();
@@ -140,6 +145,7 @@ impl<T: Clone> Default for QueryCache<T> {
 }
 
 /// Optimized database wrapper with caching
+#[allow(dead_code)]
 pub struct OptimizedDatabase {
     db: Arc<Database>,
     server_cache: Arc<QueryCache<Vec<ServerRecord>>>,
@@ -206,18 +212,20 @@ impl OptimizedDatabase {
 
     /// Get query statistics
     pub fn get_stats(&self) -> Result<QueryStats, LiteError> {
-        let stats = self.query_stats.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock stats".to_string())
-        })?;
+        let stats = self
+            .query_stats
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
 
         Ok(stats.clone())
     }
 
     /// Reset statistics
     pub fn reset_stats(&self) -> Result<(), LiteError> {
-        let mut stats = self.query_stats.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock stats".to_string())
-        })?;
+        let mut stats = self
+            .query_stats
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
 
         *stats = QueryStats::default();
         Ok(())
@@ -235,8 +243,7 @@ impl OptimizedDatabase {
 
             // Update average query time (exponential moving average)
             let time_us = duration.as_micros() as u64;
-            stats.avg_query_time_us =
-                (stats.avg_query_time_us * 9 + time_us) / 10;
+            stats.avg_query_time_us = (stats.avg_query_time_us * 9 + time_us) / 10;
 
             // Track slow queries (> 10ms)
             if time_us > 10_000 {
@@ -258,26 +265,21 @@ impl DbOptimizer {
             "CREATE INDEX IF NOT EXISTS idx_servers_host_lower ON servers(LOWER(host))",
             "CREATE INDEX IF NOT EXISTS idx_servers_auth_type ON servers(auth_type)",
             "CREATE INDEX IF NOT EXISTS idx_servers_composite ON servers(group_id, status, name)",
-
             // Host indexes
             "CREATE INDEX IF NOT EXISTS idx_hosts_name_lower ON hosts(LOWER(name))",
             "CREATE INDEX IF NOT EXISTS idx_hosts_host_lower ON hosts(LOWER(host))",
             "CREATE INDEX IF NOT EXISTS idx_hosts_environment ON hosts(environment)",
             "CREATE INDEX IF NOT EXISTS idx_hosts_region ON hosts(region)",
             "CREATE INDEX IF NOT EXISTS idx_hosts_composite ON hosts(group_id, status, name)",
-
             // Tag indexes
             "CREATE INDEX IF NOT EXISTS idx_host_tags_host ON host_tags(host_id)",
             "CREATE INDEX IF NOT EXISTS idx_host_tags_tag ON host_tags(tag_id)",
-
             // Session indexes
             "CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)",
             "CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at DESC)",
-
             // Audit indexes
             "CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action)",
             "CREATE INDEX IF NOT EXISTS idx_audit_level ON audit_events(level)",
-
             // Identity indexes
             "CREATE INDEX IF NOT EXISTS idx_identities_auth_type ON identities(auth_type)",
         ];
@@ -416,22 +418,26 @@ mod tests {
         // First call
         {
             let count = call_count.clone();
-            let result = cache.get_or_compute("key1", || {
-                let mut c = count.lock().unwrap();
-                *c += 1;
-                Ok(42)
-            }).unwrap();
+            let result = cache
+                .get_or_compute("key1", || {
+                    let mut c = count.lock().unwrap();
+                    *c += 1;
+                    Ok(42)
+                })
+                .unwrap();
             assert_eq!(result, 42);
         }
 
         // Second call - should use cache
         {
             let count = call_count.clone();
-            let result = cache.get_or_compute("key1", || {
-                let mut c = count.lock().unwrap();
-                *c += 1;
-                Ok(100) // Different value if called
-            }).unwrap();
+            let result = cache
+                .get_or_compute("key1", || {
+                    let mut c = count.lock().unwrap();
+                    *c += 1;
+                    Ok(100) // Different value if called
+                })
+                .unwrap();
             assert_eq!(result, 42); // Should get cached value
         }
 

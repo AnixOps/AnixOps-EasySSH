@@ -121,17 +121,16 @@ fn setup_actions(app: &glib::WeakRef<adw::Application>) {
     });
 
     // Color scheme toggle
-    let color_scheme_action = gio::SimpleAction::new_stateful(
-        "toggle-color-scheme",
-        None,
-        &"default".to_variant(),
-    );
+    let color_scheme_action =
+        gio::SimpleAction::new_stateful("toggle-color-scheme", None, &"default".to_variant());
     color_scheme_action.connect_activate(|action, _| {
         let style_manager = adw::StyleManager::default();
         let current = style_manager.color_scheme();
 
         let next = match current {
-            adw::ColorScheme::Default | adw::ColorScheme::PreferLight => adw::ColorScheme::PreferDark,
+            adw::ColorScheme::Default | adw::ColorScheme::PreferLight => {
+                adw::ColorScheme::PreferDark
+            }
             adw::ColorScheme::PreferDark => adw::ColorScheme::PreferLight,
             _ => adw::ColorScheme::Default,
         };

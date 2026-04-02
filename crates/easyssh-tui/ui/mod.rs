@@ -65,9 +65,14 @@ impl Ui {
         }
     }
 
-
-    fn render_status_bar(&self, frame: &mut Frame, area: ratatui::layout::Rect, app: &App, palette: &crate::theme::ColorPalette) {
-        use ratatui::style::{Color, Style, Modifier};
+    fn render_status_bar(
+        &self,
+        frame: &mut Frame,
+        area: ratatui::layout::Rect,
+        app: &App,
+        palette: &crate::theme::ColorPalette,
+    ) {
+        use ratatui::style::{Color, Modifier, Style};
         use ratatui::text::{Line, Span};
         use ratatui::widgets::Paragraph;
 
@@ -80,7 +85,9 @@ impl Ui {
         let mut status_spans = vec![
             Span::styled(
                 format!(" EasySSH Lite v{} ", version),
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 format!("| {} of {} servers ", server_count, total_count),
@@ -119,7 +126,12 @@ impl Ui {
         frame.render_widget(status, area);
     }
 
-    fn render_search_bar(&self, frame: &mut Frame, app: &App, palette: &crate::theme::ColorPalette) {
+    fn render_search_bar(
+        &self,
+        frame: &mut Frame,
+        app: &App,
+        palette: &crate::theme::ColorPalette,
+    ) {
         use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
         use ratatui::style::{Color, Modifier, Style};
         use ratatui::text::{Line, Span};
@@ -159,27 +171,19 @@ impl Ui {
                         .add_modifier(Modifier::UNDERLINED),
                 ),
                 Span::raw(" "),
-                Span::styled(
-                    "█",
-                    Style::default().fg(palette.accent_primary),
-                ),
+                Span::styled("█", Style::default().fg(palette.accent_primary)),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled(
-                    format!("  Found: {} matches", app.get_filtered_server_count()),
-                    Style::default().fg(palette.fg_muted),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                format!("  Found: {} matches", app.get_filtered_server_count()),
+                Style::default().fg(palette.fg_muted),
+            )]),
         ])
         .block(search_block);
 
         frame.render_widget(search_text, search_area);
 
         // Set cursor position for search input
-        frame.set_cursor(
-            inner.x + 10 + app.search_cursor as u16,
-            inner.y + 1,
-        );
+        frame.set_cursor(inner.x + 10 + app.search_cursor as u16, inner.y + 1);
     }
 }

@@ -6,11 +6,13 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use easyssh_core::rbac::{CheckResult, Permission, PermissionContext, Resource, ResourceType, Operation};
+use easyssh_core::rbac::{
+    CheckResult, Operation, Permission, PermissionContext, Resource, ResourceType,
+};
 use std::sync::Arc;
 
-use crate::AppState;
 use super::{extract_rbac_context, method_to_operation, parse_resource_path, RequestRbacContext};
+use crate::AppState;
 
 /// RBAC中间件配置
 #[derive(Debug, Clone)]
@@ -41,9 +43,7 @@ impl Default for RbacMiddlewareConfig {
                 "/swagger-ui".to_string(),
                 "/api-docs".to_string(),
             ],
-            admin_paths: vec![
-                "/api/v1/admin".to_string(),
-            ],
+            admin_paths: vec!["/api/v1/admin".to_string()],
             path_resource_mapping: mapping,
         }
     }
@@ -68,10 +68,7 @@ pub async fn rbac_middleware(
 
     // 检查管理员路径
     if is_admin_path(path, &config) && !rbac_ctx.is_admin {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "Admin access required".to_string(),
-        ));
+        return Err((StatusCode::FORBIDDEN, "Admin access required".to_string()));
     }
 
     // 解析资源和操作
@@ -88,12 +85,8 @@ pub async fn rbac_middleware(
 
     // 检查权限（简化版，实际应该使用RbacService）
     // 这里我们使用简化检查，实际实现需要查询数据库
-    let has_permission = check_permission_simplified(
-        &state,
-        &rbac_ctx.user_id,
-        resource_type,
-        operation,
-    ).await;
+    let has_permission =
+        check_permission_simplified(&state, &rbac_ctx.user_id, resource_type, operation).await;
 
     if !has_permission {
         return Err((
@@ -107,16 +100,18 @@ pub async fn rbac_middleware(
 
 /// 检查是否为公开路径
 fn is_public_path(path: &str, config: &RbacMiddlewareConfig) -> bool {
-    config.public_paths.iter().any(|p| {
-        path == p || path.starts_with(&format!("{}/", p))
-    })
+    config
+        .public_paths
+        .iter()
+        .any(|p| path == p || path.starts_with(&format!("{}/", p)))
 }
 
 /// 检查是否为管理员路径
 fn is_admin_path(path: &str, config: &RbacMiddlewareConfig) -> bool {
-    config.admin_paths.iter().any(|p| {
-        path == p || path.starts_with(&format!("{}/", p))
-    })
+    config
+        .admin_paths
+        .iter()
+        .any(|p| path == p || path.starts_with(&format!("{}/", p)))
 }
 
 /// 解析请求中的资源和操作
@@ -135,18 +130,16 @@ fn parse_request_resource(
         .map(|(_, rt)| rt.as_str())
         .or_else(|| {
             // 尝试从路径解析
-            parse_resource_path(path).map(|(rt, _)| {
-                match rt.as_str() {
-                    "servers" => "server",
-                    "teams" => "team",
-                    "members" => "member",
-                    "snippets" => "snippet",
-                    "keys" => "key",
-                    "sessions" => "session",
-                    "audit" => "audit_log",
-                    "rbac" => "rbac",
-                    _ => &rt,
-                }
+            parse_resource_path(path).map(|(rt, _)| match rt.as_str() {
+                "servers" => "server",
+                "teams" => "team",
+                "members" => "member",
+                "snippets" => "snippet",
+                "keys" => "key",
+                "sessions" => "session",
+                "audit" => "audit_log",
+                "rbac" => "rbac",
+                _ => &rt,
             })
         })?;
 
@@ -211,7 +204,13 @@ async fn check_permission_simplified(
 pub fn require_permission(
     resource_type: ResourceType,
     operation: Operation,
-) -> impl Fn(State<AppState>, Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Response, (StatusCode, String)>> + Send>> {
+) -> impl Fn(
+    State<AppState>,
+    Request,
+    Next,
+) -> std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<Response, (StatusCode, String)>> + Send>,
+> {
     move |State(state): State<AppState>, req: Request, next: Next| {
         let rt = resource_type;
         let op = operation;
@@ -277,11 +276,7 @@ pub async fn require_team_permission(
 }
 
 /// 检查团队成员关系
-async fn check_team_membership(
-    state: &AppState,
-    user_id: &str,
-    team_id: &str,
-) -> bool {
+async fn check_team_membership(state: &AppState, user_id: &str, team_id: &str) -> bool {
     let result = sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS(SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? AND is_active = TRUE)"
     )
@@ -307,9 +302,7 @@ pub trait RbacRequestExt {
 
 impl RbacRequestExt for Request {
     fn rbac_context(&self) -> Option<RequestRbacContext> {
-        self.extensions()
-            .get::<RequestRbacContext>()
-            .cloned()
+        self.extensions().get::<RequestRbacContext>().cloned()
     }
 
     fn has_permission(&self, resource_type: &str, operation: &str) -> bool {

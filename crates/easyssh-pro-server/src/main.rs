@@ -31,8 +31,8 @@ mod escalation_service;
 mod incident_models;
 mod incident_service;
 mod post_mortem_service;
-mod runbook_service;
 mod rbac;
+mod runbook_service;
 
 use crate::api::{
     audit::audit_routes, collaboration::collaboration_routes, incident::incident_routes,

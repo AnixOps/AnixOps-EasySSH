@@ -82,12 +82,16 @@ impl Dialog for ConfirmDialog {
             .split(inner);
 
         // Message with warning styling
-        let message_para = Paragraph::new(
-            Line::from(vec![
-                Span::styled("⚠ ", Style::default().fg(theme.accent_warning).add_modifier(Modifier::BOLD)),
-                Span::styled(self.message.clone(), Style::default().fg(theme.fg_primary)),
-            ])
-        ).wrap(ratatui::widgets::Wrap { trim: true });
+        let message_para = Paragraph::new(Line::from(vec![
+            Span::styled(
+                "⚠ ",
+                Style::default()
+                    .fg(theme.accent_warning)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(self.message.clone(), Style::default().fg(theme.fg_primary)),
+        ]))
+        .wrap(ratatui::widgets::Wrap { trim: true });
         frame.render_widget(message_para, chunks[0]);
 
         // Buttons with theme styling
@@ -119,12 +123,11 @@ impl Dialog for ConfirmDialog {
         frame.render_widget(buttons, chunks[1]);
 
         // Warning hint
-        let hint = Paragraph::new(
-            Span::styled(
-                "⚠ This action cannot be undone",
-                Style::default().fg(theme.accent_warning),
-            )
-        ).alignment(Alignment::Center);
+        let hint = Paragraph::new(Span::styled(
+            "⚠ This action cannot be undone",
+            Style::default().fg(theme.accent_warning),
+        ))
+        .alignment(Alignment::Center);
         frame.render_widget(hint, chunks[2]);
     }
 
@@ -136,4 +139,3 @@ impl Dialog for ConfirmDialog {
         &self.title
     }
 }
-

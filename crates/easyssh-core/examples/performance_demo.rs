@@ -4,8 +4,8 @@
 use easyssh_core::performance::*;
 use easyssh_core::performance::{
     crypto_optimizer::CryptoOptimizer,
-    search_optimizer::{SearchOptimizer, FastStringMatcher},
     memory_optimizer::MemoryOptimizer,
+    search_optimizer::{FastStringMatcher, SearchOptimizer},
     startup_optimizer::StartupOptimizer,
 };
 
@@ -66,10 +66,22 @@ fn main() {
     println!("\n4. 快速字符串匹配");
     let text = "Production Web Server - us-east-1";
     println!("   - 文本: '{}'", text);
-    println!("   - 包含 'web': {}", FastStringMatcher::contains(text, "web"));
-    println!("   - 前缀匹配 'Prod': {}", FastStringMatcher::starts_with(text, "Prod"));
-    println!("   - 模糊匹配 'pdc srv': {}", FastStringMatcher::fuzzy_match(text, "pdc srv"));
-    println!("   - 模糊评分 'prod': {:.2}", FastStringMatcher::fuzzy_score(text, "prod"));
+    println!(
+        "   - 包含 'web': {}",
+        FastStringMatcher::contains(text, "web")
+    );
+    println!(
+        "   - 前缀匹配 'Prod': {}",
+        FastStringMatcher::starts_with(text, "Prod")
+    );
+    println!(
+        "   - 模糊匹配 'pdc srv': {}",
+        FastStringMatcher::fuzzy_match(text, "pdc srv")
+    );
+    println!(
+        "   - 模糊评分 'prod': {:.2}",
+        FastStringMatcher::fuzzy_score(text, "prod")
+    );
 
     // 5. 加密优化演示
     println!("\n5. 加密优化");
@@ -77,7 +89,9 @@ fn main() {
     let cache = crypto.key_cache();
 
     // 模拟缓存派生结果
-    cache.cache_derivation("test_password", vec![1u8; 32], vec![2u8; 32]).unwrap();
+    cache
+        .cache_derivation("test_password", vec![1u8; 32], vec![2u8; 32])
+        .unwrap();
 
     if cache.is_cached("test_password").unwrap() {
         println!("   - 密钥派生已缓存");
@@ -93,14 +107,26 @@ fn main() {
     let report = startup.get_report().unwrap();
     println!("   - 总启动时间: {} ms", report.total_duration_ms);
     println!("   - 目标: < {} ms", report.target_ms);
-    println!("   - 达成目标: {}", if report.met_target() { "是" } else { "否" });
+    println!(
+        "   - 达成目标: {}",
+        if report.met_target() { "是" } else { "否" }
+    );
 
     // 检查基准目标
     println!("\n7. 基准目标检查");
     println!("   - 冷启动目标: < {} ms", BenchmarkTargets::COLD_START_MS);
-    println!("   - 搜索响应目标: < {} ms", BenchmarkTargets::SEARCH_RESPONSE_MS);
-    println!("   - 内存使用目标: < {} MB", BenchmarkTargets::MEMORY_USAGE_MB);
-    println!("   - 数据库查询目标: < {} ms", BenchmarkTargets::DB_QUERY_MS);
+    println!(
+        "   - 搜索响应目标: < {} ms",
+        BenchmarkTargets::SEARCH_RESPONSE_MS
+    );
+    println!(
+        "   - 内存使用目标: < {} MB",
+        BenchmarkTargets::MEMORY_USAGE_MB
+    );
+    println!(
+        "   - 数据库查询目标: < {} ms",
+        BenchmarkTargets::DB_QUERY_MS
+    );
 
     println!("\n演示完成！");
 }

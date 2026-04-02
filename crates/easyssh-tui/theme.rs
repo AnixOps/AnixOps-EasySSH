@@ -82,12 +82,12 @@ impl ColorPalette {
             fg_highlight: Color::Rgb(100, 200, 255),
 
             // Accents - using bright, vibrant colors like htop
-            accent_primary: Color::Rgb(100, 200, 255),      // Bright blue
-            accent_secondary: Color::Rgb(180, 120, 255),    // Purple
-            accent_success: Color::Rgb(80, 250, 123),       // Bright green
-            accent_warning: Color::Rgb(255, 184, 108),      // Orange
-            accent_error: Color::Rgb(255, 85, 85),         // Red
-            accent_info: Color::Rgb(139, 233, 253),        // Cyan
+            accent_primary: Color::Rgb(100, 200, 255), // Bright blue
+            accent_secondary: Color::Rgb(180, 120, 255), // Purple
+            accent_success: Color::Rgb(80, 250, 123),  // Bright green
+            accent_warning: Color::Rgb(255, 184, 108), // Orange
+            accent_error: Color::Rgb(255, 85, 85),     // Red
+            accent_info: Color::Rgb(139, 233, 253),    // Cyan
 
             // Semantic colors
             border_focused: Color::Rgb(100, 200, 255),
@@ -204,12 +204,12 @@ impl ColorPalette {
             fg_selected: Color::Rgb(255, 255, 255),
             fg_highlight: Color::Rgb(102, 217, 239),
 
-            accent_primary: Color::Rgb(102, 217, 239),      // Cyan
-            accent_secondary: Color::Rgb(174, 129, 255),    // Purple
-            accent_success: Color::Rgb(166, 226, 46),       // Green
-            accent_warning: Color::Rgb(253, 151, 31),       // Orange
-            accent_error: Color::Rgb(249, 38, 114),         // Pink/Red
-            accent_info: Color::Rgb(102, 217, 239),         // Cyan
+            accent_primary: Color::Rgb(102, 217, 239), // Cyan
+            accent_secondary: Color::Rgb(174, 129, 255), // Purple
+            accent_success: Color::Rgb(166, 226, 46),  // Green
+            accent_warning: Color::Rgb(253, 151, 31),  // Orange
+            accent_error: Color::Rgb(249, 38, 114),    // Pink/Red
+            accent_info: Color::Rgb(102, 217, 239),    // Cyan
 
             border_focused: Color::Rgb(102, 217, 239),
             border_unfocused: Color::Rgb(117, 113, 94),

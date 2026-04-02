@@ -53,7 +53,11 @@ impl Breakpoint {
     /// Get CSS media query for this breakpoint
     pub fn to_css(&self) -> String {
         match self.max_px() {
-            Some(max) => format!("(min-width: {}px) and (max-width: {}px)", self.min_px(), max),
+            Some(max) => format!(
+                "(min-width: {}px) and (max-width: {}px)",
+                self.min_px(),
+                max
+            ),
             None => format!("(min-width: {}px)", self.min_px()),
         }
     }
@@ -286,12 +290,54 @@ impl GridConfig {
     /// Create a responsive grid config
     pub fn responsive() -> [(Breakpoint, GridConfig); 6] {
         [
-            (Breakpoint::Xs, GridConfig { columns: 1, gap: Spacing::Sm, min_item_width: None }),
-            (Breakpoint::Sm, GridConfig { columns: 2, gap: Spacing::Md, min_item_width: None }),
-            (Breakpoint::Md, GridConfig { columns: 2, gap: Spacing::Base, min_item_width: None }),
-            (Breakpoint::Lg, GridConfig { columns: 3, gap: Spacing::Base, min_item_width: None }),
-            (Breakpoint::Xl, GridConfig { columns: 4, gap: Spacing::Lg, min_item_width: None }),
-            (Breakpoint::Xxl, GridConfig { columns: 4, gap: Spacing::Xl, min_item_width: None }),
+            (
+                Breakpoint::Xs,
+                GridConfig {
+                    columns: 1,
+                    gap: Spacing::Sm,
+                    min_item_width: None,
+                },
+            ),
+            (
+                Breakpoint::Sm,
+                GridConfig {
+                    columns: 2,
+                    gap: Spacing::Md,
+                    min_item_width: None,
+                },
+            ),
+            (
+                Breakpoint::Md,
+                GridConfig {
+                    columns: 2,
+                    gap: Spacing::Base,
+                    min_item_width: None,
+                },
+            ),
+            (
+                Breakpoint::Lg,
+                GridConfig {
+                    columns: 3,
+                    gap: Spacing::Base,
+                    min_item_width: None,
+                },
+            ),
+            (
+                Breakpoint::Xl,
+                GridConfig {
+                    columns: 4,
+                    gap: Spacing::Lg,
+                    min_item_width: None,
+                },
+            ),
+            (
+                Breakpoint::Xxl,
+                GridConfig {
+                    columns: 4,
+                    gap: Spacing::Xl,
+                    min_item_width: None,
+                },
+            ),
         ]
     }
 }
@@ -383,9 +429,9 @@ impl Platform {
     /// Get platform-specific padding adjustment
     pub fn padding_multiplier(&self) -> f32 {
         match self {
-            Platform::IOS => 1.2,      // More padding for touch
+            Platform::IOS => 1.2, // More padding for touch
             Platform::Android => 1.2,
-            _ => 1.0,                   // Standard for desktop
+            _ => 1.0, // Standard for desktop
         }
     }
 
@@ -463,7 +509,11 @@ impl LayoutClassBuilder {
             Alignment::SpaceEvenly => "justify-evenly",
         };
 
-        let wrap = if config.wrap { "flex-wrap" } else { "flex-nowrap" };
+        let wrap = if config.wrap {
+            "flex-wrap"
+        } else {
+            "flex-nowrap"
+        };
         let gap = format!("gap-{}", config.gap.as_px() / 4);
 
         format!("flex {} {} {} {} {}", direction, align, justify, wrap, gap)

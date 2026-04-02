@@ -1,20 +1,157 @@
+//! EasySSH Database Module
+//!
+//! This module provides SQLite database access for EasySSH, managing all persistence
+//! needs including servers, groups, hosts, sessions, snippets, and audit logs.
+//!
+//! # Architecture
+//!
+//! The database module uses `rusqlite` for SQLite operations and provides:
+//! - Connection pooling with `std::sync::Mutex` for thread safety
+//! - Automatic schema initialization and migrations
+//! - CRUD operations for all entity types
+//! - Foreign key constraints for data integrity
+//!
+//! # Database Schema
+//!
+//! ## Core Tables
+//! - `groups` - Server groups with colors and metadata
+//! - `servers` - SSH server configurations
+//! - `hosts` - Extended host information with tags, environment, region
+//! - `identities` - SSH key identities and passphrases
+//! - `tags` - Labels for categorizing hosts
+//! - `host_tags` - Many-to-many relationship between hosts and tags
+//! - `sessions` - Active and historical terminal sessions
+//! - `layouts` - Window layout configurations
+//! - `snippets` - Reusable command snippets
+//! - `sync_state` - Synchronization state across devices
+//! - `audit_events` - Security audit logging
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use easyssh_core::db::{Database, get_db_path};
+//! use easyssh_core::db::{NewServer, NewGroup};
+//!
+//! // Open database
+//! let db_path = get_db_path();
+//! let db = Database::new(db_path).expect("Failed to open database");
+//!
+//! // Initialize schema
+//! db.init().expect("Failed to initialize database");
+//!
+//! // Add a group
+//! let group = NewGroup {
+//!     id: "group-1".to_string(),
+//!     name: "Production".to_string(),
+//!     color: Some("#4A90D9".to_string()),
+//!     created_at: chrono::Utc::now().to_rfc3339(),
+//!     updated_at: chrono::Utc::now().to_rfc3339(),
+//! };
+//! db.add_group(&group).expect("Failed to add group");
+//! ```
+//!
+//! # Error Handling
+//!
+//! All database operations return `Result<T, LiteError>` where errors can be:
+//! - `LiteError::Database` - SQL or connection errors
+//! - `LiteError::NotFound` - Record not found
+//! - `LiteError::Validation` - Invalid data
+//!
+//! # Thread Safety
+//!
+//! The `Database` struct uses `Mutex<Connection>` internally, making it `Send` but not `Sync`.
+//! For multi-threaded access, wrap the Database in an `Arc<Mutex<Database>>`.
+
 use rusqlite::{params, Connection};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
 use crate::error::LiteError;
 
+/// SQLite database connection wrapper for EasySSH.
+///
+/// `Database` provides a high-level interface to the SQLite database,
+/// managing all persistence operations for servers, groups, hosts, and more.
+///
+/// # Thread Safety
+///
+/// The `Database` struct wraps a `rusqlite::Connection` which is not `Send` or `Sync`.
+/// For concurrent access from multiple threads, wrap the Database in an `Arc<Mutex<Database>>`.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use easyssh_core::db::{Database, get_db_path};
+///
+/// let db_path = get_db_path();
+/// let db = Database::new(db_path).expect("Failed to open database");
+/// db.init().expect("Failed to initialize schema");
+/// ```
 pub struct Database {
     conn: Connection,
 }
 
 impl Database {
+    /// Create a new database connection.
+    ///
+    /// Opens or creates a SQLite database at the specified path.
+    /// The database file will be created if it doesn't exist.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the SQLite database file
+    ///
+    /// # Errors
+    ///
+    /// Returns `LiteError::Database` if the connection cannot be established.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use easyssh_core::db::Database;
+    /// use std::path::PathBuf;
+    ///
+    /// let db = Database::new(PathBuf::from("easyssh.db")).unwrap();
+    /// ```
     pub fn new(path: PathBuf) -> Result<Self, LiteError> {
         let conn = Connection::open(path)?;
         Ok(Self { conn })
     }
 
-    /// 快速初始化 - 仅检查表是否存在，不存在则创建
+    /// Create a new in-memory database connection.
+    ///
+    /// Creates a temporary SQLite database in memory for testing.
+    ///
+    /// # Errors
+    ///
+    /// Returns `LiteError::Database` if the connection cannot be established.
+    pub fn new_in_memory() -> Result<Self, LiteError> {
+        let conn = Connection::open_in_memory()?;
+        Ok(Self { conn })
+    }
+
+    /// Initialize the database schema.
+    ///
+    /// Creates all necessary tables if they don't exist. This method is idempotent
+    /// and safe to call multiple times - existing tables will not be modified.
+    ///
+    /// # Tables Created
+    ///
+    /// - `groups` - Server groups
+    /// - `servers` - SSH server configurations
+    /// - `hosts` - Extended host information
+    /// - `identities` - SSH key identities
+    /// - `tags` - Labels for hosts
+    /// - `host_tags` - Host-tag relationships
+    /// - `sessions` - Terminal sessions
+    /// - `layouts` - Window layouts
+    /// - `snippets` - Command snippets
+    /// - `sync_state` - Device sync state
+    /// - `audit_events` - Security audit log
+    ///
+    /// # Errors
+    ///
+    /// Returns `LiteError::Database` if any table creation fails.
     pub fn init(&self) -> Result<(), LiteError> {
         // 使用单个事务批量创建表
         self.conn.execute_batch(
@@ -1767,7 +1904,27 @@ pub struct UpdateRemoteDesktopSession {
 /// 全局数据库连接
 pub static DATABASE: Mutex<Option<Database>> = Mutex::new(None);
 
-/// 获取数据库路径
+/// Get the default database file path.
+///
+/// Returns the platform-appropriate path for the EasySSH database:
+/// - Windows: `%APPDATA%/easyssh-lite/easyssh.db`
+/// - macOS: `~/Library/Application Support/easyssh-lite/easyssh.db`
+/// - Linux: `~/.config/easyssh-lite/easyssh.db`
+///
+/// The config directory is created automatically if it doesn't exist.
+///
+/// # Returns
+///
+/// A `PathBuf` pointing to the database file location.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use easyssh_core::db::get_db_path;
+///
+/// let db_path = get_db_path();
+/// println!("Database will be stored at: {:?}", db_path);
+/// ```
 pub fn get_db_path() -> PathBuf {
     let config_dir = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -1821,6 +1978,7 @@ mod tests {
         let record = GroupRecord {
             id: "group-id".to_string(),
             name: "Test Group".to_string(),
+            color: "#4A90D9".to_string(),
             created_at: chrono_now(),
             updated_at: chrono_now(),
         };
@@ -1991,7 +2149,7 @@ mod tests {
             // 更新分组
             let update = UpdateGroup {
                 id: "grp-1".to_string(),
-                color: "#4A90D9".to_string(),
+                color: Some("#4A90D9".to_string()),
                 name: Some("Dev Team".to_string()),
             };
             db.update_group(&update).unwrap();

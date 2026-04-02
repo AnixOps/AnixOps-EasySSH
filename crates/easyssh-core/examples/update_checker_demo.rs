@@ -3,7 +3,7 @@
 //! 本示例演示如何使用 update_checker 模块进行版本检测
 
 use easyssh_core::update_checker::{
-    UpdateChecker, UpdateCheckerConfig, UpdateChannel, UpdateCheckResult,
+    UpdateChannel, UpdateCheckResult, UpdateChecker, UpdateCheckerConfig,
 };
 
 #[tokio::main]
@@ -34,9 +34,17 @@ async fn main() {
             println!("\n可用下载:");
             for asset in &info.assets {
                 if asset.is_for_current_platform {
-                    println!("  → {} ({:.2} MB)", asset.filename, asset.size as f64 / 1024.0 / 1024.0);
+                    println!(
+                        "  → {} ({:.2} MB)",
+                        asset.filename,
+                        asset.size as f64 / 1024.0 / 1024.0
+                    );
                 } else {
-                    println!("    {} ({:.2} MB)", asset.filename, asset.size as f64 / 1024.0 / 1024.0);
+                    println!(
+                        "    {} ({:.2} MB)",
+                        asset.filename,
+                        asset.size as f64 / 1024.0 / 1024.0
+                    );
                 }
             }
         }

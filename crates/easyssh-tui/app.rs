@@ -8,10 +8,13 @@
 
 use crate::events::Key;
 use crate::keybindings::{Action, KeyBindings};
-use crate::theme::{Theme, ColorPalette};
+use crate::theme::{ColorPalette, Theme};
 use crate::ui::dialogs::{Dialog, DialogResult};
-use crate::virtual_list::{VirtualListState, ServerListItem, render_virtual_server_list, GroupListItem, render_virtual_group_list};
-use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind, MouseButton};
+use crate::virtual_list::{
+    render_virtual_group_list, render_virtual_server_list, GroupListItem, ServerListItem,
+    VirtualListState,
+};
+use crossterm::event::{KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use easyssh_core::{
     connect_server, delete_group, delete_server, get_db_path, get_groups, get_servers,
     init_database, update_server, AppState, AuthMethod, GroupRecord, NewGroup, NewServer,
@@ -194,7 +197,10 @@ impl App {
     /// Toggle between available themes
     pub fn toggle_theme(&mut self) {
         let themes = Theme::available_themes();
-        let current_idx = themes.iter().position(|&t| t == self.theme.name).unwrap_or(0);
+        let current_idx = themes
+            .iter()
+            .position(|&t| t == self.theme.name)
+            .unwrap_or(0);
         let next_idx = (current_idx + 1) % themes.len();
         self.theme = Theme::new(themes[next_idx], self.theme.capability);
         self.set_status(format!("Theme: {}", self.theme.name));
@@ -292,7 +298,10 @@ impl App {
         // Calculate layout areas (similar to layout manager)
         let sidebar_width = (self.terminal_size.0 / 5).max(15).min(25);
         let detail_width = (self.terminal_size.0 / 4).max(20).min(35);
-        let main_area_width = self.terminal_size.0.saturating_sub(sidebar_width + detail_width);
+        let main_area_width = self
+            .terminal_size
+            .0
+            .saturating_sub(sidebar_width + detail_width);
 
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => {
@@ -337,42 +346,38 @@ impl App {
                     }
                 }
             }
-            MouseEventKind::ScrollDown => {
-                match self.focus {
-                    Focus::Sidebar => {
-                        let max = self.groups.len();
-                        if self.selected_group < max {
-                            self.selected_group += 1;
-                            self.apply_group_filter();
-                        }
+            MouseEventKind::ScrollDown => match self.focus {
+                Focus::Sidebar => {
+                    let max = self.groups.len();
+                    if self.selected_group < max {
+                        self.selected_group += 1;
+                        self.apply_group_filter();
                     }
-                    Focus::ServerList => {
-                        let max = self.filtered_servers.len().saturating_sub(1);
-                        if self.selected_server < max {
-                            self.selected_server += 1;
-                            self.server_list_state.selected = self.selected_server;
-                        }
-                    }
-                    _ => {}
                 }
-            }
-            MouseEventKind::ScrollUp => {
-                match self.focus {
-                    Focus::Sidebar => {
-                        if self.selected_group > 0 {
-                            self.selected_group -= 1;
-                            self.apply_group_filter();
-                        }
+                Focus::ServerList => {
+                    let max = self.filtered_servers.len().saturating_sub(1);
+                    if self.selected_server < max {
+                        self.selected_server += 1;
+                        self.server_list_state.selected = self.selected_server;
                     }
-                    Focus::ServerList => {
-                        if self.selected_server > 0 {
-                            self.selected_server -= 1;
-                            self.server_list_state.selected = self.selected_server;
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                _ => {}
+            },
+            MouseEventKind::ScrollUp => match self.focus {
+                Focus::Sidebar => {
+                    if self.selected_group > 0 {
+                        self.selected_group -= 1;
+                        self.apply_group_filter();
+                    }
+                }
+                Focus::ServerList => {
+                    if self.selected_server > 0 {
+                        self.selected_server -= 1;
+                        self.server_list_state.selected = self.selected_server;
+                    }
+                }
+                _ => {}
+            },
             _ => {}
         }
 

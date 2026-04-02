@@ -4,7 +4,7 @@
 //! It uses `thiserror` for ergonomic error definitions and provides:
 //!
 //! - Hierarchical error types (EasySSHErrors as the top-level enum)
-//! - Automatic error conversion via #[from] attributes
+//! - Automatic error conversion via `#[from]` attributes
 //! - User-friendly error messages with Chinese localization
 //! - Error codes for searching and debugging (e.g., E1000-E9900)
 //! - Retry suggestions for transient errors
@@ -231,7 +231,10 @@ pub enum CoreSshError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecoveryStrategy {
     /// Retry with exponential backoff
-    RetryWithBackoff { max_attempts: u32, base_delay_ms: u64 },
+    RetryWithBackoff {
+        max_attempts: u32,
+        base_delay_ms: u64,
+    },
     /// Refresh connection/session
     RefreshConnection,
     /// Re-initialize component
@@ -251,9 +254,10 @@ impl RecoveryStrategy {
         F: FnMut() -> Result<T>,
     {
         match self {
-            RecoveryStrategy::RetryWithBackoff { max_attempts, base_delay_ms } => {
-                Self::retry_with_backoff(*max_attempts, *base_delay_ms, operation)
-            }
+            RecoveryStrategy::RetryWithBackoff {
+                max_attempts,
+                base_delay_ms,
+            } => Self::retry_with_backoff(*max_attempts, *base_delay_ms, operation),
             _ => {
                 // For other strategies, caller needs to handle them specifically
                 operation()
@@ -262,7 +266,11 @@ impl RecoveryStrategy {
     }
 
     /// Retry operation with exponential backoff
-    fn retry_with_backoff<T, F>(max_attempts: u32, base_delay_ms: u64, mut operation: F) -> Result<T>
+    fn retry_with_backoff<T, F>(
+        max_attempts: u32,
+        base_delay_ms: u64,
+        mut operation: F,
+    ) -> Result<T>
     where
         F: FnMut() -> Result<T>,
     {
@@ -307,24 +315,35 @@ impl ErrorRecovery for EasySSHErrors {
         match self {
             // Network errors - retry with backoff
             EasySSHErrors::Ssh(CoreSshError::ConnectionFailed { .. }) => {
-                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 1000 })
+                Some(RecoveryStrategy::RetryWithBackoff {
+                    max_attempts: 3,
+                    base_delay_ms: 1000,
+                })
             }
             EasySSHErrors::Ssh(CoreSshError::ConnectionTimeout) => {
-                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 2000 })
+                Some(RecoveryStrategy::RetryWithBackoff {
+                    max_attempts: 3,
+                    base_delay_ms: 2000,
+                })
             }
             EasySSHErrors::Ssh(CoreSshError::SessionDisconnected(_)) => {
                 Some(RecoveryStrategy::RefreshConnection)
             }
-            EasySSHErrors::Network(_) => {
-                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 5, base_delay_ms: 1000 })
-            }
-            EasySSHErrors::Timeout => {
-                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 1000 })
-            }
+            EasySSHErrors::Network(_) => Some(RecoveryStrategy::RetryWithBackoff {
+                max_attempts: 5,
+                base_delay_ms: 1000,
+            }),
+            EasySSHErrors::Timeout => Some(RecoveryStrategy::RetryWithBackoff {
+                max_attempts: 3,
+                base_delay_ms: 1000,
+            }),
 
             // Database errors
             EasySSHErrors::Database(CoreDatabaseError::LockTimeout) => {
-                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 5, base_delay_ms: 100 })
+                Some(RecoveryStrategy::RetryWithBackoff {
+                    max_attempts: 5,
+                    base_delay_ms: 100,
+                })
             }
             EasySSHErrors::Database(CoreDatabaseError::Connection(_)) => {
                 Some(RecoveryStrategy::Reinitialize)
@@ -332,10 +351,16 @@ impl ErrorRecovery for EasySSHErrors {
 
             // I/O errors
             EasySSHErrors::Io(e) if e.kind() == std::io::ErrorKind::Interrupted => {
-                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 100 })
+                Some(RecoveryStrategy::RetryWithBackoff {
+                    max_attempts: 3,
+                    base_delay_ms: 100,
+                })
             }
             EasySSHErrors::Io(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                Some(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 50 })
+                Some(RecoveryStrategy::RetryWithBackoff {
+                    max_attempts: 3,
+                    base_delay_ms: 50,
+                })
             }
 
             // No recovery for these
@@ -355,9 +380,14 @@ impl ErrorRecovery for EasySSHErrors {
     {
         if let Some(strategy) = self.recovery_strategy() {
             match strategy {
-                RecoveryStrategy::RetryWithBackoff { max_attempts, base_delay_ms } => {
-                    RecoveryStrategy::retry_with_backoff(max_attempts, base_delay_ms, &mut operation)
-                }
+                RecoveryStrategy::RetryWithBackoff {
+                    max_attempts,
+                    base_delay_ms,
+                } => RecoveryStrategy::retry_with_backoff(
+                    max_attempts,
+                    base_delay_ms,
+                    &mut operation,
+                ),
                 _ => operation(),
             }
         } else {
@@ -376,9 +406,11 @@ impl Clone for EasySSHErrors {
             EasySSHErrors::Config(s) => EasySSHErrors::Config(s.clone()),
             EasySSHErrors::Validation(s) => EasySSHErrors::Validation(s.clone()),
             EasySSHErrors::UserCancelled => EasySSHErrors::UserCancelled,
-            EasySSHErrors::Serialization(e) => {
+            EasySSHErrors::Serialization(_e) => {
                 // Can't clone serde_json::Error directly, convert to string
-                EasySSHErrors::Serialization(serde_json::from_str::<serde_json::Value>("null").unwrap_err())
+                EasySSHErrors::Serialization(
+                    serde_json::from_str::<serde_json::Value>("null").unwrap_err(),
+                )
             }
             EasySSHErrors::Network(s) => EasySSHErrors::Network(s.clone()),
             EasySSHErrors::Authentication(s) => EasySSHErrors::Authentication(s.clone()),
@@ -1353,7 +1385,10 @@ mod tests {
         });
         let recovery = err.recovery_strategy();
         assert!(recovery.is_some());
-        assert!(matches!(recovery.unwrap(), RecoveryStrategy::RetryWithBackoff { .. }));
+        assert!(matches!(
+            recovery.unwrap(),
+            RecoveryStrategy::RetryWithBackoff { .. }
+        ));
 
         // Should not have recovery strategy
         let err = EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword);
@@ -1506,8 +1541,18 @@ mod tests {
 
     #[test]
     fn test_recovery_strategy_descriptions() {
-        assert_eq!(RecoveryStrategy::RetryWithBackoff { max_attempts: 3, base_delay_ms: 1000 }.description(), "稍后自动重试");
-        assert_eq!(RecoveryStrategy::RefreshConnection.description(), "刷新连接");
+        assert_eq!(
+            RecoveryStrategy::RetryWithBackoff {
+                max_attempts: 3,
+                base_delay_ms: 1000
+            }
+            .description(),
+            "稍后自动重试"
+        );
+        assert_eq!(
+            RecoveryStrategy::RefreshConnection.description(),
+            "刷新连接"
+        );
         assert_eq!(RecoveryStrategy::NoRecovery.description(), "需要手动处理");
     }
 

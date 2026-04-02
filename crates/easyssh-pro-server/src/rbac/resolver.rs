@@ -1,7 +1,7 @@
 //! 资源解析器 - 服务器端资源路径解析
 
 use async_trait::async_trait;
-use easyssh_core::rbac::{Resource, ResourceResolver, RbacError, ResourceType};
+use easyssh_core::rbac::{RbacError, Resource, ResourceResolver, ResourceType};
 use sqlx::{Pool, Sqlite};
 
 /// 服务器资源解析器trait
@@ -58,10 +58,12 @@ impl DatabaseResourceResolver {
             "collaboration" => ResourceType::Collaboration,
             "config" => ResourceType::Config,
             "layout" => ResourceType::Layout,
-            _ => return Err(RbacError::InvalidResource(format!(
-                "Unknown resource type: {}",
-                parts[0]
-            ))),
+            _ => {
+                return Err(RbacError::InvalidResource(format!(
+                    "Unknown resource type: {}",
+                    parts[0]
+                )))
+            }
         };
 
         // 提取资源ID
@@ -196,7 +198,9 @@ impl ServerResourceResolver for DatabaseResourceResolver {
             }
             ResourceType::Team => {
                 // 团队资源本身就是团队
-                Some(resource_id.clone()).map(Ok).unwrap_or_else(|| Ok(None))
+                Some(resource_id.clone())
+                    .map(Ok)
+                    .unwrap_or_else(|| Ok(None))
             }
             _ => Ok(None),
         };
@@ -219,9 +223,7 @@ impl ResourceResolver for DatabaseResourceResolver {
         // 阻塞式获取，不推荐使用
         let rt = tokio::runtime::Handle::try_current();
         match rt {
-            Ok(handle) => {
-                handle.block_on(async { self.get_owner_async(resource).await })
-            }
+            Ok(handle) => handle.block_on(async { self.get_owner_async(resource).await }),
             Err(_) => None,
         }
     }
@@ -229,9 +231,7 @@ impl ResourceResolver for DatabaseResourceResolver {
     fn exists(&self, resource: &Resource) -> bool {
         let rt = tokio::runtime::Handle::try_current();
         match rt {
-            Ok(handle) => {
-                handle.block_on(async { self.exists_async(resource).await })
-            }
+            Ok(handle) => handle.block_on(async { self.exists_async(resource).await }),
             Err(_) => false,
         }
     }
@@ -258,10 +258,8 @@ impl InMemoryResourceResolver {
         resource_id: impl Into<String>,
         owner: Option<String>,
     ) {
-        self.resources.insert(
-            path.into(),
-            (resource_type, resource_id.into(), owner),
-        );
+        self.resources
+            .insert(path.into(), (resource_type, resource_id.into(), owner));
     }
 }
 
@@ -286,10 +284,12 @@ impl ResourceResolver for InMemoryResourceResolver {
                     "snippets" => ResourceType::Snippet,
                     "keys" => ResourceType::Key,
                     "sessions" => ResourceType::Session,
-                    _ => return Err(RbacError::InvalidResource(format!(
-                        "Unknown resource type in path: {}",
-                        path
-                    ))),
+                    _ => {
+                        return Err(RbacError::InvalidResource(format!(
+                            "Unknown resource type in path: {}",
+                            path
+                        )))
+                    }
                 };
 
                 Ok(Resource::specific(resource_type, parts[1]))
@@ -362,7 +362,7 @@ mod tests {
     fn test_parse_path() {
         let resolver = DatabaseResourceResolver::new(
             // 这里需要实际的池
-            panic!("Needs database pool")
+            panic!("Needs database pool"),
         );
 
         // 无法在没有数据库的情况下测试

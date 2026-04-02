@@ -237,11 +237,13 @@ impl EasySSHWindow {
         }));
 
         // Add group button
-        add_group_button.connect_clicked(glib::clone!(@weak self.window as window, @strong state => move |_| {
-            dialogs::show_add_group_dialog(&window, glib::clone!(@strong state => move |group| {
-                state.borrow_mut().add_group(group);
-            }));
-        }));
+        add_group_button.connect_clicked(
+            glib::clone!(@weak self.window as window, @strong state => move |_| {
+                dialogs::show_add_group_dialog(&window, glib::clone!(@strong state => move |group| {
+                    state.borrow_mut().add_group(group);
+                }));
+            }),
+        );
 
         // Sidebar group selection
         self.sidebar.connect_group_selected(
@@ -265,15 +267,16 @@ impl EasySSHWindow {
         );
 
         // Server connect
-        self.server_list
-            .connect_server_connect(glib::clone!(@weak state, @weak self.notification_manager as notif => move |server| {
+        self.server_list.connect_server_connect(
+            glib::clone!(@weak state, @weak self.notification_manager as notif => move |server| {
                 crate::terminal_launcher::launch_terminal(&server);
 
                 // Show notification
                 if let Some(ref nm) = notif {
                     nm.notify_connection(&server.name, true);
                 }
-            }));
+            }),
+        );
 
         // Server edit
         self.server_list.connect_server_edit(
@@ -327,14 +330,15 @@ impl EasySSHWindow {
         );
 
         // Detail view signals
-        self.server_detail
-            .connect_connect_clicked(glib::clone!(@strong state, @weak self.notification_manager as notif => move |server| {
+        self.server_detail.connect_connect_clicked(
+            glib::clone!(@strong state, @weak self.notification_manager as notif => move |server| {
                 crate::terminal_launcher::launch_terminal(&server);
 
                 if let Some(ref nm) = notif {
                     nm.notify_connection(&server.name, true);
                 }
-            }));
+            }),
+        );
 
         self.server_detail.connect_edit_clicked(
             glib::clone!(@weak self.window as window, @strong state => move |server| {
@@ -465,7 +469,10 @@ impl EasySSHWindow {
     fn setup_theme_monitoring(&self) {
         // Connect to theme changes
         self.theme_manager.connect_dark_mode_changed(|is_dark| {
-            tracing::info!("Theme changed to {}", if is_dark { "dark" } else { "light" });
+            tracing::info!(
+                "Theme changed to {}",
+                if is_dark { "dark" } else { "light" }
+            );
         });
     }
 
@@ -491,9 +498,7 @@ impl EasySSHWindow {
             .show(true)
             .build();
 
-        let group = gtk4::ShortcutsGroup::builder()
-            .title("Application")
-            .build();
+        let group = gtk4::ShortcutsGroup::builder().title("Application").build();
 
         // Add shortcuts
         let shortcuts_data = vec![
@@ -505,7 +510,11 @@ impl EasySSHWindow {
             ("Search", "<primary>f", "Focus search box"),
             ("Refresh", "<primary>r", "Refresh server list"),
             ("Preferences", "<primary>comma", "Open preferences"),
-            ("Keyboard Shortcuts", "<primary>question", "Show this dialog"),
+            (
+                "Keyboard Shortcuts",
+                "<primary>question",
+                "Show this dialog",
+            ),
             ("Quit", "<primary>q", "Quit application"),
         ];
 

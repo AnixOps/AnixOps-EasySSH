@@ -126,9 +126,9 @@ url = "2.5.4"
 urlencoding = "2.1"
 
 # Cloud SDKs (optional)
-aws-config = { version = "1.5" }
-aws-sdk-s3 = { version = "1.5" }
-google-cloud-storage = { version = "0.23" }
+aws-config = { version = "=1.5.0" }
+aws-sdk-s3 = { version = "=1.48.0" }
+google-cloud-storage = { version = "=0.22" }
 azure_storage = { version = "0.21" }
 azure_storage_blobs = { version = "0.21" }
 

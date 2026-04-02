@@ -10,11 +10,12 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use easyssh_core::performance::{
+    check_performance_targets,
     crypto_optimizer::{CryptoOptimizer, KeyDerivationCache},
     memory_optimizer::{DataStructureGuide, MemoryOptimizer, ObjectPool},
     search_optimizer::{FastStringMatcher, InvertedIndex, SearchOptimizer},
     startup_optimizer::{LazyInitializer, StartupOptimizer},
-    BenchmarkTargets, PerformanceMetrics, check_performance_targets,
+    BenchmarkTargets, PerformanceMetrics,
 };
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -37,7 +38,9 @@ fn bench_key_derivation_cache(c: &mut Criterion) {
     let cache = KeyDerivationCache::new();
 
     // Warm up cache
-    cache.cache_derivation("cached_password", vec![1u8; 32], vec![2u8; 32]).unwrap();
+    cache
+        .cache_derivation("cached_password", vec![1u8; 32], vec![2u8; 32])
+        .unwrap();
 
     group.bench_function("cached_lookup", |b| {
         b.iter(|| {
@@ -63,16 +66,14 @@ fn bench_crypto_optimizer(c: &mut Criterion) {
         let data = vec![1u8; *size];
 
         group.throughput(Throughput::Bytes(*size as u64));
-        group.bench_with_input(
-            BenchmarkId::new("encrypt", size),
-            &data,
-            |b, data| {
-                b.iter(|| {
-                    let encrypted = optimizer.encrypt_optimized(&state, black_box(data)).unwrap();
-                    black_box(encrypted);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("encrypt", size), &data, |b, data| {
+            b.iter(|| {
+                let encrypted = optimizer
+                    .encrypt_optimized(&state, black_box(data))
+                    .unwrap();
+                black_box(encrypted);
+            });
+        });
     }
 
     group.finish();
@@ -142,11 +143,11 @@ fn bench_inverted_index(c: &mut Criterion) {
     let index = InvertedIndex::new();
     for i in 0..1000 {
         let mut fields = HashMap::new();
+        fields.insert("name".to_string(), format!("Server {} - Production Web", i));
         fields.insert(
-            "name".to_string(),
-            format!("Server {} - Production Web", i),
+            "host".to_string(),
+            format!("192.168.{}.{} host", i / 256, i % 256),
         );
-        fields.insert("host".to_string(), format!("192.168.{}.{} host", i / 256, i % 256));
         index.add_document(&format!("doc{}", i), &fields).unwrap();
     }
 
@@ -225,7 +226,9 @@ fn bench_search_optimizer(c: &mut Criterion) {
 
     group.bench_function("full_text_search", |b| {
         b.iter(|| {
-            let results = search.full_text_search(black_box("production"), 10).unwrap();
+            let results = search
+                .full_text_search(black_box("production"), 10)
+                .unwrap();
             black_box(results);
         });
     });

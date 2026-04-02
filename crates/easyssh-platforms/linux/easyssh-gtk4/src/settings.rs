@@ -77,13 +77,12 @@ impl AppSettings {
     where
         F: Fn(&str) + 'static,
     {
-        let handler = self.settings.connect_changed(
-            Some("color-scheme"),
-            move |settings, _key| {
+        let handler = self
+            .settings
+            .connect_changed(Some("color-scheme"), move |settings, _key| {
                 let scheme = settings.string("color-scheme");
                 callback(&scheme);
-            },
-        );
+            });
         self.callbacks.borrow_mut().push(handler);
     }
 

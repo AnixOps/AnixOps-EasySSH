@@ -12,8 +12,7 @@ pub struct ThemeManager {
 
 impl ThemeManager {
     pub fn new() -> Self {
-        let settings = gtk4::Settings::default()
-            .expect("Failed to get GTK settings");
+        let settings = gtk4::Settings::default().expect("Failed to get GTK settings");
         let style_manager = adw::StyleManager::default();
 
         let manager = Self {
@@ -29,16 +28,15 @@ impl ThemeManager {
     fn setup_monitoring(&self) {
         let callback_cell = self.dark_mode_callback.clone();
 
-        self.settings.connect_gtk_application_prefer_dark_theme_notify(
-            move |settings| {
+        self.settings
+            .connect_gtk_application_prefer_dark_theme_notify(move |settings| {
                 let is_dark = settings.is_gtk_application_prefer_dark_theme();
                 tracing::info!("Theme changed: {}", if is_dark { "dark" } else { "light" });
 
                 if let Some(ref callback) = *callback_cell.borrow() {
                     callback(is_dark);
                 }
-            },
-        );
+            });
     }
 
     /// Check if dark mode is active
@@ -96,7 +94,11 @@ impl ThemeManager {
             }}
             "#,
             if is_dark { "dark" } else { "light" },
-            if is_dark { "100, 200, 255" } else { "26, 95, 180" }
+            if is_dark {
+                "100, 200, 255"
+            } else {
+                "26, 95, 180"
+            }
         )
     }
 }
@@ -182,7 +184,10 @@ pub fn init_theme_support(app: &adw::Application) {
     // Monitor system theme changes
     style_manager.connect_dark_notify(|manager| {
         let is_dark = manager.is_dark();
-        tracing::info!("System theme changed to: {}", if is_dark { "dark" } else { "light" });
+        tracing::info!(
+            "System theme changed to: {}",
+            if is_dark { "dark" } else { "light" }
+        );
     });
 }
 

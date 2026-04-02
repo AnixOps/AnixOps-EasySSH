@@ -31,14 +31,24 @@ pub mod types;
 pub mod validation;
 
 pub use defaults::*;
-pub use encryption::{ConfigEncryption, EncryptionOptions, EncryptionResult, SecurityLevel, PasswordStrength, password};
-pub use env::{EnvConfig, EnvProfile, EnvDefinitions, EnvVarDefinition, EnvVariable, EnvType, EnvSource};
-pub use import_export::{ImportExportManager, ExportFormat, ImportOptions, ExportOptions, ImportResult, ImportExportError};
+pub use encryption::{
+    password, ConfigEncryption, EncryptionOptions, EncryptionResult, PasswordStrength,
+    SecurityLevel,
+};
+pub use env::{
+    EnvConfig, EnvDefinitions, EnvProfile, EnvSource, EnvType, EnvVarDefinition, EnvVariable,
+};
+pub use import_export::{
+    ExportFormat, ExportOptions, ImportExportError, ImportExportManager, ImportOptions,
+    ImportResult,
+};
 pub use manager::ConfigManager;
 pub use migration::{ConfigMigration, MigrationResult};
-pub use templates::{TemplateManager, Template, TemplateCategory, ConfigOverrides, TemplateError, TemplateSelector};
+pub use templates::{
+    ConfigOverrides, Template, TemplateCategory, TemplateError, TemplateManager, TemplateSelector,
+};
 pub use types::*;
-pub use validation::{ConfigValidator, ValidationError, ValidationResult, ConfigAutoFix};
+pub use validation::{ConfigAutoFix, ConfigValidator, ValidationError, ValidationResult};
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -87,12 +97,13 @@ mod tests {
     #[test]
     fn test_config_validation() {
         let mut config = FullConfig::default();
+        let validator = ConfigValidator::new();
         // Valid config should pass
-        assert!(ConfigValidator::validate(&config).is_ok());
+        assert!(validator.validate(&config).is_ok());
 
         // Invalid port should fail
         config.user_preferences.default_port = 0;
-        let result = ConfigValidator::validate(&config);
+        let result = validator.validate(&config);
         assert!(result.is_err());
     }
 

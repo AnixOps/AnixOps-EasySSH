@@ -47,28 +47,27 @@ impl InvertedIndex {
         doc_id: &str,
         fields: &HashMap<String, String>,
     ) -> Result<(), LiteError> {
-        let mut index = self.index.write().map_err(|_| {
-            LiteError::Internal("Failed to lock index".to_string())
-        })?;
+        let mut index = self
+            .index
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock index".to_string()))?;
 
         // Tokenize each field and add to index
-        for (field_name, field_value) in fields {
+        for (_field_name, field_value) in fields {
             let tokens = Self::tokenize(field_value);
 
             for token in tokens {
                 let entry = index.entry(token).or_default();
                 entry.doc_ids.insert(doc_id.to_string());
-                *entry
-                    .term_frequency
-                    .entry(doc_id.to_string())
-                    .or_insert(0) += 1;
+                *entry.term_frequency.entry(doc_id.to_string()).or_insert(0) += 1;
             }
         }
 
         // Update document count
-        let mut doc_count = self.doc_count.write().map_err(|_| {
-            LiteError::Internal("Failed to lock doc count".to_string())
-        })?;
+        let mut doc_count = self
+            .doc_count
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock doc count".to_string()))?;
         *doc_count += 1;
 
         Ok(())
@@ -76,9 +75,10 @@ impl InvertedIndex {
 
     /// Remove a document from the index
     pub fn remove_document(&self, doc_id: &str) -> Result<(), LiteError> {
-        let mut index = self.index.write().map_err(|_| {
-            LiteError::Internal("Failed to lock index".to_string())
-        })?;
+        let mut index = self
+            .index
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock index".to_string()))?;
 
         // Remove document from all terms
         for entry in index.values_mut() {
@@ -89,9 +89,10 @@ impl InvertedIndex {
         // Clean up empty terms
         index.retain(|_, entry| !entry.doc_ids.is_empty());
 
-        let mut doc_count = self.doc_count.write().map_err(|_| {
-            LiteError::Internal("Failed to lock doc count".to_string())
-        })?;
+        let mut doc_count = self
+            .doc_count
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock doc count".to_string()))?;
         *doc_count = doc_count.saturating_sub(1);
 
         Ok(())
@@ -104,9 +105,10 @@ impl InvertedIndex {
             return Ok(Vec::new());
         }
 
-        let index = self.index.read().map_err(|_| {
-            LiteError::Internal("Failed to lock index".to_string())
-        })?;
+        let index = self
+            .index
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock index".to_string()))?;
 
         // Find intersection of all token document sets
         let mut result: Option<HashSet<String>> = None;
@@ -130,9 +132,10 @@ impl InvertedIndex {
 
     /// Get document frequency for a term
     pub fn doc_frequency(&self, term: &str) -> Result<usize, LiteError> {
-        let index = self.index.read().map_err(|_| {
-            LiteError::Internal("Failed to lock index".to_string())
-        })?;
+        let index = self
+            .index
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock index".to_string()))?;
 
         Ok(index
             .get(&term.to_lowercase())
@@ -142,13 +145,15 @@ impl InvertedIndex {
 
     /// Clear the index
     pub fn clear(&self) -> Result<(), LiteError> {
-        let mut index = self.index.write().map_err(|_| {
-            LiteError::Internal("Failed to lock index".to_string())
-        })?;
+        let mut index = self
+            .index
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock index".to_string()))?;
 
-        let mut doc_count = self.doc_count.write().map_err(|_| {
-            LiteError::Internal("Failed to lock doc count".to_string())
-        })?;
+        let mut doc_count = self
+            .doc_count
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock doc count".to_string()))?;
 
         index.clear();
         *doc_count = 0;
@@ -158,13 +163,15 @@ impl InvertedIndex {
 
     /// Get index statistics
     pub fn stats(&self) -> Result<IndexStats, LiteError> {
-        let index = self.index.read().map_err(|_| {
-            LiteError::Internal("Failed to lock index".to_string())
-        })?;
+        let index = self
+            .index
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock index".to_string()))?;
 
-        let doc_count = self.doc_count.read().map_err(|_| {
-            LiteError::Internal("Failed to lock doc count".to_string())
-        })?;
+        let doc_count = self
+            .doc_count
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock doc count".to_string()))?;
 
         let total_postings: usize = index.values().map(|e| e.doc_ids.len()).sum();
         let avg_doc_length = if *doc_count > 0 {
@@ -229,9 +236,10 @@ impl PrefixIndex {
 
     /// Insert a word with associated document ID
     pub fn insert(&self, word: &str, doc_id: &str) -> Result<(), LiteError> {
-        let mut root = self.root.write().map_err(|_| {
-            LiteError::Internal("Failed to lock trie".to_string())
-        })?;
+        let mut root = self
+            .root
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock trie".to_string()))?;
 
         let mut node = &mut *root;
 
@@ -247,9 +255,10 @@ impl PrefixIndex {
 
     /// Search for words with given prefix
     pub fn prefix_search(&self, prefix: &str) -> Result<Vec<String>, LiteError> {
-        let root = self.root.read().map_err(|_| {
-            LiteError::Internal("Failed to lock trie".to_string())
-        })?;
+        let root = self
+            .root
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock trie".to_string()))?;
 
         let mut node = &*root;
 
@@ -280,9 +289,10 @@ impl PrefixIndex {
 
     /// Clear the index
     pub fn clear(&self) -> Result<(), LiteError> {
-        let mut root = self.root.write().map_err(|_| {
-            LiteError::Internal("Failed to lock trie".to_string())
-        })?;
+        let mut root = self
+            .root
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock trie".to_string()))?;
 
         *root = TrieNode::default();
         Ok(())
@@ -333,9 +343,10 @@ impl SearchOptimizer {
         self.prefix_index.insert(&host.host, &doc_id)?;
 
         // Store host data
-        let mut data = self.host_data.write().map_err(|_| {
-            LiteError::Internal("Failed to lock host data".to_string())
-        })?;
+        let mut data = self
+            .host_data
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
         data.insert(doc_id, host.clone());
 
         Ok(())
@@ -345,9 +356,10 @@ impl SearchOptimizer {
     pub fn remove_host(&self, host_id: &str) -> Result<(), LiteError> {
         self.inverted_index.remove_document(host_id)?;
 
-        let mut data = self.host_data.write().map_err(|_| {
-            LiteError::Internal("Failed to lock host data".to_string())
-        })?;
+        let mut data = self
+            .host_data
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
         data.remove(host_id);
 
         Ok(())
@@ -359,9 +371,10 @@ impl SearchOptimizer {
 
         let doc_ids = self.prefix_index.prefix_search(prefix)?;
 
-        let data = self.host_data.read().map_err(|_| {
-            LiteError::Internal("Failed to lock host data".to_string())
-        })?;
+        let data = self
+            .host_data
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
 
         let mut results: Vec<_> = doc_ids
             .iter()
@@ -374,7 +387,12 @@ impl SearchOptimizer {
         results.sort_by(|a, b| a.name.cmp(&b.name));
 
         let elapsed = start.elapsed();
-        log::debug!("Prefix search for '{}' took {:?}, found {} results", prefix, elapsed, results.len());
+        log::debug!(
+            "Prefix search for '{}' took {:?}, found {} results",
+            prefix,
+            elapsed,
+            results.len()
+        );
 
         Ok(results)
     }
@@ -389,11 +407,12 @@ impl SearchOptimizer {
 
         let doc_ids = self.inverted_index.search(query)?;
 
-        let data = self.host_data.read().map_err(|_| {
-            LiteError::Internal("Failed to lock host data".to_string())
-        })?;
+        let data = self
+            .host_data
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
 
-        let mut results: Vec<_> = doc_ids
+        let results: Vec<_> = doc_ids
             .iter()
             .filter_map(|id| data.get(id))
             .cloned()
@@ -412,25 +431,24 @@ impl SearchOptimizer {
     }
 
     /// Advanced search with filters
-    pub fn advanced_search(
-        &self,
-        query: &SearchQuery,
-    ) -> Result<Vec<SearchResult>, LiteError> {
+    pub fn advanced_search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>, LiteError> {
         let start = Instant::now();
 
         // Get base results from text search
         let host_ids = if let Some(ref keyword) = query.keyword {
             self.inverted_index.search(keyword)?
         } else {
-            let data = self.host_data.read().map_err(|_| {
-                LiteError::Internal("Failed to lock host data".to_string())
-            })?;
+            let data = self
+                .host_data
+                .read()
+                .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
             data.keys().cloned().collect()
         };
 
-        let data = self.host_data.read().map_err(|_| {
-            LiteError::Internal("Failed to lock host data".to_string())
-        })?;
+        let data = self
+            .host_data
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
 
         // Apply filters and build results
         let mut results = Vec::new();
@@ -477,7 +495,11 @@ impl SearchOptimizer {
         self.sort_results(&mut results, query)?;
 
         let elapsed = start.elapsed();
-        log::debug!("Advanced search took {:?}, found {} results", elapsed, results.len());
+        log::debug!(
+            "Advanced search took {:?}, found {} results",
+            elapsed,
+            results.len()
+        );
 
         Ok(results)
     }
@@ -533,9 +555,10 @@ impl SearchOptimizer {
         self.inverted_index.clear()?;
         self.prefix_index.clear()?;
 
-        let mut data = self.host_data.write().map_err(|_| {
-            LiteError::Internal("Failed to lock host data".to_string())
-        })?;
+        let mut data = self
+            .host_data
+            .write()
+            .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
         data.clear();
 
         Ok(())
@@ -545,9 +568,10 @@ impl SearchOptimizer {
     pub fn stats(&self) -> Result<(IndexStats, usize), LiteError> {
         let inverted_stats = self.inverted_index.stats()?;
 
-        let data = self.host_data.read().map_err(|_| {
-            LiteError::Internal("Failed to lock host data".to_string())
-        })?;
+        let data = self
+            .host_data
+            .read()
+            .map_err(|_| LiteError::Internal("Failed to lock host data".to_string()))?;
 
         Ok((inverted_stats, data.len()))
     }

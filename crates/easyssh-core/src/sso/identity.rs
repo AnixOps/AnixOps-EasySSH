@@ -264,9 +264,7 @@ impl IdentityMapper {
     /// 验证邮箱格式
     fn is_valid_email(&self, email: &str) -> bool {
         // 简单的邮箱验证正则
-        let email_regex = regex::Regex::new(
-            r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-        );
+        let email_regex = regex::Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
         match email_regex {
             Ok(re) => re.is_match(email),
             Err(_) => false,
@@ -348,12 +346,10 @@ impl IdentityConflictResolver {
         conflict: &IdentityConflict,
     ) -> Result<ConflictResolution, LiteError> {
         match self.strategy {
-            ConflictResolutionStrategy::Reject => {
-                Err(LiteError::Sso(format!(
-                    "Identity conflict detected: {:?}",
-                    conflict.conflict_type
-                )))
-            }
+            ConflictResolutionStrategy::Reject => Err(LiteError::Sso(format!(
+                "Identity conflict detected: {:?}",
+                conflict.conflict_type
+            ))),
             ConflictResolutionStrategy::Update => {
                 // 选择第一个匹配进行更新
                 let best_match = conflict
@@ -363,9 +359,7 @@ impl IdentityConflictResolver {
 
                 Ok(ConflictResolution::UpdateUser(best_match.user_id.clone()))
             }
-            ConflictResolutionStrategy::CreateNew => {
-                Ok(ConflictResolution::CreateNewUser)
-            }
+            ConflictResolutionStrategy::CreateNew => Ok(ConflictResolution::CreateNewUser),
             ConflictResolutionStrategy::Link => {
                 // 选择第一个匹配进行链接
                 let best_match = conflict
@@ -535,10 +529,8 @@ mod tests {
     fn test_group_role_mapping() {
         let mapper = default_identity_mapping();
 
-        let roles = mapper.map_groups_to_roles(
-            &vec!["admin".to_string(), "users".to_string()],
-            "team1",
-        );
+        let roles =
+            mapper.map_groups_to_roles(&vec!["admin".to_string(), "users".to_string()], "team1");
 
         assert!(roles.contains(&"team1:admin".to_string()));
     }
@@ -583,14 +575,12 @@ mod tests {
             mapping_source: "test".to_string(),
         };
 
-        let existing = vec![
-            ExistingUserInfo {
-                user_id: "user_456".to_string(),
-                email: "existing@example.com".to_string(),
-                username: "different".to_string(),
-                external_user_id: None,
-            },
-        ];
+        let existing = vec![ExistingUserInfo {
+            user_id: "user_456".to_string(),
+            email: "existing@example.com".to_string(),
+            username: "different".to_string(),
+            external_user_id: None,
+        }];
 
         let conflict = resolver.detect_conflicts(&identity, &existing);
         assert!(conflict.is_some());
@@ -613,13 +603,11 @@ mod tests {
                 attributes: HashMap::new(),
                 mapping_source: "test".to_string(),
             },
-            existing_matches: vec![
-                ExistingUserMatch {
-                    user_id: "user_456".to_string(),
-                    matched_field: "email".to_string(),
-                    matched_value: "test@example.com".to_string(),
-                },
-            ],
+            existing_matches: vec![ExistingUserMatch {
+                user_id: "user_456".to_string(),
+                matched_field: "email".to_string(),
+                matched_value: "test@example.com".to_string(),
+            }],
             conflict_type: ConflictType::EmailExists,
         };
 

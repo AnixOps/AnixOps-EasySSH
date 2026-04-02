@@ -128,7 +128,7 @@ impl EnhancedMigrationManager {
                 execution_time_ms INTEGER,
                 checksum TEXT
             )
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await
@@ -145,7 +145,7 @@ impl EnhancedMigrationManager {
                 original_sql TEXT NOT NULL,
                 recovery_sql TEXT NOT NULL
             )
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await
@@ -160,7 +160,7 @@ impl EnhancedMigrationManager {
                 valid INTEGER NOT NULL,
                 messages TEXT
             )
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await
@@ -170,7 +170,10 @@ impl EnhancedMigrationManager {
     }
 
     /// Validate a migration before applying
-    pub async fn validate_migration(&self, migration: &ReversibleMigration) -> Result<MigrationValidation> {
+    pub async fn validate_migration(
+        &self,
+        migration: &ReversibleMigration,
+    ) -> Result<MigrationValidation> {
         let mut messages = Vec::new();
         let mut valid = true;
 
@@ -184,7 +187,10 @@ impl EnhancedMigrationManager {
         let dangerous_ops = ["DROP TABLE", "DROP DATABASE", "DELETE FROM"];
         for op in &dangerous_ops {
             if migration.up_sql.to_uppercase().contains(op) {
-                messages.push(format!("Warning: Contains {} - ensure this is intentional", op));
+                messages.push(format!(
+                    "Warning: Contains {} - ensure this is intentional",
+                    op
+                ));
             }
         }
 
@@ -251,7 +257,7 @@ impl EnhancedMigrationManager {
                 r#"
                 INSERT INTO schema_migrations (version, description, execution_time_ms, checksum)
                 VALUES (?, ?, ?, ?)
-                "#
+                "#,
             )
             .bind(migration.version)
             .bind(&migration.description)
@@ -280,7 +286,7 @@ impl EnhancedMigrationManager {
                 r#"
                 INSERT INTO schema_migrations (version, description, execution_time_ms, checksum)
                 VALUES (?, ?, ?, ?)
-                "#
+                "#,
             )
             .bind(migration.version)
             .bind(&migration.description)
@@ -333,7 +339,7 @@ impl EnhancedMigrationManager {
             r#"
             INSERT INTO migration_rollback_history (version, reason, original_sql, recovery_sql)
             VALUES (?, ?, ?, ?)
-            "#
+            "#,
         )
         .bind(version)
         .bind(reason.unwrap_or("Manual rollback"))
@@ -468,7 +474,7 @@ impl EnhancedMigrationManager {
                 recovery_sql
             FROM migration_rollback_history
             ORDER BY rolled_back_at DESC
-            "#
+            "#,
         )
         .fetch_all(&self.pool)
         .await
@@ -487,7 +493,9 @@ impl EnhancedMigrationManager {
 
         for migration in all {
             if !self.is_applied(migration.version).await? {
-                let result = self.apply_migration_with_options(&migration, &options).await?;
+                let result = self
+                    .apply_migration_with_options(&migration, &options)
+                    .await?;
                 results.push((migration.version, result));
             }
         }
@@ -730,7 +738,7 @@ mod tests {
 
         // Verify tables were created
         let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations'"
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations'",
         )
         .fetch_one(&manager.pool)
         .await
@@ -771,15 +779,24 @@ mod tests {
 
         // Apply migration
         let options = MigrationOptions::default();
-        let result = manager.apply_migration_with_options(&migration, &options).await.unwrap();
+        let result = manager
+            .apply_migration_with_options(&migration, &options)
+            .await
+            .unwrap();
         assert!(matches!(result, MigrationResult::Applied { .. }));
 
         // Verify applied
         assert!(manager.is_applied(1).await.unwrap());
 
         // Rollback migration
-        let rollback_result = manager.rollback_migration(1, Some("Testing rollback")).await.unwrap();
-        assert!(matches!(rollback_result, MigrationRollbackResult::RolledBack));
+        let rollback_result = manager
+            .rollback_migration(1, Some("Testing rollback"))
+            .await
+            .unwrap();
+        assert!(matches!(
+            rollback_result,
+            MigrationRollbackResult::RolledBack
+        ));
 
         // Verify not applied
         assert!(!manager.is_applied(1).await.unwrap());
@@ -794,7 +811,10 @@ mod tests {
         // Apply first migration
         let migration = manager.all_migrations().into_iter().next().unwrap();
         let options = MigrationOptions::default();
-        manager.apply_migration_with_options(&migration, &options).await.unwrap();
+        manager
+            .apply_migration_with_options(&migration, &options)
+            .await
+            .unwrap();
 
         let status = manager.status().await.unwrap();
         assert!(!status.is_empty());
@@ -822,7 +842,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = manager.apply_migration_with_options(&migration, &options).await.unwrap();
+        let result = manager
+            .apply_migration_with_options(&migration, &options)
+            .await
+            .unwrap();
         assert!(matches!(result, MigrationResult::DryRun));
 
         // Verify not actually applied
@@ -845,7 +868,10 @@ mod tests {
 
         // Apply first
         let options = MigrationOptions::default();
-        manager.apply_migration_with_options(&migration, &options).await.unwrap();
+        manager
+            .apply_migration_with_options(&migration, &options)
+            .await
+            .unwrap();
 
         // Rollback should fail
         let result = manager.rollback_migration(99, None).await;

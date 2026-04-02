@@ -15,12 +15,14 @@ use crate::crypto::CryptoState;
 use crate::error::LiteError;
 
 /// Cache entry with expiration
+#[allow(dead_code)]
 struct CacheEntry<T> {
     value: T,
     created_at: Instant,
     ttl: Duration,
 }
 
+#[allow(dead_code)]
 impl<T> CacheEntry<T> {
     fn new(value: T, ttl: Duration) -> Self {
         Self {
@@ -37,6 +39,7 @@ impl<T> CacheEntry<T> {
 
 /// Key derivation cache to avoid expensive Argon2id recomputation
 /// Note: This only caches the key/salt, not the full CryptoState for security
+#[allow(dead_code)]
 pub struct KeyDerivationCache {
     /// Maps password hash to (salt, key) pair
     cache: Mutex<HashMap<String, (Vec<u8>, Vec<u8>)>>,
@@ -65,20 +68,30 @@ impl KeyDerivationCache {
 
     /// Get cached key derivation info or return None
     /// Caller must still create their own CryptoState
-    pub fn get_cached_derivation(&self, password: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, LiteError> {
-        let cache = self.cache.lock().map_err(|_| {
-            LiteError::Crypto("Failed to lock key cache".to_string())
-        })?;
+    pub fn get_cached_derivation(
+        &self,
+        password: &str,
+    ) -> Result<Option<(Vec<u8>, Vec<u8>)>, LiteError> {
+        let cache = self
+            .cache
+            .lock()
+            .map_err(|_| LiteError::Crypto("Failed to lock key cache".to_string()))?;
 
         // Return cached (salt, key) if available
         Ok(cache.get(password).cloned())
     }
 
     /// Store key derivation in cache
-    pub fn cache_derivation(&self, password: &str, salt: Vec<u8>, key: Vec<u8>) -> Result<(), LiteError> {
-        let mut cache = self.cache.lock().map_err(|_| {
-            LiteError::Crypto("Failed to lock key cache".to_string())
-        })?;
+    pub fn cache_derivation(
+        &self,
+        password: &str,
+        salt: Vec<u8>,
+        key: Vec<u8>,
+    ) -> Result<(), LiteError> {
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|_| LiteError::Crypto("Failed to lock key cache".to_string()))?;
 
         // Clean if at capacity (simple strategy: clear oldest)
         if cache.len() >= self.max_entries {
@@ -91,27 +104,30 @@ impl KeyDerivationCache {
 
     /// Check if password has cached derivation
     pub fn is_cached(&self, password: &str) -> Result<bool, LiteError> {
-        let cache = self.cache.lock().map_err(|_| {
-            LiteError::Crypto("Failed to lock key cache".to_string())
-        })?;
+        let cache = self
+            .cache
+            .lock()
+            .map_err(|_| LiteError::Crypto("Failed to lock key cache".to_string()))?;
 
         Ok(cache.contains_key(password))
     }
 
     /// Clear the cache
     pub fn clear(&self) -> Result<(), LiteError> {
-        let mut cache = self.cache.lock().map_err(|_| {
-            LiteError::Crypto("Failed to lock key cache".to_string())
-        })?;
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|_| LiteError::Crypto("Failed to lock key cache".to_string()))?;
         cache.clear();
         Ok(())
     }
 
     /// Get cache statistics
     pub fn stats(&self) -> Result<usize, LiteError> {
-        let cache = self.cache.lock().map_err(|_| {
-            LiteError::Crypto("Failed to lock key cache".to_string())
-        })?;
+        let cache = self
+            .cache
+            .lock()
+            .map_err(|_| LiteError::Crypto("Failed to lock key cache".to_string()))?;
         Ok(cache.len())
     }
 }
@@ -265,6 +281,14 @@ impl CryptoOptimizer {
         self.buffer_pool.clear();
         Ok(())
     }
+
+    /// Get or create crypto state for a password
+    pub fn get_crypto_state(&self, password: &str) -> Result<CryptoState, LiteError> {
+        // Create a new state
+        let mut state = CryptoState::new();
+        state.initialize(password)?;
+        Ok(state)
+    }
 }
 
 impl Default for CryptoOptimizer {
@@ -278,8 +302,7 @@ pub fn detect_aes_ni() -> bool {
     #[cfg(target_arch = "x86_64")]
     {
         // Check for AES-NI using CPUID
-        std::arch::is_x86_feature_detected!("aes")
-            && std::arch::is_x86_feature_detected!("sse2")
+        std::arch::is_x86_feature_detected!("aes") && std::arch::is_x86_feature_detected!("sse2")
     }
     #[cfg(not(target_arch = "x86_64"))]
     {
@@ -315,13 +338,18 @@ mod tests {
         assert!(!cache.is_cached("test_password").unwrap());
 
         // Cache a derivation
-        cache.cache_derivation("test_password", vec![1u8; 32], vec![2u8; 32]).unwrap();
+        cache
+            .cache_derivation("test_password", vec![1u8; 32], vec![2u8; 32])
+            .unwrap();
 
         // Now cached
         assert!(cache.is_cached("test_password").unwrap());
 
         // Retrieve
-        let (salt, key) = cache.get_cached_derivation("test_password").unwrap().unwrap();
+        let (salt, key) = cache
+            .get_cached_derivation("test_password")
+            .unwrap()
+            .unwrap();
         assert_eq!(salt, vec![1u8; 32]);
         assert_eq!(key, vec![2u8; 32]);
 
@@ -355,8 +383,8 @@ mod tests {
     fn test_crypto_optimizer() {
         let optimizer = CryptoOptimizer::new();
 
-        // Get cached state
-        let state = optimizer.get_cached_state("test_password").unwrap();
+        // Get crypto state
+        let state = optimizer.get_crypto_state("test_password").unwrap();
 
         // Encrypt data
         let data = vec![1u8; 1024];

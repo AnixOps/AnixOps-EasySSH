@@ -794,7 +794,12 @@ pub enum TerminalWsMessage {
     Binary { data: Vec<u8> },
     /// 调整大小
     #[serde(rename = "resize")]
-    Resize { rows: u16, cols: u16, width: u16, height: u16 },
+    Resize {
+        rows: u16,
+        cols: u16,
+        width: u16,
+        height: u16,
+    },
     /// 控制信号
     #[serde(rename = "signal")]
     Signal { signal: String },
@@ -812,10 +817,18 @@ pub enum TerminalWsMessage {
     Pong,
     /// 剪贴板操作
     #[serde(rename = "clipboard")]
-    Clipboard { action: String, data: Option<String> },
+    Clipboard {
+        action: String,
+        data: Option<String>,
+    },
     /// 鼠标事件
     #[serde(rename = "mouse")]
-    Mouse { button: u8, x: u16, y: u16, action: String },
+    Mouse {
+        button: u8,
+        x: u16,
+        y: u16,
+        action: String,
+    },
     /// 焦点事件
     #[serde(rename = "focus")]
     Focus { focused: bool },
@@ -988,7 +1001,12 @@ impl WebSocketBridge {
                     "eof" => TerminalSignal::Eof,
                     "suspend" => TerminalSignal::Suspend,
                     "quit" => TerminalSignal::Quit,
-                    _ => return Err(LiteError::TerminalEmulator(format!("Unknown signal: {}", signal))),
+                    _ => {
+                        return Err(LiteError::TerminalEmulator(format!(
+                            "Unknown signal: {}",
+                            signal
+                        )))
+                    }
                 };
                 self.terminal.send_signal(term_signal).await?;
             }
@@ -1009,7 +1027,12 @@ impl WebSocketBridge {
                     self.handle_clipboard(&action, data).await?;
                 }
             }
-            TerminalWsMessage::Mouse { button, x, y, action } => {
+            TerminalWsMessage::Mouse {
+                button,
+                x,
+                y,
+                action,
+            } => {
                 if self.config.enable_mouse {
                     self.handle_mouse(button, x, y, &action).await?;
                 }
@@ -1056,16 +1079,14 @@ impl WebSocketBridge {
     }
 
     /// 处理剪贴板操作
-    async fn handle_clipboard(
-        &self,
-        action: &str,
-        data: Option<String>,
-    ) -> Result<(), LiteError> {
+    async fn handle_clipboard(&self, action: &str, data: Option<String>) -> Result<(), LiteError> {
         match action {
             "copy" => {
                 // 服务器请求复制到剪贴板
                 if let Some(text) = data {
-                    let _ = self.output_tx.send(TerminalWsOutput::Clipboard { data: text });
+                    let _ = self
+                        .output_tx
+                        .send(TerminalWsOutput::Clipboard { data: text });
                 }
             }
             "paste" => {
@@ -1120,7 +1141,10 @@ impl WebSocketBridge {
             }
         }
 
-        log::info!("WebSocketBridge {} output forwarder exited", self.terminal_id);
+        log::info!(
+            "WebSocketBridge {} output forwarder exited",
+            self.terminal_id
+        );
     }
 
     /// 获取桥接统计
@@ -1228,7 +1252,13 @@ impl PtyManager {
         id: &str,
         size: TerminalSize,
         shell: Option<&str>,
-    ) -> Result<(Arc<dyn TerminalEmulator>, mpsc::UnboundedReceiver<TerminalOutput>), LiteError> {
+    ) -> Result<
+        (
+            Arc<dyn TerminalEmulator>,
+            mpsc::UnboundedReceiver<TerminalOutput>,
+        ),
+        LiteError,
+    > {
         let (terminal, output_rx) = PtyTerminal::new_local(id, size, shell)?;
         let terminal_arc: Arc<dyn TerminalEmulator> = Arc::new(terminal);
 
@@ -1266,7 +1296,13 @@ impl PtyManager {
         port: u16,
         username: &str,
         auth_method: SshAuthMethod,
-    ) -> Result<(Arc<dyn TerminalEmulator>, mpsc::UnboundedReceiver<TerminalOutput>), LiteError> {
+    ) -> Result<
+        (
+            Arc<dyn TerminalEmulator>,
+            mpsc::UnboundedReceiver<TerminalOutput>,
+        ),
+        LiteError,
+    > {
         let (terminal, output_rx) =
             PtyTerminal::new_ssh(id, size, host, port, username, auth_method)?;
         let terminal_arc: Arc<dyn TerminalEmulator> = Arc::new(terminal);
@@ -1343,16 +1379,11 @@ impl PtyManager {
         terminal_id: &str,
         config: Option<BridgeConfig>,
     ) -> Result<mpsc::UnboundedReceiver<TerminalWsOutput>, LiteError> {
-        let terminal = self
-            .get_terminal(terminal_id)
-            .await
-            .ok_or_else(|| LiteError::TerminalEmulator(format!("Terminal {} not found", terminal_id)))?;
+        let terminal = self.get_terminal(terminal_id).await.ok_or_else(|| {
+            LiteError::TerminalEmulator(format!("Terminal {} not found", terminal_id))
+        })?;
 
-        let (bridge, output_rx) = WebSocketBridge::new(
-            terminal_id.to_string(),
-            terminal,
-            config,
-        );
+        let (bridge, output_rx) = WebSocketBridge::new(terminal_id.to_string(), terminal, config);
 
         {
             let mut bridges = self.bridges.write().await;
@@ -1438,7 +1469,10 @@ impl PtyManager {
     /// 获取管理器统计
     pub async fn stats(&self) -> PtyManagerStats {
         let instances = self.instances.read().await;
-        let running = instances.values().filter(|i| i.status == PtyStatus::Running).count();
+        let running = instances
+            .values()
+            .filter(|i| i.status == PtyStatus::Running)
+            .count();
         let total_bytes_read: u64 = instances.values().map(|i| i.bytes_read).sum();
         let total_bytes_written: u64 = instances.values().map(|i| i.bytes_written).sum();
 
@@ -1544,7 +1578,11 @@ impl RendererManager {
         let mut stats = self.performance_stats.write().await;
         stats.insert(terminal_id.to_string(), RenderPerformance::default());
 
-        log::info!("Registered renderer for terminal {}: {:?}", terminal_id, renderer_type);
+        log::info!(
+            "Registered renderer for terminal {}: {:?}",
+            terminal_id,
+            renderer_type
+        );
     }
 
     /// 注销渲染器
@@ -1690,11 +1728,7 @@ impl TerminalCoordinator {
         // 创建标签页
         let tab_id = self
             .tab_manager
-            .create_tab(
-                &session_type.default_title(),
-                session_type,
-                None,
-            )
+            .create_tab(&session_type.default_title(), session_type, None)
             .await?;
 
         // 创建PTY
@@ -1722,7 +1756,9 @@ impl TerminalCoordinator {
         let coordinator = self.clone();
         let id_for_task = id.clone();
         tokio::spawn(async move {
-            coordinator.forward_terminal_output(&id_for_task, output_rx).await;
+            coordinator
+                .forward_terminal_output(&id_for_task, output_rx)
+                .await;
         });
 
         log::info!("Created terminal session: {} (tab: {})", id, tab_id);
@@ -1730,7 +1766,11 @@ impl TerminalCoordinator {
     }
 
     /// 转发终端输出
-    async fn forward_terminal_output(&self, terminal_id: &str, mut rx: mpsc::UnboundedReceiver<TerminalOutput>) {
+    async fn forward_terminal_output(
+        &self,
+        terminal_id: &str,
+        mut rx: mpsc::UnboundedReceiver<TerminalOutput>,
+    ) {
         while let Some(output) = rx.recv().await {
             // 更新统计
             if let TerminalOutput::Data(ref data) = output {
@@ -1904,10 +1944,19 @@ impl EmbeddedTerminalServer {
         mut ws_tx: mpsc::UnboundedSender<WsMessage>,
         mut ws_rx: mpsc::UnboundedReceiver<String>,
     ) -> Result<(), LiteError> {
-        log::info!("New WebSocket connection: {} for terminal {}", session_id, terminal_id);
+        log::info!(
+            "New WebSocket connection: {} for terminal {}",
+            session_id,
+            terminal_id
+        );
 
         // 设置WebSocket会话ID
-        if let Some(terminal) = self.coordinator.pty_manager.get_terminal(&terminal_id).await {
+        if let Some(terminal) = self
+            .coordinator
+            .pty_manager
+            .get_terminal(&terminal_id)
+            .await
+        {
             terminal.set_websocket_session(&session_id).await;
         }
 
@@ -1954,7 +2003,12 @@ impl EmbeddedTerminalServer {
             };
 
             // 转发到桥接器
-            if let Some(terminal) = self.coordinator.pty_manager.get_terminal(&terminal_id).await {
+            if let Some(terminal) = self
+                .coordinator
+                .pty_manager
+                .get_terminal(&terminal_id)
+                .await
+            {
                 match msg {
                     TerminalWsMessage::Input { data } => {
                         let _ = terminal.write(&data).await;
@@ -1962,7 +2016,12 @@ impl EmbeddedTerminalServer {
                     TerminalWsMessage::Binary { data } => {
                         let _ = terminal.write_bytes(&data).await;
                     }
-                    TerminalWsMessage::Resize { rows, cols, width, height } => {
+                    TerminalWsMessage::Resize {
+                        rows,
+                        cols,
+                        width,
+                        height,
+                    } => {
                         let size = TerminalSize::new(rows, cols).with_pixels(width, height);
                         let _ = terminal.resize(size).await;
                     }
@@ -2007,5 +2066,5 @@ impl EmbeddedTerminalServer {
 // 类型导出
 // ============================================================================
 
-pub use super::webgl::{WebGlConfig, WebGlRenderer, RenderStats as WebGlRenderStats};
+pub use super::webgl::{RenderStats as WebGlRenderStats, WebGlConfig, WebGlRenderer};
 pub use super::xterm_compat::{XtermCompat, XtermMode};

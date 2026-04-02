@@ -390,7 +390,10 @@ impl RoleDefinition {
     }
 
     /// 获取所有有效权限（包括继承的）
-    pub fn effective_permissions(&self, all_roles: &HashMap<String, RoleDefinition>) -> HashSet<Permission> {
+    pub fn effective_permissions(
+        &self,
+        all_roles: &HashMap<String, RoleDefinition>,
+    ) -> HashSet<Permission> {
         let mut result = self.permissions.clone();
 
         for parent_id in &self.inherits_from {

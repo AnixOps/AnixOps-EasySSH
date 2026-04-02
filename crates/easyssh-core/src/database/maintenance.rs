@@ -118,9 +118,7 @@ impl MaintenanceManager {
 
         let (success, space_reclaimed, info) = match op {
             MaintenanceOp::Vacuum => self.vacuum().await?,
-            MaintenanceOp::VacuumIncremental { pages } => {
-                self.vacuum_incremental(pages).await?
-            }
+            MaintenanceOp::VacuumIncremental { pages } => self.vacuum_incremental(pages).await?,
             MaintenanceOp::Analyze => self.analyze().await?,
             MaintenanceOp::Reindex => self.reindex().await?,
             MaintenanceOp::WalCheckpoint => self.wal_checkpoint().await?,
@@ -250,7 +248,10 @@ impl MaintenanceManager {
         Ok((
             true,
             Some(total_reclaimed),
-            format!("Full maintenance complete. Reclaimed {} bytes.", total_reclaimed),
+            format!(
+                "Full maintenance complete. Reclaimed {} bytes.",
+                total_reclaimed
+            ),
         ))
     }
 
@@ -421,7 +422,7 @@ impl MaintenanceManager {
     /// Get table row counts
     pub async fn get_table_stats(&self) -> Result<Vec<TableStats>> {
         let tables: Vec<(String,)> = sqlx::query_as(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
         )
         .fetch_all(&self.pool)
         .await

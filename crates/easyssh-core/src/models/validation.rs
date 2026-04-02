@@ -211,8 +211,8 @@ pub fn validate_password_strength(password: &str) -> PasswordStrength {
     // Penalize common patterns
     let lower = password.to_lowercase();
     let common_patterns = [
-        "password", "123456", "qwerty", "abc123", "letmein", "welcome",
-        "admin", "root", "test", "guest", "default", "changeme",
+        "password", "123456", "qwerty", "abc123", "letmein", "welcome", "admin", "root", "test",
+        "guest", "default", "changeme",
     ];
     for pattern in &common_patterns {
         if lower.contains(pattern) {
@@ -345,8 +345,14 @@ pub fn is_valid_ssh_username(username: &str) -> bool {
     }
 
     // Check against reserved usernames
-    let reserved = [
-        "root", "admin", "administrator", "guest", "test", "user", "default",
+    let _reserved = [
+        "root",
+        "admin",
+        "administrator",
+        "guest",
+        "test",
+        "user",
+        "default",
     ];
     // Note: We don't reject reserved names, just document them
     // Actual policy might choose to warn about these
@@ -449,11 +455,20 @@ mod tests {
         // Very weak passwords
         assert_eq!(validate_password_strength(""), PasswordStrength::VeryWeak);
         assert_eq!(validate_password_strength("a"), PasswordStrength::VeryWeak);
-        assert_eq!(validate_password_strength("password"), PasswordStrength::VeryWeak);
-        assert_eq!(validate_password_strength("12345678"), PasswordStrength::VeryWeak);
+        assert_eq!(
+            validate_password_strength("password"),
+            PasswordStrength::VeryWeak
+        );
+        assert_eq!(
+            validate_password_strength("12345678"),
+            PasswordStrength::VeryWeak
+        );
 
         // Weak passwords
-        assert_eq!(validate_password_strength("Password1"), PasswordStrength::Weak);
+        assert_eq!(
+            validate_password_strength("Password1"),
+            PasswordStrength::Weak
+        );
 
         // Moderate passwords
         let moderate = validate_password_strength("GoodPass1");

@@ -153,7 +153,7 @@ impl BackupManager {
 
         // Copy all tables
         let tables: Vec<(String,)> = sqlx::query_as(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
         )
         .fetch_all(&self.pool)
         .await
@@ -176,13 +176,16 @@ impl BackupManager {
             }
 
             // Copy data
-            let copy_sql = format!("INSERT INTO {} SELECT * FROM main.{}", table_name, table_name);
-            let attach_sql = format!("ATTACH DATABASE '{}' AS main", self.db_path.to_string_lossy());
+            let copy_sql = format!(
+                "INSERT INTO {} SELECT * FROM main.{}",
+                table_name, table_name
+            );
+            let attach_sql = format!(
+                "ATTACH DATABASE '{}' AS main",
+                self.db_path.to_string_lossy()
+            );
 
-            sqlx::query(&attach_sql)
-                .execute(&backup_pool)
-                .await
-                .ok(); // Ignore error if already attached
+            sqlx::query(&attach_sql).execute(&backup_pool).await.ok(); // Ignore error if already attached
 
             sqlx::query(&copy_sql)
                 .execute(&backup_pool)
@@ -204,7 +207,10 @@ impl BackupManager {
         // Header
         dump_content.push_str(&format!("-- EasySSH Database Backup\n"));
         dump_content.push_str(&format!("-- Generated: {}\n", Utc::now().to_rfc3339()));
-        dump_content.push_str(&format!("-- SQLite Version: {}\n\n", self.get_sqlite_version().await?));
+        dump_content.push_str(&format!(
+            "-- SQLite Version: {}\n\n",
+            self.get_sqlite_version().await?
+        ));
 
         // Get all tables
         let tables: Vec<(String,)> = sqlx::query_as(
@@ -216,13 +222,12 @@ impl BackupManager {
 
         for (table_name,) in tables {
             // Get schema
-            let schema: Option<(String,)> = sqlx::query_as(
-                "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?"
-            )
-            .bind(&table_name)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            let schema: Option<(String,)> =
+                sqlx::query_as("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?")
+                    .bind(&table_name)
+                    .fetch_optional(&self.pool)
+                    .await
+                    .map_err(|e| DatabaseError::SqlError(e))?;
 
             if let Some((sql,)) = schema {
                 if !sql.is_empty() {
@@ -245,35 +250,37 @@ impl BackupManager {
                     }
                     dump_content.push('\n');
 
-                // Get data using SQLite's built-in dump capability
-                // We'll use a simpler approach - get column names first
-                let columns_info: Vec<(i64, String, String, i64, Option<String>, i64)> = sqlx::query_as(
-                    &format!("PRAGMA table_info({})", table_name)
-                )
-                .fetch_all(&self.pool)
-                .await
-                .map_err(|e| DatabaseError::SqlError(e))?;
+                    // Get data using SQLite's built-in dump capability
+                    // We'll use a simpler approach - get column names first
+                    let columns_info: Vec<(i64, String, String, i64, Option<String>, i64)> =
+                        sqlx::query_as(&format!("PRAGMA table_info({})", table_name))
+                            .fetch_all(&self.pool)
+                            .await
+                            .map_err(|e| DatabaseError::SqlError(e))?;
 
-                let column_names: Vec<String> = columns_info.iter()
-                    .map(|(_, name, _, _, _, _)| name.clone())
-                    .collect();
+                    let column_names: Vec<String> = columns_info
+                        .iter()
+                        .map(|(_, name, _, _, _, _)| name.clone())
+                        .collect();
 
-                // Get row count
-                let count: (i64,) = sqlx::query_as(&format!("SELECT COUNT(*) FROM {}", table_name))
-                    .fetch_one(&self.pool)
-                    .await
-                    .map_err(|e| DatabaseError::SqlError(e))?;
+                    // Get row count
+                    let count: (i64,) =
+                        sqlx::query_as(&format!("SELECT COUNT(*) FROM {}", table_name))
+                            .fetch_one(&self.pool)
+                            .await
+                            .map_err(|e| DatabaseError::SqlError(e))?;
 
-                if count.0 > 0 && !column_names.is_empty() {
-                    dump_content.push_str(&format!("-- Data for {} ({} rows)\n", table_name, count.0));
+                    if count.0 > 0 && !column_names.is_empty() {
+                        dump_content
+                            .push_str(&format!("-- Data for {} ({} rows)\n", table_name, count.0));
 
-                    // For each column, get all values - this is a simplified approach
-                    // In production, you'd want to use proper pagination
-                    let col_list = column_names.join(", ");
+                        // For each column, get all values - this is a simplified approach
+                        // In production, you'd want to use proper pagination
+                        let col_list = column_names.join(", ");
 
-                    // Generate INSERT statements with literal values
-                    // This uses a custom SQL function approach
-                    let insert_sql = format!(
+                        // Generate INSERT statements with literal values
+                        // This uses a custom SQL function approach
+                        let insert_sql = format!(
                         "SELECT 'INSERT INTO {} ({}) VALUES (' || {} || ');' as insert_stmt FROM {}",
                         table_name,
                         col_list,
@@ -293,16 +300,16 @@ impl BackupManager {
                         table_name
                     );
 
-                    let inserts: Vec<(String,)> = sqlx::query_as(&insert_sql)
-                        .fetch_all(&self.pool)
-                        .await
-                        .map_err(|e| DatabaseError::SqlError(e))?;
+                        let inserts: Vec<(String,)> = sqlx::query_as(&insert_sql)
+                            .fetch_all(&self.pool)
+                            .await
+                            .map_err(|e| DatabaseError::SqlError(e))?;
 
-                    for (insert_stmt,) in inserts {
-                        dump_content.push_str(&insert_stmt);
+                        for (insert_stmt,) in inserts {
+                            dump_content.push_str(&insert_stmt);
+                            dump_content.push('\n');
+                        }
                         dump_content.push('\n');
-                    }
-                    dump_content.push('\n');
                     } // Close if !sql.is_empty()
                 }
             }
@@ -375,10 +382,7 @@ impl BackupManager {
                 for statement in statements {
                     let stmt = statement.trim();
                     if !stmt.is_empty() && !stmt.starts_with("--") {
-                        sqlx::query(stmt)
-                            .execute(&restore_pool)
-                            .await
-                            .ok(); // Ignore errors for CREATE IF NOT EXISTS etc.
+                        sqlx::query(stmt).execute(&restore_pool).await.ok(); // Ignore errors for CREATE IF NOT EXISTS etc.
                     }
                 }
 
@@ -406,8 +410,8 @@ impl BackupManager {
             .map(|entry| entry.path())
             .filter(|path| {
                 let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                name.starts_with("easyssh_backup_") &&
-                    (name.ends_with(".db") || name.ends_with(".sql"))
+                name.starts_with("easyssh_backup_")
+                    && (name.ends_with(".db") || name.ends_with(".sql"))
             })
             .collect();
 
@@ -426,10 +430,7 @@ impl BackupManager {
     }
 
     /// Clean up old backups keeping only the N most recent
-    pub fn cleanup_old_backups(
-        backup_dir: impl AsRef<Path>,
-        keep_count: usize,
-    ) -> Result<usize> {
+    pub fn cleanup_old_backups(backup_dir: impl AsRef<Path>, keep_count: usize) -> Result<usize> {
         let backups = Self::list_backups(&backup_dir)?;
 
         if backups.len() <= keep_count {
@@ -476,9 +477,8 @@ impl BackupManager {
 
         match sqlx::SqlitePool::connect(&test_url).await {
             Ok(pool) => {
-                let result: std::result::Result<(i64,), _> = sqlx::query_as("SELECT 1")
-                    .fetch_one(&pool)
-                    .await;
+                let result: std::result::Result<(i64,), _> =
+                    sqlx::query_as("SELECT 1").fetch_one(&pool).await;
                 pool.close().await;
                 Ok(result.is_ok())
             }
@@ -585,12 +585,10 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
 
         // Create a simple test database
-        let pool = sqlx::SqlitePool::connect(&format!(
-            "sqlite://{}?mode=rwc",
-            db_path.to_string_lossy()
-        ))
-        .await
-        .unwrap();
+        let pool =
+            sqlx::SqlitePool::connect(&format!("sqlite://{}?mode=rwc", db_path.to_string_lossy()))
+                .await
+                .unwrap();
 
         // Create a test table
         sqlx::query("CREATE TABLE test (id TEXT PRIMARY KEY, data TEXT)")
@@ -600,12 +598,10 @@ mod tests {
 
         pool.close().await;
 
-        let pool = sqlx::SqlitePool::connect(&format!(
-            "sqlite://{}?mode=rwc",
-            db_path.to_string_lossy()
-        ))
-        .await
-        .unwrap();
+        let pool =
+            sqlx::SqlitePool::connect(&format!("sqlite://{}?mode=rwc", db_path.to_string_lossy()))
+                .await
+                .unwrap();
 
         let manager = BackupManager::new(pool, &db_path);
         (manager, temp_dir)
@@ -680,7 +676,10 @@ mod tests {
         assert!(is_valid);
 
         // Test with non-existent file
-        let is_valid = manager.verify_backup("/nonexistent/backup.db").await.unwrap();
+        let is_valid = manager
+            .verify_backup("/nonexistent/backup.db")
+            .await
+            .unwrap();
         assert!(!is_valid);
     }
 

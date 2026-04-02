@@ -5,8 +5,8 @@
 //! # Benchmark Scenarios
 //!
 //! - Server name search (prefix, contains, fuzzy)
-//! - Multi-field search (host, username, tags, notes)
-//! - Filter operations (by group, status, tags)
+//! - Multi-field search (host, username)
+//! - Filter operations (by group, status)
 //! - Sorting performance
 //! - Combined search + filter + sort operations
 //! - Search result pagination
@@ -18,46 +18,48 @@
 //! ```
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use easyssh_core::services::{SearchService, SearchQuery, SearchQueryBuilder, SearchResult, SortBy, SortOrder};
-use easyssh_core::models::{Server, ServerStatus, AuthMethod};
+use easyssh_core::models::{AuthMethod, Server, ServerStatus};
 
 /// Generate test servers with various attributes
 fn generate_test_servers(count: usize) -> Vec<Server> {
     let groups = ["production", "staging", "development", "testing"];
-    let tags = ["web", "db", "api", "cache", "worker", "monitoring"];
 
     (0..count)
         .map(|i| {
             let group = groups[i % groups.len()];
-            let tag_list = vec![
-                tags[i % tags.len()].to_string(),
-                tags[(i + 1) % tags.len()].to_string(),
-            ];
 
             Server {
                 id: format!("server-{}", i),
-                name: format!("{}-server-{}-{:04}",
-                    if i % 3 == 0 { "prod" } else if i % 3 == 1 { "staging" } else { "dev" },
-                    tags[i % tags.len()],
+                name: format!(
+                    "{}-server-{:04}",
+                    if i % 3 == 0 {
+                        "prod"
+                    } else if i % 3 == 1 {
+                        "staging"
+                    } else {
+                        "dev"
+                    },
                     i
                 ),
                 host: format!("192.168.{}.{}", i / 256, i % 256),
                 port: 22,
-                username: if i % 2 == 0 { "root".to_string() } else { "admin".to_string() },
-                auth_method: AuthMethod::Password { encrypted: vec![] },
+                username: if i % 2 == 0 {
+                    "root".to_string()
+                } else {
+                    "admin".to_string()
+                },
+                auth_method: AuthMethod::Password {
+                    password: String::new(),
+                },
                 group_id: Some(group.to_string()),
-                tags: Some(tag_list),
-                notes: Some(format!("Notes for server {}: {}", i,
-                    if i % 5 == 0 { "Critical production server" }
-                    else if i % 3 == 0 { "Staging environment" }
-                    else { "Development use only" }
-                )),
-                status: if i % 10 == 0 { ServerStatus::Offline } else { ServerStatus::Online },
-                last_connected: None,
+                status: if i % 10 == 0 {
+                    ServerStatus::Offline
+                } else {
+                    ServerStatus::Online
+                },
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
-                color: None,
-                favorite: i % 7 == 0,
+                schema_version: 1,
             }
         })
         .collect()
@@ -82,7 +84,7 @@ fn bench_name_search(c: &mut Criterion) {
 
     // Contains search
     group.bench_function("contains_match", |b| {
-        let query = "web";
+        let query = "server";
         b.iter(|| {
             let results: Vec<_> = servers
                 .iter()
@@ -107,7 +109,7 @@ fn bench_name_search(c: &mut Criterion) {
 
     // Exact match
     group.bench_function("exact_match", |b| {
-        let query = "prod-server-web-0000";
+        let query = "prod-server-0000";
         b.iter(|| {
             let results: Vec<_> = servers
                 .iter()
@@ -149,22 +151,6 @@ fn bench_multi_field_search(c: &mut Criterion) {
         });
     });
 
-    // Search in notes
-    group.bench_function("by_notes", |b| {
-        let query = "production";
-        b.iter(|| {
-            let results: Vec<_> = servers
-                .iter()
-                .filter(|s| {
-                    s.notes.as_ref()
-                        .map(|n| n.contains(black_box(query)))
-                        .unwrap_or(false)
-                })
-                .collect();
-            black_box(results);
-        });
-    });
-
     // Search across all fields
     group.bench_function("all_fields", |b| {
         let query = "prod";
@@ -173,70 +159,9 @@ fn bench_multi_field_search(c: &mut Criterion) {
             let results: Vec<_> = servers
                 .iter()
                 .filter(|s| {
-                    s.name.to_lowercase().contains(&query_lower) ||
-                    s.host.contains(query) ||
-                    s.username.to_lowercase().contains(&query_lower) ||
-                    s.notes.as_ref().map(|n| n.to_lowercase().contains(&query_lower)).unwrap_or(false)
-                })
-                .collect();
-            black_box(results);
-        });
-    });
-
-    group.finish();
-}
-
-/// Benchmark tag-based search and filtering
-fn bench_tag_search(c: &mut Criterion) {
-    let mut group = c.benchmark_group("tag_search");
-    let servers = generate_test_servers(1000);
-
-    // Single tag search
-    group.bench_function("single_tag", |b| {
-        let tag = "web";
-        b.iter(|| {
-            let results: Vec<_> = servers
-                .iter()
-                .filter(|s| {
-                    s.tags.as_ref()
-                        .map(|tags| tags.contains(&black_box(tag).to_string()))
-                        .unwrap_or(false)
-                })
-                .collect();
-            black_box(results);
-        });
-    });
-
-    // Multiple tags (AND)
-    group.bench_function("multiple_tags_and", |b| {
-        let tags = vec!["web", "api"];
-        b.iter(|| {
-            let results: Vec<_> = servers
-                .iter()
-                .filter(|s| {
-                    s.tags.as_ref()
-                        .map(|server_tags| {
-                            tags.iter().all(|tag| server_tags.contains(&tag.to_string()))
-                        })
-                        .unwrap_or(false)
-                })
-                .collect();
-            black_box(results);
-        });
-    });
-
-    // Multiple tags (OR)
-    group.bench_function("multiple_tags_or", |b| {
-        let tags = vec!["web", "db"];
-        b.iter(|| {
-            let results: Vec<_> = servers
-                .iter()
-                .filter(|s| {
-                    s.tags.as_ref()
-                        .map(|server_tags| {
-                            tags.iter().any(|tag| server_tags.contains(&tag.to_string()))
-                        })
-                        .unwrap_or(false)
+                    s.name.to_lowercase().contains(&query_lower)
+                        || s.host.contains(query)
+                        || s.username.to_lowercase().contains(&query_lower)
                 })
                 .collect();
             black_box(results);
@@ -274,26 +199,14 @@ fn bench_filter_operations(c: &mut Criterion) {
         });
     });
 
-    // Filter by favorite
-    group.bench_function("by_favorite", |b| {
-        b.iter(|| {
-            let results: Vec<_> = servers
-                .iter()
-                .filter(|s| s.favorite)
-                .collect();
-            black_box(results);
-        });
-    });
-
     // Combined filters
     group.bench_function("combined_filters", |b| {
         b.iter(|| {
             let results: Vec<_> = servers
                 .iter()
                 .filter(|s| {
-                    s.status == ServerStatus::Online &&
-                    s.group_id.as_ref() == Some(&"production".to_string()) &&
-                    s.favorite
+                    s.status == ServerStatus::Online
+                        && s.group_id.as_ref() == Some(&"production".to_string())
                 })
                 .collect();
             black_box(results);
@@ -313,30 +226,22 @@ fn bench_sorting(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*size as u64));
 
         // Sort by name
-        group.bench_with_input(
-            BenchmarkId::new("by_name", size),
-            &servers,
-            |b, servers| {
-                b.iter(|| {
-                    let mut sorted = servers.clone();
-                    sorted.sort_by(|a, b| a.name.cmp(&b.name));
-                    black_box(sorted);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("by_name", size), &servers, |b, servers| {
+            b.iter(|| {
+                let mut sorted = servers.clone();
+                sorted.sort_by(|a, b| a.name.cmp(&b.name));
+                black_box(sorted);
+            });
+        });
 
         // Sort by host
-        group.bench_with_input(
-            BenchmarkId::new("by_host", size),
-            &servers,
-            |b, servers| {
-                b.iter(|| {
-                    let mut sorted = servers.clone();
-                    sorted.sort_by(|a, b| a.host.cmp(&b.host));
-                    black_box(sorted);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("by_host", size), &servers, |b, servers| {
+            b.iter(|| {
+                let mut sorted = servers.clone();
+                sorted.sort_by(|a, b| a.host.cmp(&b.host));
+                black_box(sorted);
+            });
+        });
 
         // Sort by status then name
         group.bench_with_input(
@@ -346,7 +251,7 @@ fn bench_sorting(c: &mut Criterion) {
                 b.iter(|| {
                     let mut sorted = servers.clone();
                     sorted.sort_by(|a, b| {
-                        let status_cmp = a.status.cmp(&b.status);
+                        let status_cmp = a.status.as_str().cmp(b.status.as_str());
                         if status_cmp != std::cmp::Ordering::Equal {
                             status_cmp
                         } else {
@@ -380,9 +285,9 @@ fn bench_combined_operations(c: &mut Criterion) {
                     let results: Vec<_> = servers
                         .iter()
                         .filter(|s| {
-                            s.name.contains("prod") &&
-                            s.status == ServerStatus::Online &&
-                            s.group_id.as_ref() == Some(&"production".to_string())
+                            s.name.contains("prod")
+                                && s.status == ServerStatus::Online
+                                && s.group_id.as_ref() == Some(&"production".to_string())
                         })
                         .collect();
                     black_box(results);
@@ -398,10 +303,7 @@ fn bench_combined_operations(c: &mut Criterion) {
                 b.iter(|| {
                     let mut results: Vec<_> = servers
                         .iter()
-                        .filter(|s| {
-                            s.name.contains("prod") &&
-                            s.status == ServerStatus::Online
-                        })
+                        .filter(|s| s.name.contains("prod") && s.status == ServerStatus::Online)
                         .cloned()
                         .collect();
                     results.sort_by(|a, b| a.name.cmp(&b.name));
@@ -420,16 +322,12 @@ fn bench_combined_operations(c: &mut Criterion) {
                         .iter()
                         .filter(|s| {
                             // Search in multiple fields
-                            let matches_search = s.name.contains("server") ||
-                                s.host.contains("192.168.1") ||
-                                s.notes.as_ref().map(|n| n.contains("production")).unwrap_or(false);
+                            let matches_search = s.name.contains("server")
+                                || s.host.contains("192.168.1")
+                                || s.username.contains("root");
 
                             // Filter by criteria
-                            let matches_filter = s.status == ServerStatus::Online &&
-                                s.favorite &&
-                                s.tags.as_ref()
-                                    .map(|tags| tags.contains(&"web".to_string()))
-                                    .unwrap_or(false);
+                            let matches_filter = s.status == ServerStatus::Online && s.port == 22;
 
                             matches_search && matches_filter
                         })
@@ -573,11 +471,7 @@ fn bench_response_time(c: &mut Criterion) {
         b.iter(|| {
             let results: Vec<_> = servers
                 .iter()
-                .filter(|s| {
-                    s.notes.as_ref()
-                        .map(|n| n.to_lowercase().contains("environment"))
-                        .unwrap_or(false)
-                })
+                .filter(|s| s.username.to_lowercase().contains("admin"))
                 .cloned()
                 .collect();
             let mut sorted = results;
@@ -599,7 +493,6 @@ criterion_group!(
     targets =
         bench_name_search,
         bench_multi_field_search,
-        bench_tag_search,
         bench_filter_operations,
         bench_sorting,
         bench_combined_operations,

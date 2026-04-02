@@ -48,7 +48,7 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
@@ -785,19 +785,17 @@ unsafe impl Send for Logger {}
 unsafe impl Sync for Logger {}
 
 /// Global logger instance (optional)
-static mut GLOBAL_LOGGER: Option<Arc<Logger>> = None;
-static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
+use std::sync::OnceLock;
+static GLOBAL_LOGGER: OnceLock<Arc<Logger>> = OnceLock::new();
 
 /// Initialize global logger
 pub fn init_global_logger(logger: Logger) {
-    LOGGER_INIT.call_once(|| unsafe {
-        GLOBAL_LOGGER = Some(Arc::new(logger));
-    });
+    let _ = GLOBAL_LOGGER.set(Arc::new(logger));
 }
 
 /// Get global logger instance
 pub fn global_logger() -> Option<Arc<Logger>> {
-    unsafe { GLOBAL_LOGGER.clone() }
+    GLOBAL_LOGGER.get().cloned()
 }
 
 /// Log using the global logger
@@ -1079,10 +1077,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let log_file = temp_dir.path().join("test_stats.log");
 
-        let logger = Logger::builder()
-            .with_file(&log_file)
-            .build()
-            .unwrap();
+        let logger = Logger::builder().with_file(&log_file).build().unwrap();
 
         logger.info("test message");
 

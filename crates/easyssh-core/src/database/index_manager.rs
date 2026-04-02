@@ -172,13 +172,12 @@ impl IndexManager {
 
     /// Check if an index exists
     pub async fn index_exists(&self, index_name: &str) -> Result<bool> {
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?"
-        )
-        .bind(index_name)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?")
+                .bind(index_name)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| DatabaseError::SqlError(e))?;
 
         Ok(count.0 > 0)
     }
@@ -195,7 +194,7 @@ impl IndexManager {
             FROM sqlite_master
             WHERE type = 'index' AND name NOT LIKE 'sqlite_%'
             ORDER BY tbl_name, name
-            "#
+            "#,
         )
         .fetch_all(&self.pool)
         .await
@@ -256,7 +255,7 @@ impl IndexManager {
             JOIN sqlite_schema ON sqlite_dbpage.pgno = sqlite_schema.rootpage
             WHERE type = 'index'
             GROUP BY name
-            "#
+            "#,
         )
         .fetch_all(&self.pool)
         .await
@@ -334,7 +333,7 @@ mod tests {
                 name TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             )
-            "#
+            "#,
         )
         .execute(pool)
         .await
@@ -411,7 +410,10 @@ mod tests {
 
         let manager = IndexManager::new(pool);
 
-        let plan = manager.analyze_query("SELECT * FROM test_table WHERE name = 'test'").await.unwrap();
+        let plan = manager
+            .analyze_query("SELECT * FROM test_table WHERE name = 'test'")
+            .await
+            .unwrap();
         assert!(!plan.is_empty());
     }
 

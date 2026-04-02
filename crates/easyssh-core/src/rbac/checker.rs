@@ -1,10 +1,7 @@
 //! 权限检查器 - 核心权限验证逻辑
 
+use super::{types::*, RbacAuditEntry, RbacAuditLogger, RbacConfig, RbacError, ResourceResolver};
 use chrono::{Datelike, Timelike};
-use super::{
-    types::*,
-    RbacAuditEntry, RbacAuditLogger, RbacConfig, RbacError, ResourceResolver,
-};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -175,7 +172,11 @@ impl PermissionChecker {
                 if entry.is_valid() {
                     return Ok(CheckResult {
                         allowed: entry.result,
-                        reason: if entry.result { None } else { Some("Cached: denied".to_string()) },
+                        reason: if entry.result {
+                            None
+                        } else {
+                            Some("Cached: denied".to_string())
+                        },
                         matched_permission: None,
                         applied_policies: vec!["cache".to_string()],
                     });
@@ -357,7 +358,9 @@ impl PermissionChecker {
             }
 
             // 检查IP范围
-            if let (Some(allowed_ranges), Some(ip)) = (&conditions.allowed_ip_ranges, &ctx.ip_address) {
+            if let (Some(allowed_ranges), Some(ip)) =
+                (&conditions.allowed_ip_ranges, &ctx.ip_address)
+            {
                 if !allowed_ranges.iter().any(|range| ip.starts_with(range)) {
                     return false;
                 }
@@ -419,7 +422,12 @@ impl PermissionChecker {
     }
 
     /// 记录审计日志
-    async fn log_audit(&self, ctx: &PermissionContext, permission: &Permission, result: &CheckResult) {
+    async fn log_audit(
+        &self,
+        ctx: &PermissionContext,
+        permission: &Permission,
+        result: &CheckResult,
+    ) {
         if !self.config.enable_audit {
             return;
         }
@@ -428,7 +436,11 @@ impl PermissionChecker {
             let entry = RbacAuditEntry {
                 timestamp: chrono::Utc::now(),
                 user_id: ctx.user_id.clone(),
-                action: if result.allowed { "allow".to_string() } else { "deny".to_string() },
+                action: if result.allowed {
+                    "allow".to_string()
+                } else {
+                    "deny".to_string()
+                },
                 resource: permission.resource.clone(),
                 operation: permission.operation,
                 allowed: result.allowed,
@@ -478,10 +490,7 @@ mod tests {
             vec![UserRoleAssignment::new("user2", None, "user", "system")],
         );
 
-        PermissionChecker::new(
-            Arc::new(roles),
-            Arc::new(assignments),
-        )
+        PermissionChecker::new(Arc::new(roles), Arc::new(assignments))
     }
 
     #[tokio::test]
@@ -490,7 +499,11 @@ mod tests {
         let ctx = PermissionContext::new("user1");
 
         let result = checker
-            .check(&ctx, &Resource::all(ResourceType::Server), Operation::Create)
+            .check(
+                &ctx,
+                &Resource::all(ResourceType::Server),
+                Operation::Create,
+            )
             .await
             .unwrap();
 
@@ -503,7 +516,11 @@ mod tests {
         let ctx = PermissionContext::new("user2");
 
         let result = checker
-            .check(&ctx, &Resource::all(ResourceType::Server), Operation::Create)
+            .check(
+                &ctx,
+                &Resource::all(ResourceType::Server),
+                Operation::Create,
+            )
             .await
             .unwrap();
 
@@ -516,7 +533,11 @@ mod tests {
         let ctx = PermissionContext::new("admin").as_super_admin();
 
         let result = checker
-            .check(&ctx, &Resource::all(ResourceType::System), Operation::Manage)
+            .check(
+                &ctx,
+                &Resource::all(ResourceType::System),
+                Operation::Manage,
+            )
             .await
             .unwrap();
 
@@ -572,7 +593,10 @@ mod tests {
         let resource = Resource::all(ResourceType::Server);
 
         // 第一次检查
-        checker.check(&ctx, &resource, Operation::Read).await.unwrap();
+        checker
+            .check(&ctx, &resource, Operation::Read)
+            .await
+            .unwrap();
 
         // 检查缓存
         let (total, valid) = checker.cache_stats();
@@ -591,13 +615,12 @@ mod tests {
 
         let mut role = RoleDefinition::new("limited").with_name("Limited User");
         role.add_permission(
-            Permission::new(
-                Resource::all(ResourceType::Server),
-                Operation::Read,
-            ).with_conditions(PermissionConditions {
-                business_hours_only: true,
-                ..Default::default()
-            })
+            Permission::new(Resource::all(ResourceType::Server), Operation::Read).with_conditions(
+                PermissionConditions {
+                    business_hours_only: true,
+                    ..Default::default()
+                },
+            ),
         );
         roles.insert("limited".to_string(), role);
 
@@ -607,14 +630,13 @@ mod tests {
             vec![UserRoleAssignment::new("user3", None, "limited", "system")],
         );
 
-        let checker = PermissionChecker::new(
-            Arc::new(roles),
-            Arc::new(assignments),
-        );
+        let checker = PermissionChecker::new(Arc::new(roles), Arc::new(assignments));
 
         let ctx = PermissionContext::new("user3");
 
         // 条件检查取决于当前时间，这里只验证结构
-        let _ = checker.check(&ctx, &Resource::all(ResourceType::Server), Operation::Read).await;
+        let _ = checker
+            .check(&ctx, &Resource::all(ResourceType::Server), Operation::Read)
+            .await;
     }
 }

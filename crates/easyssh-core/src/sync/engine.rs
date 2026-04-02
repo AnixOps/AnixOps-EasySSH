@@ -726,7 +726,10 @@ impl SyncManager {
             SyncDocumentType::Group => {
                 if let Some(obj) = data.as_object() {
                     let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                    let color = obj.get("color").and_then(|v| v.as_str()).unwrap_or("#4A90D9");
+                    let color = obj
+                        .get("color")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("#4A90D9");
                     let groups = db.get_groups()?;
                     let exists = groups.iter().any(|g| g.id == doc.id);
 

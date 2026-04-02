@@ -9,10 +9,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use easyssh_core::sso::{
-    ConflictResolutionStrategy, IdentityConflictResolver, IdentityMapper,
-    JustInTimeProvisioning, JitProvisioningConfig, OidcHandler, OidcTokenResponse,
-    OidcUserInfo, SamlAuthResponse, SamlConfig, SamlHandler, SsoManager, SsoProvider,
-    SsoProviderConfig, SsoProviderType, SsoSession, SsoSessionManager,
+    ConflictResolutionStrategy, IdentityConflictResolver, IdentityMapper, JitProvisioningConfig,
+    JustInTimeProvisioning, OidcHandler, OidcTokenResponse, OidcUserInfo, SamlAuthResponse,
+    SamlConfig, SamlHandler, SsoManager, SsoProvider, SsoProviderConfig, SsoProviderType,
+    SsoSession, SsoSessionManager,
 };
 
 use crate::{
@@ -20,8 +20,8 @@ use crate::{
     redis_cache::RedisCache,
     services::auth_service::AuthService,
     sso::{
-        SamlCallbackRequest, SsoCallbackRequest, SsoLoginCompleteResponse,
-        SsoLoginRequest, SsoLoginResponse, SsoUserResponse,
+        SamlCallbackRequest, SsoCallbackRequest, SsoLoginCompleteResponse, SsoLoginRequest,
+        SsoLoginResponse, SsoUserResponse,
     },
     AppState,
 };
@@ -66,19 +66,28 @@ impl SsoServiceHandler {
         let provider = match req.provider_type {
             SsoProviderType::Saml => {
                 let config: SamlConfig = serde_json::from_value(req.config).map_err(|e| {
-                    (StatusCode::BAD_REQUEST, format!("Invalid SAML config: {}", e))
+                    (
+                        StatusCode::BAD_REQUEST,
+                        format!("Invalid SAML config: {}", e),
+                    )
                 })?;
                 SsoProvider::new_saml(&req.name, config)
             }
             SsoProviderType::Oidc => {
-                let config: easyssh_core::sso::OidcConfig =
-                    serde_json::from_value(req.config).map_err(|e| {
-                        (StatusCode::BAD_REQUEST, format!("Invalid OIDC config: {}", e))
+                let config: easyssh_core::sso::OidcConfig = serde_json::from_value(req.config)
+                    .map_err(|e| {
+                        (
+                            StatusCode::BAD_REQUEST,
+                            format!("Invalid OIDC config: {}", e),
+                        )
                     })?;
                 SsoProvider::new_oidc(&req.name, config)
             }
             _ => {
-                return Err((StatusCode::BAD_REQUEST, "Unsupported provider type".to_string()));
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "Unsupported provider type".to_string(),
+                ));
             }
         };
 
@@ -86,7 +95,10 @@ impl SsoServiceHandler {
 
         let mut manager = self.sso_manager.write().await;
         manager.add_provider(provider).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to add provider: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to add provider: {}", e),
+            )
         })?;
 
         // 存储到Redis缓存
@@ -137,14 +149,20 @@ impl SsoServiceHandler {
             match provider.provider_type {
                 SsoProviderType::Saml => {
                     let new_config: SamlConfig = serde_json::from_value(config).map_err(|e| {
-                        (StatusCode::BAD_REQUEST, format!("Invalid SAML config: {}", e))
+                        (
+                            StatusCode::BAD_REQUEST,
+                            format!("Invalid SAML config: {}", e),
+                        )
                     })?;
                     provider.config = SsoProviderConfig::Saml(new_config);
                 }
                 SsoProviderType::Oidc => {
-                    let new_config: easyssh_core::sso::OidcConfig =
-                        serde_json::from_value(config).map_err(|e| {
-                            (StatusCode::BAD_REQUEST, format!("Invalid OIDC config: {}", e))
+                    let new_config: easyssh_core::sso::OidcConfig = serde_json::from_value(config)
+                        .map_err(|e| {
+                            (
+                                StatusCode::BAD_REQUEST,
+                                format!("Invalid OIDC config: {}", e),
+                            )
                         })?;
                     provider.config = SsoProviderConfig::Oidc(new_config);
                 }
@@ -173,7 +191,10 @@ impl SsoServiceHandler {
         let mut manager = self.sso_manager.write().await;
 
         manager.remove_provider(provider_id).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to remove provider: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to remove provider: {}", e),
+            )
         })?;
 
         // 终止该提供商的所有会话
@@ -198,11 +219,17 @@ impl SsoServiceHandler {
             .ok_or_else(|| (StatusCode::NOT_FOUND, "Provider not found".to_string()))?;
 
         let handler = SamlHandler::new(provider.clone()).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create SAML handler: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create SAML handler: {}", e),
+            )
         })?;
 
         let auth_request = handler.create_auth_request().map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create auth request: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create auth request: {}", e),
+            )
         })?;
 
         // 存储state到Redis (5分钟过期)
@@ -212,7 +239,8 @@ impl SsoServiceHandler {
         });
         let _ = self
             .redis
-            .set(&format!("sso_state:{}", auth_request.relay_state.as_ref().unwrap()),
+            .set(
+                &format!("sso_state:{}", auth_request.relay_state.as_ref().unwrap()),
                 &state_data.to_string(),
                 std::time::Duration::from_secs(300),
             )
@@ -243,17 +271,24 @@ impl SsoServiceHandler {
             .ok_or_else(|| (StatusCode::NOT_FOUND, "Provider not found".to_string()))?;
 
         let handler = OidcHandler::new(provider.clone()).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create OIDC handler: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create OIDC handler: {}", e),
+            )
         })?;
 
         let state = easyssh_core::sso::generate_secure_random(32);
         let nonce = easyssh_core::sso::generate_secure_random(32);
 
-        let (auth_url, pkce_verifier) = handler
-            .build_authorization_url(&state, &nonce)
-            .map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build auth URL: {}", e))
-            })?;
+        let (auth_url, pkce_verifier) =
+            handler
+                .build_authorization_url(&state, &nonce)
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to build auth URL: {}", e),
+                    )
+                })?;
 
         // 存储state、nonce和pkce_verifier到Redis
         let state_data = serde_json::json!({
@@ -289,9 +324,16 @@ impl SsoServiceHandler {
     ) -> Result<SsoLoginCompleteResponse, (StatusCode, String)> {
         // 验证state
         let state_data = if let Some(ref relay_state) = req.relay_state {
-            let data = self.redis.get(&format!("sso_state:{}", relay_state)).await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Redis error: {}", e))
-            })?;
+            let data = self
+                .redis
+                .get(&format!("sso_state:{}", relay_state))
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Redis error: {}", e),
+                    )
+                })?;
             data
         } else {
             None
@@ -299,14 +341,25 @@ impl SsoServiceHandler {
 
         let provider_id = if let Some(data) = state_data {
             let json: serde_json::Value = serde_json::from_str(&data).map_err(|e| {
-                (StatusCode::BAD_REQUEST, format!("Invalid state data: {}", e))
+                (
+                    StatusCode::BAD_REQUEST,
+                    format!("Invalid state data: {}", e),
+                )
             })?;
             json["provider_id"]
                 .as_str()
-                .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing provider_id in state".to_string()))?
+                .ok_or_else(|| {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        "Missing provider_id in state".to_string(),
+                    )
+                })?
                 .to_string()
         } else {
-            return Err((StatusCode::BAD_REQUEST, "Invalid or expired state".to_string()));
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Invalid or expired state".to_string(),
+            ));
         };
 
         // 获取提供商
@@ -316,17 +369,28 @@ impl SsoServiceHandler {
             .ok_or_else(|| (StatusCode::NOT_FOUND, "Provider not found".to_string()))?;
 
         let handler = SamlHandler::new(provider.clone()).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create handler: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create handler: {}", e),
+            )
         })?;
 
         // 处理SAML响应
         let sso_user = handler
             .process_saml_response(&req.saml_response, req.relay_state.as_deref())
-            .map_err(|e| (StatusCode::UNAUTHORIZED, format!("SAML validation failed: {}", e)))?;
+            .map_err(|e| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    format!("SAML validation failed: {}", e),
+                )
+            })?;
 
         // 清理state
         if let Some(ref relay_state) = req.relay_state {
-            let _ = self.redis.delete(&format!("sso_state:{}", relay_state)).await;
+            let _ = self
+                .redis
+                .delete(&format!("sso_state:{}", relay_state))
+                .await;
         }
 
         // 执行JIT开通
@@ -367,11 +431,24 @@ impl SsoServiceHandler {
             .redis
             .get(&format!("sso_state:{}", req.state))
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Redis error: {}", e)))?
-            .ok_or_else(|| (StatusCode::BAD_REQUEST, "Invalid or expired state".to_string()))?;
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Redis error: {}", e),
+                )
+            })?
+            .ok_or_else(|| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    "Invalid or expired state".to_string(),
+                )
+            })?;
 
         let state_json: serde_json::Value = serde_json::from_str(&state_data).map_err(|e| {
-            (StatusCode::BAD_REQUEST, format!("Invalid state data: {}", e))
+            (
+                StatusCode::BAD_REQUEST,
+                format!("Invalid state data: {}", e),
+            )
         })?;
 
         let provider_id = state_json["provider_id"]
@@ -391,19 +468,32 @@ impl SsoServiceHandler {
             .ok_or_else(|| (StatusCode::NOT_FOUND, "Provider not found".to_string()))?;
 
         let handler = OidcHandler::new(provider.clone()).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create handler: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create handler: {}", e),
+            )
         })?;
 
         // 交换code获取token
         let token_response = handler
             .exchange_code(&req.code, pkce_verifier)
             .await
-            .map_err(|e| (StatusCode::UNAUTHORIZED, format!("Token exchange failed: {}", e)))?;
+            .map_err(|e| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    format!("Token exchange failed: {}", e),
+                )
+            })?;
 
         // 验证ID Token
         let oidc_user = handler
             .validate_id_token(&token_response.id_token, nonce)
-            .map_err(|e| (StatusCode::UNAUTHORIZED, format!("ID token validation failed: {}", e)))?;
+            .map_err(|e| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    format!("ID token validation failed: {}", e),
+                )
+            })?;
 
         // 转换为SsoUserInfo
         let sso_user = handler.convert_to_sso_user_info(oidc_user);
@@ -473,14 +563,22 @@ impl SsoServiceHandler {
                 .provision_user(sso_user, provider, &existing_users)
                 .await
                 .map_err(|e| {
-                    (StatusCode::INTERNAL_SERVER_ERROR, format!("Provisioning failed: {}", e))
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Provisioning failed: {}", e),
+                    )
                 })?;
 
             // 获取或创建用户
             auth_service
                 .get_user_by_id(&record.created_user_id.unwrap_or_default())
                 .await
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("User not found: {}", e)))?
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("User not found: {}", e),
+                    )
+                })?
         };
 
         Ok((user, is_new_user))
@@ -506,7 +604,10 @@ impl SsoServiceHandler {
         // 存储会话到Redis
         let session_key = format!("sso_session:{}", session.id);
         let session_json = serde_json::to_string(&session).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to serialize session: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to serialize session: {}", e),
+            )
         })?;
 
         let _ = self
@@ -584,7 +685,10 @@ impl SsoServiceHandler {
         let sessions = session_manager.list_user_sessions(user_id);
 
         if !sessions.iter().any(|s| s.id == session_id) {
-            return Err((StatusCode::FORBIDDEN, "Session not owned by user".to_string()));
+            return Err((
+                StatusCode::FORBIDDEN,
+                "Session not owned by user".to_string(),
+            ));
         }
 
         drop(session_manager);
@@ -592,7 +696,10 @@ impl SsoServiceHandler {
         let mut session_manager = self.session_manager.write().await;
         if session_manager.terminate_session(session_id) {
             // 从Redis删除
-            let _ = self.redis.delete(&format!("sso_session:{}", session_id)).await;
+            let _ = self
+                .redis
+                .delete(&format!("sso_session:{}", session_id))
+                .await;
             Ok(())
         } else {
             Err((StatusCode::NOT_FOUND, "Session not found".to_string()))
@@ -624,7 +731,12 @@ impl SsoServiceHandler {
                 req.auto_provision,
                 &req.default_role,
             )
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Configuration failed: {}", e)))?;
+            .map_err(|e| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    format!("Configuration failed: {}", e),
+                )
+            })?;
 
         Ok(TeamSsoConfigResponse {
             team_id: team_id.to_string(),
@@ -647,11 +759,17 @@ impl SsoServiceHandler {
             .ok_or_else(|| (StatusCode::NOT_FOUND, "Provider not found".to_string()))?;
 
         let handler = SamlHandler::new(provider.clone()).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create handler: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create handler: {}", e),
+            )
         })?;
 
         let metadata = handler.generate_sp_metadata(None).map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to generate metadata: {}", e))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to generate metadata: {}", e),
+            )
         })?;
 
         Ok(metadata)

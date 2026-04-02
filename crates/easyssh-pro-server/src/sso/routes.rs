@@ -73,8 +73,10 @@ pub fn sso_routes() -> Router<AppState> {
 /// 列出所有SSO提供商
 async fn list_providers(
     State(state): State<AppState>,
-) -> Result<Json<SuccessResponse<Vec<crate::sso::ProviderResponse>>>, (StatusCode, Json<ErrorResponse>)>
-{
+) -> Result<
+    Json<SuccessResponse<Vec<crate::sso::ProviderResponse>>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
     let providers = state.sso_handler.list_providers().await;
 
     Ok(Json(SuccessResponse {
@@ -89,7 +91,8 @@ async fn create_provider(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
     Json(req): Json<CreateProviderRequest>,
-) -> Result<Json<SuccessResponse<crate::sso::ProviderResponse>>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SuccessResponse<crate::sso::ProviderResponse>>, (StatusCode, Json<ErrorResponse>)>
+{
     // 需要管理员权限
     if !claims.is_admin {
         return Err((
@@ -103,17 +106,21 @@ async fn create_provider(
         ));
     }
 
-    let provider = state.sso_handler.create_provider(req).await.map_err(|(status, msg)| {
-        (
-            status,
-            Json(ErrorResponse {
-                error: "create_failed".to_string(),
-                message: msg,
-                code: None,
-                details: None,
-            }),
-        )
-    })?;
+    let provider = state
+        .sso_handler
+        .create_provider(req)
+        .await
+        .map_err(|(status, msg)| {
+            (
+                status,
+                Json(ErrorResponse {
+                    error: "create_failed".to_string(),
+                    message: msg,
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -126,22 +133,19 @@ async fn create_provider(
 async fn get_provider(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Json<SuccessResponse<crate::sso::ProviderResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let provider = state
-        .sso_handler
-        .get_provider(&id)
-        .await
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "not_found".to_string(),
-                    message: "SSO provider not found".to_string(),
-                    code: Some("provider_not_found".to_string()),
-                    details: None,
-                }),
-            )
-        })?;
+) -> Result<Json<SuccessResponse<crate::sso::ProviderResponse>>, (StatusCode, Json<ErrorResponse>)>
+{
+    let provider = state.sso_handler.get_provider(&id).await.ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "not_found".to_string(),
+                message: "SSO provider not found".to_string(),
+                code: Some("provider_not_found".to_string()),
+                details: None,
+            }),
+        )
+    })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -156,7 +160,8 @@ async fn update_provider(
     Extension(claims): Extension<Claims>,
     Path(id): Path<String>,
     Json(req): Json<UpdateProviderRequest>,
-) -> Result<Json<SuccessResponse<crate::sso::ProviderResponse>>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<SuccessResponse<crate::sso::ProviderResponse>>, (StatusCode, Json<ErrorResponse>)>
+{
     if !claims.is_admin {
         return Err((
             StatusCode::FORBIDDEN,
@@ -169,17 +174,21 @@ async fn update_provider(
         ));
     }
 
-    let provider = state.sso_handler.update_provider(&id, req).await.map_err(|(status, msg)| {
-        (
-            status,
-            Json(ErrorResponse {
-                error: "update_failed".to_string(),
-                message: msg,
-                code: None,
-                details: None,
-            }),
-        )
-    })?;
+    let provider = state
+        .sso_handler
+        .update_provider(&id, req)
+        .await
+        .map_err(|(status, msg)| {
+            (
+                status,
+                Json(ErrorResponse {
+                    error: "update_failed".to_string(),
+                    message: msg,
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -206,17 +215,21 @@ async fn delete_provider(
         ));
     }
 
-    state.sso_handler.delete_provider(&id).await.map_err(|(status, msg)| {
-        (
-            status,
-            Json(ErrorResponse {
-                error: "delete_failed".to_string(),
-                message: msg,
-                code: None,
-                details: None,
-            }),
-        )
-    })?;
+    state
+        .sso_handler
+        .delete_provider(&id)
+        .await
+        .map_err(|(status, msg)| {
+            (
+                status,
+                Json(ErrorResponse {
+                    error: "delete_failed".to_string(),
+                    message: msg,
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -320,7 +333,10 @@ async fn saml_logout(
     Path(provider_id): Path<String>,
 ) -> Result<Json<SuccessResponse<()>>, (StatusCode, Json<ErrorResponse>)> {
     // 终止该提供商的所有用户会话
-    let _terminated = state.sso_handler.terminate_user_sessions(&claims.sub, &provider_id).await;
+    let _terminated = state
+        .sso_handler
+        .terminate_user_sessions(&claims.sub, &provider_id)
+        .await;
 
     Ok(Json(SuccessResponse {
         success: true,
@@ -419,7 +435,10 @@ async fn oidc_logout(
     Path(provider_id): Path<String>,
 ) -> Result<Json<SuccessResponse<Option<String>>>, (StatusCode, Json<ErrorResponse>)> {
     // 终止该提供商的所有用户会话
-    let _terminated = state.sso_handler.terminate_user_sessions(&claims.sub, &provider_id).await;
+    let _terminated = state
+        .sso_handler
+        .terminate_user_sessions(&claims.sub, &provider_id)
+        .await;
 
     // 构建登出URL (可选)
     let logout_url = None; // 简化实现
@@ -596,11 +615,7 @@ async fn remove_team_sso(
 /// 扩展SSO处理器的方法
 impl crate::sso::handlers::SsoServiceHandler {
     /// 终止用户所有会话 (辅助方法)
-    pub async fn terminate_user_sessions(
-        &self,
-        user_id: &str,
-        _provider_id: &str,
-    ) -> usize {
+    pub async fn terminate_user_sessions(&self, user_id: &str, _provider_id: &str) -> usize {
         let session_manager = self.session_manager.write().await;
         session_manager.terminate_user_sessions(user_id)
     }

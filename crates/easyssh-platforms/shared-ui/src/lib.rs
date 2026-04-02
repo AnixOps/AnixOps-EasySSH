@@ -13,7 +13,6 @@
  * - Linux: GTK4 native rendering
  * - macOS: SwiftUI native rendering
  */
-
 pub mod accessibility;
 pub mod animations;
 pub mod components;
@@ -21,11 +20,11 @@ pub mod icons;
 pub mod layout;
 pub mod theme;
 
-pub use theme::{Theme, ThemeManager, ColorScheme};
+pub use accessibility::{A11yProps, AccessibilityManager};
 pub use animations::{Animation, AnimationManager, Easing};
-pub use accessibility::{AccessibilityManager, A11yProps};
 pub use icons::{Icon, IconSet, IconSize};
-pub use layout::{ResponsiveLayout, Breakpoint, Spacing};
+pub use layout::{Breakpoint, ResponsiveLayout, Spacing};
+pub use theme::{ColorScheme, Theme, ThemeManager};
 
 use std::sync::Arc;
 
@@ -75,7 +74,9 @@ impl UIManager {
     pub fn with_config(config: UIConfig) -> Self {
         let theme_manager = Arc::new(theme::ThemeManager::new(&config.theme));
         let animation_manager = Arc::new(animations::AnimationManager::new(&config.animations));
-        let accessibility_manager = Arc::new(accessibility::AccessibilityManager::new(&config.accessibility));
+        let accessibility_manager = Arc::new(accessibility::AccessibilityManager::new(
+            &config.accessibility,
+        ));
 
         Self {
             config,

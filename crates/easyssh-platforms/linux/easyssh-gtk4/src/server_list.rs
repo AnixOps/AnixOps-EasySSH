@@ -308,10 +308,7 @@ fn create_server_row(server: &Server) -> gtk4::ListBoxRow {
     vbox.append(&name_label);
 
     // Connection details
-    let details = gtk4::Label::new(Some(&format!(
-        "{}@{}",
-        server.username, server.host
-    )));
+    let details = gtk4::Label::new(Some(&format!("{}@{}", server.username, server.host)));
     details.set_halign(gtk4::Align::Start);
     details.add_css_class("dim-label");
     details.add_css_class("caption");

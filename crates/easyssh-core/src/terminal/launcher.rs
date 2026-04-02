@@ -233,7 +233,9 @@ impl TerminalType {
             TerminalType::ITerm2 => 1,
             TerminalType::WezTerm | TerminalType::WezTermMac | TerminalType::WezTermWindows => 1,
             TerminalType::Kitty | TerminalType::KittyMac => 2,
-            TerminalType::Alacritty | TerminalType::AlacrittyMac | TerminalType::AlacrittyWindows => 3,
+            TerminalType::Alacritty
+            | TerminalType::AlacrittyMac
+            | TerminalType::AlacrittyWindows => 3,
             TerminalType::Ghostty => 3,
             // Platform-specific modern
             TerminalType::WindowsTerminalPreview => 4,
@@ -326,18 +328,26 @@ impl TerminalType {
     /// Get installation help for this terminal
     pub fn install_help(&self) -> Option<&'static str> {
         match self {
-            TerminalType::WindowsTerminal => Some("Install from Microsoft Store or GitHub releases"),
-            TerminalType::WindowsTerminalPreview => Some("Install from Microsoft Store (Preview channel)"),
-            TerminalType::PowerShellCore => Some("Install from GitHub or Microsoft Store: https://aka.ms/powershell"),
+            TerminalType::WindowsTerminal => {
+                Some("Install from Microsoft Store or GitHub releases")
+            }
+            TerminalType::WindowsTerminalPreview => {
+                Some("Install from Microsoft Store (Preview channel)")
+            }
+            TerminalType::PowerShellCore => {
+                Some("Install from GitHub or Microsoft Store: https://aka.ms/powershell")
+            }
             TerminalType::FluentTerminal => Some("Install from Microsoft Store"),
-            TerminalType::GitBash => Some("Install Git for Windows: https://git-scm.com/download/win"),
+            TerminalType::GitBash => {
+                Some("Install Git for Windows: https://git-scm.com/download/win")
+            }
             TerminalType::Hyper => Some("Download from https://hyper.is"),
             TerminalType::Tabby => Some("Download from https://tabby.sh"),
             TerminalType::Warp => Some("Download from https://warp.dev"),
             TerminalType::ITerm2 => Some("Download from https://iterm2.com"),
-            TerminalType::Alacritty | TerminalType::AlacrittyMac | TerminalType::AlacrittyWindows => {
-                Some("Download from https://alacritty.org")
-            }
+            TerminalType::Alacritty
+            | TerminalType::AlacrittyMac
+            | TerminalType::AlacrittyWindows => Some("Download from https://alacritty.org"),
             TerminalType::Kitty | TerminalType::KittyMac => Some("https://sw.kovidgoyal.net/kitty"),
             TerminalType::WezTerm | TerminalType::WezTermMac | TerminalType::WezTermWindows => {
                 Some("https://wezfurlong.org/wezterm")
@@ -354,15 +364,17 @@ impl TerminalType {
     /// Get custom arguments template for this terminal
     pub fn custom_args_template(&self) -> &'static str {
         match self {
-            TerminalType::WindowsTerminal => "--profile \"ProfileName\" --startingDirectory \"C:\\\\\"",
+            TerminalType::WindowsTerminal => {
+                "--profile \"ProfileName\" --startingDirectory \"C:\\\\\""
+            }
             TerminalType::PowerShell | TerminalType::PowerShellCore => "-WindowStyle Maximized",
             TerminalType::Cmd => "/T:0A (color scheme)",
             TerminalType::GnomeTerminal => "--theme-variant dark --zoom 1.2",
             TerminalType::Konsole => "--profile \"Default\"",
             TerminalType::Kitty | TerminalType::KittyMac => "--config ~/.config/kitty/ssh.conf",
-            TerminalType::Alacritty | TerminalType::AlacrittyMac | TerminalType::AlacrittyWindows => {
-                "--option font.size=14"
-            }
+            TerminalType::Alacritty
+            | TerminalType::AlacrittyMac
+            | TerminalType::AlacrittyWindows => "--option font.size=14",
             TerminalType::WezTerm | TerminalType::WezTermMac | TerminalType::WezTermWindows => {
                 "--config-file ~/.config/wezterm/ssh.lua"
             }
@@ -549,7 +561,7 @@ impl TerminalLauncher {
                     })
                 }
             }
-            TerminalPreference::Custom(cmd) => {
+            TerminalPreference::Custom(_cmd) => {
                 // For custom commands, we can't validate easily
                 // Just return a placeholder that will be handled specially
                 Ok(TerminalType::WindowsTerminal) // Placeholder - custom handling needed
@@ -561,7 +573,10 @@ impl TerminalLauncher {
     fn get_install_suggestions(&self) -> Vec<(&'static str, &'static str)> {
         match Platform::current() {
             Platform::Windows => vec![
-                ("Windows Terminal", "Microsoft Store or https://github.com/microsoft/terminal"),
+                (
+                    "Windows Terminal",
+                    "Microsoft Store or https://github.com/microsoft/terminal",
+                ),
                 ("PowerShell 7", "https://aka.ms/powershell"),
                 ("Git Bash", "https://git-scm.com/download/win"),
             ],
@@ -586,12 +601,7 @@ impl TerminalLauncher {
 
         let title = format!("SSH: {}", server.name);
 
-        self.launch_with_command_ex(
-            &ssh_cmd,
-            Some(&title),
-            terminal,
-            &server.name,
-        )
+        self.launch_with_command_ex(&ssh_cmd, Some(&title), terminal, &server.name)
     }
 
     /// Launch with extended options
@@ -614,7 +624,9 @@ impl TerminalLauncher {
             TerminalType::FluentTerminal => launch_fluent_terminal(command, title, &self.config),
             TerminalType::Hyper => launch_hyper(command, title, &self.config),
             TerminalType::Tabby => launch_tabby(command, title, &self.config),
-            TerminalType::AlacrittyWindows => launch_alacritty_windows(command, title, &self.config),
+            TerminalType::AlacrittyWindows => {
+                launch_alacritty_windows(command, title, &self.config)
+            }
             TerminalType::WezTermWindows => launch_wezterm_windows(command, title, &self.config),
             TerminalType::Cygwin => launch_cygwin(command, title, &self.config),
             TerminalType::Msys2 => launch_msys2(command, title, &self.config),
@@ -655,7 +667,11 @@ impl TerminalLauncher {
     }
 
     /// Launch terminal with a custom command
-    pub fn launch_with_command(&mut self, command: &str, title: Option<&str>) -> Result<(), TerminalError> {
+    pub fn launch_with_command(
+        &mut self,
+        command: &str,
+        title: Option<&str>,
+    ) -> Result<(), TerminalError> {
         let terminal = self.get_best_terminal()?;
         self.launch_with_command_ex(command, title, terminal, "custom command")
     }
@@ -685,7 +701,10 @@ pub enum TerminalError {
 impl std::fmt::Display for TerminalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TerminalError::NoTerminalFound { platform, suggestions } => {
+            TerminalError::NoTerminalFound {
+                platform,
+                suggestions,
+            } => {
                 writeln!(f, "No terminal emulator found on {:?}", platform)?;
                 writeln!(f, "\nRecommended terminals:")?;
                 for (name, help) in suggestions {
@@ -693,16 +712,32 @@ impl std::fmt::Display for TerminalError {
                 }
                 Ok(())
             }
-            TerminalError::PreferredNotFound { terminal, install_help } => {
-                writeln!(f, "Preferred terminal '{}' not found", terminal.display_name())?;
+            TerminalError::PreferredNotFound {
+                terminal,
+                install_help,
+            } => {
+                writeln!(
+                    f,
+                    "Preferred terminal '{}' not found",
+                    terminal.display_name()
+                )?;
                 if let Some(help) = install_help {
                     writeln!(f, "\nInstallation: {}", help)?;
                 }
                 Ok(())
             }
-            TerminalError::LaunchFailed { terminal, context, source } => {
-                write!(f, "Failed to launch {} for '{}': {}",
-                    terminal.display_name(), context, source)
+            TerminalError::LaunchFailed {
+                terminal,
+                context,
+                source,
+            } => {
+                write!(
+                    f,
+                    "Failed to launch {} for '{}': {}",
+                    terminal.display_name(),
+                    context,
+                    source
+                )
             }
             TerminalError::InvalidConfiguration { message } => {
                 write!(f, "Terminal configuration error: {}", message)
@@ -844,7 +879,12 @@ fn find_windows_terminal(terminal_type: TerminalType) -> Option<PathBuf> {
     let common_paths: Vec<PathBuf> = match terminal_type {
         TerminalType::WindowsTerminal => vec![
             env::var("LOCALAPPDATA")
-                .map(|p| PathBuf::from(p).join("Microsoft").join("WindowsApps").join("wt.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("Microsoft")
+                        .join("WindowsApps")
+                        .join("wt.exe")
+                })
                 .ok()?,
             env::var("ProgramFiles")
                 .map(|p| PathBuf::from(p).join("WindowsApps"))
@@ -855,15 +895,31 @@ fn find_windows_terminal(terminal_type: TerminalType) -> Option<PathBuf> {
         TerminalType::PowerShell => vec![
             PathBuf::from("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
             env::var("SystemRoot")
-                .map(|p| PathBuf::from(p).join("System32").join("WindowsPowerShell").join("v1.0").join("powershell.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("System32")
+                        .join("WindowsPowerShell")
+                        .join("v1.0")
+                        .join("powershell.exe")
+                })
                 .ok()?,
         ],
         TerminalType::PowerShellCore => vec![
             env::var("ProgramFiles")
-                .map(|p| PathBuf::from(p).join("PowerShell").join("7").join("pwsh.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("PowerShell")
+                        .join("7")
+                        .join("pwsh.exe")
+                })
                 .ok()?,
             env::var("LOCALAPPDATA")
-                .map(|p| PathBuf::from(p).join("Microsoft").join("WindowsApps").join("pwsh.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("Microsoft")
+                        .join("WindowsApps")
+                        .join("pwsh.exe")
+                })
                 .ok()?,
             PathBuf::from("C:\\Program Files\\PowerShell\\7\\pwsh.exe"),
         ],
@@ -875,15 +931,32 @@ fn find_windows_terminal(terminal_type: TerminalType) -> Option<PathBuf> {
                 .map(|p| PathBuf::from(p).join("Git").join("git-bash.exe"))
                 .ok()?,
             env::var("LOCALAPPDATA")
-                .map(|p| PathBuf::from(p).join("Programs").join("Git").join("git-bash.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("Programs")
+                        .join("Git")
+                        .join("git-bash.exe")
+                })
                 .ok()?,
             env::var("USERPROFILE")
-                .map(|p| PathBuf::from(p).join("scoop").join("apps").join("git").join("current").join("git-bash.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("scoop")
+                        .join("apps")
+                        .join("git")
+                        .join("current")
+                        .join("git-bash.exe")
+                })
                 .ok()?,
         ],
         TerminalType::Hyper => vec![
             env::var("LOCALAPPDATA")
-                .map(|p| PathBuf::from(p).join("Programs").join("hyper").join("Hyper.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("Programs")
+                        .join("hyper")
+                        .join("Hyper.exe")
+                })
                 .ok()?,
             env::var("APPDATA")
                 .map(|p| PathBuf::from(p).join("Hyper").join("Hyper.exe"))
@@ -891,7 +964,12 @@ fn find_windows_terminal(terminal_type: TerminalType) -> Option<PathBuf> {
         ],
         TerminalType::Tabby => vec![
             env::var("LOCALAPPDATA")
-                .map(|p| PathBuf::from(p).join("Programs").join("Tabby").join("Tabby.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("Programs")
+                        .join("Tabby")
+                        .join("Tabby.exe")
+                })
                 .ok()?,
             env::var("ProgramFiles")
                 .map(|p| PathBuf::from(p).join("Tabby").join("Tabby.exe"))
@@ -902,10 +980,22 @@ fn find_windows_terminal(terminal_type: TerminalType) -> Option<PathBuf> {
                 .map(|p| PathBuf::from(p).join("Alacritty").join("alacritty.exe"))
                 .ok()?,
             env::var("USERPROFILE")
-                .map(|p| PathBuf::from(p).join("scoop").join("apps").join("alacritty").join("current").join("Alacritty.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("scoop")
+                        .join("apps")
+                        .join("alacritty")
+                        .join("current")
+                        .join("Alacritty.exe")
+                })
                 .ok()?,
             env::var("LOCALAPPDATA")
-                .map(|p| PathBuf::from(p).join("Microsoft").join("WindowsApps").join("alacritty.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("Microsoft")
+                        .join("WindowsApps")
+                        .join("alacritty.exe")
+                })
                 .ok()?,
         ],
         TerminalType::WezTermWindows => vec![
@@ -913,7 +1003,14 @@ fn find_windows_terminal(terminal_type: TerminalType) -> Option<PathBuf> {
                 .map(|p| PathBuf::from(p).join("WezTerm").join("wezterm.exe"))
                 .ok()?,
             env::var("USERPROFILE")
-                .map(|p| PathBuf::from(p).join("scoop").join("apps").join("wezterm").join("current").join("wezterm.exe"))
+                .map(|p| {
+                    PathBuf::from(p)
+                        .join("scoop")
+                        .join("apps")
+                        .join("wezterm")
+                        .join("current")
+                        .join("wezterm.exe")
+                })
                 .ok()?,
         ],
         _ => return None,
@@ -965,7 +1062,9 @@ fn find_macos_app(terminal_type: TerminalType) -> Option<PathBuf> {
     let search_paths = vec![
         PathBuf::from("/Applications"),
         PathBuf::from("/System/Applications"),
-        dirs::home_dir().map(|p| p.join("Applications")).unwrap_or_default(),
+        dirs::home_dir()
+            .map(|p| p.join("Applications"))
+            .unwrap_or_default(),
     ];
 
     for app_name in app_names {
@@ -1013,7 +1112,8 @@ fn find_linux_desktop_entry(terminal_type: TerminalType) -> Option<PathBuf> {
                     if let Ok(content) = std::fs::read_to_string(&desktop_path) {
                         for line in content.lines() {
                             if line.starts_with("Exec=") {
-                                let exec = line.trim_start_matches("Exec=").split_whitespace().next()?;
+                                let exec =
+                                    line.trim_start_matches("Exec=").split_whitespace().next()?;
                                 return find_in_path(exec);
                             }
                         }
@@ -1029,12 +1129,12 @@ fn find_linux_desktop_entry(terminal_type: TerminalType) -> Option<PathBuf> {
 /// Try to get terminal version
 fn try_get_version(path: &Path, terminal_type: TerminalType) -> Option<String> {
     let version_arg = match terminal_type {
-        TerminalType::Alacritty
-        | TerminalType::AlacrittyMac
-        | TerminalType::AlacrittyWindows => "--version",
-        TerminalType::WezTerm
-        | TerminalType::WezTermMac
-        | TerminalType::WezTermWindows => "--version",
+        TerminalType::Alacritty | TerminalType::AlacrittyMac | TerminalType::AlacrittyWindows => {
+            "--version"
+        }
+        TerminalType::WezTerm | TerminalType::WezTermMac | TerminalType::WezTermWindows => {
+            "--version"
+        }
         TerminalType::PowerShellCore => "--version",
         _ => return None,
     };
@@ -1054,7 +1154,11 @@ fn try_get_version(path: &Path, terminal_type: TerminalType) -> Option<String> {
 // ============================================================================
 
 #[cfg(target_os = "windows")]
-fn launch_windows_terminal(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_windows_terminal(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let in_wt = std::env::var("WT_SESSION").is_ok();
 
     let wt_path = find_executable_advanced("wt", TerminalType::WindowsTerminal)
@@ -1096,7 +1200,11 @@ fn launch_windows_terminal(command: &str, title: Option<&str>, config: &Terminal
 }
 
 #[cfg(target_os = "windows")]
-fn launch_powershell(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_powershell(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
     Command::new("powershell.exe")
         .arg("-NoExit")
         .arg("-Command")
@@ -1108,7 +1216,11 @@ fn launch_powershell(command: &str, _title: Option<&str>, _config: &TerminalConf
 }
 
 #[cfg(target_os = "windows")]
-fn launch_pwsh(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_pwsh(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("pwsh.exe");
 
     // Add custom args
@@ -1118,9 +1230,7 @@ fn launch_pwsh(command: &str, _title: Option<&str>, config: &TerminalConfig) -> 
         }
     }
 
-    cmd.arg("-NoExit")
-        .arg("-Command")
-        .arg(command);
+    cmd.arg("-NoExit").arg("-Command").arg(command);
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("Failed to launch PowerShell 7: {}", e)))?;
@@ -1129,7 +1239,11 @@ fn launch_pwsh(command: &str, _title: Option<&str>, config: &TerminalConfig) -> 
 }
 
 #[cfg(target_os = "windows")]
-fn launch_cmd(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_cmd(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("cmd.exe");
 
     // Add custom args
@@ -1148,11 +1262,17 @@ fn launch_cmd(command: &str, _title: Option<&str>, config: &TerminalConfig) -> R
 }
 
 #[cfg(target_os = "windows")]
-fn launch_gitbash(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    let git_bash_path = find_windows_terminal(TerminalType::GitBash)
-        .ok_or_else(|| LiteError::Terminal(
-            "Git Bash not found. Please install Git for Windows: https://git-scm.com/download/win".to_string()
-        ))?;
+fn launch_gitbash(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    let git_bash_path = find_windows_terminal(TerminalType::GitBash).ok_or_else(|| {
+        LiteError::Terminal(
+            "Git Bash not found. Please install Git for Windows: https://git-scm.com/download/win"
+                .to_string(),
+        )
+    })?;
 
     Command::new(&git_bash_path)
         .arg("-c")
@@ -1164,7 +1284,11 @@ fn launch_gitbash(command: &str, _title: Option<&str>, _config: &TerminalConfig)
 }
 
 #[cfg(target_os = "windows")]
-fn launch_fluent_terminal(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_fluent_terminal(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
     Command::new("FluentTerminal")
         .arg("run")
         .arg(command)
@@ -1175,11 +1299,14 @@ fn launch_fluent_terminal(command: &str, _title: Option<&str>, _config: &Termina
 }
 
 #[cfg(target_os = "windows")]
-fn launch_hyper(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    let hyper_path = find_windows_terminal(TerminalType::Hyper)
-        .ok_or_else(|| LiteError::Terminal(
-            "Hyper not found. Please install from https://hyper.is".to_string()
-        ))?;
+fn launch_hyper(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    let hyper_path = find_windows_terminal(TerminalType::Hyper).ok_or_else(|| {
+        LiteError::Terminal("Hyper not found. Please install from https://hyper.is".to_string())
+    })?;
 
     Command::new(&hyper_path)
         .arg("-e")
@@ -1191,11 +1318,14 @@ fn launch_hyper(command: &str, _title: Option<&str>, _config: &TerminalConfig) -
 }
 
 #[cfg(target_os = "windows")]
-fn launch_tabby(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    let tabby_path = find_windows_terminal(TerminalType::Tabby)
-        .ok_or_else(|| LiteError::Terminal(
-            "Tabby not found. Please install from https://tabby.sh".to_string()
-        ))?;
+fn launch_tabby(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    let tabby_path = find_windows_terminal(TerminalType::Tabby).ok_or_else(|| {
+        LiteError::Terminal("Tabby not found. Please install from https://tabby.sh".to_string())
+    })?;
 
     Command::new(&tabby_path)
         .arg("run")
@@ -1207,11 +1337,17 @@ fn launch_tabby(command: &str, _title: Option<&str>, _config: &TerminalConfig) -
 }
 
 #[cfg(target_os = "windows")]
-fn launch_alacritty_windows(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
-    let alacritty_path = find_windows_terminal(TerminalType::AlacrittyWindows)
-        .ok_or_else(|| LiteError::Terminal(
-            "Alacritty not found. Please install from https://alacritty.org".to_string()
-        ))?;
+fn launch_alacritty_windows(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    let alacritty_path =
+        find_windows_terminal(TerminalType::AlacrittyWindows).ok_or_else(|| {
+            LiteError::Terminal(
+                "Alacritty not found. Please install from https://alacritty.org".to_string(),
+            )
+        })?;
 
     let mut cmd = Command::new(&alacritty_path);
 
@@ -1235,11 +1371,16 @@ fn launch_alacritty_windows(command: &str, _title: Option<&str>, config: &Termin
 }
 
 #[cfg(target_os = "windows")]
-fn launch_wezterm_windows(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
-    let wezterm_path = find_windows_terminal(TerminalType::WezTermWindows)
-        .ok_or_else(|| LiteError::Terminal(
-            "WezTerm not found. Please install from https://wezfurlong.org/wezterm".to_string()
-        ))?;
+fn launch_wezterm_windows(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    let wezterm_path = find_windows_terminal(TerminalType::WezTermWindows).ok_or_else(|| {
+        LiteError::Terminal(
+            "WezTerm not found. Please install from https://wezfurlong.org/wezterm".to_string(),
+        )
+    })?;
 
     let mut cmd = Command::new(&wezterm_path);
 
@@ -1264,7 +1405,11 @@ fn launch_wezterm_windows(command: &str, _title: Option<&str>, config: &Terminal
 }
 
 #[cfg(target_os = "windows")]
-fn launch_cygwin(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_cygwin(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
     Command::new("mintty")
         .arg("-e")
         .arg("/bin/bash")
@@ -1277,11 +1422,15 @@ fn launch_cygwin(command: &str, _title: Option<&str>, _config: &TerminalConfig) 
 }
 
 #[cfg(target_os = "windows")]
-fn launch_msys2(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_msys2(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let msys2_path = PathBuf::from("C:\\msys64\\msys2.exe");
     if !msys2_path.exists() {
         return Err(LiteError::Terminal(
-            "MSYS2 not found at C:\\msys64\\msys2.exe".to_string()
+            "MSYS2 not found at C:\\msys64\\msys2.exe".to_string(),
         ));
     }
 
@@ -1299,7 +1448,11 @@ fn launch_msys2(command: &str, _title: Option<&str>, _config: &TerminalConfig) -
 // ============================================================================
 
 #[cfg(target_os = "linux")]
-fn launch_gnome_terminal(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_gnome_terminal(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("gnome-terminal");
 
     if let Some(t) = title {
@@ -1331,7 +1484,11 @@ fn launch_gnome_terminal(command: &str, title: Option<&str>, config: &TerminalCo
 }
 
 #[cfg(target_os = "linux")]
-fn launch_tilix(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_tilix(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("tilix");
 
     if let Some(t) = title {
@@ -1350,7 +1507,10 @@ fn launch_tilix(command: &str, title: Option<&str>, config: &TerminalConfig) -> 
         ""
     };
 
-    cmd.arg("-e").arg("bash").arg("-c").arg(format!("{}{}", command, wait_suffix));
+    cmd.arg("-e")
+        .arg("bash")
+        .arg("-c")
+        .arg(format!("{}{}", command, wait_suffix));
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("Failed to launch Tilix: {}", e)))?;
@@ -1359,7 +1519,11 @@ fn launch_tilix(command: &str, title: Option<&str>, config: &TerminalConfig) -> 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_terminator(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_terminator(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("terminator");
 
     if let Some(t) = title {
@@ -1378,7 +1542,11 @@ fn launch_terminator(command: &str, title: Option<&str>, config: &TerminalConfig
         ""
     };
 
-    cmd.arg("-e").arg(format!("bash -c \"{}{}\"", command.replace('"', "\\\""), wait_suffix));
+    cmd.arg("-e").arg(format!(
+        "bash -c \"{}{}\"",
+        command.replace('"', "\\\""),
+        wait_suffix
+    ));
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("Failed to launch Terminator: {}", e)))?;
@@ -1387,7 +1555,11 @@ fn launch_terminator(command: &str, title: Option<&str>, config: &TerminalConfig
 }
 
 #[cfg(target_os = "linux")]
-fn launch_konsole(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_konsole(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("konsole");
 
     if let Some(t) = title {
@@ -1418,9 +1590,15 @@ fn launch_konsole(command: &str, title: Option<&str>, config: &TerminalConfig) -
 }
 
 #[cfg(target_os = "linux")]
-fn launch_yakuake(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_yakuake(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     // First, ensure Yakuake is running
-    let _ = Command::new("qdbus").args(&["org.kde.yakuake", "/yakuake/window", "isOpen"]).output();
+    let _ = Command::new("qdbus")
+        .args(&["org.kde.yakuake", "/yakuake/window", "isOpen"])
+        .output();
 
     let mut cmd = Command::new("konsole");
 
@@ -1448,7 +1626,11 @@ fn launch_yakuake(command: &str, _title: Option<&str>, config: &TerminalConfig) 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_xfce4_terminal(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_xfce4_terminal(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("xfce4-terminal");
 
     if let Some(t) = title {
@@ -1480,7 +1662,11 @@ fn launch_xfce4_terminal(command: &str, title: Option<&str>, config: &TerminalCo
 }
 
 #[cfg(target_os = "linux")]
-fn launch_xterm(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_xterm(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("xterm");
 
     if let Some(t) = title {
@@ -1511,7 +1697,11 @@ fn launch_xterm(command: &str, title: Option<&str>, config: &TerminalConfig) -> 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_urxvt(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_urxvt(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("urxvt");
 
     if let Some(t) = title {
@@ -1542,7 +1732,11 @@ fn launch_urxvt(command: &str, title: Option<&str>, config: &TerminalConfig) -> 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_st(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_st(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("st");
 
     if let Some(args) = config.custom_args.get(&TerminalType::St) {
@@ -1569,7 +1763,11 @@ fn launch_st(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Re
 }
 
 #[cfg(target_os = "linux")]
-fn launch_alacritty(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_alacritty(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("alacritty");
 
     if let Some(args) = config.custom_args.get(&TerminalType::Alacritty) {
@@ -1596,7 +1794,11 @@ fn launch_alacritty(command: &str, _title: Option<&str>, config: &TerminalConfig
 }
 
 #[cfg(target_os = "linux")]
-fn launch_kitty(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_kitty(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("kitty");
 
     if let Some(args) = config.custom_args.get(&TerminalType::Kitty) {
@@ -1623,7 +1825,11 @@ fn launch_kitty(command: &str, _title: Option<&str>, config: &TerminalConfig) ->
 }
 
 #[cfg(target_os = "linux")]
-fn launch_wezterm(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_wezterm(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("wezterm");
 
     if let Some(args) = config.custom_args.get(&TerminalType::WezTerm) {
@@ -1651,7 +1857,11 @@ fn launch_wezterm(command: &str, _title: Option<&str>, config: &TerminalConfig) 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_foot(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_foot(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("foot");
 
     if let Some(args) = config.custom_args.get(&TerminalType::Foot) {
@@ -1677,7 +1887,11 @@ fn launch_foot(command: &str, _title: Option<&str>, config: &TerminalConfig) -> 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_termite(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_termite(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("termite");
 
     if let Some(args) = config.custom_args.get(&TerminalType::Termite) {
@@ -1692,8 +1906,11 @@ fn launch_termite(command: &str, _title: Option<&str>, config: &TerminalConfig) 
         ""
     };
 
-    cmd.arg("-e")
-        .arg(format!("bash -c \"{}{}\"", command.replace('"', "\\\""), wait_suffix));
+    cmd.arg("-e").arg(format!(
+        "bash -c \"{}{}\"",
+        command.replace('"', "\\\""),
+        wait_suffix
+    ));
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("Failed to launch Termite: {}", e)))?;
@@ -1702,7 +1919,11 @@ fn launch_termite(command: &str, _title: Option<&str>, config: &TerminalConfig) 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_lilyterm(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_lilyterm(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("lilyterm");
 
     if let Some(t) = title {
@@ -1733,7 +1954,11 @@ fn launch_lilyterm(command: &str, title: Option<&str>, config: &TerminalConfig) 
 }
 
 #[cfg(target_os = "linux")]
-fn launch_sakura(command: &str, title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_sakura(
+    command: &str,
+    title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let mut cmd = Command::new("sakura");
 
     if let Some(t) = title {
@@ -1768,7 +1993,11 @@ fn launch_sakura(command: &str, title: Option<&str>, config: &TerminalConfig) ->
 // ============================================================================
 
 #[cfg(target_os = "macos")]
-fn launch_terminal_app(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_terminal_app(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let escaped_cmd = command.replace('"', "\\\"");
     let script = format!(
         r#"tell application "Terminal"
@@ -1800,7 +2029,11 @@ fn launch_terminal_app(command: &str, _title: Option<&str>, config: &TerminalCon
 }
 
 #[cfg(target_os = "macos")]
-fn launch_iterm2(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_iterm2(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let escaped_cmd = command.replace('"', "\\\"");
     let script = format!(
         r#"tell application "iTerm"
@@ -1836,13 +2069,17 @@ fn launch_iterm2(command: &str, _title: Option<&str>, config: &TerminalConfig) -
 }
 
 #[cfg(target_os = "macos")]
-fn launch_warp(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_warp(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let warp_path = find_macos_app(TerminalType::Warp)
         .or_else(|| Some(PathBuf::from("/Applications/Warp.app")))
         .filter(|p| p.exists())
-        .ok_or_else(|| LiteError::Terminal(
-            "Warp not found. Please install from https://warp.dev".to_string()
-        ))?;
+        .ok_or_else(|| {
+            LiteError::Terminal("Warp not found. Please install from https://warp.dev".to_string())
+        })?;
 
     // Warp has limited CLI support, use open command
     Command::new("open")
@@ -1858,12 +2095,18 @@ fn launch_warp(command: &str, _title: Option<&str>, _config: &TerminalConfig) ->
 }
 
 #[cfg(target_os = "macos")]
-fn launch_wezterm_mac(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_wezterm_mac(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let wezterm_path = find_macos_app(TerminalType::WezTermMac)
         .or_else(|| find_in_path("wezterm"))
-        .ok_or_else(|| LiteError::Terminal(
-            "WezTerm not found. Please install from https://wezfurlong.org/wezterm".to_string()
-        ))?;
+        .ok_or_else(|| {
+            LiteError::Terminal(
+                "WezTerm not found. Please install from https://wezfurlong.org/wezterm".to_string(),
+            )
+        })?;
 
     let mut cmd = Command::new(&wezterm_path);
 
@@ -1887,12 +2130,18 @@ fn launch_wezterm_mac(command: &str, _title: Option<&str>, config: &TerminalConf
 }
 
 #[cfg(target_os = "macos")]
-fn launch_alacritty_mac(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_alacritty_mac(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let alacritty_path = find_macos_app(TerminalType::AlacrittyMac)
         .or_else(|| find_in_path("alacritty"))
-        .ok_or_else(|| LiteError::Terminal(
-            "Alacritty not found. Please install from https://alacritty.org".to_string()
-        ))?;
+        .ok_or_else(|| {
+            LiteError::Terminal(
+                "Alacritty not found. Please install from https://alacritty.org".to_string(),
+            )
+        })?;
 
     let mut cmd = Command::new(&alacritty_path);
 
@@ -1902,10 +2151,7 @@ fn launch_alacritty_mac(command: &str, _title: Option<&str>, config: &TerminalCo
         }
     }
 
-    cmd.arg("-e")
-        .arg("bash")
-        .arg("-c")
-        .arg(command);
+    cmd.arg("-e").arg("bash").arg("-c").arg(command);
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("Failed to launch Alacritty: {}", e)))?;
@@ -1914,12 +2160,18 @@ fn launch_alacritty_mac(command: &str, _title: Option<&str>, config: &TerminalCo
 }
 
 #[cfg(target_os = "macos")]
-fn launch_kitty_mac(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_kitty_mac(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let kitty_path = find_macos_app(TerminalType::KittyMac)
         .or_else(|| find_in_path("kitty"))
-        .ok_or_else(|| LiteError::Terminal(
-            "Kitty not found. Please install: https://sw.kovidgoyal.net/kitty".to_string()
-        ))?;
+        .ok_or_else(|| {
+            LiteError::Terminal(
+                "Kitty not found. Please install: https://sw.kovidgoyal.net/kitty".to_string(),
+            )
+        })?;
 
     let mut cmd = Command::new(&kitty_path);
 
@@ -1929,10 +2181,7 @@ fn launch_kitty_mac(command: &str, _title: Option<&str>, config: &TerminalConfig
         }
     }
 
-    cmd.arg("-e")
-        .arg("bash")
-        .arg("-c")
-        .arg(command);
+    cmd.arg("-e").arg("bash").arg("-c").arg(command);
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("Failed to launch Kitty: {}", e)))?;
@@ -1941,13 +2190,19 @@ fn launch_kitty_mac(command: &str, _title: Option<&str>, config: &TerminalConfig
 }
 
 #[cfg(target_os = "macos")]
-fn launch_ghostty(command: &str, _title: Option<&str>, config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_ghostty(
+    command: &str,
+    _title: Option<&str>,
+    config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let ghostty_path = find_macos_app(TerminalType::Ghostty)
         .or_else(|| Some(PathBuf::from("/Applications/Ghostty.app")))
         .filter(|p| p.exists())
-        .ok_or_else(|| LiteError::Terminal(
-            "Ghostty not found. Please install from https://mitchellh.com/ghostty".to_string()
-        ))?;
+        .ok_or_else(|| {
+            LiteError::Terminal(
+                "Ghostty not found. Please install from https://mitchellh.com/ghostty".to_string(),
+            )
+        })?;
 
     let mut cmd = Command::new(&ghostty_path.join("Contents").join("MacOS").join("ghostty"));
 
@@ -1966,13 +2221,17 @@ fn launch_ghostty(command: &str, _title: Option<&str>, config: &TerminalConfig) 
 }
 
 #[cfg(target_os = "macos")]
-fn launch_hyper_mac(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_hyper_mac(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let hyper_path = find_macos_app(TerminalType::HyperMac)
         .or_else(|| Some(PathBuf::from("/Applications/Hyper.app")))
         .filter(|p| p.exists())
-        .ok_or_else(|| LiteError::Terminal(
-            "Hyper not found. Please install from https://hyper.is".to_string()
-        ))?;
+        .ok_or_else(|| {
+            LiteError::Terminal("Hyper not found. Please install from https://hyper.is".to_string())
+        })?;
 
     Command::new("open")
         .arg("-a")
@@ -1987,13 +2246,17 @@ fn launch_hyper_mac(command: &str, _title: Option<&str>, _config: &TerminalConfi
 }
 
 #[cfg(target_os = "macos")]
-fn launch_tabby_mac(command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
+fn launch_tabby_mac(
+    command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
     let tabby_path = find_macos_app(TerminalType::TabbyMac)
         .or_else(|| Some(PathBuf::from("/Applications/Tabby.app")))
         .filter(|p| p.exists())
-        .ok_or_else(|| LiteError::Terminal(
-            "Tabby not found. Please install from https://tabby.sh".to_string()
-        ))?;
+        .ok_or_else(|| {
+            LiteError::Terminal("Tabby not found. Please install from https://tabby.sh".to_string())
+        })?;
 
     Command::new("open")
         .arg("-a")
@@ -2011,188 +2274,410 @@ fn launch_tabby_mac(command: &str, _title: Option<&str>, _config: &TerminalConfi
 // ============================================================================
 
 #[cfg(not(target_os = "windows"))]
-fn launch_windows_terminal(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Windows Terminal not available on this platform".to_string()))
+fn launch_windows_terminal(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Windows Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_powershell(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("PowerShell not available on this platform".to_string()))
+fn launch_powershell(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "PowerShell not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_pwsh(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("PowerShell 7 not available on this platform".to_string()))
+fn launch_pwsh(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "PowerShell 7 not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_cmd(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("CMD not available on this platform".to_string()))
+fn launch_cmd(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "CMD not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_gitbash(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Git Bash not available on this platform".to_string()))
+fn launch_gitbash(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Git Bash not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_fluent_terminal(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Fluent Terminal not available on this platform".to_string()))
+fn launch_fluent_terminal(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Fluent Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_hyper(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Hyper not available on this platform".to_string()))
+fn launch_hyper(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Hyper not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_tabby(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Tabby not available on this platform".to_string()))
+fn launch_tabby(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Tabby not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_alacritty_windows(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Alacritty Windows build not available on this platform".to_string()))
+fn launch_alacritty_windows(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Alacritty Windows build not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_wezterm_windows(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("WezTerm Windows build not available on this platform".to_string()))
+fn launch_wezterm_windows(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "WezTerm Windows build not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_cygwin(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Cygwin not available on this platform".to_string()))
+fn launch_cygwin(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Cygwin not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn launch_msys2(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("MSYS2 not available on this platform".to_string()))
+fn launch_msys2(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "MSYS2 not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_gnome_terminal(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("GNOME Terminal not available on this platform".to_string()))
+fn launch_gnome_terminal(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "GNOME Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_tilix(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Tilix not available on this platform".to_string()))
+fn launch_tilix(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Tilix not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_terminator(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Terminator not available on this platform".to_string()))
+fn launch_terminator(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Terminator not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_konsole(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Konsole not available on this platform".to_string()))
+fn launch_konsole(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Konsole not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_yakuake(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Yakuake not available on this platform".to_string()))
+fn launch_yakuake(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Yakuake not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_xfce4_terminal(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("XFCE4 Terminal not available on this platform".to_string()))
+fn launch_xfce4_terminal(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "XFCE4 Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_xterm(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("XTerm not available on this platform".to_string()))
+fn launch_xterm(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "XTerm not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_urxvt(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("RXVT-Unicode not available on this platform".to_string()))
+fn launch_urxvt(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "RXVT-Unicode not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_st(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("st not available on this platform".to_string()))
+fn launch_st(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "st not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_alacritty(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Alacritty not available on this platform".to_string()))
+fn launch_alacritty(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Alacritty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_kitty(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Kitty not available on this platform".to_string()))
+fn launch_kitty(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Kitty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_wezterm(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("WezTerm not available on this platform".to_string()))
+fn launch_wezterm(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "WezTerm not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_foot(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Foot not available on this platform".to_string()))
+fn launch_foot(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Foot not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_termite(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Termite not available on this platform".to_string()))
+fn launch_termite(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Termite not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_lilyterm(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("LilyTerm not available on this platform".to_string()))
+fn launch_lilyterm(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "LilyTerm not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn launch_sakura(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Sakura not available on this platform".to_string()))
+fn launch_sakura(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Sakura not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_terminal_app(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Terminal.app not available on this platform".to_string()))
+fn launch_terminal_app(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Terminal.app not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_iterm2(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("iTerm2 not available on this platform".to_string()))
+fn launch_iterm2(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "iTerm2 not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_warp(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Warp not available on this platform".to_string()))
+fn launch_warp(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Warp not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_wezterm_mac(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("WezTerm not available on this platform".to_string()))
+fn launch_wezterm_mac(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "WezTerm not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_alacritty_mac(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Alacritty not available on this platform".to_string()))
+fn launch_alacritty_mac(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Alacritty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_kitty_mac(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Kitty not available on this platform".to_string()))
+fn launch_kitty_mac(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Kitty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_ghostty(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Ghostty not available on this platform".to_string()))
+fn launch_ghostty(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Ghostty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_hyper_mac(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Hyper not available on this platform".to_string()))
+fn launch_hyper_mac(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Hyper not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn launch_tabby_mac(_command: &str, _title: Option<&str>, _config: &TerminalConfig) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Tabby not available on this platform".to_string()))
+fn launch_tabby_mac(
+    _command: &str,
+    _title: Option<&str>,
+    _config: &TerminalConfig,
+) -> Result<(), LiteError> {
+    Err(LiteError::Terminal(
+        "Tabby not available on this platform".to_string(),
+    ))
 }
 
 // ============================================================================
@@ -2247,7 +2732,10 @@ mod tests {
 
     #[test]
     fn test_terminal_type_display_name() {
-        assert_eq!(TerminalType::WindowsTerminal.display_name(), "Windows Terminal");
+        assert_eq!(
+            TerminalType::WindowsTerminal.display_name(),
+            "Windows Terminal"
+        );
         assert_eq!(TerminalType::PowerShellCore.display_name(), "PowerShell 7+");
         assert_eq!(TerminalType::GnomeTerminal.display_name(), "GNOME Terminal");
         assert_eq!(TerminalType::Warp.display_name(), "Warp");
@@ -2302,9 +2790,9 @@ mod tests {
 
     #[test]
     fn test_terminal_launcher_builder() {
-        let launcher = TerminalLauncher::with_preference(
-            TerminalPreference::Specific(TerminalType::Alacritty)
-        );
+        let launcher = TerminalLauncher::with_preference(TerminalPreference::Specific(
+            TerminalType::Alacritty,
+        ));
 
         assert!(matches!(
             launcher.preference,

@@ -1,7 +1,7 @@
 //! 策略引擎 - 高级权限策略管理
 
+use super::{types::*, RbacAuditLogger, RbacError};
 use chrono::{Datelike, Timelike};
-use super::{types::*, RbacError, RbacAuditLogger};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -286,9 +286,7 @@ impl PolicyEngine {
         let applicable_policies: Vec<_> = policies
             .iter()
             .filter(|p| {
-                p.applies_to(resource.resource_type, operation)
-                    && p.is_active
-                    && !p.is_expired()
+                p.applies_to(resource.resource_type, operation) && p.is_active && !p.is_expired()
             })
             .collect();
 
@@ -316,9 +314,10 @@ impl PolicyEngine {
         }
 
         // 检查是否有Allow策略匹配
-        if applicable_policies.iter().any(|p| {
-            p.effect == PolicyEffect::Allow && self.evaluate_condition(&p.condition, ctx)
-        }) {
+        if applicable_policies
+            .iter()
+            .any(|p| p.effect == PolicyEffect::Allow && self.evaluate_condition(&p.condition, ctx))
+        {
             PolicyEvaluationResult {
                 decision: PolicyDecision::Allow,
                 matched_policies,
@@ -461,10 +460,19 @@ impl PolicyEngine {
 
         PolicyEngineStats {
             total_policies: policies.len(),
-            active_policies: policies.iter().filter(|p| p.is_active && !p.is_expired()).count(),
+            active_policies: policies
+                .iter()
+                .filter(|p| p.is_active && !p.is_expired())
+                .count(),
             expired_policies: policies.iter().filter(|p| p.is_expired()).count(),
-            allow_policies: policies.iter().filter(|p| p.effect == PolicyEffect::Allow).count(),
-            deny_policies: policies.iter().filter(|p| p.effect == PolicyEffect::Deny).count(),
+            allow_policies: policies
+                .iter()
+                .filter(|p| p.effect == PolicyEffect::Allow)
+                .count(),
+            deny_policies: policies
+                .iter()
+                .filter(|p| p.effect == PolicyEffect::Deny)
+                .count(),
         }
     }
 }
@@ -518,7 +526,7 @@ pub mod templates {
             .as_deny()
             .with_condition(PolicyCondition {
                 denied_ip_ranges: Some(vec![
-                    "10.".to_string(),    // 外部网络
+                    "10.".to_string(),     // 外部网络
                     "172.16.".to_string(), // 内部网络
                 ]),
                 ..Default::default()
@@ -673,8 +681,7 @@ mod tests {
         };
 
         let engine = PolicyEngine::new();
-        let policy = Policy::new("Internal Only")
-            .with_condition(condition);
+        let policy = Policy::new("Internal Only").with_condition(condition);
 
         engine.add_policy(policy).unwrap();
 

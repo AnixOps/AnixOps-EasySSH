@@ -863,7 +863,10 @@ mod tests {
         ];
         let result = validate_group_list(&duplicates);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ValidationError::Duplicate { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            ValidationError::Duplicate { .. }
+        ));
     }
 
     #[test]

@@ -491,7 +491,8 @@ impl EnhancedSshManager {
         let handle = worker.start();
 
         // Store worker (we don't await the handle, it runs in background)
-        let _ = handle;
+        // Explicitly drop the handle to suppress the warning about unused future
+        drop(handle);
 
         let mut workers = self.health_workers.lock().await;
         workers.insert(session_id.to_string(), worker);

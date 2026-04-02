@@ -29,11 +29,7 @@ pub struct SamlConfig {
 
 impl SamlConfig {
     /// 创建Okta标准配置
-    pub fn okta(
-        domain: &str,
-        sp_entity_id: &str,
-        acs_url: &str,
-    ) -> Self {
+    pub fn okta(domain: &str, sp_entity_id: &str, acs_url: &str) -> Self {
         Self {
             idp_metadata_url: format!("https://{}/.well-known/saml.xml", domain),
             sp_entity_id: sp_entity_id.to_string(),
@@ -48,11 +44,7 @@ impl SamlConfig {
     }
 
     /// 创建Azure AD标准配置
-    pub fn azure_ad(
-        tenant_id: &str,
-        sp_entity_id: &str,
-        acs_url: &str,
-    ) -> Self {
+    pub fn azure_ad(tenant_id: &str, sp_entity_id: &str, acs_url: &str) -> Self {
         Self {
             idp_metadata_url: format!(
                 "https://login.microsoftonline.com/{}/federationmetadata/2007-06/federationmetadata.xml",
@@ -73,13 +65,12 @@ impl SamlConfig {
     }
 
     /// 创建Google Workspace标准配置
-    pub fn google_workspace(
-        domain: &str,
-        sp_entity_id: &str,
-        acs_url: &str,
-    ) -> Self {
+    pub fn google_workspace(domain: &str, sp_entity_id: &str, acs_url: &str) -> Self {
         Self {
-            idp_metadata_url: format!("https://accounts.google.com/o/saml2/metadata?idpid={}", domain),
+            idp_metadata_url: format!(
+                "https://accounts.google.com/o/saml2/metadata?idpid={}",
+                domain
+            ),
             sp_entity_id: sp_entity_id.to_string(),
             acs_url: acs_url.to_string(),
             slo_url: None,
@@ -128,12 +119,22 @@ impl SamlAttributeMapping {
     /// 创建Azure AD标准映射
     pub fn azure_ad_mapping() -> Self {
         Self {
-            user_id_attribute: "http://schemas.microsoft.com/identity/claims/objectidentifier".to_string(),
-            email_attribute: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress".to_string(),
-            username_attribute: Some("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name".to_string()),
-            first_name_attribute: Some("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname".to_string()),
-            last_name_attribute: Some("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname".to_string()),
-            groups_attribute: Some("http://schemas.microsoft.com/ws/2008/06/identity/claims/groups".to_string()),
+            user_id_attribute: "http://schemas.microsoft.com/identity/claims/objectidentifier"
+                .to_string(),
+            email_attribute: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+                .to_string(),
+            username_attribute: Some(
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name".to_string(),
+            ),
+            first_name_attribute: Some(
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname".to_string(),
+            ),
+            last_name_attribute: Some(
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname".to_string(),
+            ),
+            groups_attribute: Some(
+                "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups".to_string(),
+            ),
             team_attribute: None,
         }
     }
@@ -213,12 +214,7 @@ impl OidcConfig {
     }
 
     /// 创建Okta OIDC配置
-    pub fn okta(
-        domain: &str,
-        client_id: &str,
-        client_secret: &str,
-        redirect_uri: &str,
-    ) -> Self {
+    pub fn okta(domain: &str, client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
         Self {
             issuer_url: format!("https://{}", domain),
             authorization_endpoint: format!("https://{}/oauth2/v1/authorize", domain),
@@ -283,11 +279,7 @@ impl OidcConfig {
     }
 
     /// 创建Google Workspace OIDC配置
-    pub fn google_workspace(
-        client_id: &str,
-        client_secret: &str,
-        redirect_uri: &str,
-    ) -> Self {
+    pub fn google_workspace(client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
         Self {
             issuer_url: "https://accounts.google.com".to_string(),
             authorization_endpoint: "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
@@ -491,11 +483,7 @@ impl OAuth2Config {
     }
 
     /// 创建GitHub OAuth2配置
-    pub fn github(
-        client_id: &str,
-        client_secret: &str,
-        redirect_uri: &str,
-    ) -> Self {
+    pub fn github(client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
         Self {
             authorization_endpoint: "https://github.com/login/oauth/authorize".to_string(),
             token_endpoint: "https://github.com/login/oauth/access_token".to_string(),
@@ -622,16 +610,9 @@ impl LdapAttributeMapping {
 }
 
 /// OneLogin SAML配置快捷方式
-pub fn onelogin_saml(
-    account_id: &str,
-    sp_entity_id: &str,
-    acs_url: &str,
-) -> SamlConfig {
+pub fn onelogin_saml(account_id: &str, sp_entity_id: &str, acs_url: &str) -> SamlConfig {
     SamlConfig {
-        idp_metadata_url: format!(
-            "https://app.onelogin.com/saml/metadata/{}",
-            account_id
-        ),
+        idp_metadata_url: format!("https://app.onelogin.com/saml/metadata/{}", account_id),
         sp_entity_id: sp_entity_id.to_string(),
         acs_url: acs_url.to_string(),
         slo_url: Some(format!(

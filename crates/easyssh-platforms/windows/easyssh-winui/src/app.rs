@@ -8,18 +8,19 @@
 //! - Terminal launch feedback with progress indication
 //! - Smooth animations and transitions
 
+use crate::design::{BrandColors, DesignTheme, Motion, Radius, Spacing, Typography};
 use crate::detail_panel::{DetailPanelContainer, DetailPanelContainerResponse, ServerUpdateData};
 use crate::dialogs::{
-    AddServerDialog, DeleteConfirmDialog, DialogResult, EditServerDialog, ErrorDialog,
-    GroupColorPicker, GroupColor, GroupDialogAction, GroupManagerDialog, PasswordDialogResult, PasswordPromptDialog,
+    AddServerDialog, DeleteConfirmDialog, DialogResult, EditServerDialog, ErrorDialog, GroupColor,
+    GroupColorPicker, GroupDialogAction, GroupManagerDialog, PasswordDialogResult,
+    PasswordPromptDialog,
 };
 use crate::sidebar::{QuickActionsBar, QuickActionsResponse, Sidebar, SidebarResponse};
 use crate::terminal_launcher::{
     get_terminal_diagnostics, launch_ssh_terminal, SshConnection, TerminalError, TerminalPreference,
 };
 use crate::viewmodels::{AppViewModel, GroupViewModel, ServerViewModel};
-use crate::design::{DesignTheme, BrandColors, Radius, Spacing, Motion, Typography};
-use egui::{Context, Style, Visuals, Margin, Frame, RichText, Stroke, Color32, Align, Layout};
+use egui::{Align, Color32, Context, Frame, Layout, Margin, RichText, Stroke, Style, Visuals};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tracing::{error, info, warn};
@@ -480,7 +481,11 @@ impl EasySshApp {
         egui::Window::new("Terminal Diagnostics")
             .collapsible(false)
             .resizable(false)
-            .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion { egui::Shadow::NONE } else { egui::Shadow::small_dark() }))
+            .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion {
+                egui::Shadow::NONE
+            } else {
+                egui::Shadow::small_dark()
+            }))
             .show(ctx, |ui| {
                 let diag = get_terminal_diagnostics();
 
@@ -488,30 +493,50 @@ impl EasySshApp {
                 ui.add_space(4.0);
 
                 let check = |available: bool| -> &str {
-                    if available { "✓" } else { "✗" }
+                    if available {
+                        "✓"
+                    } else {
+                        "✗"
+                    }
                 };
 
                 ui.horizontal(|ui| {
                     ui.label("  Windows Terminal:");
-                    let color = if diag.windows_terminal_available { Color32::GREEN } else { Color32::RED };
+                    let color = if diag.windows_terminal_available {
+                        Color32::GREEN
+                    } else {
+                        Color32::RED
+                    };
                     ui.colored_label(color, check(diag.windows_terminal_available));
                 });
 
                 ui.horizontal(|ui| {
                     ui.label("  PowerShell:");
-                    let color = if diag.powershell_available { Color32::GREEN } else { Color32::RED };
+                    let color = if diag.powershell_available {
+                        Color32::GREEN
+                    } else {
+                        Color32::RED
+                    };
                     ui.colored_label(color, check(diag.powershell_available));
                 });
 
                 ui.horizontal(|ui| {
                     ui.label("  CMD:");
-                    let color = if diag.cmd_available { Color32::GREEN } else { Color32::RED };
+                    let color = if diag.cmd_available {
+                        Color32::GREEN
+                    } else {
+                        Color32::RED
+                    };
                     ui.colored_label(color, check(diag.cmd_available));
                 });
 
                 ui.horizontal(|ui| {
                     ui.label("  SSH:");
-                    let color = if diag.ssh_available { Color32::GREEN } else { Color32::RED };
+                    let color = if diag.ssh_available {
+                        Color32::GREEN
+                    } else {
+                        Color32::RED
+                    };
                     ui.colored_label(color, check(diag.ssh_available));
                 });
 
@@ -562,7 +587,11 @@ impl EasySshApp {
         egui::Window::new("Keyboard Shortcuts")
             .collapsible(false)
             .resizable(false)
-            .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion { egui::Shadow::NONE } else { egui::Shadow::small_dark() }))
+            .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion {
+                egui::Shadow::NONE
+            } else {
+                egui::Shadow::small_dark()
+            }))
             .show(ctx, |ui| {
                 ui.label(RichText::new("Quick Actions:").strong());
                 ui.add_space(8.0);
@@ -574,10 +603,18 @@ impl EasySshApp {
                             .rounding(Radius::SM)
                             .inner_margin(Margin::symmetric(6.0, 4.0))
                             .show(ui, |ui| {
-                                ui.monospace(RichText::new(shortcut).size(12.0).color(theme.text_secondary));
+                                ui.monospace(
+                                    RichText::new(shortcut)
+                                        .size(12.0)
+                                        .color(theme.text_secondary),
+                                );
                             });
                         ui.add_space(12.0);
-                        ui.label(RichText::new(description).size(13.0).color(theme.text_primary));
+                        ui.label(
+                            RichText::new(description)
+                                .size(13.0)
+                                .color(theme.text_primary),
+                        );
                     });
                     ui.add_space(4.0);
                 }
@@ -623,12 +660,17 @@ impl EasySshApp {
                     .show(ui, |ui| {
                         ui.set_min_width(window_size.x);
 
-                        ui.label(RichText::new(format!("Connecting to {}", progress.server_name)).strong());
+                        ui.label(
+                            RichText::new(format!("Connecting to {}", progress.server_name))
+                                .strong(),
+                        );
                         ui.add_space(4.0);
 
                         ui.horizontal(|ui| {
                             let color = progress.stage.color();
-                            let spinner = if progress.stage != LaunchStage::Connected && progress.stage != LaunchStage::Failed {
+                            let spinner = if progress.stage != LaunchStage::Connected
+                                && progress.stage != LaunchStage::Failed
+                            {
                                 let anim = (elapsed * 8.0).sin() * 0.5 + 0.5;
                                 let bars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
                                 let idx = ((elapsed * 10.0) as usize) % bars.len();
@@ -636,15 +678,20 @@ impl EasySshApp {
                             } else {
                                 String::new()
                             };
-                            ui.colored_label(color, format!("{}{}", spinner, progress.stage.as_str()));
+                            ui.colored_label(
+                                color,
+                                format!("{}{}", spinner, progress.stage.as_str()),
+                            );
                         });
 
                         ui.add_space(4.0);
 
                         // Progress bar
-                        ui.add(egui::ProgressBar::new(progress_value)
-                            .fill(progress.stage.color())
-                            .desired_height(4.0));
+                        ui.add(
+                            egui::ProgressBar::new(progress_value)
+                                .fill(progress.stage.color())
+                                .desired_height(4.0),
+                        );
                     });
             });
     }
@@ -665,7 +712,8 @@ impl EasySshApp {
                 ctx.request_repaint();
             } else {
                 // Continuous updates during animation
-                if progress.stage != LaunchStage::Connected && progress.stage != LaunchStage::Failed {
+                if progress.stage != LaunchStage::Connected && progress.stage != LaunchStage::Failed
+                {
                     ctx.request_repaint_after(std::time::Duration::from_millis(50));
                 }
             }
@@ -944,10 +992,7 @@ impl EasySshApp {
                 Err(e) => {
                     error!("Failed to launch terminal: {}", e);
                     self.finish_terminal_launch(false);
-                    self.show_toast(
-                        format!("Failed to connect: {}", e),
-                        ToastLevel::Error,
-                    );
+                    self.show_toast(format!("Failed to connect: {}", e), ToastLevel::Error);
                     self.error_dialog
                         .open_with_message("Connection Error", &format!("{}", e));
                 }

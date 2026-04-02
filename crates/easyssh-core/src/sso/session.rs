@@ -391,7 +391,8 @@ impl SsoSessionManager {
         // 检查并限制用户会话数
         self.enforce_session_limit(user_id);
 
-        let mut session = SsoSession::new(user_id, provider_id, self.default_session_duration_hours);
+        let mut session =
+            SsoSession::new(user_id, provider_id, self.default_session_duration_hours);
 
         if let Some(ip) = ip_address {
             session.set_ip_address(ip);
@@ -480,7 +481,11 @@ impl SsoSessionManager {
     }
 
     /// 验证并刷新会话
-    pub fn validate_and_touch(&mut self, session_id: &str, ip: Option<&str>) -> Option<&SsoSession> {
+    pub fn validate_and_touch(
+        &mut self,
+        session_id: &str,
+        ip: Option<&str>,
+    ) -> Option<&SsoSession> {
         let session = self.sessions.get_mut(session_id)?;
 
         // 检查状态
@@ -528,11 +533,7 @@ impl SsoSessionManager {
 
     /// 终止用户的所有会话
     pub fn terminate_user_sessions(&mut self, user_id: &str) -> usize {
-        let session_ids: Vec<String> = self
-            .user_index
-            .get(user_id)
-            .cloned()
-            .unwrap_or_default();
+        let session_ids: Vec<String> = self.user_index.get(user_id).cloned().unwrap_or_default();
 
         let mut count = 0;
         for session_id in &session_ids {
@@ -601,16 +602,8 @@ impl SsoSessionManager {
     /// 获取统计信息
     pub fn get_statistics(&self) -> SessionStatistics {
         let total = self.sessions.len();
-        let active = self
-            .sessions
-            .values()
-            .filter(|s| s.is_active())
-            .count();
-        let expired = self
-            .sessions
-            .values()
-            .filter(|s| s.is_expired())
-            .count();
+        let active = self.sessions.values().filter(|s| s.is_active()).count();
+        let expired = self.sessions.values().filter(|s| s.is_expired()).count();
         let revoked = self
             .sessions
             .values()
@@ -761,7 +754,12 @@ mod tests {
     fn test_session_manager_create() {
         let mut manager = SsoSessionManager::new();
 
-        let session = manager.create_session("user1", "provider1", Some("192.168.1.1"), Some("Mozilla/5.0"));
+        let session = manager.create_session(
+            "user1",
+            "provider1",
+            Some("192.168.1.1"),
+            Some("Mozilla/5.0"),
+        );
 
         assert!(!session.is_expired());
         assert_eq!(session.ip_address, Some("192.168.1.1".to_string()));
@@ -816,7 +814,10 @@ mod tests {
         assert_eq!(user1_sessions.len(), 2);
 
         // 第一个会话应已被终止
-        assert!(!manager.get_session(&session1.id).is_some() || manager.get_session(&session1.id).unwrap().status == SessionStatus::Revoked);
+        assert!(
+            !manager.get_session(&session1.id).is_some()
+                || manager.get_session(&session1.id).unwrap().status == SessionStatus::Revoked
+        );
     }
 
     #[test]
@@ -878,7 +879,10 @@ mod tests {
         session.add_metadata("login_method", "sso");
         session.add_metadata("provider", "okta");
 
-        assert_eq!(session.metadata.get("login_method"), Some(&"sso".to_string()));
+        assert_eq!(
+            session.metadata.get("login_method"),
+            Some(&"sso".to_string())
+        );
         assert_eq!(session.metadata.get("provider"), Some(&"okta".to_string()));
     }
 }

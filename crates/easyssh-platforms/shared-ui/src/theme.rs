@@ -231,7 +231,9 @@ impl Color {
         match self {
             Color::Hex(h) => h.clone(),
             Color::Rgba { r, g, b, a } => format!("rgba({}, {}, {}, {})", r, g, b, a),
-            Color::Hsla { h, s, l, a } => format!("hsla({}, {}%, {}%, {})", h, s * 100.0, l * 100.0, a),
+            Color::Hsla { h, s, l, a } => {
+                format!("hsla({}, {}%, {}%, {})", h, s * 100.0, l * 100.0, a)
+            }
         }
     }
 }
@@ -529,9 +531,12 @@ impl Default for ShadowDefinitions {
             none: "none".to_string(),
             xs: "0 1px 2px 0 rgba(0, 0, 0, 0.03)".to_string(),
             sm: "0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06)".to_string(),
-            md: "0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06)".to_string(),
-            lg: "0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.06)".to_string(),
-            xl: "0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.06)".to_string(),
+            md: "0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06)"
+                .to_string(),
+            lg: "0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.06)"
+                .to_string(),
+            xl: "0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.06)"
+                .to_string(),
         }
     }
 }
@@ -544,8 +549,10 @@ impl ShadowDefinitions {
             xs: "0 1px 2px 0 rgba(0, 0, 0, 0.2)".to_string(),
             sm: "0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3)".to_string(),
             md: "0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3)".to_string(),
-            lg: "0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3)".to_string(),
-            xl: "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)".to_string(),
+            lg: "0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3)"
+                .to_string(),
+            xl: "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)"
+                .to_string(),
         }
     }
 

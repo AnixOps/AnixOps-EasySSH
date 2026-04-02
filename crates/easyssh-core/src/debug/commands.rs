@@ -2,8 +2,6 @@
 //!
 //! 提供调试测试命令，兼容旧版 `ai_programming.rs` 中的测试功能
 
-use crate::debug::DebugAccessLevel;
-
 /// 调试测试结果（兼容旧版）
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DebugTestResult {

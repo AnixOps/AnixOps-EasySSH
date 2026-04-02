@@ -4,9 +4,9 @@
 
 use crate::error::LiteError;
 use crate::sso::{
-    generate_secure_random, sha256_hash, OidcConfig, OidcTokenResponse,
-    OidcUserInfo, SamlAuthRequest, SamlAuthResponse, SamlConfig, SsoProvider,
-    SsoProviderConfig, SsoProviderType, SsoUserInfo,
+    generate_secure_random, sha256_hash, OidcConfig, OidcTokenResponse, OidcUserInfo,
+    SamlAuthRequest, SamlAuthResponse, SamlConfig, SsoProvider, SsoProviderConfig, SsoProviderType,
+    SsoUserInfo,
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::Utc;
@@ -229,10 +229,7 @@ impl SamlHandler {
     fn get_idp_sso_url(&self) -> Result<String, LiteError> {
         // 从metadata URL或配置中获取
         // 简化：假设metadata URL包含SSO URL
-        Ok(self
-            .config
-            .idp_metadata_url
-            .replace("/metadata", "/sso"))
+        Ok(self.config.idp_metadata_url.replace("/metadata", "/sso"))
     }
 
     /// 获取NameID格式URI
@@ -370,10 +367,7 @@ impl OidcHandler {
     }
 
     /// 刷新访问令牌
-    pub async fn refresh_token(
-        &self,
-        refresh_token: &str,
-    ) -> Result<OidcTokenResponse, LiteError> {
+    pub async fn refresh_token(&self, refresh_token: &str) -> Result<OidcTokenResponse, LiteError> {
         let params: Vec<(&str, &str)> = vec![
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token),
@@ -398,10 +392,7 @@ impl OidcHandler {
 
     /// 获取用户信息
     pub async fn get_userinfo(&self, access_token: &str) -> Result<OidcUserInfo, LiteError> {
-        log::info!(
-            "Fetching userinfo from {}",
-            self.config.userinfo_endpoint
-        );
+        log::info!("Fetching userinfo from {}", self.config.userinfo_endpoint);
 
         // 实际实现需要发送HTTP GET请求到userinfo端点
         // Authorization: Bearer {access_token}
@@ -420,7 +411,11 @@ impl OidcHandler {
     }
 
     /// 构建登出URL
-    pub fn build_logout_url(&self, id_token_hint: Option<&str>, post_logout_uri: Option<&str>) -> Option<String> {
+    pub fn build_logout_url(
+        &self,
+        id_token_hint: Option<&str>,
+        post_logout_uri: Option<&str>,
+    ) -> Option<String> {
         let end_session_endpoint = self.config.end_session_endpoint.as_ref()?;
 
         let mut url = end_session_endpoint.clone();
@@ -431,7 +426,11 @@ impl OidcHandler {
 
         if let Some(uri) = post_logout_uri {
             let separator = if url.contains('?') { "&" } else { "?" };
-            url.push_str(&format!("{}post_logout_redirect_uri={}", separator, urlencoding::encode(uri)));
+            url.push_str(&format!(
+                "{}post_logout_redirect_uri={}",
+                separator,
+                urlencoding::encode(uri)
+            ));
         }
 
         Some(url)
@@ -533,7 +532,10 @@ impl OidcHandler {
             sub,
             email,
             email_verified: claims.get("email_verified").and_then(|v| v.as_bool()),
-            name: claims.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            name: claims
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             preferred_username,
             given_name,
             family_name,
@@ -548,7 +550,10 @@ impl OidcHandler {
         SsoUserInfo {
             user_id: oidc_info.sub.clone(),
             email: oidc_info.email.clone().unwrap_or_default(),
-            username: oidc_info.preferred_username.clone().unwrap_or_else(|| oidc_info.sub.clone()),
+            username: oidc_info
+                .preferred_username
+                .clone()
+                .unwrap_or_else(|| oidc_info.sub.clone()),
             first_name: oidc_info.given_name.clone(),
             last_name: oidc_info.family_name.clone(),
             groups: oidc_info.groups.clone().unwrap_or_default(),

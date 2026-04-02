@@ -24,7 +24,11 @@ pub enum Event {
     /// Mouse event
     Mouse(MouseEvent),
     /// Mouse double-click event (synthesized)
-    MouseDoubleClick { x: u16, y: u16, button: crossterm::event::MouseButton },
+    MouseDoubleClick {
+        x: u16,
+        y: u16,
+        button: crossterm::event::MouseButton,
+    },
     /// Terminal resize
     Resize(u16, u16),
 }
@@ -85,11 +89,14 @@ impl EventHandler {
                                         && mouse.row == last_y
                                     {
                                         // Double-click detected
-                                        if sender.send(Event::MouseDoubleClick {
-                                            x: mouse.column,
-                                            y: mouse.row,
-                                            button: MouseButton::Left,
-                                        }).is_err() {
+                                        if sender
+                                            .send(Event::MouseDoubleClick {
+                                                x: mouse.column,
+                                                y: mouse.row,
+                                                button: MouseButton::Left,
+                                            })
+                                            .is_err()
+                                        {
                                             break;
                                         }
                                         last_click = None; // Reset to prevent triple-click issues
@@ -128,4 +135,3 @@ impl EventHandler {
             .ok_or_else(|| "Event channel closed".into())
     }
 }
-

@@ -32,11 +32,12 @@ impl<T> ObjectPool<T> {
     }
 
     /// Get an object from the pool
-    pub fn acquire(&self) -> Result<PooledObject<T>, LiteError> {
+    pub fn acquire(&self) -> Result<PooledObject<'_, T>, LiteError> {
         let obj = {
-            let mut pool = self.pool.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock pool".to_string())
-            })?;
+            let mut pool = self
+                .pool
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock pool".to_string()))?;
 
             pool.pop_front().unwrap_or_else(|| (self.factory)())
         };
@@ -58,9 +59,10 @@ impl<T> ObjectPool<T> {
 
     /// Get pool statistics
     pub fn stats(&self) -> Result<PoolStats, LiteError> {
-        let pool = self.pool.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock pool".to_string())
-        })?;
+        let pool = self
+            .pool
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock pool".to_string()))?;
 
         Ok(PoolStats {
             available: pool.len(),
@@ -70,9 +72,10 @@ impl<T> ObjectPool<T> {
 
     /// Clear the pool
     pub fn clear(&self) -> Result<(), LiteError> {
-        let mut pool = self.pool.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock pool".to_string())
-        })?;
+        let mut pool = self
+            .pool
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock pool".to_string()))?;
 
         pool.clear();
         Ok(())
@@ -128,7 +131,7 @@ impl StringPool {
     }
 
     /// Get a string from the pool
-    pub fn acquire(&self) -> Result<PooledObject<String>, LiteError> {
+    pub fn acquire(&self) -> Result<PooledObject<'_, String>, LiteError> {
         self.pool.acquire()
     }
 }
@@ -147,7 +150,7 @@ impl ByteBufferPool {
     }
 
     /// Get a buffer from the pool
-    pub fn acquire(&self) -> Result<PooledObject<Vec<u8>>, LiteError> {
+    pub fn acquire(&self) -> Result<PooledObject<'_, Vec<u8>>, LiteError> {
         self.pool.acquire()
     }
 }
@@ -181,9 +184,10 @@ impl MemoryTracker {
 
     /// Track an allocation
     pub fn track_allocation(&self, size: usize, location: &'static str) -> Result<(), LiteError> {
-        let mut current = self.current_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock current usage".to_string())
-        })?;
+        let mut current = self
+            .current_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock current usage".to_string()))?;
 
         // Check limit
         if *current + size > self.limit {
@@ -196,18 +200,20 @@ impl MemoryTracker {
         *current += size;
 
         // Update peak
-        let mut peak = self.peak_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock peak usage".to_string())
-        })?;
+        let mut peak = self
+            .peak_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock peak usage".to_string()))?;
 
         if *current > *peak {
             *peak = *current;
         }
 
         // Record allocation
-        let mut allocations = self.allocations.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock allocations".to_string())
-        })?;
+        let mut allocations = self
+            .allocations
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock allocations".to_string()))?;
 
         allocations.push(AllocationRecord { size, location });
 
@@ -216,9 +222,10 @@ impl MemoryTracker {
 
     /// Track deallocation
     pub fn track_deallocation(&self, size: usize) -> Result<(), LiteError> {
-        let mut current = self.current_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock current usage".to_string())
-        })?;
+        let mut current = self
+            .current_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock current usage".to_string()))?;
 
         *current = current.saturating_sub(size);
 
@@ -227,20 +234,24 @@ impl MemoryTracker {
 
     /// Get memory statistics
     pub fn stats(&self) -> Result<MemoryStats, LiteError> {
-        let current = self.current_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock current usage".to_string())
-        })?;
+        let current = self
+            .current_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock current usage".to_string()))?;
 
-        let peak = self.peak_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock peak usage".to_string())
-        })?;
+        let peak = self
+            .peak_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock peak usage".to_string()))?;
 
-        let allocations = self.allocations.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock allocations".to_string())
-        })?;
+        let allocations = self
+            .allocations
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock allocations".to_string()))?;
 
         // Calculate top allocation sources
-        let mut source_map: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        let mut source_map: std::collections::HashMap<&str, usize> =
+            std::collections::HashMap::new();
         for record in allocations.iter() {
             *source_map.entry(record.location).or_insert(0) += record.size;
         }
@@ -263,26 +274,30 @@ impl MemoryTracker {
 
     /// Check if under memory limit
     pub fn check_limit(&self, additional_bytes: usize) -> Result<bool, LiteError> {
-        let current = self.current_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock current usage".to_string())
-        })?;
+        let current = self
+            .current_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock current usage".to_string()))?;
 
         Ok(*current + additional_bytes <= self.limit)
     }
 
     /// Reset statistics
     pub fn reset(&self) -> Result<(), LiteError> {
-        let mut allocations = self.allocations.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock allocations".to_string())
-        })?;
+        let mut allocations = self
+            .allocations
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock allocations".to_string()))?;
 
-        let mut peak = self.peak_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock peak usage".to_string())
-        })?;
+        let mut peak = self
+            .peak_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock peak usage".to_string()))?;
 
-        let mut current = self.current_usage.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock current usage".to_string())
-        })?;
+        let current = self
+            .current_usage
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock current usage".to_string()))?;
 
         allocations.clear();
         *peak = *current;
@@ -344,7 +359,7 @@ impl MemoryOptimizer {
         Self {
             string_pool: StringPool::new(50),
             buffer_pool: ByteBufferPool::new(20, 64 * 1024), // 64KB buffers
-            tracker: Arc::new(MemoryTracker::new(80)), // 80MB limit
+            tracker: Arc::new(MemoryTracker::new(80)),       // 80MB limit
         }
     }
 
@@ -358,12 +373,12 @@ impl MemoryOptimizer {
     }
 
     /// Get a string from the pool
-    pub fn get_string(&self) -> Result<PooledObject<String>, LiteError> {
+    pub fn get_string(&self) -> Result<PooledObject<'_, String>, LiteError> {
         self.string_pool.acquire()
     }
 
     /// Get a buffer from the pool
-    pub fn get_buffer(&self) -> Result<PooledObject<Vec<u8>>, LiteError> {
+    pub fn get_buffer(&self) -> Result<PooledObject<'_, Vec<u8>>, LiteError> {
         self.buffer_pool.acquire()
     }
 
@@ -424,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_object_pool() {
-        let pool = ObjectPool::new(5, || Vec::with_capacity(100));
+        let pool = ObjectPool::new(5, || Vec::<u8>::with_capacity(100));
 
         // Acquire and release
         {

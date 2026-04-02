@@ -225,7 +225,10 @@ impl Animation {
     /// Check if animation should be used with reduced motion
     pub fn is_safe_for_reduced_motion(&self) -> bool {
         // Only non-movement animations are safe
-        matches!(self, Animation::FadeIn | Animation::FadeOut | Animation::Pulse)
+        matches!(
+            self,
+            Animation::FadeIn | Animation::FadeOut | Animation::Pulse
+        )
     }
 }
 
@@ -321,18 +324,14 @@ impl AnimationState {
 /// Interpolate between two values
 fn interpolate_value(from: &AnimatedValue, to: &AnimatedValue, t: f32) -> AnimatedValue {
     match (from, to) {
-        (AnimatedValue::Float(a), AnimatedValue::Float(b)) => {
-            AnimatedValue::Float(lerp(*a, *b, t))
-        }
+        (AnimatedValue::Float(a), AnimatedValue::Float(b)) => AnimatedValue::Float(lerp(*a, *b, t)),
         (AnimatedValue::Position { x: x1, y: y1 }, AnimatedValue::Position { x: x2, y: y2 }) => {
             AnimatedValue::Position {
                 x: lerp(*x1, *x2, t),
                 y: lerp(*y1, *y2, t),
             }
         }
-        (AnimatedValue::Scale(a), AnimatedValue::Scale(b)) => {
-            AnimatedValue::Scale(lerp(*a, *b, t))
-        }
+        (AnimatedValue::Scale(a), AnimatedValue::Scale(b)) => AnimatedValue::Scale(lerp(*a, *b, t)),
         (AnimatedValue::ScaleXY { x: x1, y: y1 }, AnimatedValue::ScaleXY { x: x2, y: y2 }) => {
             AnimatedValue::ScaleXY {
                 x: lerp(*x1, *x2, t),

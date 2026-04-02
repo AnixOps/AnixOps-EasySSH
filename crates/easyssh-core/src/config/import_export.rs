@@ -18,10 +18,9 @@
 //! let yaml = manager.export_config(&config, ExportFormat::Yaml)?;
 //! ```
 
-use crate::config::types::{AppConfig, FullConfig, SecuritySettings, Theme, UserPreferences};
-use crate::config::validation::{ConfigAutoFix, ConfigValidator, ValidationError};
+use crate::config::types::{FullConfig, Theme};
+use crate::config::validation::{ConfigAutoFix, ConfigValidator};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::Path;
 
 /// Export format types
@@ -76,8 +75,9 @@ impl ExportFormat {
         }
 
         // Check for YAML
-        if trimmed.starts_with("---") ||
-           (trimmed.contains(':') && !trimmed.contains('=') && !trimmed.contains('[')) {
+        if trimmed.starts_with("---")
+            || (trimmed.contains(':') && !trimmed.contains('=') && !trimmed.contains('['))
+        {
             return Some(ExportFormat::Yaml);
         }
 
@@ -87,9 +87,12 @@ impl ExportFormat {
         }
 
         // Check for env format (KEY=VALUE pairs)
-        if trimmed.lines().next()
+        if trimmed
+            .lines()
+            .next()
             .map(|l| l.contains('=') && !l.starts_with('[') && !l.contains('{'))
-            .unwrap_or(false) {
+            .unwrap_or(false)
+        {
             return Some(ExportFormat::Env);
         }
 
@@ -215,15 +218,22 @@ pub struct ImportExportManager;
 
 impl ImportExportManager {
     /// Export configuration to string
-    pub fn export_config(config: &FullConfig, options: ExportOptions) -> Result<String, ImportExportError> {
+    pub fn export_config(
+        config: &FullConfig,
+        options: ExportOptions,
+    ) -> Result<String, ImportExportError> {
         // Validate before export
         let validator = ConfigValidator::new();
         if let Err(errors) = validator.validate(config) {
-            let has_errors = errors.iter()
-                .any(|e| matches!(e.severity, crate::config::validation::ValidationSeverity::Error));
+            let has_errors = errors.iter().any(|e| {
+                matches!(
+                    e.severity,
+                    crate::config::validation::ValidationSeverity::Error
+                )
+            });
             if has_errors {
                 return Err(ImportExportError::ValidationFailed(
-                    errors.into_iter().map(|e| e.message).collect()
+                    errors.into_iter().map(|e| e.message).collect(),
                 ));
             }
         }
@@ -236,25 +246,18 @@ impl ImportExportManager {
         };
 
         match options.format {
-            ExportFormat::Json => {
-                serde_json::to_string(&config_to_export)
-                    .map_err(|e| ImportExportError::SerializationError(e.to_string()))
-            }
-            ExportFormat::JsonPretty => {
-                serde_json::to_string_pretty(&config_to_export)
-                    .map_err(|e| ImportExportError::SerializationError(e.to_string()))
-            }
-            ExportFormat::Yaml => {
-                serde_yaml::to_string(&config_to_export)
-                    .map_err(|e| ImportExportError::SerializationError(e.to_string()))
-            }
-            ExportFormat::Toml => {
-                toml::to_string_pretty(&config_to_export)
-                    .map_err(|e| ImportExportError::SerializationError(e.to_string()))
-            }
-            ExportFormat::Env => {
-                Ok(Self::export_to_env(&config_to_export, options.include_comments))
-            }
+            ExportFormat::Json => serde_json::to_string(&config_to_export)
+                .map_err(|e| ImportExportError::SerializationError(e.to_string())),
+            ExportFormat::JsonPretty => serde_json::to_string_pretty(&config_to_export)
+                .map_err(|e| ImportExportError::SerializationError(e.to_string())),
+            ExportFormat::Yaml => serde_yaml::to_string(&config_to_export)
+                .map_err(|e| ImportExportError::SerializationError(e.to_string())),
+            ExportFormat::Toml => toml::to_string_pretty(&config_to_export)
+                .map_err(|e| ImportExportError::SerializationError(e.to_string())),
+            ExportFormat::Env => Ok(Self::export_to_env(
+                &config_to_export,
+                options.include_comments,
+            )),
         }
     }
 
@@ -263,7 +266,8 @@ impl ImportExportManager {
         let mut result = ImportResult::default();
 
         // Auto-detect format
-        let format = options.format_hint
+        let format = options
+            .format_hint
             .or_else(|| ExportFormat::detect(content))
             .unwrap_or(ExportFormat::Json);
 
@@ -271,18 +275,10 @@ impl ImportExportManager {
 
         // Parse based on format
         let parse_result = match format {
-            ExportFormat::Json | ExportFormat::JsonPretty => {
-                Self::parse_json(content)
-            }
-            ExportFormat::Yaml => {
-                Self::parse_yaml(content)
-            }
-            ExportFormat::Toml => {
-                Self::parse_toml(content)
-            }
-            ExportFormat::Env => {
-                Self::parse_env(content)
-            }
+            ExportFormat::Json | ExportFormat::JsonPretty => Self::parse_json(content),
+            ExportFormat::Yaml => Self::parse_yaml(content),
+            ExportFormat::Toml => Self::parse_toml(content),
+            ExportFormat::Env => Self::parse_env(content),
         };
 
         let mut config = match parse_result {
@@ -308,14 +304,14 @@ impl ImportExportManager {
                     result.success = true;
                 }
                 Err(errors) => {
-                    let has_fatal = errors.iter()
-                        .any(|e| matches!(e.severity, crate::config::validation::ValidationSeverity::Error));
+                    let has_fatal = errors.iter().any(|e| {
+                        matches!(
+                            e.severity,
+                            crate::config::validation::ValidationSeverity::Error
+                        )
+                    });
 
-                    if has_fatal && options.strict {
-                        result.success = false;
-                    } else {
-                        result.success = true;
-                    }
+                    result.success = !(has_fatal && options.strict);
 
                     for error in errors {
                         match error.severity {
@@ -323,7 +319,9 @@ impl ImportExportManager {
                                 result.errors.push(error.message);
                             }
                             crate::config::validation::ValidationSeverity::Warning => {
-                                result.warnings.push(format!("{}: {}", error.field, error.message));
+                                result
+                                    .warnings
+                                    .push(format!("{}: {}", error.field, error.message));
                             }
                             crate::config::validation::ValidationSeverity::Info => {
                                 // Info messages are not added to errors or warnings
@@ -364,18 +362,12 @@ impl ImportExportManager {
         format: ExportFormat,
     ) -> Result<T, ImportExportError> {
         match format {
-            ExportFormat::Json | ExportFormat::JsonPretty => {
-                serde_json::from_str(content)
-                    .map_err(|e| ImportExportError::DeserializationError(e.to_string()))
-            }
-            ExportFormat::Yaml => {
-                serde_yaml::from_str(content)
-                    .map_err(|e| ImportExportError::DeserializationError(e.to_string()))
-            }
-            ExportFormat::Toml => {
-                toml::from_str(content)
-                    .map_err(|e| ImportExportError::DeserializationError(e.to_string()))
-            }
+            ExportFormat::Json | ExportFormat::JsonPretty => serde_json::from_str(content)
+                .map_err(|e| ImportExportError::DeserializationError(e.to_string())),
+            ExportFormat::Yaml => serde_yaml::from_str(content)
+                .map_err(|e| ImportExportError::DeserializationError(e.to_string())),
+            ExportFormat::Toml => toml::from_str(content)
+                .map_err(|e| ImportExportError::DeserializationError(e.to_string())),
             _ => Err(ImportExportError::UnsupportedFormat),
         }
     }
@@ -396,14 +388,12 @@ impl ImportExportManager {
             options.format
         };
 
-        let options = ExportOptions {
-            format,
-            ..options
-        };
+        let options = ExportOptions { format, ..options };
 
         let content = Self::export_config(config, options)?;
 
-        tokio::fs::write(path, content).await
+        tokio::fs::write(path, content)
+            .await
             .map_err(|e| ImportExportError::IoError(e.to_string()))
     }
 
@@ -413,7 +403,8 @@ impl ImportExportManager {
         options: ImportOptions,
     ) -> Result<ImportResult, ImportExportError> {
         // Detect format from path
-        let format_hint = path.extension()
+        let format_hint = path
+            .extension()
             .and_then(|e| e.to_str())
             .and_then(ExportFormat::from_extension);
 
@@ -422,7 +413,8 @@ impl ImportExportManager {
             ..options
         };
 
-        let content = tokio::fs::read_to_string(path).await
+        let content = tokio::fs::read_to_string(path)
+            .await
             .map_err(|e| ImportExportError::IoError(e.to_string()))?;
 
         Ok(Self::import_config(&content, options))
@@ -439,15 +431,18 @@ impl ImportExportManager {
 
         // Clear sensitive custom fields
         let sensitive_keys = ["password", "secret", "key", "token", "auth"];
-        filtered.app_config.custom.retain(|k, _| {
-            !sensitive_keys.iter().any(|s| k.to_lowercase().contains(s))
-        });
-        filtered.user_preferences.custom.retain(|k, _| {
-            !sensitive_keys.iter().any(|s| k.to_lowercase().contains(s))
-        });
-        filtered.security_settings.custom.retain(|k, _| {
-            !sensitive_keys.iter().any(|s| k.to_lowercase().contains(s))
-        });
+        filtered
+            .app_config
+            .custom
+            .retain(|k, _| !sensitive_keys.iter().any(|s| k.to_lowercase().contains(s)));
+        filtered
+            .user_preferences
+            .custom
+            .retain(|k, _| !sensitive_keys.iter().any(|s| k.to_lowercase().contains(s)));
+        filtered
+            .security_settings
+            .custom
+            .retain(|k, _| !sensitive_keys.iter().any(|s| k.to_lowercase().contains(s)));
 
         filtered
     }
@@ -466,10 +461,7 @@ impl ImportExportManager {
         if include_comments {
             lines.push("# Application Settings".to_string());
         }
-        lines.push(format!(
-            "EASYSSH_THEME={:?}",
-            config.app_config.theme
-        ));
+        lines.push(format!("EASYSSH_THEME={:?}", config.app_config.theme));
         lines.push(format!(
             "EASYSSH_LANGUAGE={}",
             match config.app_config.language {
@@ -561,20 +553,17 @@ impl ImportExportManager {
 
     /// Parse JSON
     fn parse_json(content: &str) -> Result<FullConfig, String> {
-        serde_json::from_str(content)
-            .map_err(|e| e.to_string())
+        serde_json::from_str(content).map_err(|e| e.to_string())
     }
 
     /// Parse YAML
     fn parse_yaml(content: &str) -> Result<FullConfig, String> {
-        serde_yaml::from_str(content)
-            .map_err(|e| e.to_string())
+        serde_yaml::from_str(content).map_err(|e| e.to_string())
     }
 
     /// Parse TOML
     fn parse_toml(content: &str) -> Result<FullConfig, String> {
-        toml::from_str(content)
-            .map_err(|e| e.to_string())
+        toml::from_str(content).map_err(|e| e.to_string())
     }
 
     /// Parse env format
@@ -592,7 +581,10 @@ impl ImportExportManager {
             // Parse KEY=VALUE
             if let Some(eq_pos) = line.find('=') {
                 let key = line[..eq_pos].trim();
-                let value = line[eq_pos + 1..].trim().trim_matches('"').trim_matches('\'');
+                let value = line[eq_pos + 1..]
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'');
 
                 // Apply value to config
                 Self::apply_env_value(&mut config, key, value)?;
@@ -631,16 +623,20 @@ impl ImportExportManager {
                 config.user_preferences.default_port = value.parse().map_err(|_| "Invalid port")?;
             }
             "EASYSSH_CONNECTION_TIMEOUT" => {
-                config.user_preferences.connection_timeout = value.parse().map_err(|_| "Invalid integer")?;
+                config.user_preferences.connection_timeout =
+                    value.parse().map_err(|_| "Invalid integer")?;
             }
             "EASYSSH_CLIPBOARD_CLEAR_TIME" => {
-                config.security_settings.clipboard_clear_time = value.parse().map_err(|_| "Invalid integer")?;
+                config.security_settings.clipboard_clear_time =
+                    value.parse().map_err(|_| "Invalid integer")?;
             }
             "EASYSSH_LOCK_ON_SLEEP" => {
-                config.security_settings.lock_on_sleep = value.parse().map_err(|_| "Invalid boolean")?;
+                config.security_settings.lock_on_sleep =
+                    value.parse().map_err(|_| "Invalid boolean")?;
             }
             "EASYSSH_STRICT_HOST_KEY_CHECKING" => {
-                config.security_settings.strict_host_key_checking = value.parse().map_err(|_| "Invalid boolean")?;
+                config.security_settings.strict_host_key_checking =
+                    value.parse().map_err(|_| "Invalid boolean")?;
             }
             _ => {} // Unknown key, ignore
         }
@@ -669,7 +665,7 @@ impl ImportExportManager {
             Self::export_config(&config, export_options)
         } else {
             Err(ImportExportError::ConversionFailed(
-                result.errors.join(", ")
+                result.errors.join(", "),
             ))
         }
     }
@@ -679,7 +675,8 @@ impl ImportExportManager {
         configs: &[FullConfig],
         options: ExportOptions,
     ) -> Result<Vec<String>, ImportExportError> {
-        configs.iter()
+        configs
+            .iter()
             .map(|c| Self::export_config(c, options.clone()))
             .collect::<Result<Vec<_>, _>>()
     }
@@ -742,10 +739,22 @@ mod tests {
 
     #[test]
     fn test_export_format_detection() {
-        assert_eq!(ExportFormat::from_extension("json"), Some(ExportFormat::Json));
-        assert_eq!(ExportFormat::from_extension("yaml"), Some(ExportFormat::Yaml));
-        assert_eq!(ExportFormat::from_extension("toml"), Some(ExportFormat::Toml));
-        assert_eq!(ExportFormat::from_extension("yml"), Some(ExportFormat::Yaml));
+        assert_eq!(
+            ExportFormat::from_extension("json"),
+            Some(ExportFormat::Json)
+        );
+        assert_eq!(
+            ExportFormat::from_extension("yaml"),
+            Some(ExportFormat::Yaml)
+        );
+        assert_eq!(
+            ExportFormat::from_extension("toml"),
+            Some(ExportFormat::Toml)
+        );
+        assert_eq!(
+            ExportFormat::from_extension("yml"),
+            Some(ExportFormat::Yaml)
+        );
         assert_eq!(ExportFormat::from_extension("unknown"), None);
     }
 
@@ -763,10 +772,7 @@ mod tests {
             ExportFormat::detect("[section]\nkey = value"),
             Some(ExportFormat::Toml)
         );
-        assert_eq!(
-            ExportFormat::detect("KEY=value"),
-            Some(ExportFormat::Env)
-        );
+        assert_eq!(ExportFormat::detect("KEY=value"), Some(ExportFormat::Env));
     }
 
     #[test]
@@ -822,7 +828,10 @@ mod tests {
     fn test_sensitive_data_filtering() {
         let mut config = create_test_config();
         config.user_preferences.default_key_path = Some("/secret/key".to_string());
-        config.user_preferences.search_history.push("secret".to_string());
+        config
+            .user_preferences
+            .search_history
+            .push("secret".to_string());
 
         let filtered = ImportExportManager::filter_sensitive_data(&config);
         assert!(filtered.user_preferences.default_key_path.is_none());
@@ -835,11 +844,9 @@ mod tests {
         let json_options = ExportOptions::json();
         let json = ImportExportManager::export_config(&config, json_options).unwrap();
 
-        let yaml = ImportExportManager::convert_format(
-            &json,
-            ExportFormat::Json,
-            ExportFormat::Yaml
-        ).unwrap();
+        let yaml =
+            ImportExportManager::convert_format(&json, ExportFormat::Json, ExportFormat::Yaml)
+                .unwrap();
 
         assert!(yaml.contains("version:"));
     }

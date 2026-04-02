@@ -34,10 +34,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::{
-    Validatable, ValidationError, DEFAULT_CONNECTION_TIMEOUT, DEFAULT_HEARTBEAT_INTERVAL,
-    MAX_NAME_LENGTH,
-};
+use super::{Validatable, ValidationError, DEFAULT_CONNECTION_TIMEOUT, DEFAULT_HEARTBEAT_INTERVAL};
 
 /// Current settings schema version
 pub const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 1;
@@ -720,7 +717,8 @@ impl Validatable for NetworkSettings {
         }
 
         // Validate proxy settings
-        if self.proxy_address.is_some() && (self.proxy_port == 0 || self.proxy_port > 65535) {
+        // Note: proxy_port > 65535 check removed since proxy_port is u16 (max 65535)
+        if self.proxy_address.is_some() && self.proxy_port == 0 {
             errors.push(ValidationError::invalid_field(
                 "network.proxy_port",
                 format!("Invalid proxy port: {}", self.proxy_port),

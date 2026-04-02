@@ -205,4 +205,3 @@ mod tests {
         let _sidebar = Sidebar::new();
     }
 }
-

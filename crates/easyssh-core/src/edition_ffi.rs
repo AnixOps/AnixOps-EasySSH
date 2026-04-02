@@ -8,7 +8,7 @@
 
 use crate::edition::{AppIdentity, BuildType, Edition, VersionComparator, VersionInfo};
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int, c_uchar};
+use std::os::raw::{c_char, c_int};
 
 /// 版本信息 C 结构体
 #[repr(C)]

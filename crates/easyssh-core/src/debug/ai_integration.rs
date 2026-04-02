@@ -10,7 +10,7 @@
 //! - Git操作
 //! - 自我修复循环
 
-use crate::debug::access::{check_access, get_access_level};
+use crate::debug::access::check_access;
 use crate::debug::types::*;
 use crate::debug::DebugAccessLevel;
 use std::path::{Path, PathBuf};
@@ -250,7 +250,7 @@ pub async fn type_check() -> Result<TypeCheckResult, String> {
         .map_err(|e| format!("Failed to run type check: {}", e))?;
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let _stdout = String::from_utf8_lossy(&output.stdout);
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -583,7 +583,7 @@ pub fn clear_context() -> Result<(), String> {
 ///
 /// 自动分析问题并尝试修复
 pub async fn self_fix(
-    problem_description: String,
+    _problem_description: String,
     max_iterations: Option<usize>,
 ) -> Result<SelfFixResult, String> {
     if !check_access(DebugAccessLevel::Developer) {
@@ -595,7 +595,7 @@ pub async fn self_fix(
 
     for iteration in 0..max_iterations {
         // 分析当前状态
-        let status = git_status().await?;
+        let _status = git_status().await?;
         let type_check_result = type_check().await?;
 
         // 记录尝试

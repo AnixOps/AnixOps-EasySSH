@@ -165,14 +165,8 @@ impl Default for KeyBindings {
         );
 
         // Navigation - First/Last (vim style)
-        bindings.insert(
-            (KeyCode::Char('g'), KeyModifiers::NONE),
-            Action::GoToFirst,
-        );
-        bindings.insert(
-            (KeyCode::Char('G'), KeyModifiers::SHIFT),
-            Action::GoToLast,
-        );
+        bindings.insert((KeyCode::Char('g'), KeyModifiers::NONE), Action::GoToFirst);
+        bindings.insert((KeyCode::Char('G'), KeyModifiers::SHIFT), Action::GoToLast);
 
         // Navigation - Home/End/PgUp/PgDn
         bindings.insert((KeyCode::Home, KeyModifiers::NONE), Action::GoToFirst);
@@ -203,10 +197,16 @@ impl Default for KeyBindings {
         );
         bindings.insert((KeyCode::Char('c'), KeyModifiers::NONE), Action::Connect);
         bindings.insert((KeyCode::Char('C'), KeyModifiers::SHIFT), Action::Connect);
-        bindings.insert((KeyCode::Char(' '), KeyModifiers::NONE), Action::QuickConnect);
+        bindings.insert(
+            (KeyCode::Char(' '), KeyModifiers::NONE),
+            Action::QuickConnect,
+        );
 
         // Group operations
-        bindings.insert((KeyCode::Char('g'), KeyModifiers::CONTROL), Action::NewGroup);
+        bindings.insert(
+            (KeyCode::Char('g'), KeyModifiers::CONTROL),
+            Action::NewGroup,
+        );
         bindings.insert((KeyCode::Char('G'), KeyModifiers::SHIFT), Action::EditGroup);
         bindings.insert(
             (KeyCode::Char('D'), KeyModifiers::SHIFT),
@@ -216,20 +216,17 @@ impl Default for KeyBindings {
         // Utility
         bindings.insert((KeyCode::Char('r'), KeyModifiers::NONE), Action::Refresh);
         bindings.insert((KeyCode::F(5), KeyModifiers::NONE), Action::Refresh);
-        bindings.insert((KeyCode::Char('t'), KeyModifiers::NONE), Action::ToggleTheme);
+        bindings.insert(
+            (KeyCode::Char('t'), KeyModifiers::NONE),
+            Action::ToggleTheme,
+        );
         bindings.insert((KeyCode::F(1), KeyModifiers::NONE), Action::Help);
         bindings.insert((KeyCode::Char('?'), KeyModifiers::SHIFT), Action::Help);
         bindings.insert((KeyCode::Char('?'), KeyModifiers::NONE), Action::Help);
 
         // Clipboard
-        bindings.insert(
-            (KeyCode::Char('c'), KeyModifiers::CONTROL),
-            Action::Copy,
-        );
-        bindings.insert(
-            (KeyCode::Char('v'), KeyModifiers::CONTROL),
-            Action::Paste,
-        );
+        bindings.insert((KeyCode::Char('c'), KeyModifiers::CONTROL), Action::Copy);
+        bindings.insert((KeyCode::Char('v'), KeyModifiers::CONTROL), Action::Paste);
 
         Self { bindings }
     }

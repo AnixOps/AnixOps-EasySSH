@@ -1,5 +1,73 @@
-//! Terminal module
-//! Provides native terminal launching (Lite) and embedded terminal emulator (Standard/Pro)
+//! Terminal Module
+//!
+//! This module provides terminal functionality for all EasySSH editions:
+//! - **Lite Edition**: Native terminal launcher (uses system SSH client)
+//! - **Standard/Pro Editions**: Embedded terminal emulator with WebGL rendering
+//!
+//! # Feature Flags
+//!
+//! The module behavior is controlled by feature flags:
+//! - `embedded-terminal` - Enables embedded terminal emulator (Standard/Pro)
+//! - Without the feature, only native terminal launching is available (Lite)
+//!
+//! # Architecture
+//!
+//! ## Native Terminal (Lite)
+//! The native launcher (`launcher` module) detects the platform's available terminals
+//! and spawns them with appropriate SSH command arguments.
+//!
+//! Supported terminals:
+//! - Windows: Windows Terminal, PowerShell, CMD
+//! - macOS: Terminal.app, iTerm2
+//! - Linux: GNOME Terminal, Konsole, xterm, alacritty, etc.
+//!
+//! ## Embedded Terminal (Standard/Pro)
+//! The embedded terminal provides a full terminal emulator with:
+//! - PTY (pseudo-terminal) management
+//! - WebSocket bridge for UI communication
+//! - xterm.js compatibility layer
+//! - WebGL-accelerated rendering
+//! - Multi-tab support
+//! - Theme management
+//!
+//! # Submodules
+//!
+//! | Module | Feature | Description |
+//! |--------|---------|-------------|
+//! | `launcher` | Always | Native terminal detection and launching |
+//! | `embedded` | `embedded-terminal` | PTY and terminal emulator core |
+//! | `multitab` | `embedded-terminal` | Tab management |
+//! | `theme` | `embedded-terminal` | Color schemes and theming |
+//! | `webgl` | `embedded-terminal` | WebGL renderer |
+//! | `xterm_compat` | `embedded-terminal` | xterm.js compatibility |
+//!
+//! # Example
+//!
+//! ## Native Terminal (Lite)
+//!
+//! ```rust,no_run
+//! use easyssh_core::terminal::{open_native_terminal, generate_ssh_command};
+//!
+//! // Open native terminal with SSH connection
+//! open_native_terminal("192.168.1.1", 22, "root", "agent").unwrap();
+//!
+//! // Or generate SSH command for manual use
+//! let cmd = generate_ssh_command("192.168.1.1", 22, "root", true);
+//! println!("SSH command: {}", cmd);
+//! ```
+//!
+//! ## Embedded Terminal (Standard/Pro)
+//!
+//! ```rust,ignore
+//! use easyssh_core::terminal::{TerminalManager, TerminalServerConfig};
+//!
+//! // Create terminal manager
+//! let config = TerminalServerConfig::default();
+//! let manager = TerminalManager::new(config);
+//!
+//! // Start terminal session
+//! let session = manager.create_session("session-1", "192.168.1.1", 22, "root").await.unwrap();
+//! ```
 
 use crate::error::LiteError;
 use std::process::Command;
@@ -45,15 +113,61 @@ pub use xterm_compat::{EscapeSequence, XtermCompat, XtermMode};
 
 // ============ Native Terminal Launch (Lite Version) ============
 
-/// SSH connection parameters
+/// SSH connection parameters for native terminal launcher.
+///
+/// `SshArgs` encapsulates all parameters needed to construct an SSH command
+/// for connecting to a remote server. It handles authentication method detection
+/// and generates appropriate command-line arguments.
+///
+/// # Example
+///
+/// ```rust
+/// use easyssh_core::terminal::SshArgs;
+///
+/// // Create with key/agent authentication (enables agent forwarding)
+/// let args = SshArgs::new("192.168.1.1", 22, "root", "key");
+/// assert!(args.forward_agent);
+///
+/// // Create with password authentication (no agent forwarding)
+/// let args = SshArgs::new("192.168.1.1", 22, "root", "password");
+/// assert!(!args.forward_agent);
+///
+/// // Generate command arguments
+/// let cmd_args = args.to_args();
+/// println!("SSH args: {:?}", cmd_args);
+///
+/// // Generate full command string
+/// let cmd_string = args.to_command_string();
+/// println!("{}", cmd_string); // ssh -p 22 -A root@192.168.1.1
+/// ```
 pub struct SshArgs {
+    /// Target host address (IP or hostname)
     pub host: String,
+    /// SSH port number (typically 22)
     pub port: u16,
+    /// Username for authentication
     pub username: String,
+    /// Whether to enable SSH agent forwarding (-A flag)
     pub forward_agent: bool,
 }
 
 impl SshArgs {
+    /// Create new SSH arguments.
+    ///
+    /// Automatically detects whether to enable agent forwarding based on the
+    /// authentication type. Key and agent authentication enable forwarding,
+    /// while password authentication does not.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - Target host address (IP or hostname)
+    /// * `port` - SSH port number
+    /// * `username` - Username for authentication
+    /// * `auth_type` - Authentication type: "key", "agent", or "password"
+    ///
+    /// # Returns
+    ///
+    /// A new `SshArgs` instance with appropriate settings.
     pub fn new(host: &str, port: u16, username: &str, auth_type: &str) -> Self {
         let forward_agent = matches!(auth_type, "key" | "agent");
         Self {
@@ -64,7 +178,24 @@ impl SshArgs {
         }
     }
 
-    /// Build SSH command arguments list
+    /// Build SSH command arguments list.
+    ///
+    /// Generates the arguments portion of the SSH command (everything after `ssh`).
+    /// Includes port specification and agent forwarding flag if enabled.
+    ///
+    /// # Returns
+    ///
+    /// A vector of argument strings suitable for passing to `std::process::Command`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use easyssh_core::terminal::SshArgs;
+    ///
+    /// let args = SshArgs::new("example.com", 2222, "user", "key");
+    /// let cmd_args = args.to_args();
+    /// assert_eq!(cmd_args, vec!["-p", "2222", "-A", "user@example.com"]);
+    /// ```
     pub fn to_args(&self) -> Vec<String> {
         let mut args = vec!["-p".to_string(), self.port.to_string()];
         if self.forward_agent {
@@ -74,13 +205,57 @@ impl SshArgs {
         args
     }
 
-    /// Build single line command string
+    /// Build a complete SSH command string.
+    ///
+    /// Generates a single-line SSH command ready for execution or display.
+    /// The command includes the `ssh` prefix followed by all arguments.
+    ///
+    /// # Returns
+    ///
+    /// A formatted SSH command string.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use easyssh_core::terminal::SshArgs;
+    ///
+    /// let args = SshArgs::new("192.168.1.1", 22, "root", "key");
+    /// let cmd = args.to_command_string();
+    /// assert_eq!(cmd, "ssh -p 22 -A root@192.168.1.1");
+    /// ```
     pub fn to_command_string(&self) -> String {
         let args = self.to_args();
         format!("ssh {}", args.join(" "))
     }
 }
 
+/// Open a native terminal and connect via SSH (Windows implementation).
+///
+/// On Windows, this function:
+/// 1. Checks if running inside Windows Terminal (WT_SESSION env var)
+/// 2. If in Windows Terminal, opens a new tab with the SSH command
+/// 3. Falls back to PowerShell if Windows Terminal is not available
+///
+/// # Arguments
+///
+/// * `host` - Target host address (IP or hostname)
+/// * `port` - SSH port number
+/// * `username` - Username for SSH authentication
+/// * `auth_type` - Authentication type: "key", "agent", or "password"
+///
+/// # Errors
+///
+/// Returns `LiteError::Terminal` if the terminal cannot be opened or
+/// if the SSH command fails to execute.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use easyssh_core::terminal::open_native_terminal;
+///
+/// // Connect to a server
+/// open_native_terminal("192.168.1.100", 22, "admin", "key").unwrap();
+/// ```
 #[cfg(target_os = "windows")]
 pub fn open_native_terminal(
     host: &str,
@@ -91,11 +266,11 @@ pub fn open_native_terminal(
     let ssh_args = SshArgs::new(host, port, username, auth_type);
     let ssh_cmd = ssh_args.to_command_string();
 
-    // 检查是否在 Windows Terminal 中运行
+    // Check if running in Windows Terminal
     let in_wt = std::env::var("WT_SESSION").is_ok();
 
     if in_wt && is_command_available("wt") {
-        // 在 WT 中运行，使用 new-tab 在当前窗口开标签页
+        // In Windows Terminal, open new tab
         let mut cmd = Command::new("wt");
         cmd.arg("new-tab")
             .arg("--title")
@@ -113,20 +288,45 @@ pub fn open_native_terminal(
         }
     }
 
-    // 不在 WT 中，直接在本地终端执行 SSH
-    // 这会暂停 TUI，在当前终端运行 SSH，退出后恢复 TUI
+    // Not in Windows Terminal, use PowerShell directly
     let mut child = Command::new("powershell.exe")
         .arg("-Command")
         .arg(&ssh_cmd)
         .spawn()
         .map_err(|e| LiteError::Terminal(format!("PowerShell: {}", e)))?;
 
-    // 等待 SSH 会话结束
     child.wait().ok();
-
     Ok(())
 }
 
+/// Open a native terminal and connect via SSH (macOS implementation).
+///
+/// On macOS, this function tries multiple terminal emulators in order:
+/// 1. **iTerm2** (if available) - Creates a new tab with the SSH command
+/// 2. **Terminal.app** (built-in) - Opens a new window with the SSH command
+///
+/// Both use AppleScript (`osascript`) to control the terminals.
+///
+/// # Arguments
+///
+/// * `host` - Target host address (IP or hostname)
+/// * `port` - SSH port number
+/// * `username` - Username for SSH authentication
+/// * `auth_type` - Authentication type: "key", "agent", or "password"
+///
+/// # Errors
+///
+/// Returns `LiteError::Terminal` if no suitable terminal is found or
+/// if the AppleScript execution fails.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use easyssh_core::terminal::open_native_terminal;
+///
+/// // Connect using key authentication (will use SSH agent)
+/// open_native_terminal("server.example.com", 22, "user", "key").unwrap();
+/// ```
 #[cfg(target_os = "macos")]
 pub fn open_native_terminal(
     host: &str,
@@ -178,6 +378,37 @@ pub fn open_native_terminal(
     Ok(())
 }
 
+/// Open a native terminal and connect via SSH (Linux implementation).
+///
+/// On Linux, this function tries multiple terminal emulators in priority order:
+/// 1. **GNOME Terminal** (`gnome-terminal`)
+/// 2. **KDE Konsole** (`konsole`)
+/// 3. **XFCE Terminal** (`xfce4-terminal`)
+/// 4. **XTerm** (`xterm`) - fallback for minimal systems
+///
+/// The SSH command is wrapped with a prompt that waits for user input before
+/// closing the terminal, ensuring the user can see any output or error messages.
+///
+/// # Arguments
+///
+/// * `host` - Target host address (IP or hostname)
+/// * `port` - SSH port number
+/// * `username` - Username for SSH authentication
+/// * `auth_type` - Authentication type: "key", "agent", or "password"
+///
+/// # Errors
+///
+/// Returns `LiteError::Terminal` if no terminal emulator is found on the system
+/// or if the terminal fails to launch.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use easyssh_core::terminal::open_native_terminal;
+///
+/// // Will try gnome-terminal, konsole, xfce4-terminal, then xterm
+/// open_native_terminal("192.168.1.1", 22, "root", "password").unwrap();
+/// ```
 #[cfg(target_os = "linux")]
 pub fn open_native_terminal(
     host: &str,

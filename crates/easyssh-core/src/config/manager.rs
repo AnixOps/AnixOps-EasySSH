@@ -12,19 +12,22 @@
 //! - Change notifications
 
 use super::{
-    defaults::{self, apply_system_defaults, ConfigPresets, EnvConfig},
-    encryption::{ConfigEncryption, EncryptionOptions, EncryptedConfig},
-    import_export::{ExportFormat, ExportOptions, ImportExportManager, ImportOptions, ImportResult},
-    migration::{ConfigBackup, ConfigMigration, MigrationResult, MigrationInfo, CURRENT_CONFIG_VERSION},
-    templates::{ConfigOverrides, Template, TemplateCategory, TemplateError, TemplateManager},
+    defaults::{apply_system_defaults, ConfigPresets, EnvConfig},
+    encryption::{ConfigEncryption, EncryptedConfig},
+    import_export::{
+        ExportFormat, ExportOptions, ImportExportManager, ImportOptions, ImportResult,
+    },
+    migration::{
+        ConfigBackup, ConfigMigration, MigrationInfo, MigrationResult, CURRENT_CONFIG_VERSION,
+    },
+    templates::{Template, TemplateError, TemplateManager},
     types::*,
-    validation::{ConfigAutoFix, ConfigValidator, ValidationContext, ValidationError, SecurityValidationLevel},
+    validation::{ConfigAutoFix, ConfigValidator, SecurityValidationLevel, ValidationError},
     ConfigChangeCallback, ConfigChangeEvent, ConfigChangeListener,
 };
-use crate::error::{EasySSHErrors, Result};
+use crate::error::EasySSHErrors;
 use crate::EasySSHResult;
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -173,7 +176,10 @@ impl ConfigManager {
         })?;
 
         // Try to detect encrypted config
-        if content.trim().starts_with('{') && content.contains("\"salt\"") && content.contains("\"data\"") {
+        if content.trim().starts_with('{')
+            && content.contains("\"salt\"")
+            && content.contains("\"data\"")
+        {
             self.is_encrypted = true;
             // Don't try to decrypt without password - let caller handle this
         } else {
@@ -227,7 +233,7 @@ impl ConfigManager {
 
         // Validate and auto-fix
         let validator = ConfigValidator::new().security_level(self.security_level);
-        if let Err(_) = validator.validate(&config) {
+        if validator.validate(&config).is_err() {
             ConfigAutoFix::auto_fix(&mut config);
         }
 
@@ -268,9 +274,10 @@ impl ConfigManager {
 
     /// Save encrypted configuration
     pub fn save_encrypted(&mut self) -> EasySSHResult<()> {
-        let encryption = self.encryption.as_ref().ok_or_else(|| {
-            EasySSHErrors::configuration("Encryption not initialized")
-        })?;
+        let encryption = self
+            .encryption
+            .as_ref()
+            .ok_or_else(|| EasySSHErrors::configuration("Encryption not initialized"))?;
 
         let encrypted = encryption.encrypt_config(&self.config).map_err(|e| {
             EasySSHErrors::configuration(format!("Failed to encrypt config: {}", e))
@@ -347,14 +354,17 @@ impl ConfigManager {
 
         // Validate configuration
         let validator = ConfigValidator::new().security_level(self.security_level);
-        if let Err(errors) = validator.validate(config) {
+        if let Err(_errors) = validator.validate(config) {
             // Try to auto-fix issues
             let fixes = ConfigAutoFix::auto_fix(config);
 
             // Re-validate after auto-fix
             if let Err(errors) = validator.validate(config) {
                 self.last_validation_errors = errors;
-                eprintln!("Configuration validation warnings: {:?}", self.last_validation_errors);
+                eprintln!(
+                    "Configuration validation warnings: {:?}",
+                    self.last_validation_errors
+                );
             }
 
             if !fixes.is_empty() {
@@ -568,7 +578,9 @@ impl ConfigManager {
 
         // Trim to max
         if prefs.recent_connections.len() > prefs.max_recent_connections {
-            prefs.recent_connections.truncate(prefs.max_recent_connections);
+            prefs
+                .recent_connections
+                .truncate(prefs.max_recent_connections);
         }
 
         self.dirty = true;
@@ -633,11 +645,13 @@ impl ConfigManager {
 
     /// Export configuration to a file
     pub fn export_to(&self, path: &Path, format: Option<ExportFormat>) -> EasySSHResult<()> {
-        let format = format.or_else(|| {
-            path.extension()
-                .and_then(|e| e.to_str())
-                .and_then(ExportFormat::from_extension)
-        }).unwrap_or(ExportFormat::JsonPretty);
+        let format = format
+            .or_else(|| {
+                path.extension()
+                    .and_then(|e| e.to_str())
+                    .and_then(ExportFormat::from_extension)
+            })
+            .unwrap_or(ExportFormat::JsonPretty);
 
         let options = ExportOptions {
             format,
@@ -711,7 +725,10 @@ impl ConfigManager {
     }
 
     /// Reset to a template
-    pub fn reset_to_template(&mut self, template_id: &str) -> std::result::Result<(), TemplateError> {
+    pub fn reset_to_template(
+        &mut self,
+        template_id: &str,
+    ) -> std::result::Result<(), TemplateError> {
         if let Some(ref manager) = self.template_manager {
             self.config = manager.apply_template(template_id)?;
             self.dirty = true;

@@ -18,8 +18,8 @@
 //! let decrypted = encryption.decrypt_config(&encrypted).unwrap();
 //! ```
 
+use crate::config::types::{FullConfig, UserPreferences};
 use crate::crypto::CryptoState;
-use crate::config::types::{FullConfig, SecuritySettings, UserPreferences};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -128,7 +128,7 @@ impl EncryptionOptions {
     pub fn with_security_level(level: SecurityLevel) -> Self {
         let (iterations, memory, parallelism) = match level {
             SecurityLevel::Standard => (3, 65536, 4),
-            SecurityLevel::High => (4, 262144, 4),    // 256 MB
+            SecurityLevel::High => (4, 262144, 4), // 256 MB
             SecurityLevel::Maximum => (5, 1048576, 8), // 1 GB, 8 threads
         };
 
@@ -137,9 +137,7 @@ impl EncryptionOptions {
             encrypt_app_config: false,
             encrypt_user_preferences: true,
             encrypt_security_settings: true,
-            encrypted_fields: vec![
-                "user_preferences.default_key_path".to_string(),
-            ],
+            encrypted_fields: vec!["user_preferences.default_key_path".to_string()],
             argon2_iterations: iterations,
             argon2_memory_kb: memory,
             argon2_parallelism: parallelism,
@@ -259,12 +257,18 @@ impl PasswordStrength {
 
     /// Check if password is acceptable
     pub fn is_acceptable(&self) -> bool {
-        matches!(self, PasswordStrength::Medium | PasswordStrength::Strong | PasswordStrength::VeryStrong)
+        matches!(
+            self,
+            PasswordStrength::Medium | PasswordStrength::Strong | PasswordStrength::VeryStrong
+        )
     }
 
     /// Check if password is strong
     pub fn is_strong(&self) -> bool {
-        matches!(self, PasswordStrength::Strong | PasswordStrength::VeryStrong)
+        matches!(
+            self,
+            PasswordStrength::Strong | PasswordStrength::VeryStrong
+        )
     }
 }
 
@@ -303,14 +307,14 @@ impl ConfigEncryption {
     }
 
     /// Create with custom options
-    pub fn with_options(master_password: &str, options: EncryptionOptions) -> Result<Self, EncryptionError> {
+    pub fn with_options(
+        master_password: &str,
+        options: EncryptionOptions,
+    ) -> Result<Self, EncryptionError> {
         let mut crypto = CryptoState::new();
         crypto.initialize(master_password)?;
 
-        Ok(Self {
-            crypto,
-            options,
-        })
+        Ok(Self { crypto, options })
     }
 
     /// Create from existing crypto state
@@ -368,7 +372,9 @@ impl ConfigEncryption {
             });
         }
 
-        let salt = self.crypto.get_salt()
+        let salt = self
+            .crypto
+            .get_salt()
             .map(|s| hex_encode(&s))
             .unwrap_or_default();
 
@@ -387,11 +393,18 @@ impl ConfigEncryption {
     }
 
     /// Decrypt configuration
-    pub fn decrypt_config(&self, encrypted: &EncryptedConfig) -> Result<FullConfig, EncryptionError> {
+    pub fn decrypt_config(
+        &self,
+        encrypted: &EncryptedConfig,
+    ) -> Result<FullConfig, EncryptionError> {
         if encrypted.sections.contains_key("full") {
             // Full encryption mode
-            let section = encrypted.sections.get("full")
-                .ok_or(EncryptionError::Decryption("Missing full section".to_string()))?;
+            let section = encrypted
+                .sections
+                .get("full")
+                .ok_or(EncryptionError::Decryption(
+                    "Missing full section".to_string(),
+                ))?;
             let decrypted = self.decrypt_section(section)?;
             let config: FullConfig = serde_json::from_str(&decrypted)
                 .map_err(|e| EncryptionError::Deserialization(e.to_string()))?;
@@ -444,7 +457,11 @@ impl ConfigEncryption {
     }
 
     /// Change master password
-    pub fn change_password(&mut self, old_password: &str, new_password: &str) -> Result<(), EncryptionError> {
+    pub fn change_password(
+        &mut self,
+        old_password: &str,
+        new_password: &str,
+    ) -> Result<(), EncryptionError> {
         if !self.verify_password(old_password)? {
             return Err(EncryptionError::InvalidPassword);
         }
@@ -498,9 +515,10 @@ impl ConfigEncryption {
     fn decrypt_sensitive_fields(&self, prefs: &mut UserPreferences) -> Result<(), EncryptionError> {
         // Decrypt default_key_path if encrypted
         if let Some(ref key_path) = prefs.default_key_path {
-            if key_path.starts_with("ENC:") {
-                let encrypted_data = base64_decode(&key_path[4..])
-                    .map_err(|e| EncryptionError::Decryption(format!("Base64 decode failed: {}", e)))?;
+            if let Some(encrypted) = key_path.strip_prefix("ENC:") {
+                let encrypted_data = base64_decode(encrypted).map_err(|e| {
+                    EncryptionError::Decryption(format!("Base64 decode failed: {}", e))
+                })?;
                 let decrypted = self.crypto.decrypt(&encrypted_data)?;
                 prefs.default_key_path = Some(String::from_utf8_lossy(&decrypted).to_string());
             }
@@ -517,8 +535,7 @@ impl ConfigEncryption {
 
     /// Deserialize encrypted config from JSON
     pub fn from_json(json: &str) -> Result<EncryptedConfig, EncryptionError> {
-        serde_json::from_str(json)
-            .map_err(|e| EncryptionError::Deserialization(e.to_string()))
+        serde_json::from_str(json).map_err(|e| EncryptionError::Deserialization(e.to_string()))
     }
 }
 
@@ -537,16 +554,29 @@ pub mod password {
         let mut score = 0;
 
         // Length scoring
-        if length >= 16 { score += 4; }
-        else if length >= 12 { score += 3; }
-        else if length >= 8 { score += 2; }
-        else if length >= 6 { score += 1; }
+        if length >= 16 {
+            score += 4;
+        } else if length >= 12 {
+            score += 3;
+        } else if length >= 8 {
+            score += 2;
+        } else if length >= 6 {
+            score += 1;
+        }
 
         // Character variety scoring
-        if has_upper { score += 1; }
-        if has_lower { score += 1; }
-        if has_digit { score += 1; }
-        if has_special { score += 2; }
+        if has_upper {
+            score += 1;
+        }
+        if has_lower {
+            score += 1;
+        }
+        if has_digit {
+            score += 1;
+        }
+        if has_special {
+            score += 2;
+        }
 
         match score {
             0..=2 => PasswordStrength::VeryWeak,
@@ -558,11 +588,17 @@ pub mod password {
     }
 
     /// Validate password against requirements
-    pub fn validate(password: &str, requirements: &PasswordRequirements) -> Result<(), Vec<String>> {
+    pub fn validate(
+        password: &str,
+        requirements: &PasswordRequirements,
+    ) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
         if password.len() < requirements.min_length {
-            errors.push(format!("Password must be at least {} characters", requirements.min_length));
+            errors.push(format!(
+                "Password must be at least {} characters",
+                requirements.min_length
+            ));
         }
 
         if requirements.require_uppercase && !password.chars().any(|c| c.is_ascii_uppercase()) {
@@ -627,7 +663,9 @@ fn base64_encode(data: &[u8]) -> String {
 
 fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
     use base64::{engine::general_purpose, Engine as _};
-    general_purpose::STANDARD.decode(s).map_err(|e| e.to_string())
+    general_purpose::STANDARD
+        .decode(s)
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -637,10 +675,22 @@ mod tests {
     #[test]
     fn test_password_strength() {
         assert_eq!(password::assess_strength("123"), PasswordStrength::VeryWeak);
-        assert_eq!(password::assess_strength("password"), PasswordStrength::Weak);
-        assert_eq!(password::assess_strength("Password1"), PasswordStrength::Medium);
-        assert_eq!(password::assess_strength("MyStr0ng!Pass"), PasswordStrength::Strong);
-        assert_eq!(password::assess_strength("My$up3r$tr0ng!P@ssw0rd"), PasswordStrength::VeryStrong);
+        assert_eq!(
+            password::assess_strength("password"),
+            PasswordStrength::Weak
+        );
+        assert_eq!(
+            password::assess_strength("Password1"),
+            PasswordStrength::Medium
+        );
+        assert_eq!(
+            password::assess_strength("MyStr0ng!Pass"),
+            PasswordStrength::Strong
+        );
+        assert_eq!(
+            password::assess_strength("My$up3r$tr0ng!P@ssw0rd"),
+            PasswordStrength::VeryStrong
+        );
     }
 
     #[test]

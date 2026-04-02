@@ -172,4 +172,3 @@ pub fn handle_text_input(key: KeyEvent, content: &mut String, cursor: &mut usize
         _ => {}
     }
 }
-

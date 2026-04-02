@@ -19,14 +19,14 @@
 //! ```
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use easyssh_core::db::{Database, NewServer, NewGroup, UpdateServer, UpdateGroup};
+use easyssh_core::db::{Database, NewGroup, NewServer, UpdateGroup, UpdateServer};
 use tempfile::TempDir;
 
 /// Create a temporary database for benchmarking
 fn create_temp_db() -> (Database, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let db_path = temp_dir.path().join("bench.db");
-    let db = Database::new(&db_path).unwrap();
+    let db = Database::new(db_path).unwrap();
     db.init().unwrap();
     (db, temp_dir)
 }
@@ -51,9 +51,7 @@ fn create_test_group(index: usize) -> NewGroup {
     NewGroup {
         id: format!("group-{}", index),
         name: format!("Group {}", index),
-        parent_id: None,
-        color: Some("#FF5733".to_string()),
-        sort_order: Some(index as i32),
+        color: "#FF5733".to_string(),
     }
 }
 
@@ -66,7 +64,7 @@ fn bench_database_init(c: &mut Criterion) {
         let db_path = temp_dir.path().join("init_bench.db");
 
         b.iter(|| {
-            let db = Database::new(black_box(&db_path)).unwrap();
+            let db = Database::new(black_box(db_path.clone())).unwrap();
             db.init().unwrap();
             black_box(db);
         });
@@ -184,7 +182,11 @@ fn bench_batch_insert(c: &mut Criterion) {
                 b.iter_with_setup(
                     || {
                         let (db, temp) = create_temp_db();
-                        (db, temp, (0..num).map(create_test_server).collect::<Vec<_>>())
+                        (
+                            db,
+                            temp,
+                            (0..num).map(create_test_server).collect::<Vec<_>>(),
+                        )
                     },
                     |(db, _temp, servers)| {
                         for server in servers {
@@ -205,7 +207,11 @@ fn bench_batch_insert(c: &mut Criterion) {
                 b.iter_with_setup(
                     || {
                         let (db, temp) = create_temp_db();
-                        (db, temp, (0..num).map(create_test_group).collect::<Vec<_>>())
+                        (
+                            db,
+                            temp,
+                            (0..num).map(create_test_group).collect::<Vec<_>>(),
+                        )
                     },
                     |(db, _temp, groups)| {
                         for g in groups {
@@ -280,7 +286,15 @@ fn bench_search(c: &mut Criterion) {
     let (db, _temp) = create_temp_db();
     for i in 0..1000 {
         let mut server = create_test_server(i);
-        server.name = format!("Server {} - {} Test", i, if i % 2 == 0 { "Production" } else { "Development" });
+        server.name = format!(
+            "Server {} - {} Test",
+            i,
+            if i % 2 == 0 {
+                "Production"
+            } else {
+                "Development"
+            }
+        );
         // Note: NewServer doesn't have notes field in the original structure, so we skip this
         db.add_server(&server).unwrap();
     }
@@ -288,7 +302,8 @@ fn bench_search(c: &mut Criterion) {
     group.bench_function("search_by_name_prefix", |b| {
         b.iter(|| {
             // Simulate name prefix search
-            let results: Vec<_> = db.get_servers()
+            let results: Vec<_> = db
+                .get_servers()
                 .unwrap()
                 .into_iter()
                 .filter(|s| s.name.starts_with("Server 5"))
@@ -299,7 +314,8 @@ fn bench_search(c: &mut Criterion) {
 
     group.bench_function("search_by_name_contains", |b| {
         b.iter(|| {
-            let results: Vec<_> = db.get_servers()
+            let results: Vec<_> = db
+                .get_servers()
                 .unwrap()
                 .into_iter()
                 .filter(|s| s.name.contains("Production"))
@@ -310,13 +326,11 @@ fn bench_search(c: &mut Criterion) {
 
     group.bench_function("search_all_fields", |b| {
         b.iter(|| {
-            let results: Vec<_> = db.get_servers()
+            let results: Vec<_> = db
+                .get_servers()
                 .unwrap()
                 .into_iter()
-                .filter(|s| {
-                    s.name.contains("500") ||
-                    s.host.contains("500")
-                })
+                .filter(|s| s.name.contains("500") || s.host.contains("500"))
                 .collect();
             black_box(results);
         });
@@ -369,7 +383,8 @@ fn bench_transactions(c: &mut Criterion) {
                     identity_file: None,
                     group_id: None,
                     status: None,
-                })).unwrap();
+                }))
+                .unwrap();
                 let _ = db.get_servers().unwrap();
             },
         );
@@ -387,7 +402,7 @@ fn bench_file_operations(c: &mut Criterion) {
             || {
                 let temp_dir = TempDir::new().unwrap();
                 let db_path = temp_dir.path().join("size_test.db");
-                let db = Database::new(&db_path).unwrap();
+                let db = Database::new(db_path.clone()).unwrap();
                 db.init().unwrap();
                 (db, temp_dir, db_path)
             },

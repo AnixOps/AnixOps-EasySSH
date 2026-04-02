@@ -303,7 +303,7 @@ pub fn apply_system_defaults(config: &mut FullConfig) {
     if config.user_preferences.default_username.is_empty() {
         if let Ok(user) = std::env::var("USER").or_else(|_| std::env::var("USERNAME")) {
             config.user_preferences.default_username = user;
-        } else if let Some(user) = whoami::username().split('\\').last() {
+        } else if let Some(user) = whoami::username().split('\\').next_back() {
             // Handle Windows DOMAIN\username format
             config.user_preferences.default_username = user.to_string();
         }

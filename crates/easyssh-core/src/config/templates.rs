@@ -20,7 +20,7 @@
 //! let config = dev_template.apply();
 //! ```
 
-use crate::config::types::{AppConfig, FullConfig, SecuritySettings, Theme, UserPreferences, WindowGeometry};
+use crate::config::types::{FullConfig, Theme};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -163,7 +163,9 @@ impl TemplateManager {
 
     /// Apply a template to create a FullConfig
     pub fn apply_template(&self, template_id: &str) -> Result<FullConfig, TemplateError> {
-        let template = self.templates.get(template_id)
+        let _template = self
+            .templates
+            .get(template_id)
             .ok_or_else(|| TemplateError::TemplateNotFound(template_id.to_string()))?;
 
         let mut config = FullConfig::default();
@@ -178,7 +180,9 @@ impl TemplateManager {
         config: &mut FullConfig,
         template_id: &str,
     ) -> Result<(), TemplateError> {
-        let template = self.templates.get(template_id)
+        let template = self
+            .templates
+            .get(template_id)
             .ok_or_else(|| TemplateError::TemplateNotFound(template_id.to_string()))?;
 
         // Apply parent first (if any)
@@ -287,17 +291,24 @@ impl TemplateManager {
         if config.user_preferences.default_port != defaults.user_preferences.default_port {
             overrides.default_port = Some(config.user_preferences.default_port);
         }
-        if config.user_preferences.connection_timeout != defaults.user_preferences.connection_timeout {
+        if config.user_preferences.connection_timeout
+            != defaults.user_preferences.connection_timeout
+        {
             overrides.connection_timeout = Some(config.user_preferences.connection_timeout);
         }
-        if config.security_settings.clipboard_clear_time != defaults.security_settings.clipboard_clear_time {
+        if config.security_settings.clipboard_clear_time
+            != defaults.security_settings.clipboard_clear_time
+        {
             overrides.clipboard_clear_time = Some(config.security_settings.clipboard_clear_time);
         }
         if config.security_settings.lock_on_sleep != defaults.security_settings.lock_on_sleep {
             overrides.lock_on_sleep = Some(config.security_settings.lock_on_sleep);
         }
-        if config.security_settings.strict_host_key_checking != defaults.security_settings.strict_host_key_checking {
-            overrides.strict_host_key_checking = Some(config.security_settings.strict_host_key_checking);
+        if config.security_settings.strict_host_key_checking
+            != defaults.security_settings.strict_host_key_checking
+        {
+            overrides.strict_host_key_checking =
+                Some(config.security_settings.strict_host_key_checking);
         }
 
         overrides
@@ -306,7 +317,8 @@ impl TemplateManager {
     /// Save user templates to disk
     pub async fn save_user_templates(&self) -> Result<(), TemplateError> {
         if let Some(ref dir) = self.user_templates_dir {
-            tokio::fs::create_dir_all(dir).await
+            tokio::fs::create_dir_all(dir)
+                .await
                 .map_err(|e| TemplateError::SaveError(e.to_string()))?;
 
             for template in self.templates.values() {
@@ -314,7 +326,8 @@ impl TemplateManager {
                     let path = dir.join(format!("{}.json", template.id));
                     let json = serde_json::to_string_pretty(template)
                         .map_err(|e| TemplateError::SerializationError(e.to_string()))?;
-                    tokio::fs::write(path, json).await
+                    tokio::fs::write(path, json)
+                        .await
                         .map_err(|e| TemplateError::SaveError(e.to_string()))?;
                 }
             }
@@ -331,14 +344,19 @@ impl TemplateManager {
                 return Ok(0);
             }
 
-            let mut entries = tokio::fs::read_dir(dir).await
+            let mut entries = tokio::fs::read_dir(dir)
+                .await
                 .map_err(|e| TemplateError::LoadError(e.to_string()))?;
 
-            while let Some(entry) = entries.next_entry().await
-                .map_err(|e| TemplateError::LoadError(e.to_string()))? {
+            while let Some(entry) = entries
+                .next_entry()
+                .await
+                .map_err(|e| TemplateError::LoadError(e.to_string()))?
+            {
                 let path = entry.path();
                 if path.extension().map(|e| e == "json").unwrap_or(false) {
-                    let content = tokio::fs::read_to_string(&path).await
+                    let content = tokio::fs::read_to_string(&path)
+                        .await
                         .map_err(|e| TemplateError::LoadError(e.to_string()))?;
                     let template: Template = serde_json::from_str(&content)
                         .map_err(|e| TemplateError::DeserializationError(e.to_string()))?;
@@ -464,11 +482,18 @@ impl TemplateManager {
                 custom_security: Some({
                     let mut map = HashMap::new();
                     map.insert("audit_mode".to_string(), serde_json::json!(true));
-                    map.insert("require_password_change_90_days".to_string(), serde_json::json!(true));
+                    map.insert(
+                        "require_password_change_90_days".to_string(),
+                        serde_json::json!(true),
+                    );
                     map
                 }),
             },
-            tags: vec!["enterprise".to_string(), "security".to_string(), "compliance".to_string()],
+            tags: vec![
+                "enterprise".to_string(),
+                "security".to_string(),
+                "compliance".to_string(),
+            ],
             created_at: None,
             updated_at: None,
         }
@@ -478,7 +503,8 @@ impl TemplateManager {
         Template {
             id: "development".to_string(),
             name: "Development".to_string(),
-            description: "Optimized for development environments with convenient defaults".to_string(),
+            description: "Optimized for development environments with convenient defaults"
+                .to_string(),
             category: TemplateCategory::BuiltIn,
             version: "1.0".to_string(),
             author: Some("EasySSH".to_string()),
@@ -539,7 +565,11 @@ impl TemplateManager {
                     map
                 }),
             },
-            tags: vec!["production".to_string(), "prod".to_string(), "security".to_string()],
+            tags: vec![
+                "production".to_string(),
+                "prod".to_string(),
+                "security".to_string(),
+            ],
             created_at: None,
             updated_at: None,
         }
@@ -563,12 +593,16 @@ impl std::fmt::Display for TemplateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TemplateError::TemplateNotFound(id) => write!(f, "Template not found: {}", id),
-            TemplateError::CannotRemoveBuiltin(id) => write!(f, "Cannot remove built-in template: {}", id),
+            TemplateError::CannotRemoveBuiltin(id) => {
+                write!(f, "Cannot remove built-in template: {}", id)
+            }
             TemplateError::SaveError(e) => write!(f, "Failed to save template: {}", e),
             TemplateError::LoadError(e) => write!(f, "Failed to load template: {}", e),
             TemplateError::SerializationError(e) => write!(f, "Serialization error: {}", e),
             TemplateError::DeserializationError(e) => write!(f, "Deserialization error: {}", e),
-            TemplateError::CircularReference(id) => write!(f, "Circular template reference detected: {}", id),
+            TemplateError::CircularReference(id) => {
+                write!(f, "Circular template reference detected: {}", id)
+            }
             TemplateError::InvalidTemplate(e) => write!(f, "Invalid template: {}", e),
         }
     }
@@ -580,6 +614,12 @@ impl std::error::Error for TemplateError {}
 pub struct TemplateSelector {
     pub selected_id: Option<TemplateId>,
     pub preview_config: Option<FullConfig>,
+}
+
+impl Default for TemplateSelector {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TemplateSelector {
@@ -655,13 +695,15 @@ mod tests {
         config.app_config.theme = Theme::Dark;
         config.user_preferences.default_port = 2222;
 
-        let template = manager.create_template(
-            "my-template",
-            "My Template",
-            "Custom template",
-            TemplateCategory::UserDefined,
-            &config,
-        ).unwrap();
+        let template = manager
+            .create_template(
+                "my-template",
+                "My Template",
+                "Custom template",
+                TemplateCategory::UserDefined,
+                &config,
+            )
+            .unwrap();
 
         assert_eq!(template.id, "my-template");
         assert_eq!(template.overrides.theme, Some(Theme::Dark));

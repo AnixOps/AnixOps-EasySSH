@@ -72,8 +72,8 @@ pub use user::{
 };
 
 pub use validation::{
-    is_valid_email, is_valid_ssh_key_path, sanitize_filename,
-    validate_password_strength, PasswordStrength, ValidationResult,
+    is_valid_email, is_valid_ssh_key_path, sanitize_filename, validate_password_strength,
+    PasswordStrength, ValidationResult,
 };
 
 /// Current schema version for all models
@@ -158,12 +158,7 @@ impl ValidationError {
     }
 
     /// Create a new out of range error
-    pub fn out_of_range(
-        field: impl Into<String>,
-        min: i64,
-        max: i64,
-        actual: i64,
-    ) -> Self {
+    pub fn out_of_range(field: impl Into<String>, min: i64, max: i64, actual: i64) -> Self {
         ValidationError::OutOfRange {
             field: field.into(),
             min,
@@ -227,7 +222,10 @@ impl fmt::Display for ValidationError {
             ValidationError::Duplicate { field, value } => {
                 write!(f, "Duplicate value for field '{}': {}", field, value)
             }
-            ValidationError::ConstraintViolation { constraint, message } => {
+            ValidationError::ConstraintViolation {
+                constraint,
+                message,
+            } => {
                 write!(f, "Constraint '{}' violated: {}", constraint, message)
             }
             ValidationError::Multiple(errors) => {
@@ -423,10 +421,12 @@ fn is_valid_hostname_label(label: &str) -> bool {
         return false;
     }
 
-    // Middle characters can be alphanumeric or hyphen
-    for &c in &chars[1..chars.len() - 1] {
-        if !c.is_alphanumeric() && c != '-' {
-            return false;
+    // Middle characters can be alphanumeric or hyphen (only if there are middle chars)
+    if chars.len() > 2 {
+        for &c in &chars[1..chars.len() - 1] {
+            if !c.is_alphanumeric() && c != '-' {
+                return false;
+            }
         }
     }
 
@@ -532,7 +532,13 @@ pub fn is_valid_uuid(uuid: &str) -> bool {
 pub fn sanitize_for_filename(input: &str) -> String {
     input
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 

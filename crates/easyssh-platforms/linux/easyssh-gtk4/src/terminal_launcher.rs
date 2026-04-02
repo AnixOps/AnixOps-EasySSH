@@ -20,7 +20,14 @@ fn get_terminal_list() -> Vec<TerminalInfo> {
         TerminalInfo {
             name: "GNOME Terminal",
             command: "gnome-terminal",
-            args_builder: |cmd| vec!["--".to_string(), "bash".to_string(), "-c".to_string(), cmd.to_string()],
+            args_builder: |cmd| {
+                vec![
+                    "--".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    cmd.to_string(),
+                ]
+            },
             priority: 100,
             desktop_env: vec!["GNOME", "ubuntu:GNOME"],
         },
@@ -28,7 +35,14 @@ fn get_terminal_list() -> Vec<TerminalInfo> {
         TerminalInfo {
             name: "GNOME Console",
             command: "kgx",
-            args_builder: |cmd| vec!["--".to_string(), "bash".to_string(), "-c".to_string(), cmd.to_string()],
+            args_builder: |cmd| {
+                vec![
+                    "--".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    cmd.to_string(),
+                ]
+            },
             priority: 95,
             desktop_env: vec!["GNOME", "ubuntu:GNOME"],
         },
@@ -36,7 +50,14 @@ fn get_terminal_list() -> Vec<TerminalInfo> {
         TerminalInfo {
             name: "Konsole",
             command: "konsole",
-            args_builder: |cmd| vec!["-e".to_string(), "bash".to_string(), "-c".to_string(), cmd.to_string()],
+            args_builder: |cmd| {
+                vec![
+                    "-e".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    cmd.to_string(),
+                ]
+            },
             priority: 90,
             desktop_env: vec!["KDE", "plasma"],
         },
@@ -44,7 +65,15 @@ fn get_terminal_list() -> Vec<TerminalInfo> {
         TerminalInfo {
             name: "WezTerm",
             command: "wezterm",
-            args_builder: |cmd| vec!["start".to_string(), "--".to_string(), "bash".to_string(), "-c".to_string(), cmd.to_string()],
+            args_builder: |cmd| {
+                vec![
+                    "start".to_string(),
+                    "--".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    cmd.to_string(),
+                ]
+            },
             priority: 85,
             desktop_env: vec![],
         },
@@ -52,7 +81,14 @@ fn get_terminal_list() -> Vec<TerminalInfo> {
         TerminalInfo {
             name: "Alacritty",
             command: "alacritty",
-            args_builder: |cmd| vec!["-e".to_string(), "bash".to_string(), "-c".to_string(), cmd.to_string()],
+            args_builder: |cmd| {
+                vec![
+                    "-e".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    cmd.to_string(),
+                ]
+            },
             priority: 80,
             desktop_env: vec![],
         },
@@ -90,7 +126,14 @@ fn get_terminal_list() -> Vec<TerminalInfo> {
         TerminalInfo {
             name: "GNOME Terminal (Cinnamon)",
             command: "gnome-terminal",
-            args_builder: |cmd| vec!["--".to_string(), "bash".to_string(), "-c".to_string(), cmd.to_string()],
+            args_builder: |cmd| {
+                vec![
+                    "--".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    cmd.to_string(),
+                ]
+            },
             priority: 70,
             desktop_env: vec!["X-Cinnamon", "Cinnamon"],
         },
@@ -178,7 +221,14 @@ fn get_terminal_list() -> Vec<TerminalInfo> {
         TerminalInfo {
             name: "st",
             command: "st",
-            args_builder: |cmd| vec!["-e".to_string(), "bash".to_string(), "-c".to_string(), cmd.to_string()],
+            args_builder: |cmd| {
+                vec![
+                    "-e".to_string(),
+                    "bash".to_string(),
+                    "-c".to_string(),
+                    cmd.to_string(),
+                ]
+            },
             priority: 20,
             desktop_env: vec![],
         },
@@ -389,7 +439,11 @@ pub fn launch_terminal_in_dir(server: &Server, remote_path: &str) {
     let ssh_cmd = if remote_path == "~" || remote_path == "/home/" {
         build_ssh_command(server)
     } else {
-        format!("{} 'cd {} && exec $SHELL'", build_ssh_command(server), remote_path)
+        format!(
+            "{} 'cd {} && exec $SHELL'",
+            build_ssh_command(server),
+            remote_path
+        )
     };
 
     let terminals = get_terminal_list();
@@ -567,4 +621,3 @@ mod tests {
         assert!(!terminals.is_empty());
     }
 }
-

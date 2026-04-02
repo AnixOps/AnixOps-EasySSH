@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::error::LiteError;
 
@@ -34,9 +34,10 @@ impl<T: Clone> LazyInitializer<T> {
 
     /// Get the value, initializing if necessary
     pub fn get(&self) -> Result<T, LiteError> {
-        let mut value = self.value.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock lazy value".to_string())
-        })?;
+        let mut value = self
+            .value
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock lazy value".to_string()))?;
 
         if value.is_none() {
             *value = Some((self.initializer)()?);
@@ -53,18 +54,20 @@ impl<T: Clone> LazyInitializer<T> {
 
     /// Check if initialized
     pub fn is_initialized(&self) -> Result<bool, LiteError> {
-        let value = self.value.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock lazy value".to_string())
-        })?;
+        let value = self
+            .value
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock lazy value".to_string()))?;
 
         Ok(value.is_some())
     }
 
     /// Reset (for testing)
     pub fn reset(&self) -> Result<(), LiteError> {
-        let mut value = self.value.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock lazy value".to_string())
-        })?;
+        let mut value = self
+            .value
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock lazy value".to_string()))?;
 
         *value = None;
         Ok(())
@@ -73,7 +76,9 @@ impl<T: Clone> LazyInitializer<T> {
 
 /// Async lazy initializer
 pub struct AsyncLazyInitializer<T> {
-    initializer: Mutex<Option<Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = Result<T, LiteError>>>> + Send>>>,
+    initializer: Mutex<
+        Option<Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = Result<T, LiteError>>>> + Send>>,
+    >,
     value: Mutex<Option<T>>,
     initializing: Mutex<bool>,
 }
@@ -100,9 +105,10 @@ impl<T: Clone + Send + 'static> AsyncLazyInitializer<T> {
     pub async fn get(&self) -> Result<T, LiteError> {
         // Check if already initialized
         {
-            let value = self.value.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock async lazy value".to_string())
-            })?;
+            let value = self
+                .value
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock async lazy value".to_string()))?;
 
             if let Some(ref v) = *value {
                 return Ok(v.clone());
@@ -111,9 +117,10 @@ impl<T: Clone + Send + 'static> AsyncLazyInitializer<T> {
 
         // Try to initialize
         let should_init = {
-            let mut initializing = self.initializing.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock initializing flag".to_string())
-            })?;
+            let mut initializing = self
+                .initializing
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock initializing flag".to_string()))?;
 
             if *initializing {
                 // Another thread is initializing, wait and retry
@@ -124,15 +131,17 @@ impl<T: Clone + Send + 'static> AsyncLazyInitializer<T> {
                 ));
             }
 
-            let initializer = self.initializer.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock initializer".to_string())
-            })?;
+            let initializer = self
+                .initializer
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock initializer".to_string()))?;
 
             if initializer.is_none() {
                 // Already initialized
-                let value = self.value.lock().map_err(|_| {
-                    LiteError::Internal("Failed to lock value".to_string())
-                })?;
+                let value = self
+                    .value
+                    .lock()
+                    .map_err(|_| LiteError::Internal("Failed to lock value".to_string()))?;
                 if let Some(ref v) = *value {
                     return Ok(v.clone());
                 }
@@ -145,18 +154,20 @@ impl<T: Clone + Send + 'static> AsyncLazyInitializer<T> {
 
         if should_init {
             let initializer = {
-                let mut guard = self.initializer.lock().map_err(|_| {
-                    LiteError::Internal("Failed to lock initializer".to_string())
-                })?;
+                let mut guard = self
+                    .initializer
+                    .lock()
+                    .map_err(|_| LiteError::Internal("Failed to lock initializer".to_string()))?;
                 guard.take().unwrap()
             };
 
             let result = initializer().await?;
 
             {
-                let mut value = self.value.lock().map_err(|_| {
-                    LiteError::Internal("Failed to lock value".to_string())
-                })?;
+                let mut value = self
+                    .value
+                    .lock()
+                    .map_err(|_| LiteError::Internal("Failed to lock value".to_string()))?;
                 *value = Some(result);
 
                 let mut initializing = self.initializing.lock().map_err(|_| {
@@ -167,9 +178,10 @@ impl<T: Clone + Send + 'static> AsyncLazyInitializer<T> {
         }
 
         // Return the value
-        let value = self.value.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock value".to_string())
-        })?;
+        let value = self
+            .value
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock value".to_string()))?;
 
         if let Some(ref v) = *value {
             Ok(v.clone())
@@ -180,9 +192,10 @@ impl<T: Clone + Send + 'static> AsyncLazyInitializer<T> {
 
     /// Check if initialized
     pub fn is_initialized(&self) -> Result<bool, LiteError> {
-        let value = self.value.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock value".to_string())
-        })?;
+        let value = self
+            .value
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock value".to_string()))?;
 
         Ok(value.is_some())
     }
@@ -277,13 +290,15 @@ impl StartupSequence {
 
     /// Start a phase
     pub fn start_phase(&self, phase: StartupPhase) -> Result<(), LiteError> {
-        let mut phases = self.phases.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock phases".to_string())
-        })?;
+        let mut phases = self
+            .phases
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock phases".to_string()))?;
 
-        let mut current = self.current_phase.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock current phase".to_string())
-        })?;
+        let mut current = self
+            .current_phase
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock current phase".to_string()))?;
 
         // Complete current phase if any
         if let Some(ref current_phase) = *current {
@@ -303,9 +318,10 @@ impl StartupSequence {
 
     /// Complete a phase
     pub fn complete_phase(&self, phase: StartupPhase) -> Result<(), LiteError> {
-        let mut phases = self.phases.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock phases".to_string())
-        })?;
+        let mut phases = self
+            .phases
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock phases".to_string()))?;
 
         if let Some(timing) = phases.get_mut(&phase) {
             timing.complete();
@@ -323,13 +339,15 @@ impl StartupSequence {
     pub fn complete(&self) -> Result<(), LiteError> {
         // Complete any remaining phase
         {
-            let mut phases = self.phases.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock phases".to_string())
-            })?;
+            let mut phases = self
+                .phases
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock phases".to_string()))?;
 
-            let mut current = self.current_phase.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock current phase".to_string())
-            })?;
+            let mut current = self
+                .current_phase
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock current phase".to_string()))?;
 
             if let Some(ref current_phase) = *current {
                 if let Some(timing) = phases.get_mut(current_phase) {
@@ -343,9 +361,10 @@ impl StartupSequence {
         // Set total duration
         let total_ms = self.start_time.elapsed().as_millis() as u64;
 
-        let mut total = self.total_duration_ms.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock total duration".to_string())
-        })?;
+        let mut total = self
+            .total_duration_ms
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock total duration".to_string()))?;
 
         *total = Some(total_ms);
 
@@ -356,18 +375,20 @@ impl StartupSequence {
 
     /// Get phase timing
     pub fn get_phase_timing(&self, phase: StartupPhase) -> Result<Option<PhaseTiming>, LiteError> {
-        let phases = self.phases.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock phases".to_string())
-        })?;
+        let phases = self
+            .phases
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock phases".to_string()))?;
 
         Ok(phases.get(&phase).cloned())
     }
 
     /// Get all phase timings
     pub fn get_all_timings(&self) -> Result<Vec<PhaseTiming>, LiteError> {
-        let phases = self.phases.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock phases".to_string())
-        })?;
+        let phases = self
+            .phases
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock phases".to_string()))?;
 
         let mut timings: Vec<_> = phases.values().cloned().collect();
         timings.sort_by(|a, b| a.start_time.cmp(&b.start_time));
@@ -382,9 +403,10 @@ impl StartupSequence {
 
     /// Get current phase
     pub fn current_phase(&self) -> Result<Option<StartupPhase>, LiteError> {
-        let current = self.current_phase.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock current phase".to_string())
-        })?;
+        let current = self
+            .current_phase
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock current phase".to_string()))?;
 
         Ok(*current)
     }
@@ -461,6 +483,7 @@ impl StartupReport {
 }
 
 /// Deferred loading manager
+#[allow(dead_code)]
 pub struct DeferredLoader {
     tasks: Mutex<Vec<Box<dyn FnOnce() -> Result<(), LiteError> + Send>>>,
     loaded: Mutex<Vec<String>>,
@@ -480,9 +503,10 @@ impl DeferredLoader {
     where
         F: FnOnce() -> Result<(), LiteError> + Send + 'static,
     {
-        let mut tasks = self.tasks.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock tasks".to_string())
-        })?;
+        let mut tasks = self
+            .tasks
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock tasks".to_string()))?;
 
         let name = name.to_string();
         tasks.push(Box::new(move || {
@@ -497,9 +521,10 @@ impl DeferredLoader {
     /// Execute all deferred tasks
     pub fn execute_all(&self) -> Result<(), LiteError> {
         let tasks = {
-            let mut tasks = self.tasks.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock tasks".to_string())
-            })?;
+            let mut tasks = self
+                .tasks
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock tasks".to_string()))?;
             std::mem::take(&mut *tasks)
         };
 
@@ -514,9 +539,10 @@ impl DeferredLoader {
 
     /// Get number of pending tasks
     pub fn pending_count(&self) -> Result<usize, LiteError> {
-        let tasks = self.tasks.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock tasks".to_string())
-        })?;
+        let tasks = self
+            .tasks
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock tasks".to_string()))?;
 
         Ok(tasks.len())
     }
@@ -680,11 +706,13 @@ mod tests {
 
         {
             let flag = executed.clone();
-            loader.defer("test_task", move || {
-                let mut f = flag.lock().unwrap();
-                *f = true;
-                Ok(())
-            }).unwrap();
+            loader
+                .defer("test_task", move || {
+                    let mut f = flag.lock().unwrap();
+                    *f = true;
+                    Ok(())
+                })
+                .unwrap();
         }
 
         assert_eq!(loader.pending_count().unwrap(), 1);

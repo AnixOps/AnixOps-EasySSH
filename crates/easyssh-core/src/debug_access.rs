@@ -34,7 +34,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// Debug访问方法
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,14 +151,13 @@ impl DebugFeature {
         }
     }
 
-    /// 是否需要额外认证
     pub fn requires_auth(&self) -> bool {
-        match self {
-            DebugFeature::DatabaseConsole => true,
-            DebugFeature::AuditLogViewer => true,
-            DebugFeature::PacketCapture => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            DebugFeature::DatabaseConsole
+                | DebugFeature::AuditLogViewer
+                | DebugFeature::PacketCapture
+        )
     }
 
     /// 获取所需权限级别

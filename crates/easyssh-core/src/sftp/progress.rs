@@ -349,7 +349,9 @@ impl ProgressTracker {
     /// 获取任务速度
     pub async fn speed(&self, task_id: &str) -> Option<f64> {
         let trackers = self.trackers.read().await;
-        trackers.get(task_id).map(|t| t.speed_calculator.current_speed())
+        trackers
+            .get(task_id)
+            .map(|t| t.speed_calculator.current_speed())
     }
 
     /// 获取整体统计
@@ -599,7 +601,9 @@ mod tests {
     #[tokio::test]
     async fn test_progress_tracker_update() {
         let tracker = ProgressTracker::new();
-        let task_id = tracker.start_tracking("task-1", "/path/to/file.txt", 1000).await;
+        let task_id = tracker
+            .start_tracking("task-1", "/path/to/file.txt", 1000)
+            .await;
 
         tracker.update(&task_id, 500).await;
 

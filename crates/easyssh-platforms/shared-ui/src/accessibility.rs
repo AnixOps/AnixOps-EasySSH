@@ -286,16 +286,22 @@ impl AriaAttribute {
             AriaAttribute::Disabled(v) => ("aria-disabled", v.to_string()),
             AriaAttribute::Required(v) => ("aria-required", v.to_string()),
             AriaAttribute::ReadOnly(v) => ("aria-readonly", v.to_string()),
-            AriaAttribute::Checked(v) => ("aria-checked", match v {
-                Some(true) => "true".to_string(),
-                Some(false) => "false".to_string(),
-                None => "mixed".to_string(),
-            }),
-            AriaAttribute::Pressed(v) => ("aria-pressed", match v {
-                Some(true) => "true".to_string(),
-                Some(false) => "false".to_string(),
-                None => "mixed".to_string(),
-            }),
+            AriaAttribute::Checked(v) => (
+                "aria-checked",
+                match v {
+                    Some(true) => "true".to_string(),
+                    Some(false) => "false".to_string(),
+                    None => "mixed".to_string(),
+                },
+            ),
+            AriaAttribute::Pressed(v) => (
+                "aria-pressed",
+                match v {
+                    Some(true) => "true".to_string(),
+                    Some(false) => "false".to_string(),
+                    None => "mixed".to_string(),
+                },
+            ),
             AriaAttribute::Value(v) => ("aria-value", v.clone()),
             AriaAttribute::ValueNow(v) => ("aria-valuenow", v.to_string()),
             AriaAttribute::ValueMin(v) => ("aria-valuemin", v.to_string()),
@@ -737,7 +743,11 @@ impl ColorContrast {
     }
 
     /// Check if contrast meets WCAG AA standard
-    pub fn meets_wcag_aa(text_color: (u8, u8, u8), bg_color: (u8, u8, u8), large_text: bool) -> bool {
+    pub fn meets_wcag_aa(
+        text_color: (u8, u8, u8),
+        bg_color: (u8, u8, u8),
+        large_text: bool,
+    ) -> bool {
         let ratio = Self::contrast_ratio(text_color, bg_color);
         if large_text {
             ratio >= 3.0 // 3:1 for large text
@@ -747,7 +757,11 @@ impl ColorContrast {
     }
 
     /// Check if contrast meets WCAG AAA standard
-    pub fn meets_wcag_aaa(text_color: (u8, u8, u8), bg_color: (u8, u8, u8), large_text: bool) -> bool {
+    pub fn meets_wcag_aaa(
+        text_color: (u8, u8, u8),
+        bg_color: (u8, u8, u8),
+        large_text: bool,
+    ) -> bool {
         let ratio = Self::contrast_ratio(text_color, bg_color);
         if large_text {
             ratio >= 4.5 // 4.5:1 for large text
@@ -840,6 +854,9 @@ mod tests {
         };
 
         let manager = AccessibilityManager::new(&config);
-        assert_eq!(manager.colorblind_adjustment(), Some(ColorblindType::Deuteranopia));
+        assert_eq!(
+            manager.colorblind_adjustment(),
+            Some(ColorblindType::Deuteranopia)
+        );
     }
 }

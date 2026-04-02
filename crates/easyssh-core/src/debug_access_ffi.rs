@@ -87,13 +87,20 @@ pub extern "C" fn debug_access_can_use_feature(feature_id: c_int) -> c_int {
 }
 
 /// 停用Debug模式
+///
+/// # Safety
+///
+/// - `reason` 是有效的 C 字符串指针或为 null
+/// - 指针指向的内存保持有效直到函数返回
+///
 /// 返回0表示成功
 #[no_mangle]
-pub extern "C" fn debug_access_deactivate(reason: *const c_char) -> c_int {
+pub unsafe extern "C" fn debug_access_deactivate(reason: *const c_char) -> c_int {
     if let Some(access) = get_debug_access() {
         let reason_str = if reason.is_null() {
             "manual"
         } else {
+            // SAFETY: 函数整体标记为 unsafe，调用者已保证 reason 有效性
             unsafe { CStr::from_ptr(reason).to_str().unwrap_or("manual") }
         };
         match access.deactivate(reason_str) {
@@ -146,12 +153,17 @@ pub extern "C" fn debug_access_should_show_indicator() -> c_int {
 }
 
 /// 释放由本模块分配的字符串
+///
+/// # Safety
+///
+/// - `s` 必须是由本模块分配的 C 字符串指针，或 null
+/// - 调用此函数后，不得再使用 `s` 指针
+/// - 多次释放同一指针会导致未定义行为
 #[no_mangle]
-pub extern "C" fn debug_access_free_string(s: *mut c_char) {
+pub unsafe extern "C" fn debug_access_free_string(s: *mut c_char) {
     if !s.is_null() {
-        unsafe {
-            let _ = CString::from_raw(s);
-        }
+        // SAFETY: 函数标记为 unsafe，调用者已保证指针有效性
+        let _ = CString::from_raw(s);
     }
 }
 
@@ -223,12 +235,17 @@ pub extern "C" fn key_detector_create_standard() -> *mut KeySequenceDetector {
 }
 
 /// 销毁组合键检测器
+///
+/// # Safety
+///
+/// - `detector` 必须是由 `key_detector_create_lite` 或 `key_detector_create_standard` 创建的句柄，或为 null
+/// - 调用此函数后，不得再使用 `detector` 句柄
+/// - 多次销毁同一句柄会导致未定义行为
 #[no_mangle]
-pub extern "C" fn key_detector_destroy(detector: *mut KeySequenceDetector) {
+pub unsafe extern "C" fn key_detector_destroy(detector: *mut KeySequenceDetector) {
     if !detector.is_null() {
-        unsafe {
-            let _ = Box::from_raw(detector);
-        }
+        // SAFETY: 函数标记为 unsafe，调用者已保证指针有效性
+        let _ = Box::from_raw(detector);
     }
 }
 
@@ -236,8 +253,14 @@ pub extern "C" fn key_detector_destroy(detector: *mut KeySequenceDetector) {
 /// detector: 检测器句柄
 /// key: 按键字符串
 /// 返回: 1=序列完成, 0=未完成
+///
+/// # Safety
+///
+/// - `detector` 必须是有效的检测器句柄，或 null
+/// - `key` 必须是有效的 C 字符串指针，或 null
+/// - 指针指向的内存必须保持有效直到函数返回
 #[no_mangle]
-pub extern "C" fn key_detector_on_key(
+pub unsafe extern "C" fn key_detector_on_key(
     detector: *mut KeySequenceDetector,
     key: *const c_char,
 ) -> c_int {
@@ -245,24 +268,27 @@ pub extern "C" fn key_detector_on_key(
         return 0;
     }
 
-    unsafe {
-        let detector = &*detector;
-        let key_str = CStr::from_ptr(key).to_str().unwrap_or("");
-        if detector.on_key(key_str) {
-            1
-        } else {
-            0
-        }
+    // SAFETY: 函数标记为 unsafe，调用者已保证指针有效性
+    let detector = &*detector;
+    let key_str = CStr::from_ptr(key).to_str().unwrap_or("");
+    if detector.on_key(key_str) {
+        1
+    } else {
+        0
     }
 }
 
 /// 重置检测器
+///
+/// # Safety
+///
+/// - `detector` 必须是由 `key_detector_create_lite` 或 `key_detector_create_standard` 创建的句柄，或为 null
+/// - 多次重置同一句柄是安全的
 #[no_mangle]
-pub extern "C" fn key_detector_reset(detector: *mut KeySequenceDetector) {
+pub unsafe extern "C" fn key_detector_reset(detector: *mut KeySequenceDetector) {
     if !detector.is_null() {
-        unsafe {
-            (*detector).reset();
-        }
+        // SAFETY: 函数标记为 unsafe，调用者已保证指针有效性
+        (*detector).reset();
     }
 }
 
@@ -270,18 +296,23 @@ pub extern "C" fn key_detector_reset(detector: *mut KeySequenceDetector) {
 /// detector: 检测器句柄
 /// current: 输出当前进度
 /// total: 输出总步数
+///
+/// # Safety
+///
+/// - `detector` 必须是有效的检测器句柄，或 null
+/// - `current` 和 `total` 必须是有效的可写指针，或 null
+/// - 指针指向的内存必须保持有效直到函数返回
 #[no_mangle]
-pub extern "C" fn key_detector_get_progress(
+pub unsafe extern "C" fn key_detector_get_progress(
     detector: *mut KeySequenceDetector,
     current: *mut c_int,
     total: *mut c_int,
 ) {
     if !detector.is_null() && !current.is_null() && !total.is_null() {
-        unsafe {
-            let (c, t) = (*detector).get_progress();
-            *current = c as c_int;
-            *total = t as c_int;
-        }
+        // SAFETY: 函数标记为 unsafe，调用者已保证指针有效性
+        let (c, t) = (*detector).get_progress();
+        *current = c as c_int;
+        *total = t as c_int;
     }
 }
 
@@ -290,13 +321,19 @@ pub extern "C" fn key_detector_get_progress(
 /// 从CLI参数快速激活
 /// 参数以空格分隔的字符串传入
 /// 返回: 0=成功, 1=失败
+///
+/// # Safety
+///
+/// - `args` 必须是有效的 C 字符串指针，或为 null
+/// - 指针指向的内存必须保持有效直到函数返回
 #[no_mangle]
-pub extern "C" fn debug_access_quick_activate_from_cli(args: *const c_char) -> c_int {
+pub unsafe extern "C" fn debug_access_quick_activate_from_cli(args: *const c_char) -> c_int {
     if args.is_null() {
         return 1;
     }
 
-    let args_str = unsafe { CStr::from_ptr(args).to_str().unwrap_or("") };
+    // SAFETY: 函数标记为 unsafe，调用者已保证指针有效性
+    let args_str = CStr::from_ptr(args).to_str().unwrap_or("");
     let args_vec: Vec<String> = args_str.split_whitespace().map(|s| s.to_string()).collect();
 
     match try_activate_from_cli(&args_vec) {
@@ -329,25 +366,33 @@ mod tests {
 
         // Lite需要按3次
         let key = CString::new("ctrl+shift+d").unwrap();
-        assert_eq!(key_detector_on_key(detector, key.as_ptr()), 0);
-        assert_eq!(key_detector_on_key(detector, key.as_ptr()), 0);
-        assert_eq!(key_detector_on_key(detector, key.as_ptr()), 1); // 完成
+        unsafe {
+            assert_eq!(key_detector_on_key(detector, key.as_ptr()), 0);
+            assert_eq!(key_detector_on_key(detector, key.as_ptr()), 0);
+            assert_eq!(key_detector_on_key(detector, key.as_ptr()), 1); // 完成
+        }
 
         // 获取进度
         let mut current: c_int = 0;
         let mut total: c_int = 0;
-        key_detector_get_progress(detector, &mut current, &mut total);
+        unsafe {
+            key_detector_get_progress(detector, &mut current, &mut total);
+        }
         assert_eq!(current, 0); // 完成后重置为0
         assert_eq!(total, 3);
 
-        key_detector_destroy(detector);
+        unsafe {
+            key_detector_destroy(detector);
+        }
     }
 
     #[test]
     fn test_ffi_string_free() {
         let s = CString::new("test").unwrap();
         let ptr = s.into_raw();
-        debug_access_free_string(ptr); // 不应该崩溃
+        unsafe {
+            debug_access_free_string(ptr); // 不应该崩溃
+        }
     }
 
     #[test]

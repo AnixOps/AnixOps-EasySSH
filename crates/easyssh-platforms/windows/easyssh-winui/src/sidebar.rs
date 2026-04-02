@@ -7,10 +7,13 @@
 //!
 //! UI Reference: Termius-style cards with hover states and selection indicators
 
+use crate::design::{BrandColors, DesignTheme, NeutralColors, Radius, Shadows, Spacing};
 use crate::terminal_launcher::{SshConnection, TerminalPreference};
 use crate::viewmodels::{GroupViewModel, ServerViewModel};
-use crate::design::{DesignTheme, BrandColors, NeutralColors, Radius, Spacing, Shadows};
-use egui::{Align, Color32, Layout, Response, RichText, Rounding, Sense, Stroke, Ui, Vec2, Widget, Margin, Frame};
+use egui::{
+    Align, Color32, Frame, Layout, Margin, Response, RichText, Rounding, Sense, Stroke, Ui, Vec2,
+    Widget,
+};
 
 /// Search box component with highlight support
 pub struct SearchBox {
@@ -67,7 +70,11 @@ impl SearchBox {
             .rounding(Radius::MD)
             .stroke(Stroke::new(
                 if self.focused { 2.0 } else { 1.0 },
-                if self.focused { theme.focus_color } else { theme.border_default },
+                if self.focused {
+                    theme.focus_color
+                } else {
+                    theme.border_default
+                },
             ))
             .inner_margin(Margin::same(Spacing::_3))
             .show(ui, |ui| {
@@ -103,10 +110,7 @@ impl SearchBox {
 
                     // Keyboard shortcut hint
                     if !self.focused && self.query.is_empty() {
-                        ui.colored_label(
-                            theme.text_quaternary,
-                            RichText::new("Ctrl+K").size(10.0),
-                        );
+                        ui.colored_label(theme.text_quaternary, RichText::new("Ctrl+K").size(10.0));
                     }
 
                     response
@@ -330,7 +334,11 @@ impl ServerCard {
                 ui.painter().rect_filled(
                     indicator_rect,
                     Rounding::same(2.0),
-                    if is_selected { group_color.linear_multiply(1.3) } else { group_color },
+                    if is_selected {
+                        group_color.linear_multiply(1.3)
+                    } else {
+                        group_color
+                    },
                 );
 
                 ui.horizontal(|ui| {
@@ -343,7 +351,8 @@ impl ServerCard {
                     };
 
                     let status_pos = ui.cursor().min + egui::vec2(8.0, 12.0);
-                    ui.painter().circle_filled(status_pos, 6.0, theme.bg_secondary);
+                    ui.painter()
+                        .circle_filled(status_pos, 6.0, theme.bg_secondary);
                     ui.painter().circle_filled(status_pos, 4.0, status_color);
 
                     if pulse {
@@ -362,7 +371,12 @@ impl ServerCard {
                     if !self.data.search_query.is_empty() {
                         self.highlight_server_name(ui, &server.name, theme.text_primary);
                     } else {
-                        ui.label(RichText::new(&server.name).strong().size(14.0).color(theme.text_primary));
+                        ui.label(
+                            RichText::new(&server.name)
+                                .strong()
+                                .size(14.0)
+                                .color(theme.text_primary),
+                        );
                     }
 
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -381,7 +395,7 @@ impl ServerCard {
                                     button_color
                                 })
                                 .stroke(Stroke::new(1.0, button_color))
-                                .rounding(Radius::SM)
+                                .rounding(Radius::SM),
                         );
 
                         if button_response.clicked() {
@@ -480,7 +494,10 @@ impl ServerCard {
                     .rounding(Radius::XS)
                     .inner_margin(Margin::symmetric(2.0, 0.0))
                     .show(ui, |ui| {
-                        ui.colored_label(highlight_color, RichText::new(match_text).size(14.0).strong())
+                        ui.colored_label(
+                            highlight_color,
+                            RichText::new(match_text).size(14.0).strong(),
+                        )
                     });
 
                 last_end = start + part.len();
@@ -510,7 +527,10 @@ pub struct ServerList {
 
 impl ServerList {
     pub fn new(servers: Vec<ServerCardData>, search_query: String) -> Self {
-        Self { servers, search_query }
+        Self {
+            servers,
+            search_query,
+        }
     }
 
     pub fn show(&self, ui: &mut Ui) -> Vec<ServerCardResponse> {
@@ -592,14 +612,14 @@ impl Sidebar {
 
         // Update group colors with default palette
         let default_colors = [
-            Color32::from_rgb(59, 130, 246),   // Blue
-            Color32::from_rgb(34, 197, 94),    // Green
-            Color32::from_rgb(239, 68, 68),    // Red
-            Color32::from_rgb(249, 115, 22),   // Orange
-            Color32::from_rgb(168, 85, 247),   // Purple
-            Color32::from_rgb(236, 72, 153),   // Pink
-            Color32::from_rgb(6, 182, 212),    // Cyan
-            Color32::from_rgb(234, 179, 8),    // Yellow
+            Color32::from_rgb(59, 130, 246), // Blue
+            Color32::from_rgb(34, 197, 94),  // Green
+            Color32::from_rgb(239, 68, 68),  // Red
+            Color32::from_rgb(249, 115, 22), // Orange
+            Color32::from_rgb(168, 85, 247), // Purple
+            Color32::from_rgb(236, 72, 153), // Pink
+            Color32::from_rgb(6, 182, 212),  // Cyan
+            Color32::from_rgb(234, 179, 8),  // Yellow
         ];
 
         for (i, group) in self.groups.iter().enumerate() {
@@ -661,7 +681,9 @@ impl Sidebar {
                 .get_filtered_servers()
                 .into_iter()
                 .map(|server| {
-                    let group_color = server.group_id.as_ref()
+                    let group_color = server
+                        .group_id
+                        .as_ref()
                         .and_then(|id| self.group_colors.get(id).cloned());
 
                     ServerCardData {

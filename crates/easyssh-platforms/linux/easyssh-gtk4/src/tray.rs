@@ -84,10 +84,7 @@ impl SystemTray {
 
     /// Show connection error notification
     pub fn notify_connection_error(&self, server_name: &str, error: &str) {
-        self.show_notification(
-            &format!("Connection failed: {}", server_name),
-            error,
-        );
+        self.show_notification(&format!("Connection failed: {}", server_name), error);
     }
 
     /// Show server status change notification

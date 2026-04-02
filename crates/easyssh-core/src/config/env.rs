@@ -21,7 +21,7 @@
 //! let config = env_config.apply_to(FullConfig::default());
 //! ```
 
-use crate::config::types::{AppConfig, FullConfig, Language, SecuritySettings, Theme, UserPreferences};
+use crate::config::types::{FullConfig, Language, Theme};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -134,8 +134,9 @@ pub enum EnvSource {
 }
 
 /// Environment variable type hints
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum EnvType {
+    #[default]
     String,
     Integer,
     Boolean,
@@ -146,12 +147,6 @@ pub enum EnvType {
     IpAddress,
     Json,
     Secret,
-}
-
-impl Default for EnvType {
-    fn default() -> Self {
-        EnvType::String
-    }
 }
 
 /// Environment variable definitions
@@ -169,13 +164,11 @@ impl EnvDefinitions {
             EnvVarDefinition::new("EASYSSH_LANGUAGE", EnvType::String, false)
                 .with_description("Interface language: en, zh")
                 .with_allowed_values(&["en", "zh", "zh-cn", "zh-tw"]),
-
             // Terminal settings
             EnvVarDefinition::new("EASYSSH_TERMINAL", EnvType::Path, false)
                 .with_description("Default terminal emulator path"),
             EnvVarDefinition::new("EASYSSH_TERMINAL_ARGS", EnvType::String, false)
                 .with_description("Default arguments for terminal emulator"),
-
             // Connection defaults
             EnvVarDefinition::new("EASYSSH_DEFAULT_PORT", EnvType::Port, false)
                 .with_description("Default SSH port")
@@ -193,7 +186,6 @@ impl EnvDefinitions {
                 .with_description("SSH keepalive interval in seconds")
                 .with_min(0)
                 .with_max(3600),
-
             // UI preferences
             EnvVarDefinition::new("EASYSSH_SIDEBAR_WIDTH", EnvType::Integer, false)
                 .with_description("Sidebar width in pixels")
@@ -209,7 +201,6 @@ impl EnvDefinitions {
             EnvVarDefinition::new("EASYSSH_WINDOW_HEIGHT", EnvType::Integer, false)
                 .with_min(300)
                 .with_max(4096),
-
             // Security settings
             EnvVarDefinition::new("EASYSSH_CLIPBOARD_CLEAR_TIME", EnvType::Integer, false)
                 .with_description("Clipboard clear time in seconds")
@@ -225,13 +216,11 @@ impl EnvDefinitions {
                 .with_description("Auto-lock after idle minutes (0 to disable)"),
             EnvVarDefinition::new("EASYSSH_REQUIRE_PASSWORD", EnvType::Boolean, false)
                 .with_description("Require password on startup"),
-
             // Sensitive variables (passwords, keys)
             EnvVarDefinition::new("EASYSSH_MASTER_PASSWORD", EnvType::Secret, true)
                 .with_description("Master password (use with caution)"),
             EnvVarDefinition::new("EASYSSH_SSH_KEY_PASSPHRASE", EnvType::Secret, true)
                 .with_description("SSH key passphrase"),
-
             // Debug/Development
             EnvVarDefinition::new("EASYSSH_DEBUG", EnvType::Boolean, false)
                 .with_description("Enable debug mode"),
@@ -242,7 +231,6 @@ impl EnvDefinitions {
                 .with_description("Custom configuration file path"),
             EnvVarDefinition::new("EASYSSH_DATA_DIR", EnvType::Path, false)
                 .with_description("Custom data directory path"),
-
             // Profile-specific
             EnvVarDefinition::new("EASYSSH_PROFILE", EnvType::String, false)
                 .with_description("Active environment profile")
@@ -336,10 +324,8 @@ impl EnvVarDefinition {
                             errors.push(format!("Value {} is above maximum {}", num, max));
                         }
                     }
-                    if self.var_type == EnvType::Port {
-                        if num < 1 || num > 65535 {
-                            errors.push("Port must be between 1 and 65535".to_string());
-                        }
+                    if self.var_type == EnvType::Port && !(1..=65535).contains(&num) {
+                        errors.push("Port must be between 1 and 65535".to_string());
                     }
                 } else {
                     errors.push(format!("Value '{}' is not a valid integer", value));
@@ -365,7 +351,10 @@ impl EnvVarDefinition {
                 }
             }
             EnvType::Url => {
-                if !value.starts_with("http://") && !value.starts_with("https://") && !value.starts_with("ssh://") {
+                if !value.starts_with("http://")
+                    && !value.starts_with("https://")
+                    && !value.starts_with("ssh://")
+                {
                     errors.push("URL must start with http://, https://, or ssh://".to_string());
                 }
             }
@@ -393,28 +382,21 @@ impl EnvVarDefinition {
     /// Parse a value according to the type
     pub fn parse_value(&self, value: &str) -> Result<EnvValue, String> {
         match self.var_type {
-            EnvType::Integer | EnvType::Port => {
-                value.parse::<i64>()
-                    .map(EnvValue::Integer)
-                    .map_err(|e| e.to_string())
-            }
+            EnvType::Integer | EnvType::Port => value
+                .parse::<i64>()
+                .map(EnvValue::Integer)
+                .map_err(|e| e.to_string()),
             EnvType::Boolean => {
-                let bool_val = matches!(
-                    value.to_lowercase().as_str(),
-                    "true" | "1" | "yes" | "on"
-                );
+                let bool_val = matches!(value.to_lowercase().as_str(), "true" | "1" | "yes" | "on");
                 Ok(EnvValue::Boolean(bool_val))
             }
-            EnvType::Float => {
-                value.parse::<f64>()
-                    .map(EnvValue::Float)
-                    .map_err(|e| e.to_string())
-            }
-            EnvType::Json => {
-                serde_json::from_str::<serde_json::Value>(value)
-                    .map(EnvValue::Json)
-                    .map_err(|e| e.to_string())
-            }
+            EnvType::Float => value
+                .parse::<f64>()
+                .map(EnvValue::Float)
+                .map_err(|e| e.to_string()),
+            EnvType::Json => serde_json::from_str::<serde_json::Value>(value)
+                .map(EnvValue::Json)
+                .map_err(|e| e.to_string()),
             _ => Ok(EnvValue::String(value.to_string())),
         }
     }
@@ -518,7 +500,8 @@ impl EnvConfig {
             return Ok(0);
         }
 
-        let content = tokio::fs::read_to_string(path).await
+        let content = tokio::fs::read_to_string(path)
+            .await
             .map_err(|e| format!("Failed to read .env file: {}", e))?;
 
         let mut count = 0;
@@ -660,7 +643,8 @@ impl EnvConfig {
         }
 
         if let Some(require_pass_var) = self.get("EASYSSH_REQUIRE_PASSWORD") {
-            config.security_settings.require_password_on_startup = parse_bool(&require_pass_var.value);
+            config.security_settings.require_password_on_startup =
+                parse_bool(&require_pass_var.value);
         }
 
         config
@@ -678,7 +662,8 @@ impl EnvConfig {
 
     /// Get non-sensitive variables for display
     pub fn get_displayable(&self) -> Vec<&EnvVariable> {
-        self.variables.values()
+        self.variables
+            .values()
             .filter(|v| !v.is_sensitive)
             .collect()
     }
@@ -760,9 +745,7 @@ fn mask_secret(value: &str) -> String {
 fn is_valid_ip(ip: &str) -> bool {
     // IPv4 validation
     if ip.split('.').count() == 4 {
-        ip.split('.').all(|part| {
-            part.parse::<u8>().is_ok()
-        })
+        ip.split('.').all(|part| part.parse::<u8>().is_ok())
     } else {
         // IPv6 validation is complex, just check for colons
         ip.contains(':')
