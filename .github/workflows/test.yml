@@ -1,0 +1,128 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-core:
+    name: Test Core Library
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, nightly]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run tests (Lite)
+        run: cargo test -p easyssh-core --features lite -- --nocapture
+
+      - name: Run tests (Standard)
+        run: cargo test -p easyssh-core --features standard -- --nocapture
+
+      - name: Run tests (Pro)
+        run: cargo test -p easyssh-core --features pro -- --nocapture
+
+      - name: Run clippy
+        run: cargo clippy -p easyssh-core --all-features -- -D warnings
+
+  test-platforms:
+    name: Test Platform Builds
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-gtk4
+          - os: windows-latest
+            target: windows-winui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Linux GTK4
+        if: matrix.target == 'linux-gtk4'
+        run: cargo build -p easyssh-gtk4
+
+      - name: Build Windows WinUI
+        if: matrix.target == 'windows-winui'
+        run: cargo build -p easyssh-winui
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      ssh-server:
+        image: linuxserver/openssh-server
+        env:
+          USER_NAME: test
+          USER_PASSWORD: test
+          PASSWORD_ACCESS: true
+        ports:
+          - 2222:2222
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run integration tests
+        run: |
+          export TEST_SSH_HOST=localhost
+          export TEST_SSH_PORT=2222
+          export TEST_SSH_USER=test
+          export TEST_SSH_PASSWORD=test
+          cargo test --test '*' --features standard
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+
+      - name: Generate coverage
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
