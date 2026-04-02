@@ -19,9 +19,7 @@ where
     let header = adw::HeaderBar::new();
     header.add_css_class("flat");
 
-    let cancel_button = gtk4::Button::builder()
-        .label("Cancel")
-        .build();
+    let cancel_button = gtk4::Button::builder().label("Cancel").build();
     header.pack_start(&cancel_button);
 
     let save_button = gtk4::Button::builder()
@@ -56,9 +54,7 @@ where
     content.append(&name_group);
 
     // Connection info
-    let conn_group = adw::PreferencesGroup::builder()
-        .title("Connection")
-        .build();
+    let conn_group = adw::PreferencesGroup::builder().title("Connection").build();
 
     let host_row = adw::EntryRow::builder()
         .title("Host")
@@ -70,7 +66,12 @@ where
     let port_row = adw::SpinRow::builder()
         .title("Port")
         .adjustment(&gtk4::Adjustment::new(
-            server.port as f64, 1.0, 65535.0, 1.0, 10.0, 0.0
+            server.port as f64,
+            1.0,
+            65535.0,
+            1.0,
+            10.0,
+            0.0,
         ))
         .build();
     conn_group.add(&port_row);
@@ -111,7 +112,10 @@ where
     auth_group.add(&password_entry);
 
     // Key file entry
-    let key_path = server.identity_file.clone().unwrap_or_else(|| "~/.ssh/id_rsa".to_string());
+    let key_path = server
+        .identity_file
+        .clone()
+        .unwrap_or_else(|| "~/.ssh/id_rsa".to_string());
     let key_row = adw::EntryRow::builder()
         .title("Identity File")
         .text(&key_path)
@@ -146,11 +150,13 @@ where
     dialog.set_child(Some(&toolbar_view));
 
     // Auth type change handler
-    auth_row.connect_selected_notify(glib::clone!(@weak password_entry as pw, @weak key_row as key => move |row| {
-        let selected = row.selected();
-        pw.set_visible(selected == 0);
-        key.set_visible(selected == 1);
-    }));
+    auth_row.connect_selected_notify(
+        glib::clone!(@weak password_entry as pw, @weak key_row as key => move |row| {
+            let selected = row.selected();
+            pw.set_visible(selected == 0);
+            key.set_visible(selected == 1);
+        }),
+    );
 
     // Cancel button
     let dialog_weak = dialog.downgrade();

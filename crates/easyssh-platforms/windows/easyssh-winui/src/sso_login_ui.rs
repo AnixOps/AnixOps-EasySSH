@@ -225,7 +225,9 @@ impl SsoLoginPanel {
         ui.label("Available SSO Providers:");
         ui.add_space(4.0);
 
-        let providers: Vec<_> = self.sso_manager.list_enabled_providers()
+        let providers: Vec<_> = self
+            .sso_manager
+            .list_enabled_providers()
             .into_iter()
             .map(|p| (p.id.clone(), p.name.clone(), p.provider_type))
             .collect();
@@ -250,20 +252,23 @@ impl SsoLoginPanel {
                             ui.label(format!("{} {}", icon, name));
                             ui.label(RichText::new(format!("({})", provider_type)).small());
 
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("⚙️").on_hover_text("Configure").clicked() {
-                                    self.selected_provider = Some(provider_id.clone());
-                                }
-
-                                if self.current_user.is_none() {
-                                    let login_btn = egui::Button::new("Login")
-                                        .fill(Color32::from_rgb(64, 156, 255));
-                                    if ui.add(login_btn).clicked() {
-                                        self.initiate_login(&provider_id);
-                                        response.login_initiated = true;
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.button("⚙️").on_hover_text("Configure").clicked() {
+                                        self.selected_provider = Some(provider_id.clone());
                                     }
-                                }
-                            });
+
+                                    if self.current_user.is_none() {
+                                        let login_btn = egui::Button::new("Login")
+                                            .fill(Color32::from_rgb(64, 156, 255));
+                                        if ui.add(login_btn).clicked() {
+                                            self.initiate_login(&provider_id);
+                                            response.login_initiated = true;
+                                        }
+                                    }
+                                },
+                            );
                         });
                         ui.separator();
                     }
@@ -278,8 +283,14 @@ impl SsoLoginPanel {
                 ui.label(format!("Session ID: {}", &session.id[..8]));
                 ui.label(format!("User ID: {}", session.user_id));
                 ui.label(format!("Provider: {}", session.provider_id));
-                ui.label(format!("Created: {}", session.created_at.format("%Y-%m-%d %H:%M")));
-                ui.label(format!("Expires: {}", session.expires_at.format("%Y-%m-%d %H:%M")));
+                ui.label(format!(
+                    "Created: {}",
+                    session.created_at.format("%Y-%m-%d %H:%M")
+                ));
+                ui.label(format!(
+                    "Expires: {}",
+                    session.expires_at.format("%Y-%m-%d %H:%M")
+                ));
 
                 if session.is_expired() {
                     ui.colored_label(Color32::RED, "⚠️ Session expired");
@@ -330,7 +341,11 @@ impl SsoLoginPanel {
         }
     }
 
-    fn render_provider_config_dialog(&mut self, ctx: &egui::Context, _response: &mut SsoLoginResponse) {
+    fn render_provider_config_dialog(
+        &mut self,
+        ctx: &egui::Context,
+        _response: &mut SsoLoginResponse,
+    ) {
         let id = egui::Id::new("sso_provider_config");
         Window::new("Configure SSO Provider")
             .id(id)
@@ -344,8 +359,16 @@ impl SsoLoginPanel {
 
                 ui.label("Provider Type:");
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.new_provider_type, SsoProviderType::Oidc, "🔶 OpenID Connect (OIDC)");
-                    ui.selectable_value(&mut self.new_provider_type, SsoProviderType::Saml, "🔷 SAML 2.0");
+                    ui.selectable_value(
+                        &mut self.new_provider_type,
+                        SsoProviderType::Oidc,
+                        "🔶 OpenID Connect (OIDC)",
+                    );
+                    ui.selectable_value(
+                        &mut self.new_provider_type,
+                        SsoProviderType::Saml,
+                        "🔷 SAML 2.0",
+                    );
                 });
                 ui.add_space(16.0);
 
@@ -361,7 +384,8 @@ impl SsoLoginPanel {
                     let mut saved_provider = None;
                     let mut saved_provider_id = None;
 
-                    if ui.button("💾 Save Provider").clicked() && !self.new_provider_name.is_empty() {
+                    if ui.button("💾 Save Provider").clicked() && !self.new_provider_name.is_empty()
+                    {
                         if let Some(provider) = self.create_provider_from_form() {
                             let provider_id = provider.id.clone();
                             if let Err(e) = self.sso_manager.add_provider(provider.clone()) {
@@ -417,7 +441,10 @@ impl SsoLoginPanel {
             ui.text_edit_singleline(&mut self.oidc_config.scopes);
             ui.add_space(8.0);
 
-            ui.checkbox(&mut self.oidc_config.use_pkce, "Use PKCE (recommended for security)");
+            ui.checkbox(
+                &mut self.oidc_config.use_pkce,
+                "Use PKCE (recommended for security)",
+            );
         });
     }
 
@@ -433,7 +460,9 @@ impl SsoLoginPanel {
             ui.add_space(8.0);
 
             ui.label("IdP Certificate (X.509):");
-            ui.add(egui::TextEdit::multiline(&mut self.saml_config.idp_certificate).desired_rows(5));
+            ui.add(
+                egui::TextEdit::multiline(&mut self.saml_config.idp_certificate).desired_rows(5),
+            );
             ui.add_space(8.0);
 
             ui.label("SP Entity ID:");
@@ -450,9 +479,21 @@ impl SsoLoginPanel {
             egui::ComboBox::from_id_source("nameid_format")
                 .selected_text(format!("{:?}", self.saml_config.name_id_format))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.saml_config.name_id_format, NameIdFormat::EmailAddress, "Email Address");
-                    ui.selectable_value(&mut self.saml_config.name_id_format, NameIdFormat::Persistent, "Persistent");
-                    ui.selectable_value(&mut self.saml_config.name_id_format, NameIdFormat::Transient, "Transient");
+                    ui.selectable_value(
+                        &mut self.saml_config.name_id_format,
+                        NameIdFormat::EmailAddress,
+                        "Email Address",
+                    );
+                    ui.selectable_value(
+                        &mut self.saml_config.name_id_format,
+                        NameIdFormat::Persistent,
+                        "Persistent",
+                    );
+                    ui.selectable_value(
+                        &mut self.saml_config.name_id_format,
+                        NameIdFormat::Transient,
+                        "Transient",
+                    );
                 });
         });
     }
@@ -469,7 +510,9 @@ impl SsoLoginPanel {
                         ui.heading(format!("Login with {}", provider.name));
                         ui.add_space(16.0);
 
-                        ui.label("You will be redirected to your identity provider to authenticate.");
+                        ui.label(
+                            "You will be redirected to your identity provider to authenticate.",
+                        );
                         ui.label("After authentication, you'll return to EasySSH.");
                         ui.add_space(16.0);
 
@@ -497,18 +540,29 @@ impl SsoLoginPanel {
 
         let provider = match self.new_provider_type {
             SsoProviderType::Oidc => {
-                let scopes: Vec<String> = self.oidc_config.scopes
+                let scopes: Vec<String> = self
+                    .oidc_config
+                    .scopes
                     .split_whitespace()
                     .map(|s| s.to_string())
                     .collect();
 
                 let config = OidcConfig {
                     issuer_url: self.oidc_config.issuer_url.clone(),
-                    authorization_endpoint: format!("{}/oauth2/v1/authorize", self.oidc_config.issuer_url),
+                    authorization_endpoint: format!(
+                        "{}/oauth2/v1/authorize",
+                        self.oidc_config.issuer_url
+                    ),
                     token_endpoint: format!("{}/oauth2/v1/token", self.oidc_config.issuer_url),
-                    userinfo_endpoint: format!("{}/oauth2/v1/userinfo", self.oidc_config.issuer_url),
+                    userinfo_endpoint: format!(
+                        "{}/oauth2/v1/userinfo",
+                        self.oidc_config.issuer_url
+                    ),
                     jwks_uri: format!("{}/oauth2/v1/keys", self.oidc_config.issuer_url),
-                    end_session_endpoint: Some(format!("{}/oauth2/v1/logout", self.oidc_config.issuer_url)),
+                    end_session_endpoint: Some(format!(
+                        "{}/oauth2/v1/logout",
+                        self.oidc_config.issuer_url
+                    )),
                     client_id: self.oidc_config.client_id.clone(),
                     client_secret: self.oidc_config.client_secret.clone(),
                     redirect_uri: self.oidc_config.redirect_uri.clone(),
@@ -523,7 +577,8 @@ impl SsoLoginPanel {
                 let config = SamlConfig {
                     idp_entity_id: self.saml_config.idp_entity_id.clone(),
                     idp_sso_url: self.saml_config.idp_sso_url.clone(),
-                    idp_slo_url: Some(self.saml_config.idp_slo_url.clone()).filter(|s| !s.is_empty()),
+                    idp_slo_url: Some(self.saml_config.idp_slo_url.clone())
+                        .filter(|s| !s.is_empty()),
                     idp_certificate: self.saml_config.idp_certificate.clone(),
                     sp_entity_id: self.saml_config.sp_entity_id.clone(),
                     sp_acs_url: self.saml_config.sp_acs_url.clone(),

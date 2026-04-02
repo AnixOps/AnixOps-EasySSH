@@ -18,10 +18,7 @@ use ui::Ui;
 #[tokio::main]
 async fn main() -> AppResult<()> {
     // Initialize logging
-    env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("info"),
-    )
-    .init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     // Initialize terminal
     let backend = CrosstermBackend::new(io::stdout());

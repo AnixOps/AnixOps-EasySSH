@@ -20,13 +20,13 @@ pub mod providers;
 pub mod security_audit;
 pub mod suggestions;
 
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
 pub use context::TerminalContext;
+pub use security_audit::{RiskLevel, SecurityAuditRequest, SecurityAuditResult, UserPermissions};
 pub use suggestions::AiSuggestion;
-pub use security_audit::{SecurityAuditRequest, SecurityAuditResult, RiskLevel, UserPermissions};
 
 pub const VERSION: &str = "0.1.0";
 
@@ -271,10 +271,7 @@ impl AiTerminal {
         })
     }
 
-    pub async fn diagnose_error(
-        &self,
-        _request: ErrorDiagnosisRequest,
-    ) -> Result<DiagnosisResult> {
+    pub async fn diagnose_error(&self, _request: ErrorDiagnosisRequest) -> Result<DiagnosisResult> {
         Ok(DiagnosisResult {
             error_summary: "Stub implementation".to_string(),
             severity: "low".to_string(),
@@ -299,10 +296,7 @@ impl AiTerminal {
         })
     }
 
-    pub async fn explain_command(
-        &self,
-        request: ExplanationRequest,
-    ) -> Result<ExplanationResult> {
+    pub async fn explain_command(&self, request: ExplanationRequest) -> Result<ExplanationResult> {
         Ok(ExplanationResult {
             summary: format!("Command: {}", request.command),
             detailed_explanation: "Stub implementation".to_string(),
@@ -328,10 +322,7 @@ impl AiTerminal {
         })
     }
 
-    pub async fn analyze_logs(
-        &self,
-        request: LogAnalysisRequest,
-    ) -> Result<LogAnalysisResult> {
+    pub async fn analyze_logs(&self, request: LogAnalysisRequest) -> Result<LogAnalysisResult> {
         let lines = request.log_content.lines().count();
         Ok(LogAnalysisResult {
             summary: LogSummary {

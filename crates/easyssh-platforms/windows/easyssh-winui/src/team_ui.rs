@@ -37,8 +37,8 @@ impl TeamRole {
 
     pub fn color(&self) -> Color32 {
         match self {
-            TeamRole::Owner => Color32::from_rgb(255, 215, 0),    // Gold
-            TeamRole::Admin => Color32::from_rgb(64, 156, 255),   // Blue
+            TeamRole::Owner => Color32::from_rgb(255, 215, 0), // Gold
+            TeamRole::Admin => Color32::from_rgb(64, 156, 255), // Blue
             TeamRole::Member => Color32::from_rgb(100, 200, 100), // Green
             TeamRole::Viewer => Color32::from_rgb(150, 150, 150), // Gray
         }
@@ -340,12 +340,11 @@ impl TeamManagerUI {
                 let is_active = self.active_tab == tab;
                 let text = format!("{} {}", tab.icon(), tab.display_name());
 
-                let btn = egui::Button::new(RichText::new(text).size(12.0))
-                    .fill(if is_active {
-                        egui::Color32::from_rgb(64, 156, 255)
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    });
+                let btn = egui::Button::new(RichText::new(text).size(12.0)).fill(if is_active {
+                    egui::Color32::from_rgb(64, 156, 255)
+                } else {
+                    egui::Color32::TRANSPARENT
+                });
 
                 if ui.add(btn).clicked() {
                     self.active_tab = tab;
@@ -396,7 +395,13 @@ impl TeamManagerUI {
                 // Recent activity
                 ui.heading("最近活动");
                 self.render_activity_item(ui, "👤", "李四", "添加了服务器 prod-db-01", "2分钟前");
-                self.render_activity_item(ui, "📁", "王五", "分享了代码片段 'Docker部署'", "1小时前");
+                self.render_activity_item(
+                    ui,
+                    "📁",
+                    "王五",
+                    "分享了代码片段 'Docker部署'",
+                    "1小时前",
+                );
                 self.render_activity_item(ui, "🔐", "张三", "修改了团队设置", "3小时前");
             });
         } else {
@@ -461,7 +466,11 @@ impl TeamManagerUI {
             ui.label(RichText::new(member.role.icon()).size(20.0));
 
             ui.vertical(|ui| {
-                ui.label(RichText::new(&member.name).strong().color(theme.text_primary));
+                ui.label(
+                    RichText::new(&member.name)
+                        .strong()
+                        .color(theme.text_primary),
+                );
                 ui.label(
                     RichText::new(&member.email)
                         .size(11.0)
@@ -520,8 +529,7 @@ impl TeamManagerUI {
             ui.vertical(|ui| {
                 ui.label(&invitation.email);
                 ui.label(
-                    RichText::new(format!("角色: {}", invitation.role.display_name()))
-                        .size(11.0),
+                    RichText::new(format!("角色: {}", invitation.role.display_name())).size(11.0),
                 );
             });
 
@@ -575,14 +583,8 @@ impl TeamManagerUI {
         {
             ui.add_space(8.0);
 
-            ui.checkbox(
-                &mut team.settings.allow_member_invite,
-                "允许成员邀请新成员",
-            );
-            ui.checkbox(
-                &mut team.settings.allow_member_share,
-                "允许成员分享资源",
-            );
+            ui.checkbox(&mut team.settings.allow_member_invite, "允许成员邀请新成员");
+            ui.checkbox(&mut team.settings.allow_member_share, "允许成员分享资源");
             ui.checkbox(
                 &mut team.settings.require_approval_for_join,
                 "新成员加入需要审批",
@@ -614,14 +616,8 @@ impl TeamManagerUI {
                 ui.label("团队描述:");
                 ui.text_edit_multiline(&mut self.new_team_form.description);
 
-                ui.checkbox(
-                    &mut self.new_team_form.allow_member_invite,
-                    "允许成员邀请",
-                );
-                ui.checkbox(
-                    &mut self.new_team_form.require_approval,
-                    "加入需要审批",
-                );
+                ui.checkbox(&mut self.new_team_form.allow_member_invite, "允许成员邀请");
+                ui.checkbox(&mut self.new_team_form.require_approval, "加入需要审批");
 
                 ui.add_space(16.0);
 
@@ -655,12 +651,12 @@ impl TeamManagerUI {
                 egui::ComboBox::from_id_source("invite_role")
                     .selected_text(self.invite_form.role.display_name())
                     .show_ui(ui, |ui| {
-                        for role in [
-                            TeamRole::Admin,
-                            TeamRole::Member,
-                            TeamRole::Viewer,
-                        ] {
-                            ui.selectable_value(&mut self.invite_form.role, role, role.display_name());
+                        for role in [TeamRole::Admin, TeamRole::Member, TeamRole::Viewer] {
+                            ui.selectable_value(
+                                &mut self.invite_form.role,
+                                role,
+                                role.display_name(),
+                            );
                         }
                     });
 
@@ -744,10 +740,7 @@ impl TeamManagerUI {
     }
 
     fn show_success(&mut self, message: &str) {
-        self.success_message = Some((
-            message.to_string(),
-            std::time::Instant::now(),
-        ));
+        self.success_message = Some((message.to_string(), std::time::Instant::now()));
     }
 
     /// Update and clear expired success messages
@@ -761,11 +754,7 @@ impl TeamManagerUI {
 }
 
 /// Render team panel helper function
-pub fn render_team_panel(
-    ctx: &egui::Context,
-    show_panel: &mut bool,
-    manager: &mut TeamManagerUI,
-) {
+pub fn render_team_panel(ctx: &egui::Context, show_panel: &mut bool, manager: &mut TeamManagerUI) {
     manager.update();
     manager.render(ctx, show_panel);
 

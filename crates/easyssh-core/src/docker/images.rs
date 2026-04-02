@@ -17,7 +17,11 @@ impl DockerManager {
         dangling: bool,
     ) -> Result<Vec<ImageInfo>, LiteError> {
         let all_flag = if all { " -a" } else { "" };
-        let filter_flag = if dangling { " --filter dangling=true" } else { "" };
+        let filter_flag = if dangling {
+            " --filter dangling=true"
+        } else {
+            ""
+        };
 
         let cmd = format!(
             "docker images{} --format '{{{{json .}}}}' 2>/dev/null || docker images{}{} --format '{{{{.ID}}}}|{{{{.Repository}}}}|{{{{.Tag}}}}|{{{{.Size}}}}|{{{{.CreatedAt}}}}'",
@@ -248,11 +252,18 @@ impl DockerManager {
     }
 
     /// Parse image inspect JSON
-    pub fn parse_image_inspect_json(&self, value: serde_json::Value) -> Result<ImageInfo, LiteError> {
+    pub fn parse_image_inspect_json(
+        &self,
+        value: serde_json::Value,
+    ) -> Result<ImageInfo, LiteError> {
         let config = value.get("Config").and_then(|v| v.as_object());
 
         Ok(ImageInfo {
-            id: value.get("Id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            id: value
+                .get("Id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             repo_tags: value
                 .get("RepoTags")
                 .and_then(|v| v.as_array())
@@ -292,7 +303,10 @@ impl DockerManager {
                 .unwrap_or("")
                 .to_string(),
             size: value.get("Size").and_then(|v| v.as_i64()).unwrap_or(0),
-            virtual_size: value.get("VirtualSize").and_then(|v| v.as_i64()).unwrap_or(0),
+            virtual_size: value
+                .get("VirtualSize")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0),
             shared_size: 0,
             labels: config
                 .and_then(|c| c.get("Labels"))

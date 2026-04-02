@@ -124,14 +124,20 @@ fn create_router(state: AppState) -> Router {
         .nest("/collaboration", collaboration_routes())
         .nest("/incidents", incident_routes())
         .nest("/ws", ws_routes())
-        .layer(axum_middleware::from_fn_with_state(state.clone(), require_auth));
+        .layer(axum_middleware::from_fn_with_state(
+            state.clone(),
+            require_auth,
+        ));
 
     // Combine all routes
     let api_router = Router::new()
         .merge(health_router)
         .merge(public_router)
         .merge(protected_router)
-        .layer(axum_middleware::from_fn_with_state(state.clone(), rate_limit_middleware))
+        .layer(axum_middleware::from_fn_with_state(
+            state.clone(),
+            rate_limit_middleware,
+        ))
         .layer(cors)
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())

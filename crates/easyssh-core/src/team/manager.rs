@@ -8,9 +8,9 @@ use std::collections::HashMap;
 
 use super::permissions::TeamPermission;
 use super::types::{
-    ActivityType, CleanupResult, InviteStatus, MemberStatus, ShareType, SharedResource,
-    ShareableResourceType, Team, TeamActivity, TeamInvite, TeamMember, TeamOperationResult,
-    TeamRole, TeamStats,
+    ActivityType, CleanupResult, InviteStatus, MemberStatus, ShareType, ShareableResourceType,
+    SharedResource, Team, TeamActivity, TeamInvite, TeamMember, TeamOperationResult, TeamRole,
+    TeamStats,
 };
 
 /// Team manager
@@ -71,7 +71,12 @@ impl TeamManager {
 
         // Log audit
         #[cfg(feature = "audit")]
-        self.log_audit(AuditAction::TeamCreate, owner_id, &id, AuditTarget::Team { id: id.clone() });
+        self.log_audit(
+            AuditAction::TeamCreate,
+            owner_id,
+            &id,
+            AuditTarget::Team { id: id.clone() },
+        );
 
         Ok(team)
     }
@@ -97,7 +102,9 @@ impl TeamManager {
                 AuditAction::TeamUpdate,
                 updated_by,
                 &team_id,
-                AuditTarget::Team { id: team_id.clone() },
+                AuditTarget::Team {
+                    id: team_id.clone(),
+                },
             );
 
             Ok(())
@@ -134,7 +141,9 @@ impl TeamManager {
             AuditAction::TeamDelete,
             requester_id,
             &team_id_owned,
-            AuditTarget::Team { id: team_id_owned.clone() },
+            AuditTarget::Team {
+                id: team_id_owned.clone(),
+            },
         );
 
         Ok(())
@@ -192,7 +201,9 @@ impl TeamManager {
         let existing_ids: Vec<String> = self
             .invites
             .values()
-            .filter(|i| i.team_id == team_id && i.email == email && i.status == InviteStatus::Pending)
+            .filter(|i| {
+                i.team_id == team_id && i.email == email && i.status == InviteStatus::Pending
+            })
             .map(|i| i.id.clone())
             .collect();
 
@@ -230,7 +241,9 @@ impl TeamManager {
             AuditAction::MemberInvite,
             invited_by,
             team_id,
-            AuditTarget::User { id: email.to_string() },
+            AuditTarget::User {
+                id: email.to_string(),
+            },
         );
 
         Ok(invite)
@@ -295,7 +308,9 @@ impl TeamManager {
         }
 
         if invite.email != email {
-            return Err(LiteError::Team("Email does not match invitation".to_string()));
+            return Err(LiteError::Team(
+                "Email does not match invitation".to_string(),
+            ));
         }
 
         let team_id = invite.team_id.clone();
@@ -310,7 +325,9 @@ impl TeamManager {
             AuditAction::MemberJoin,
             user_id,
             &team_id,
-            AuditTarget::Team { id: team_id.clone() },
+            AuditTarget::Team {
+                id: team_id.clone(),
+            },
         );
 
         Ok(member)
@@ -459,7 +476,10 @@ impl TeamManager {
                 team_id,
                 changed_by,
                 ActivityType::RoleChanged,
-                &format!("Changed {}'s role from {:?} to {:?}", username, old_role, new_role),
+                &format!(
+                    "Changed {}'s role from {:?} to {:?}",
+                    username, old_role, new_role
+                ),
             );
         }
 
@@ -567,7 +587,12 @@ impl TeamManager {
     }
 
     /// Check permission
-    pub fn check_permission(&self, team_id: &str, user_id: &str, permission: TeamPermission) -> bool {
+    pub fn check_permission(
+        &self,
+        team_id: &str,
+        user_id: &str,
+        permission: TeamPermission,
+    ) -> bool {
         self.teams
             .get(team_id)
             .and_then(|t| t.find_member(user_id))
@@ -638,7 +663,13 @@ impl TeamManager {
 
     /// Log audit (internal)
     #[cfg(feature = "audit")]
-    fn log_audit(&mut self, action: AuditAction, actor_id: &str, team_id: &str, target: AuditTarget) {
+    fn log_audit(
+        &mut self,
+        action: AuditAction,
+        actor_id: &str,
+        team_id: &str,
+        target: AuditTarget,
+    ) {
         if let Some(ref mut audit) = self.audit_logger {
             let actor = Actor {
                 user_id: actor_id.to_string(),

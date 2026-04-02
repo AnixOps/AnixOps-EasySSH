@@ -126,7 +126,9 @@ pub struct ICloudProvider {
 
 impl ICloudProvider {
     pub fn new() -> Self {
-        Self { container_url: None }
+        Self {
+            container_url: None,
+        }
     }
 }
 

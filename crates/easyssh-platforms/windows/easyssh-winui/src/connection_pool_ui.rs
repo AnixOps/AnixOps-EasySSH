@@ -123,12 +123,18 @@ impl ConnectionPoolManagerUI {
 
     /// Get total connection count
     pub fn total_connections(&self) -> usize {
-        self.endpoint_stats.values().map(|s| s.connection_count).sum()
+        self.endpoint_stats
+            .values()
+            .map(|s| s.connection_count)
+            .sum()
     }
 
     /// Get total active connections
     pub fn total_active_connections(&self) -> usize {
-        self.endpoint_stats.values().map(|s| s.active_connections).sum()
+        self.endpoint_stats
+            .values()
+            .map(|s| s.active_connections)
+            .sum()
     }
 
     /// Render the connection pool manager window
@@ -152,7 +158,11 @@ impl ConnectionPoolManagerUI {
         let show_advanced = self.show_advanced_settings;
         let action_msg = self.action_message.clone();
         let endpoint_stats_empty = self.endpoint_stats.is_empty();
-        let total_connections: usize = self.endpoint_stats.values().map(|s| s.connection_count).sum();
+        let total_connections: usize = self
+            .endpoint_stats
+            .values()
+            .map(|s| s.connection_count)
+            .sum();
         let auto_refresh = self.auto_refresh;
 
         egui::Window::new("Connection Pool Manager")
@@ -165,11 +175,22 @@ impl ConnectionPoolManagerUI {
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                self.render_content(ui, pool, show_advanced, action_msg.as_ref(), endpoint_stats_empty, total_connections, auto_refresh);
+                self.render_content(
+                    ui,
+                    pool,
+                    show_advanced,
+                    action_msg.as_ref(),
+                    endpoint_stats_empty,
+                    total_connections,
+                    auto_refresh,
+                );
             });
     }
 
-    fn update_stats_from_pool(&mut self, stats: crate::performance::connection_pool::OptimizedPoolStats) {
+    fn update_stats_from_pool(
+        &mut self,
+        stats: crate::performance::connection_pool::OptimizedPoolStats,
+    ) {
         // This would be called with real stats from the pool
         // For demonstration, we keep existing stats
         let _ = stats;
@@ -252,18 +273,53 @@ impl ConnectionPoolManagerUI {
                 ui.add_space(10.0);
 
                 ui.horizontal(|ui| {
-                    self.stat_card(ui, "Total Endpoints", &stats.total_endpoints.to_string(), egui::Color32::from_rgb(100, 180, 255));
-                    self.stat_card(ui, "Total Connections", &stats.total_connections.to_string(), egui::Color32::from_rgb(72, 199, 116));
-                    self.stat_card(ui, "Created", &stats.created.to_string(), egui::Color32::from_rgb(255, 193, 7));
-                    self.stat_card(ui, "Reused", &stats.reused.to_string(), egui::Color32::from_rgb(150, 150, 150));
+                    self.stat_card(
+                        ui,
+                        "Total Endpoints",
+                        &stats.total_endpoints.to_string(),
+                        egui::Color32::from_rgb(100, 180, 255),
+                    );
+                    self.stat_card(
+                        ui,
+                        "Total Connections",
+                        &stats.total_connections.to_string(),
+                        egui::Color32::from_rgb(72, 199, 116),
+                    );
+                    self.stat_card(
+                        ui,
+                        "Created",
+                        &stats.created.to_string(),
+                        egui::Color32::from_rgb(255, 193, 7),
+                    );
+                    self.stat_card(
+                        ui,
+                        "Reused",
+                        &stats.reused.to_string(),
+                        egui::Color32::from_rgb(150, 150, 150),
+                    );
                 });
 
                 ui.add_space(10.0);
 
                 ui.horizontal(|ui| {
-                    self.stat_card(ui, "Expired", &stats.expired.to_string(), egui::Color32::from_rgb(255, 100, 100));
-                    self.stat_card(ui, "Failed", &stats.failed.to_string(), egui::Color32::from_rgb(255, 50, 50));
-                    self.stat_card(ui, "Avg Wait", &format!("{:.1}ms", stats.avg_wait_time_ms), egui::Color32::from_rgb(200, 200, 200));
+                    self.stat_card(
+                        ui,
+                        "Expired",
+                        &stats.expired.to_string(),
+                        egui::Color32::from_rgb(255, 100, 100),
+                    );
+                    self.stat_card(
+                        ui,
+                        "Failed",
+                        &stats.failed.to_string(),
+                        egui::Color32::from_rgb(255, 50, 50),
+                    );
+                    self.stat_card(
+                        ui,
+                        "Avg Wait",
+                        &format!("{:.1}ms", stats.avg_wait_time_ms),
+                        egui::Color32::from_rgb(200, 200, 200),
+                    );
                 });
             });
         } else {
@@ -275,12 +331,7 @@ impl ConnectionPoolManagerUI {
         ui.group(|ui| {
             ui.set_min_width(100.0);
             ui.vertical_centered(|ui| {
-                ui.label(
-                    egui::RichText::new(value)
-                        .strong()
-                        .size(20.0)
-                        .color(color),
-                );
+                ui.label(egui::RichText::new(value).strong().size(20.0).color(color));
                 ui.label(
                     egui::RichText::new(label)
                         .size(11.0)
@@ -298,9 +349,20 @@ impl ConnectionPoolManagerUI {
     ) {
         let mut toggle_advanced = false;
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Pool Configuration").strong().size(14.0));
+            ui.label(
+                egui::RichText::new("Pool Configuration")
+                    .strong()
+                    .size(14.0),
+            );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button(if show_advanced_settings { "△ Simple" } else { "▽ Advanced" }).clicked() {
+                if ui
+                    .button(if show_advanced_settings {
+                        "△ Simple"
+                    } else {
+                        "▽ Advanced"
+                    })
+                    .clicked()
+                {
                     toggle_advanced = true;
                 }
             });
@@ -326,7 +388,11 @@ impl ConnectionPoolManagerUI {
             ui.label("Idle timeout (sec):");
             let mut idle_secs = self.config.idle_timeout.as_secs();
             if ui
-                .add(egui::DragValue::new(&mut idle_secs).speed(10).range(30..=3600))
+                .add(
+                    egui::DragValue::new(&mut idle_secs)
+                        .speed(10)
+                        .range(30..=3600),
+                )
                 .changed()
             {
                 self.config.idle_timeout = std::time::Duration::from_secs(idle_secs);
@@ -364,7 +430,11 @@ impl ConnectionPoolManagerUI {
                     ui.label("Max lifetime (sec):");
                     let mut lifetime_secs = self.config.max_lifetime.as_secs();
                     if ui
-                        .add(egui::DragValue::new(&mut lifetime_secs).speed(60).range(600..=7200))
+                        .add(
+                            egui::DragValue::new(&mut lifetime_secs)
+                                .speed(60)
+                                .range(600..=7200),
+                        )
                         .changed()
                     {
                         self.config.max_lifetime = std::time::Duration::from_secs(lifetime_secs);
@@ -375,7 +445,11 @@ impl ConnectionPoolManagerUI {
                     ui.label("Connect timeout (sec):");
                     let mut timeout_secs = self.config.connect_timeout.as_secs();
                     if ui
-                        .add(egui::DragValue::new(&mut timeout_secs).speed(1).range(5..=60))
+                        .add(
+                            egui::DragValue::new(&mut timeout_secs)
+                                .speed(1)
+                                .range(5..=60),
+                        )
                         .changed()
                     {
                         self.config.connect_timeout = std::time::Duration::from_secs(timeout_secs);
@@ -428,11 +502,13 @@ impl ConnectionPoolManagerUI {
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
 
-            egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                for (endpoint_id, stats) in endpoint_data {
-                    self.render_endpoint_item(ui, &endpoint_id, &stats, pool);
-                }
-            });
+            egui::ScrollArea::vertical()
+                .max_height(200.0)
+                .show(ui, |ui| {
+                    for (endpoint_id, stats) in endpoint_data {
+                        self.render_endpoint_item(ui, &endpoint_id, &stats, pool);
+                    }
+                });
         }
     }
 
@@ -474,11 +550,7 @@ impl ConnectionPoolManagerUI {
                     egui::Color32::from_rgb(150, 150, 150)
                 };
 
-                ui.label(
-                    egui::RichText::new("●")
-                        .color(status_color)
-                        .size(16.0),
-                );
+                ui.label(egui::RichText::new("●").color(status_color).size(16.0));
 
                 ui.vertical(|ui| {
                     ui.label(
@@ -505,7 +577,11 @@ impl ConnectionPoolManagerUI {
                         should_flush = true;
                     }
 
-                    if ui.button("🔥").on_hover_text("Pre-warm connections").clicked() {
+                    if ui
+                        .button("🔥")
+                        .on_hover_text("Pre-warm connections")
+                        .clicked()
+                    {
                         should_prewarm = true;
                     }
                 });
@@ -524,7 +600,14 @@ impl ConnectionPoolManagerUI {
         }
 
         // Click to select
-        if ui.interact(response.response.rect, egui::Id::new(endpoint_id), egui::Sense::click()).clicked() {
+        if ui
+            .interact(
+                response.response.rect,
+                egui::Id::new(endpoint_id),
+                egui::Sense::click(),
+            )
+            .clicked()
+        {
             should_select = true;
         }
 
@@ -561,7 +644,11 @@ pub fn render_pool_status_widget(
     .fill(egui::Color32::TRANSPARENT)
     .stroke(egui::Stroke::new(1.0, color));
 
-    if ui.add(button).on_hover_text("Click to manage connection pool").clicked() {
+    if ui
+        .add(button)
+        .on_hover_text("Click to manage connection pool")
+        .clicked()
+    {
         on_click();
     }
 }

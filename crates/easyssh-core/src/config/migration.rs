@@ -86,7 +86,12 @@ impl ConfigMigration {
                     return MigrationResult::failure(
                         from_version,
                         to_version,
-                        vec![format!("Migration from v{} to v{} failed: {}", current, current + 1, e)],
+                        vec![format!(
+                            "Migration from v{} to v{} failed: {}",
+                            current,
+                            current + 1,
+                            e
+                        )],
                     );
                 }
             }
@@ -96,11 +101,7 @@ impl ConfigMigration {
     }
 
     /// Apply a single migration step
-    fn apply_migration(
-        config: &mut FullConfig,
-        from: u32,
-        to: u32,
-    ) -> Result<String, String> {
+    fn apply_migration(config: &mut FullConfig, from: u32, to: u32) -> Result<String, String> {
         match (from, to) {
             (0, 1) => Self::migrate_v0_to_v1(config),
             _ => Err(format!("No migration path from v{} to v{}", from, to)),
@@ -125,10 +126,14 @@ impl ConfigMigration {
         if config.app_config.custom.is_empty() && config.app_config.custom.capacity() == 0 {
             config.app_config.custom = HashMap::new();
         }
-        if config.user_preferences.custom.is_empty() && config.user_preferences.custom.capacity() == 0 {
+        if config.user_preferences.custom.is_empty()
+            && config.user_preferences.custom.capacity() == 0
+        {
             config.user_preferences.custom = HashMap::new();
         }
-        if config.security_settings.custom.is_empty() && config.security_settings.custom.capacity() == 0 {
+        if config.security_settings.custom.is_empty()
+            && config.security_settings.custom.capacity() == 0
+        {
             config.security_settings.custom = HashMap::new();
         }
 
@@ -187,7 +192,9 @@ pub struct ConfigBackup;
 
 impl ConfigBackup {
     /// Create a backup of the configuration file
-    pub async fn create_backup(config_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    pub async fn create_backup(
+        config_path: &std::path::Path,
+    ) -> Result<std::path::PathBuf, String> {
         if !config_path.exists() {
             return Err("Configuration file does not exist".to_string());
         }
@@ -298,8 +305,8 @@ impl ConfigBackup {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::*;
+    use super::*;
     use std::io::Write;
     use tempfile::TempDir;
 
@@ -400,14 +407,14 @@ mod tests {
         for i in 0..5 {
             let backup_path = backup_dir.join(format!("config_backup_{}.json", i));
             tokio::fs::create_dir_all(&backup_dir).await.unwrap();
-            tokio::fs::write(&backup_path, "{}")
-                .await
-                .unwrap();
+            tokio::fs::write(&backup_path, "{}").await.unwrap();
             // Small delay to ensure different modification times
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
 
-        let removed = ConfigBackup::cleanup_old_backups(&backup_dir, 3).await.unwrap();
+        let removed = ConfigBackup::cleanup_old_backups(&backup_dir, 3)
+            .await
+            .unwrap();
         assert_eq!(removed, 2);
 
         let remaining = ConfigBackup::list_backups(&backup_dir).await.unwrap();

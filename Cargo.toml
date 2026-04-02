@@ -225,6 +225,7 @@ codegen-units = 1
 lto = "thin"
 opt-level = "s"
 strip = true
+overflow-checks = true              # 安全: 启用整数溢出检查
 
 # Ultra-optimized profile for Lite version (smallest binary)
 [profile.release-lite]
@@ -234,6 +235,7 @@ codegen-units = 1
 lto = true
 strip = true
 panic = "abort"
+overflow-checks = true              # 安全: 启用整数溢出检查
 
 # Standard version profile with performance focus
 [profile.release-standard]
@@ -243,6 +245,7 @@ codegen-units = 4
 lto = "thin"
 strip = true
 panic = "abort"
+overflow-checks = true              # 安全: 启用整数溢出检查
 
 # Pro version profile optimized for server workloads
 [profile.release-pro]
@@ -252,6 +255,7 @@ codegen-units = 8
 lto = "fat"
 strip = false  # Keep symbols for debugging production issues
 panic = "unwind"  # Enable stack unwinding for better error handling
+overflow-checks = true              # 安全: 启用整数溢出检查
 
 # Development profile with fast compilation
 [profile.dev]

@@ -202,9 +202,7 @@ pub enum StepConfig {
         right_operand: String,
     },
     /// Wait/pause
-    Wait {
-        duration_secs: u64,
-    },
+    Wait { duration_secs: u64 },
 }
 
 impl StepConfig {
@@ -231,9 +229,7 @@ impl StepConfig {
                 left_operand: String::new(),
                 right_operand: String::new(),
             },
-            StepType::Wait => StepConfig::Wait {
-                duration_secs: 1,
-            },
+            StepType::Wait => StepConfig::Wait { duration_secs: 1 },
         }
     }
 }
@@ -650,45 +646,9 @@ impl WorkflowTemplates {
             .with_category("deployment");
 
         // Step 1: Pre-deployment check
-        let check_step = WorkflowStep::new(StepType::Command, "Pre-deployment Check")
-            .with_config(StepConfig::Command {
-                command: "df -h / && free -h".to_string(),
-                target: "remote".to_string(),
-                working_dir: None,
-                env_vars: HashMap::new(),
-                capture_output: true,
-                fail_on_error: true,
-            });
-        let check_id = workflow.add_step(check_step);
-
-        // Step 2: Upload files
-        let upload_step = WorkflowStep::new(StepType::Transfer, "Upload Application")
-            .with_config(StepConfig::Transfer {
-                direction: "upload".to_string(),
-                local_path: "{{deployment.package_path}}".to_string(),
-                remote_path: "/tmp/deploy-package.tar.gz".to_string(),
-                permissions: Some("644".to_string()),
-                create_dirs: true,
-            });
-        let upload_id = workflow.add_step(upload_step);
-
-        // Step 3: Extract and install
-        let install_step = WorkflowStep::new(StepType::Command, "Install Application")
-            .with_config(StepConfig::Command {
-                command: "cd /opt/app && tar -xzf /tmp/deploy-package.tar.gz && ./install.sh"
-                    .to_string(),
-                target: "remote".to_string(),
-                working_dir: Some("/opt/app".to_string()),
-                env_vars: HashMap::new(),
-                capture_output: true,
-                fail_on_error: true,
-            });
-        let install_id = workflow.add_step(install_step);
-
-        // Step 4: Health check
-        let health_step = WorkflowStep::new(StepType::Command, "Health Check").with_config(
+        let check_step = WorkflowStep::new(StepType::Command, "Pre-deployment Check").with_config(
             StepConfig::Command {
-                command: "curl -f http://localhost:8080/health || exit 1".to_string(),
+                command: "df -h / && free -h".to_string(),
                 target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
@@ -696,12 +656,49 @@ impl WorkflowTemplates {
                 fail_on_error: true,
             },
         );
+        let check_id = workflow.add_step(check_step);
+
+        // Step 2: Upload files
+        let upload_step = WorkflowStep::new(StepType::Transfer, "Upload Application").with_config(
+            StepConfig::Transfer {
+                direction: "upload".to_string(),
+                local_path: "{{deployment.package_path}}".to_string(),
+                remote_path: "/tmp/deploy-package.tar.gz".to_string(),
+                permissions: Some("644".to_string()),
+                create_dirs: true,
+            },
+        );
+        let upload_id = workflow.add_step(upload_step);
+
+        // Step 3: Extract and install
+        let install_step = WorkflowStep::new(StepType::Command, "Install Application").with_config(
+            StepConfig::Command {
+                command: "cd /opt/app && tar -xzf /tmp/deploy-package.tar.gz && ./install.sh"
+                    .to_string(),
+                target: "remote".to_string(),
+                working_dir: Some("/opt/app".to_string()),
+                env_vars: HashMap::new(),
+                capture_output: true,
+                fail_on_error: true,
+            },
+        );
+        let install_id = workflow.add_step(install_step);
+
+        // Step 4: Health check
+        let health_step =
+            WorkflowStep::new(StepType::Command, "Health Check").with_config(StepConfig::Command {
+                command: "curl -f http://localhost:8080/health || exit 1".to_string(),
+                target: "remote".to_string(),
+                working_dir: None,
+                env_vars: HashMap::new(),
+                capture_output: true,
+                fail_on_error: true,
+            });
         let health_id = workflow.add_step(health_step);
 
         // Step 5: Wait (success indicator)
-        let complete_step = WorkflowStep::new(StepType::Wait, "Complete").with_config(
-            StepConfig::Wait { duration_secs: 1 },
-        );
+        let complete_step = WorkflowStep::new(StepType::Wait, "Complete")
+            .with_config(StepConfig::Wait { duration_secs: 1 });
         let complete_id = workflow.add_step(complete_step);
 
         // Connect steps
@@ -733,27 +730,29 @@ impl WorkflowTemplates {
         let backup_id = workflow.add_step(backup_step);
 
         // Download backup
-        let download_step = WorkflowStep::new(StepType::Transfer, "Download Backup")
-            .with_config(StepConfig::Transfer {
+        let download_step = WorkflowStep::new(StepType::Transfer, "Download Backup").with_config(
+            StepConfig::Transfer {
                 direction: "download".to_string(),
                 local_path: "{{backup.local_path}}/backup-{{server.name}}-$(date +%Y%m%d).dump"
                     .to_string(),
                 remote_path: "/tmp/backup-$(date +%Y%m%d).dump".to_string(),
                 permissions: None,
                 create_dirs: true,
-            });
+            },
+        );
         let download_id = workflow.add_step(download_step);
 
         // Clean old backups
-        let cleanup_step = WorkflowStep::new(StepType::Command, "Clean Old Backups")
-            .with_config(StepConfig::Command {
+        let cleanup_step = WorkflowStep::new(StepType::Command, "Clean Old Backups").with_config(
+            StepConfig::Command {
                 command: "find /tmp -name 'backup-*.dump' -mtime +7 -delete".to_string(),
                 target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: false,
                 fail_on_error: false,
-            });
+            },
+        );
         let cleanup_id = workflow.add_step(cleanup_step);
 
         workflow.connect(&backup_id, &download_id).unwrap();
@@ -1066,7 +1065,11 @@ mod tests {
         // Test Transfer default
         let transfer_config = StepConfig::default_for(&StepType::Transfer);
         match transfer_config {
-            StepConfig::Transfer { direction, create_dirs, .. } => {
+            StepConfig::Transfer {
+                direction,
+                create_dirs,
+                ..
+            } => {
                 assert_eq!(direction, "upload");
                 assert!(create_dirs);
             }

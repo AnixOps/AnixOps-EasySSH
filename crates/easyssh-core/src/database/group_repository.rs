@@ -183,35 +183,30 @@ impl GroupRepository {
 
     /// Count servers in a group
     pub async fn count_servers(&self, group_id: &str) -> Result<i64> {
-        let count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM servers WHERE group_id = ?")
-                .bind(group_id)
-                .fetch_one(&self.pool)
-                .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM servers WHERE group_id = ?")
+            .bind(group_id)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(count.0)
     }
 
     /// Check if a group exists by ID
     pub async fn exists(&self, id: &str) -> Result<bool> {
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM groups WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_one(&self.pool)
-        .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM groups WHERE id = ?")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(count.0 > 0)
     }
 
     /// Check if a group name already exists
     pub async fn name_exists(&self, name: &str) -> Result<bool> {
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM groups WHERE name = ?",
-        )
-        .bind(name)
-        .fetch_one(&self.pool)
-        .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM groups WHERE name = ?")
+            .bind(name)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(count.0 > 0)
     }
@@ -646,8 +641,14 @@ mod tests {
         let groups_with_counts = group_repo.get_all_with_counts().await.unwrap();
         assert_eq!(groups_with_counts.len(), 2);
 
-        let prod = groups_with_counts.iter().find(|g| g.id == "group1").unwrap();
-        let dev = groups_with_counts.iter().find(|g| g.id == "group2").unwrap();
+        let prod = groups_with_counts
+            .iter()
+            .find(|g| g.id == "group1")
+            .unwrap();
+        let dev = groups_with_counts
+            .iter()
+            .find(|g| g.id == "group2")
+            .unwrap();
 
         assert_eq!(prod.server_count, 3);
         assert_eq!(dev.server_count, 0);

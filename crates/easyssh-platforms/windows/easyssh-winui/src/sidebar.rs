@@ -5,8 +5,8 @@
 //! - Group filter dropdown
 //! - Server cards list
 
+use crate::terminal_launcher::{SshConnection, TerminalPreference};
 use crate::viewmodels::{GroupViewModel, ServerViewModel};
-use crate::terminal_launcher::{TerminalPreference, SshConnection};
 use egui::{Align, Color32, Layout, Response, RichText, Rounding, Sense, Stroke, Ui, Vec2, Widget};
 
 /// Search box component
@@ -51,7 +51,8 @@ impl SearchBox {
             }
 
             response
-        }).inner
+        })
+        .inner
     }
 
     pub fn clear(&mut self) {
@@ -66,8 +67,7 @@ impl SearchBox {
         if self.query.is_empty() {
             return true;
         }
-        text.to_lowercase()
-            .contains(&self.query.to_lowercase())
+        text.to_lowercase().contains(&self.query.to_lowercase())
     }
 }
 
@@ -202,15 +202,12 @@ impl ServerCard {
                     } else {
                         Color32::GRAY
                     };
-                    ui.painter().circle_filled(ui.cursor().min, 6.0, status_color);
+                    ui.painter()
+                        .circle_filled(ui.cursor().min, 6.0, status_color);
                     ui.add_space(8.0);
 
                     // Server name
-                    ui.label(
-                        RichText::new(&server.name)
-                            .strong()
-                            .size(14.0),
-                    );
+                    ui.label(RichText::new(&server.name).strong().size(14.0));
 
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         // Connect button
@@ -231,9 +228,12 @@ impl ServerCard {
                 // Host info
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new(format!("{}@{}:{}", server.username, server.host, server.port))
-                            .size(12.0)
-                            .color(ui.visuals().weak_text_color()),
+                        RichText::new(format!(
+                            "{}@{}:{}",
+                            server.username, server.host, server.port
+                        ))
+                        .size(12.0)
+                        .color(ui.visuals().weak_text_color()),
                     );
                 });
 
@@ -392,7 +392,7 @@ impl Sidebar {
             for card_response in card_responses {
                 if card_response.clicked {
                     self.selected_server_id = Some(card_response.server_id.clone());
-                    response.server_selected = Some(card_response.server_id);
+                    response.server_selected = Some(card_response.server_id.clone());
                 }
                 if card_response.connect_clicked {
                     response.connect_clicked = Some(card_response.server_id);
@@ -425,9 +425,9 @@ impl Sidebar {
     }
 
     pub fn get_selected_server(&self) -> Option<&ServerViewModel> {
-        self.selected_server_id.as_ref().and_then(|id| {
-            self.servers.iter().find(|s| &s.id == id)
-        })
+        self.selected_server_id
+            .as_ref()
+            .and_then(|id| self.servers.iter().find(|s| &s.id == id))
     }
 }
 

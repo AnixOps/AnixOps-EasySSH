@@ -104,22 +104,10 @@ impl Default for KeyBindings {
         let mut bindings = HashMap::new();
 
         // Navigation - Arrow keys
-        bindings.insert(
-            (KeyCode::Up, KeyModifiers::NONE),
-            Action::NavigateUp,
-        );
-        bindings.insert(
-            (KeyCode::Down, KeyModifiers::NONE),
-            Action::NavigateDown,
-        );
-        bindings.insert(
-            (KeyCode::Left, KeyModifiers::NONE),
-            Action::NavigateLeft,
-        );
-        bindings.insert(
-            (KeyCode::Right, KeyModifiers::NONE),
-            Action::NavigateRight,
-        );
+        bindings.insert((KeyCode::Up, KeyModifiers::NONE), Action::NavigateUp);
+        bindings.insert((KeyCode::Down, KeyModifiers::NONE), Action::NavigateDown);
+        bindings.insert((KeyCode::Left, KeyModifiers::NONE), Action::NavigateLeft);
+        bindings.insert((KeyCode::Right, KeyModifiers::NONE), Action::NavigateRight);
 
         // Navigation - Vim style (hjkl)
         bindings.insert(
@@ -130,84 +118,42 @@ impl Default for KeyBindings {
             (KeyCode::Char('j'), KeyModifiers::NONE),
             Action::NavigateDown,
         );
-        bindings.insert(
-            (KeyCode::Char('k'), KeyModifiers::NONE),
-            Action::NavigateUp,
-        );
+        bindings.insert((KeyCode::Char('k'), KeyModifiers::NONE), Action::NavigateUp);
         bindings.insert(
             (KeyCode::Char('l'), KeyModifiers::NONE),
             Action::NavigateRight,
         );
 
         // Actions
-        bindings.insert(
-            (KeyCode::Enter, KeyModifiers::NONE),
-            Action::Select,
-        );
-        bindings.insert(
-            (KeyCode::Esc, KeyModifiers::NONE),
-            Action::Cancel,
-        );
-        bindings.insert(
-            (KeyCode::Char('q'), KeyModifiers::NONE),
-            Action::Quit,
-        );
-        bindings.insert(
-            (KeyCode::Char('Q'), KeyModifiers::SHIFT),
-            Action::Quit,
-        );
+        bindings.insert((KeyCode::Enter, KeyModifiers::NONE), Action::Select);
+        bindings.insert((KeyCode::Esc, KeyModifiers::NONE), Action::Cancel);
+        bindings.insert((KeyCode::Char('q'), KeyModifiers::NONE), Action::Quit);
+        bindings.insert((KeyCode::Char('Q'), KeyModifiers::SHIFT), Action::Quit);
 
         // Search
-        bindings.insert(
-            (KeyCode::Char('/'), KeyModifiers::NONE),
-            Action::Search,
-        );
+        bindings.insert((KeyCode::Char('/'), KeyModifiers::NONE), Action::Search);
 
         // Server operations
-        bindings.insert(
-            (KeyCode::Char('n'), KeyModifiers::NONE),
-            Action::NewServer,
-        );
-        bindings.insert(
-            (KeyCode::Char('e'), KeyModifiers::NONE),
-            Action::EditServer,
-        );
+        bindings.insert((KeyCode::Char('n'), KeyModifiers::NONE), Action::NewServer);
+        bindings.insert((KeyCode::Char('e'), KeyModifiers::NONE), Action::EditServer);
         bindings.insert(
             (KeyCode::Char('d'), KeyModifiers::NONE),
             Action::DeleteServer,
         );
-        bindings.insert(
-            (KeyCode::Char('c'), KeyModifiers::NONE),
-            Action::Connect,
-        );
-        bindings.insert(
-            (KeyCode::Char('C'), KeyModifiers::SHIFT),
-            Action::Connect,
-        );
+        bindings.insert((KeyCode::Char('c'), KeyModifiers::NONE), Action::Connect);
+        bindings.insert((KeyCode::Char('C'), KeyModifiers::SHIFT), Action::Connect);
 
         // Group operations
-        bindings.insert(
-            (KeyCode::Char('g'), KeyModifiers::NONE),
-            Action::NewGroup,
-        );
-        bindings.insert(
-            (KeyCode::Char('G'), KeyModifiers::SHIFT),
-            Action::EditGroup,
-        );
+        bindings.insert((KeyCode::Char('g'), KeyModifiers::NONE), Action::NewGroup);
+        bindings.insert((KeyCode::Char('G'), KeyModifiers::SHIFT), Action::EditGroup);
         bindings.insert(
             (KeyCode::Char('D'), KeyModifiers::SHIFT),
             Action::DeleteGroup,
         );
 
         // Help
-        bindings.insert(
-            (KeyCode::Char('?'), KeyModifiers::SHIFT),
-            Action::Help,
-        );
-        bindings.insert(
-            (KeyCode::Char('?'), KeyModifiers::NONE),
-            Action::Help,
-        );
+        bindings.insert((KeyCode::Char('?'), KeyModifiers::SHIFT), Action::Help);
+        bindings.insert((KeyCode::Char('?'), KeyModifiers::NONE), Action::Help);
 
         Self { bindings }
     }

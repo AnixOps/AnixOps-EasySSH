@@ -778,7 +778,10 @@ impl BatchInserter {
         let escaped_columns = self.validate_identifiers(columns);
 
         if escaped_columns.is_empty() {
-            return format!("-- ERROR: No valid columns provided for INSERT INTO {}", escaped_table);
+            return format!(
+                "-- ERROR: No valid columns provided for INSERT INTO {}",
+                escaped_table
+            );
         }
 
         let columns_str = escaped_columns.join(", ");

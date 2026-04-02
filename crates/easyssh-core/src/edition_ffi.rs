@@ -14,9 +14,9 @@ use std::os::raw::{c_char, c_int, c_uchar};
 #[repr(C)]
 #[derive(Debug)]
 pub struct CVersionInfo {
-    pub edition: c_int,         // 0=Lite, 1=Standard, 2=Pro
+    pub edition: c_int,       // 0=Lite, 1=Standard, 2=Pro
     pub build_type: c_int,    // 0=Release, 1=Dev
-    pub version: *mut c_char,   // 版本号字符串（需释放）
+    pub version: *mut c_char, // 版本号字符串（需释放）
     pub edition_name: *mut c_char,
     pub full_name: *mut c_char,
     pub primary_color: *mut c_char,   // 主色调（如 "#10B981"）
@@ -220,12 +220,8 @@ pub extern "C" fn edition_get_build_artifact_name(
     arch: *const c_char,
     platform: *const c_char,
 ) -> *mut c_char {
-    let arch_str = unsafe {
-        CStr::from_ptr(arch).to_string_lossy().to_string()
-    };
-    let platform_str = unsafe {
-        CStr::from_ptr(platform).to_string_lossy().to_string()
-    };
+    let arch_str = unsafe { CStr::from_ptr(arch).to_string_lossy().to_string() };
+    let platform_str = unsafe { CStr::from_ptr(platform).to_string_lossy().to_string() };
 
     let info = VersionInfo::current();
     let name = info.build_artifact_name(&arch_str, &platform_str);
@@ -243,9 +239,7 @@ pub extern "C" fn edition_get_build_artifact_name(
 /// 1 表示支持，0 表示不支持
 #[no_mangle]
 pub extern "C" fn edition_has_feature(feature: *const c_char) -> c_int {
-    let feature_str = unsafe {
-        CStr::from_ptr(feature).to_string_lossy().to_string()
-    };
+    let feature_str = unsafe { CStr::from_ptr(feature).to_string_lossy().to_string() };
 
     let info = VersionInfo::current();
     if info.has_feature(&feature_str) {
@@ -316,9 +310,7 @@ pub extern "C" fn edition_get_icon_filename() -> *mut c_char {
 /// 获取 MSI 安装包名
 #[no_mangle]
 pub extern "C" fn edition_get_msi_name(arch: *const c_char) -> *mut c_char {
-    let arch_str = unsafe {
-        CStr::from_ptr(arch).to_string_lossy().to_string()
-    };
+    let arch_str = unsafe { CStr::from_ptr(arch).to_string_lossy().to_string() };
 
     let info = VersionInfo::current();
     CString::new(info.msi_name(&arch_str)).unwrap().into_raw()
@@ -327,9 +319,7 @@ pub extern "C" fn edition_get_msi_name(arch: *const c_char) -> *mut c_char {
 /// 获取 DMG 镜像名
 #[no_mangle]
 pub extern "C" fn edition_get_dmg_name(arch: *const c_char) -> *mut c_char {
-    let arch_str = unsafe {
-        CStr::from_ptr(arch).to_string_lossy().to_string()
-    };
+    let arch_str = unsafe { CStr::from_ptr(arch).to_string_lossy().to_string() };
 
     let info = VersionInfo::current();
     CString::new(info.dmg_name(&arch_str)).unwrap().into_raw()
@@ -338,9 +328,7 @@ pub extern "C" fn edition_get_dmg_name(arch: *const c_char) -> *mut c_char {
 /// 获取 Debian 包名
 #[no_mangle]
 pub extern "C" fn edition_get_deb_name(arch: *const c_char) -> *mut c_char {
-    let arch_str = unsafe {
-        CStr::from_ptr(arch).to_string_lossy().to_string()
-    };
+    let arch_str = unsafe { CStr::from_ptr(arch).to_string_lossy().to_string() };
 
     let info = VersionInfo::current();
     CString::new(info.deb_name(&arch_str)).unwrap().into_raw()
@@ -349,9 +337,7 @@ pub extern "C" fn edition_get_deb_name(arch: *const c_char) -> *mut c_char {
 /// 获取 RPM 包名
 #[no_mangle]
 pub extern "C" fn edition_get_rpm_name(arch: *const c_char) -> *mut c_char {
-    let arch_str = unsafe {
-        CStr::from_ptr(arch).to_string_lossy().to_string()
-    };
+    let arch_str = unsafe { CStr::from_ptr(arch).to_string_lossy().to_string() };
 
     let info = VersionInfo::current();
     CString::new(info.rpm_name(&arch_str)).unwrap().into_raw()
@@ -432,11 +418,7 @@ fn edition_from_int(value: c_int) -> Edition {
 /// 返回JSON格式字符串，包含所有版本的详细信息
 #[no_mangle]
 pub extern "C" fn edition_get_all_editions_json() -> *mut c_char {
-    let editions = vec![
-        Edition::Lite,
-        Edition::Standard,
-        Edition::Pro,
-    ];
+    let editions = vec![Edition::Lite, Edition::Standard, Edition::Pro];
 
     let editions_info: Vec<serde_json::Value> = editions
         .iter()

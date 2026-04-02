@@ -237,7 +237,10 @@ pub extern "C" fn key_detector_destroy(detector: *mut KeySequenceDetector) {
 /// key: 按键字符串
 /// 返回: 1=序列完成, 0=未完成
 #[no_mangle]
-pub extern "C" fn key_detector_on_key(detector: *mut KeySequenceDetector, key: *const c_char) -> c_int {
+pub extern "C" fn key_detector_on_key(
+    detector: *mut KeySequenceDetector,
+    key: *const c_char,
+) -> c_int {
     if detector.is_null() || key.is_null() {
         return 0;
     }
@@ -268,7 +271,11 @@ pub extern "C" fn key_detector_reset(detector: *mut KeySequenceDetector) {
 /// current: 输出当前进度
 /// total: 输出总步数
 #[no_mangle]
-pub extern "C" fn key_detector_get_progress(detector: *mut KeySequenceDetector, current: *mut c_int, total: *mut c_int) {
+pub extern "C" fn key_detector_get_progress(
+    detector: *mut KeySequenceDetector,
+    current: *mut c_int,
+    total: *mut c_int,
+) {
     if !detector.is_null() && !current.is_null() && !total.is_null() {
         unsafe {
             let (c, t) = (*detector).get_progress();

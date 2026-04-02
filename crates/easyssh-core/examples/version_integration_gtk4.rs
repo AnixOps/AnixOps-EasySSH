@@ -2,9 +2,9 @@
 //!
 //! 本模块展示如何在Linux GTK4应用中集成版本显示
 
+use easyssh_core::version::{BuildType, Edition, FullVersionInfo};
 use gtk4::prelude::*;
-use gtk4::{AboutDialog, Label, Orientation, Box as GtkBox, Picture, ScrolledWindow, Window};
-use easyssh_core::version::{Edition, FullVersionInfo, BuildType};
+use gtk4::{AboutDialog, Box as GtkBox, Label, Orientation, Picture, ScrolledWindow, Window};
 
 /// GTK4版本信息对话框
 pub struct VersionInfoDialog;
@@ -51,10 +51,16 @@ impl VersionInfoDialog {
         ];
 
         if let Some(ref hash) = info.git_hash {
-            let branch_info = info.git_branch.as_ref()
+            let branch_info = info
+                .git_branch
+                .as_ref()
                 .map(|b| format!(" ({})", b))
                 .unwrap_or_default();
-            lines.push(format!("Git: {}{}", &hash[..8.min(hash.len())], branch_info));
+            lines.push(format!(
+                "Git: {}{}",
+                &hash[..8.min(hash.len())],
+                branch_info
+            ));
         }
 
         if let Some(ref rustc) = info.rustc_version {
@@ -128,10 +134,16 @@ impl VersionInfoDialog {
         Self::add_detail_row(&details_box, "构建日期:", &info.build_date);
 
         if let Some(ref hash) = info.git_hash {
-            let branch_info = info.git_branch.as_ref()
+            let branch_info = info
+                .git_branch
+                .as_ref()
                 .map(|b| format!(" ({})", b))
                 .unwrap_or_default();
-            Self::add_detail_row(&details_box, "Git Commit:", &format!("{}{}", &hash[..8.min(hash.len())], branch_info));
+            Self::add_detail_row(
+                &details_box,
+                "Git Commit:",
+                &format!("{}{}", &hash[..8.min(hash.len())], branch_info),
+            );
         }
 
         Self::add_detail_row(&details_box, "操作系统:", &info.platform.os);
@@ -149,10 +161,7 @@ impl VersionInfoDialog {
         vbox.append(&scrolled);
 
         // 功能列表
-        let features_label = Label::new(Some(&format!(
-            "启用的功能: {}",
-            info.features.join(", ")
-        )));
+        let features_label = Label::new(Some(&format!("启用的功能: {}", info.features.join(", "))));
         features_label.set_wrap(true);
         features_label.set_max_width_chars(60);
         vbox.append(&features_label);
@@ -298,10 +307,7 @@ impl EditionChecker {
             gtk4::DialogFlags::MODAL,
             gtk4::MessageType::Info,
             gtk4::ButtonsType::Ok,
-            &format!(
-                "功能需要 {} 版本",
-                required.name()
-            ),
+            &format!("功能需要 {} 版本", required.name()),
         );
 
         dialog.set_secondary_text(Some(&format!(

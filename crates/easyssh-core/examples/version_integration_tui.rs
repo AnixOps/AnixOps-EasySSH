@@ -5,7 +5,7 @@
 use crossterm::style::{Color, Print, ResetColor, SetForegroundColor};
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, ExecutableCommand};
-use easyssh_core::version::{Edition, FullVersionInfo, BuildType};
+use easyssh_core::version::{BuildType, Edition, FullVersionInfo};
 use std::io::{self, Write};
 
 /// 渲染启动横幅
@@ -60,10 +60,17 @@ pub fn render_splash_banner() -> io::Result<()> {
     writeln!(stdout, "\n  构建日期: {}", info.build_date)?;
 
     if let Some(ref hash) = info.git_hash {
-        let branch_info = info.git_branch.as_ref()
+        let branch_info = info
+            .git_branch
+            .as_ref()
             .map(|b| format!(" [{}]", b))
             .unwrap_or_default();
-        writeln!(stdout, "  Git: {}{}", &hash[..8.min(hash.len())], branch_info)?;
+        writeln!(
+            stdout,
+            "  Git: {}{}",
+            &hash[..8.min(hash.len())],
+            branch_info
+        )?;
     }
 
     writeln!(stdout, "  平台: {}", info.platform.display())?;
@@ -75,7 +82,8 @@ pub fn render_splash_banner() -> io::Result<()> {
     let features = info.features;
     let chunks: Vec<_> = features.chunks(4).collect();
     for chunk in chunks {
-        let line = chunk.iter()
+        let line = chunk
+            .iter()
             .map(|f| format!("  ✓ {}", f))
             .collect::<Vec<_>>()
             .join("  ");
@@ -106,7 +114,13 @@ pub fn render_version_line() -> io::Result<()> {
     };
 
     stdout.execute(SetForegroundColor(color))?;
-    write!(stdout, "EasySSH {} {}{}", info.edition.code(), info.version, dev_marker)?;
+    write!(
+        stdout,
+        "EasySSH {} {}{}",
+        info.edition.code(),
+        info.version,
+        dev_marker
+    )?;
     stdout.execute(ResetColor)?;
     stdout.flush()?;
 
@@ -179,11 +193,7 @@ pub fn render_about_dialog() -> io::Result<()> {
 
     let edition_text = format!("{} Edition", info.edition.name());
     let padding = (40 - edition_text.len()) / 2;
-    writeln!(
-        stdout,
-        "  ║{}║",
-        format!("{:^40}", edition_text)
-    )?;
+    writeln!(stdout, "  ║{}║", format!("{:^40}", edition_text))?;
 
     writeln!(stdout, "  ║                                        ║")?;
     writeln!(stdout, "  ╚════════════════════════════════════════╝")?;
@@ -199,10 +209,17 @@ pub fn render_about_dialog() -> io::Result<()> {
     writeln!(stdout, "  构建日期:    {}", info.build_date)?;
 
     if let Some(ref hash) = info.git_hash {
-        let branch_info = info.git_branch.as_ref()
+        let branch_info = info
+            .git_branch
+            .as_ref()
             .map(|b| format!(" [{}]", b))
             .unwrap_or_default();
-        writeln!(stdout, "  Git:         {}{}", &hash[..8.min(hash.len())], branch_info)?;
+        writeln!(
+            stdout,
+            "  Git:         {}{}",
+            &hash[..8.min(hash.len())],
+            branch_info
+        )?;
     }
 
     writeln!(stdout, "  平台:        {}", info.platform.display())?;
@@ -250,7 +267,10 @@ pub fn render_edition_comparison() -> io::Result<()> {
     stdout.execute(SetForegroundColor(Color::White))?;
     writeln!(stdout, "\n  版本功能对比")?;
     stdout.execute(ResetColor)?;
-    writeln!(stdout, "  ════════════════════════════════════════════════════════════════")?;
+    writeln!(
+        stdout,
+        "  ════════════════════════════════════════════════════════════════"
+    )?;
 
     // 表头
     writeln!(stdout)?;
@@ -259,7 +279,10 @@ pub fn render_edition_comparison() -> io::Result<()> {
         "  {:<20} {:<12} {:<12} {:<12}",
         "功能", "Lite", "Standard", "Pro"
     )?;
-    writeln!(stdout, "  ────────────────────────────────────────────────────────────────")?;
+    writeln!(
+        stdout,
+        "  ────────────────────────────────────────────────────────────────"
+    )?;
 
     // 功能行
     let features = vec![
@@ -280,8 +303,16 @@ pub fn render_edition_comparison() -> io::Result<()> {
 
     for (name, lite, standard, pro) in features {
         let current = Edition::current();
-        let lite_marker = if current == Edition::Lite { "●" } else { lite };
-        let std_marker = if current == Edition::Standard { "●" } else { standard };
+        let lite_marker = if current == Edition::Lite {
+            "●"
+        } else {
+            lite
+        };
+        let std_marker = if current == Edition::Standard {
+            "●"
+        } else {
+            standard
+        };
         let pro_marker = if current == Edition::Pro { "●" } else { pro };
 
         writeln!(

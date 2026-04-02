@@ -585,11 +585,11 @@ mod tests {
     fn test_base64_special_chars() {
         // Test encoding/decoding passwords with special characters
         let passwords = vec![
-            "pass\nword",      // newline
-            "pass\tword",      // tab
-            "pass\x00word",   // null byte
-            "日本語パスワード",  // Japanese
-            "🔐🎉🚀",          // Emojis
+            "pass\nword",       // newline
+            "pass\tword",       // tab
+            "pass\x00word",     // null byte
+            "日本語パスワード", // Japanese
+            "🔐🎉🚀",           // Emojis
         ];
 
         for pwd in &passwords {
@@ -619,7 +619,8 @@ mod tests {
         };
 
         let json = serde_json::to_string(&entry).expect("Failed to serialize");
-        let deserialized: EncryptedEntry = serde_json::from_str(&json).expect("Failed to deserialize");
+        let deserialized: EncryptedEntry =
+            serde_json::from_str(&json).expect("Failed to deserialize");
 
         assert_eq!(entry.encrypted_data, deserialized.encrypted_data);
         assert_eq!(entry.nonce, deserialized.nonce);
@@ -641,7 +642,9 @@ mod tests {
         // Test with larger data
         let data = vec![0u8; 10000];
         let encoded = BASE64.encode(&data);
-        let decoded = BASE64.decode(&encoded).expect("Failed to decode large data");
+        let decoded = BASE64
+            .decode(&encoded)
+            .expect("Failed to decode large data");
         assert_eq!(data, decoded);
     }
 
@@ -769,7 +772,9 @@ mod tests {
         };
 
         // Verify we can decode
-        let decoded_data = BASE64.decode(&entry.encrypted_data).expect("Failed to decode data");
+        let decoded_data = BASE64
+            .decode(&entry.encrypted_data)
+            .expect("Failed to decode data");
         let decoded_nonce = BASE64.decode(&entry.nonce).expect("Failed to decode nonce");
 
         assert_eq!(original_data.to_vec(), decoded_data);
@@ -781,16 +786,16 @@ mod tests {
         // Test various edge case passwords
         let long_password = "a".repeat(1000);
         let edge_cases: Vec<&str> = vec![
-            "",                                      // Empty
-            "a",                                     // Single char
-            " ",                                     // Space
-            "  ",                                    // Multiple spaces
-            &long_password,                          // Long password
-            "!@#$%^&*()_+-=[]{}|;':\",./<>?",       // Special chars
-            "\n\r\t",                                // Whitespace chars
-            "'quoted'",                             // Quotes
-            "\"double\"",                            // Double quotes
-            "`backtick`",                           // Backticks
+            "",                               // Empty
+            "a",                              // Single char
+            " ",                              // Space
+            "  ",                             // Multiple spaces
+            &long_password,                   // Long password
+            "!@#$%^&*()_+-=[]{}|;':\",./<>?", // Special chars
+            "\n\r\t",                         // Whitespace chars
+            "'quoted'",                       // Quotes
+            "\"double\"",                     // Double quotes
+            "`backtick`",                     // Backticks
         ];
 
         for pwd in edge_cases {

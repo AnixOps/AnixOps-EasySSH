@@ -3,7 +3,7 @@
 //! 这是对 `crate::debug_access` 的包装，提供统一接口
 
 pub use crate::debug_access::{
-    DebugAccessLevel, DebugAccessError, DebugAccessMethod, DebugFeature, DebugClientInfo
+    DebugAccessError, DebugAccessLevel, DebugAccessMethod, DebugClientInfo, DebugFeature,
 };
 
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -24,8 +24,8 @@ pub fn set_access_level(level: DebugAccessLevel) {
 /// 获取当前Debug访问级别（包装函数）
 pub fn get_access_level() -> DebugAccessLevel {
     // 优先从debug_access获取
-    if let Some(level) = crate::debug_access::get_debug_access()
-        .and_then(|a| a.get_access_level()) {
+    if let Some(level) = crate::debug_access::get_debug_access().and_then(|a| a.get_access_level())
+    {
         return level;
     }
 
@@ -161,7 +161,13 @@ mod tests {
 
     #[test]
     fn test_password_verification() {
-        assert!(verify_password("easyssh_debug_lite", crate::edition::Edition::Lite));
-        assert!(!verify_password("wrong_password", crate::edition::Edition::Lite));
+        assert!(verify_password(
+            "easyssh_debug_lite",
+            crate::edition::Edition::Lite
+        ));
+        assert!(!verify_password(
+            "wrong_password",
+            crate::edition::Edition::Lite
+        ));
     }
 }

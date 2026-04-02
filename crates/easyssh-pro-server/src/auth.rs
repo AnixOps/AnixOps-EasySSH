@@ -105,7 +105,7 @@ pub fn verify_password(password: &str, hash: &str) -> anyhow::Result<bool> {
     Ok(valid)
 }
 
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 pub fn generate_api_key() -> (String, String, String) {
     let key = format!("esk_{}", Uuid::new_v4().to_string().replace("-", ""));

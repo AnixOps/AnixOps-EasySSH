@@ -119,9 +119,21 @@ impl AddServerDialog {
                             _ => "SSH Agent",
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.auth_type, "agent".to_string(), "SSH Agent");
-                            ui.selectable_value(&mut self.auth_type, "key".to_string(), "Private Key");
-                            ui.selectable_value(&mut self.auth_type, "password".to_string(), "Password");
+                            ui.selectable_value(
+                                &mut self.auth_type,
+                                "agent".to_string(),
+                                "SSH Agent",
+                            );
+                            ui.selectable_value(
+                                &mut self.auth_type,
+                                "key".to_string(),
+                                "Private Key",
+                            );
+                            ui.selectable_value(
+                                &mut self.auth_type,
+                                "password".to_string(),
+                                "Password",
+                            );
                         });
                 });
 
@@ -337,9 +349,21 @@ impl EditServerDialog {
                             _ => "SSH Agent",
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.auth_type, "agent".to_string(), "SSH Agent");
-                            ui.selectable_value(&mut self.auth_type, "key".to_string(), "Private Key");
-                            ui.selectable_value(&mut self.auth_type, "password".to_string(), "Password");
+                            ui.selectable_value(
+                                &mut self.auth_type,
+                                "agent".to_string(),
+                                "SSH Agent",
+                            );
+                            ui.selectable_value(
+                                &mut self.auth_type,
+                                "key".to_string(),
+                                "Private Key",
+                            );
+                            ui.selectable_value(
+                                &mut self.auth_type,
+                                "password".to_string(),
+                                "Password",
+                            );
                         });
                 });
 
@@ -430,7 +454,9 @@ impl EditServerDialog {
         true
     }
 
-    pub fn get_server_data(&self) -> Option<(String, String, String, i64, String, String, Option<String>)> {
+    pub fn get_server_data(
+        &self,
+    ) -> Option<(String, String, String, i64, String, String, Option<String>)> {
         if !self.validate_data() {
             return None;
         }
@@ -711,7 +737,10 @@ impl PasswordPromptDialog {
 #[derive(Debug, Clone)]
 pub enum PasswordDialogResult {
     None,
-    Ok { password: String, save_password: bool },
+    Ok {
+        password: String,
+        save_password: bool,
+    },
     Cancel,
 }
 
@@ -770,10 +799,7 @@ impl DeleteConfirmDialog {
                     .size(16.0),
                 );
 
-                ui.colored_label(
-                    egui::Color32::YELLOW,
-                    format!("'{}'", self.item_name),
-                );
+                ui.colored_label(egui::Color32::YELLOW, format!("'{}'", self.item_name));
 
                 ui.label("This action cannot be undone.");
 
@@ -877,11 +903,11 @@ impl ErrorDialog {
 /// Password strength indicator
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PasswordStrength {
-    VeryWeak,    // 0-20
-    Weak,        // 21-40
-    Fair,        // 41-60
-    Good,        // 61-80
-    Strong,      // 81-100
+    VeryWeak, // 0-20
+    Weak,     // 21-40
+    Fair,     // 41-60
+    Good,     // 61-80
+    Strong,   // 81-100
 }
 
 impl PasswordStrength {
@@ -1104,7 +1130,8 @@ impl MasterPasswordDialog {
 
         if !has_lowercase || !has_uppercase || !has_digit || !has_special {
             self.error_message = Some(
-                "Password must contain lowercase, uppercase, numbers, and special characters".to_string()
+                "Password must contain lowercase, uppercase, numbers, and special characters"
+                    .to_string(),
             );
             return false;
         }
@@ -1118,7 +1145,8 @@ impl MasterPasswordDialog {
         // Check strength
         let (score, _) = Self::calculate_strength(&self.password);
         if score < 60 {
-            self.error_message = Some("Password is too weak. Please use a stronger password.".to_string());
+            self.error_message =
+                Some("Password is too weak. Please use a stronger password.".to_string());
             return false;
         }
 
@@ -1142,7 +1170,8 @@ impl MasterPasswordDialog {
         }
 
         if self.password.len() < 8 {
-            self.error_message = Some("New password must be at least 8 characters long".to_string());
+            self.error_message =
+                Some("New password must be at least 8 characters long".to_string());
             return false;
         }
 
@@ -1153,7 +1182,8 @@ impl MasterPasswordDialog {
 
         if !has_lowercase || !has_uppercase || !has_digit || !has_special {
             self.error_message = Some(
-                "New password must contain lowercase, uppercase, numbers, and special characters".to_string()
+                "New password must contain lowercase, uppercase, numbers, and special characters"
+                    .to_string(),
             );
             return false;
         }
@@ -1164,7 +1194,8 @@ impl MasterPasswordDialog {
         }
 
         if self.old_password == self.password {
-            self.error_message = Some("New password must be different from current password".to_string());
+            self.error_message =
+                Some("New password must be different from current password".to_string());
             return false;
         }
 
@@ -1196,12 +1227,15 @@ impl MasterPasswordDialog {
 
         // Center the dialog
         let screen_rect = ctx.screen_rect();
-        let window_size = egui::vec2(450.0, match self.mode {
-            MasterPasswordMode::Setup => 420.0,
-            MasterPasswordMode::Verify => 280.0,
-            MasterPasswordMode::Change => 450.0,
-            MasterPasswordMode::Reset => 320.0,
-        });
+        let window_size = egui::vec2(
+            450.0,
+            match self.mode {
+                MasterPasswordMode::Setup => 420.0,
+                MasterPasswordMode::Verify => 280.0,
+                MasterPasswordMode::Change => 450.0,
+                MasterPasswordMode::Reset => 320.0,
+            },
+        );
         let window_pos = screen_rect.center() - window_size * 0.5;
 
         egui::Window::new(title)
@@ -1235,7 +1269,12 @@ impl MasterPasswordDialog {
         result
     }
 
-    fn show_setup_ui(&mut self, ui: &mut Ui, result: &mut MasterPasswordDialogResult, should_close: &mut bool) {
+    fn show_setup_ui(
+        &mut self,
+        ui: &mut Ui,
+        result: &mut MasterPasswordDialogResult,
+        should_close: &mut bool,
+    ) {
         ui.label("Welcome to EasySSH Lite!");
         ui.label("Please set a master password to secure your SSH configurations.");
         ui.label("This password will be used to encrypt all your sensitive data.");
@@ -1245,7 +1284,10 @@ impl MasterPasswordDialog {
         ui.horizontal(|ui| {
             ui.label("Password:");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button(if self.show_password { "Hide" } else { "Show" }).clicked() {
+                if ui
+                    .button(if self.show_password { "Hide" } else { "Show" })
+                    .clicked()
+                {
                     self.show_password = !self.show_password;
                 }
                 if self.show_password {
@@ -1277,7 +1319,14 @@ impl MasterPasswordDialog {
         ui.horizontal(|ui| {
             ui.label("Confirm:");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button(if self.show_confirm_password { "Hide" } else { "Show" }).clicked() {
+                if ui
+                    .button(if self.show_confirm_password {
+                        "Hide"
+                    } else {
+                        "Show"
+                    })
+                    .clicked()
+                {
                     self.show_confirm_password = !self.show_confirm_password;
                 }
                 if self.show_confirm_password {
@@ -1319,7 +1368,12 @@ impl MasterPasswordDialog {
         });
     }
 
-    fn show_verify_ui(&mut self, ui: &mut Ui, result: &mut MasterPasswordDialogResult, should_close: &mut bool) {
+    fn show_verify_ui(
+        &mut self,
+        ui: &mut Ui,
+        result: &mut MasterPasswordDialogResult,
+        should_close: &mut bool,
+    ) {
         ui.label("Please enter your master password to unlock EasySSH.");
         ui.label("All your server configurations are securely encrypted.");
         ui.separator();
@@ -1329,7 +1383,10 @@ impl MasterPasswordDialog {
             let remaining = self.max_attempts.saturating_sub(self.attempt_count);
             ui.colored_label(
                 egui::Color32::YELLOW,
-                format!("Warning: {} failed attempts. {} attempts remaining.", self.attempt_count, remaining)
+                format!(
+                    "Warning: {} failed attempts. {} attempts remaining.",
+                    self.attempt_count, remaining
+                ),
             );
         }
 
@@ -1337,7 +1394,10 @@ impl MasterPasswordDialog {
         ui.horizontal(|ui| {
             ui.label("Password:");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button(if self.show_password { "Hide" } else { "Show" }).clicked() {
+                if ui
+                    .button(if self.show_password { "Hide" } else { "Show" })
+                    .clicked()
+                {
                     self.show_password = !self.show_password;
                 }
                 if self.show_password {
@@ -1382,7 +1442,12 @@ impl MasterPasswordDialog {
         });
     }
 
-    fn show_change_ui(&mut self, ui: &mut Ui, result: &mut MasterPasswordDialogResult, should_close: &mut bool) {
+    fn show_change_ui(
+        &mut self,
+        ui: &mut Ui,
+        result: &mut MasterPasswordDialogResult,
+        should_close: &mut bool,
+    ) {
         ui.label("Change your master password.");
         ui.label("All existing encrypted data will be re-encrypted with the new password.");
         ui.separator();
@@ -1391,7 +1456,14 @@ impl MasterPasswordDialog {
         ui.horizontal(|ui| {
             ui.label("Current:");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button(if self.show_old_password { "Hide" } else { "Show" }).clicked() {
+                if ui
+                    .button(if self.show_old_password {
+                        "Hide"
+                    } else {
+                        "Show"
+                    })
+                    .clicked()
+                {
                     self.show_old_password = !self.show_old_password;
                 }
                 if self.show_old_password {
@@ -1406,7 +1478,10 @@ impl MasterPasswordDialog {
         ui.horizontal(|ui| {
             ui.label("New:");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button(if self.show_password { "Hide" } else { "Show" }).clicked() {
+                if ui
+                    .button(if self.show_password { "Hide" } else { "Show" })
+                    .clicked()
+                {
                     self.show_password = !self.show_password;
                 }
                 if self.show_password {
@@ -1431,7 +1506,14 @@ impl MasterPasswordDialog {
         ui.horizontal(|ui| {
             ui.label("Confirm:");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button(if self.show_confirm_password { "Hide" } else { "Show" }).clicked() {
+                if ui
+                    .button(if self.show_confirm_password {
+                        "Hide"
+                    } else {
+                        "Show"
+                    })
+                    .clicked()
+                {
                     self.show_confirm_password = !self.show_confirm_password;
                 }
                 if self.show_confirm_password {
@@ -1469,7 +1551,12 @@ impl MasterPasswordDialog {
         });
     }
 
-    fn show_reset_ui(&mut self, ui: &mut Ui, result: &mut MasterPasswordDialogResult, should_close: &mut bool) {
+    fn show_reset_ui(
+        &mut self,
+        ui: &mut Ui,
+        result: &mut MasterPasswordDialogResult,
+        should_close: &mut bool,
+    ) {
         // Warning icon and title
         ui.horizontal(|ui| {
             ui.colored_label(egui::Color32::RED, RichText::new("⚠").size(24.0));
@@ -1481,7 +1568,7 @@ impl MasterPasswordDialog {
         ui.label(RichText::new("WARNING: This action cannot be undone!").strong());
         ui.colored_label(
             egui::Color32::RED,
-            "Resetting your master password will permanently delete all encrypted data, including:"
+            "Resetting your master password will permanently delete all encrypted data, including:",
         );
 
         ui.indent("warning_list", |ui| {
@@ -1491,7 +1578,10 @@ impl MasterPasswordDialog {
             ui.label("• Your encrypted keychain data");
         });
 
-        ui.colored_label(egui::Color32::YELLOW, "You will need to re-add all your servers manually.");
+        ui.colored_label(
+            egui::Color32::YELLOW,
+            "You will need to re-add all your servers manually.",
+        );
 
         ui.separator();
 
@@ -1558,11 +1648,19 @@ impl MasterPasswordDialog {
 pub enum MasterPasswordDialogResult {
     None,
     /// Setup: New password set
-    SetPassword { password: String },
+    SetPassword {
+        password: String,
+    },
     /// Verify: Password entered
-    Verify { password: String, attempt: u32 },
+    Verify {
+        password: String,
+        attempt: u32,
+    },
     /// Change: Password change requested
-    ChangePassword { old_password: String, new_password: String },
+    ChangePassword {
+        old_password: String,
+        new_password: String,
+    },
     /// Reset: User confirmed reset
     ResetConfirmed,
     /// Max attempts reached
@@ -1613,7 +1711,10 @@ mod tests {
         };
 
         match result {
-            PasswordDialogResult::Ok { password, save_password } => {
+            PasswordDialogResult::Ok {
+                password,
+                save_password,
+            } => {
                 assert_eq!(password, "secret");
                 assert!(save_password);
             }

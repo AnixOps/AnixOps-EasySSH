@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EasySSH Standard WiX Installer Configuration
+  Full-featured SSH client with embedded terminal
+
+  Build command:
+    candle EasySSH-Standard.wxs -arch x64 -dVersion=0.3.0 -dSourceDir=../../target/release-standard -out build/
+    light build/EasySSH-Standard.wixobj -ext WixUIExtension -out EasySSH-Standard-0.3.0-x64.msi
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="EasySSH Standard"
+    Language="1033"
+    Version="0.3.0"
+    Manufacturer="AnixOps"
+    UpgradeCode="A8C3D4E5-F6B7-8901-2345-6789ABCDEF02"
+  >
+    <Package
+      Id="*"
+      Description="EasySSH Standard - Full-Featured SSH Client"
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      InstallPrivileges="elevated"
+      Platform="x64"
+    />
+
+    <!-- Major upgrade - remove previous versions -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of EasySSH Standard is already installed."
+      AllowSameVersionUpgrades="no"
+    />
+
+    <!-- Media -->
+    <Media Id="1" Cabinet="EasySSHStandard.cab" EmbedCab="yes" />
+
+    <!-- Properties -->
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/anixops/easyssh" />
+    <Property Id="ARPURLINFOABOUT" Value="https://docs.anixops.com/easyssh-standard" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/anixops/easyssh/releases" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <!-- Features -->
+    <Feature Id="ProductFeature" Title="EasySSH Standard" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="ProgramMenuComponents" />
+      <ComponentGroupRef Id="DesktopComponents" />
+    </Feature>
+
+    <!-- Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- Program Files -->
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="ManufacturerFolder" Name="AnixOps">
+          <Directory Id="INSTALLFOLDER" Name="EasySSH Standard">
+            <Component Id="AppComponent" Guid="B1C2D3E4-F5A6-7890-1234-567890ABCD02">
+              <File Id="EasySSHStandardExe" Source="$(var.SourceDir)\easyssh-standard.exe" Name="EasySSH Standard.exe" KeyPath="yes">
+                <Shortcut
+                  Id="StartMenuShortcut"
+                  Directory="ApplicationProgramsFolder"
+                  Name="EasySSH Standard"
+                  Description="Full-Featured SSH Client"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon.ico"
+                  Advertise="yes"
+                />
+              </File>
+              <File Id="IconFile" Source="$(var.SourceDir)\icon.ico" Name="icon.ico" />
+              <File Id="LicenseFile" Source="$(var.SourceDir)\LICENSE.txt" Name="LICENSE.txt" />
+
+              <!-- WebView2 Runtime check -->
+              <File Id="WebView2Loader" Source="$(var.SourceDir)\WebView2Loader.dll" Name="WebView2Loader.dll" />
+            </Component>
+
+            <!-- Embedded terminal resources -->
+            <Directory Id="ResourcesFolder" Name="resources">
+              <Component Id="ResourcesComponent" Guid="E5F6A7B8-C9D0-1234-5678-9ABCDEF3456">
+                <File Id="XtermJS" Source="$(var.SourceDir)\resources\xterm.js" Name="xterm.js" />
+                <File Id="XtermCSS" Source="$(var.SourceDir)\resources\xterm.css" Name="xterm.css" />
+                <File Id="TerminalHTML" Source="$(var.SourceDir)\resources\terminal.html" Name="terminal.html" />
+              </Component>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="EasySSH Standard">
+          <Component Id="ApplicationShortcut" Guid="C2D3E4F5-A6B7-8901-2345-6789ABCDE23">
+            <Shortcut
+              Id="UninstallProduct"
+              Name="Uninstall EasySSH Standard"
+              Description="Uninstalls EasySSH Standard"
+              Target="[SystemFolder]msiexec.exe"
+              Arguments="/x [ProductCode]"
+              Icon="AppIcon.ico"
+            />
+            <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+            <RegistryValue
+              Root="HKLM"
+              Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\EasySSHStandard"
+              Name="Installed"
+              Type="integer"
+              Value="1"
+              KeyPath="yes"
+            />
+          </Component>
+        </Directory>
+      </Directory>
+
+      <!-- Desktop -->
+      <Directory Id="DesktopFolder">
+        <Component Id="DesktopShortcut" Guid="D3E4F5A6-B7C8-9012-3456-789ABCDEF34">
+          <Condition>INSTALLDESKTOPSHORTCUT</Condition>
+          <Shortcut
+            Id="DesktopShortcut"
+            Directory="DesktopFolder"
+            Name="EasySSH Standard"
+            Description="Full-Featured SSH Client"
+            Target="[#EasySSHStandardExe]"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon.ico"
+          />
+          <RegistryValue
+            Root="HKLM"
+            Key="Software\AnixOps\EasySSHStandard"
+            Name="DesktopShortcut"
+            Type="integer"
+            Value="1"
+            KeyPath="yes"
+          />
+        </Component>
+      </Directory>
+    </Directory>
+
+    <!-- Component Groups -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <ComponentRef Id="AppComponent" />
+      <ComponentRef Id="ResourcesComponent" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="ProgramMenuComponents" Directory="ApplicationProgramsFolder">
+      <ComponentRef Id="ApplicationShortcut" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="DesktopComponents" Directory="DesktopFolder">
+      <ComponentRef Id="DesktopShortcut" />
+    </ComponentGroup>
+
+    <!-- Icons -->
+    <Icon Id="AppIcon.ico" SourceFile="$(var.SourceDir)\icon.ico" />
+
+    <!-- UI Configuration -->
+    <UIRef Id="WixUI_InstallDir" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <!-- Custom UI Properties -->
+    <Property Id="INSTALLDESKTOPSHORTCUT" Value="1" />
+    <Property Id="WIXUI_BGPATH" Value="$(var.SourceDir)\bg.bmp" />
+    <Property Id="WIXUI_INSTALLDIRICON" Value="AppIcon.ico" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch EasySSH Standard" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+    <!-- Check for WebView2 Runtime -->
+    <Property Id="WEBVIEW2RUNTIMEINSTALLED">
+      <RegistrySearch
+        Id="CheckWebView2"
+        Root="HKLM"
+        Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+        Name="pv"
+        Type="raw"
+      />
+    </Property>
+
+    <Condition Message="Microsoft Edge WebView2 Runtime is required. Please install it from https://developer.microsoft.com/en-us/microsoft-edge/webview2/">
+      <![CDATA[Installed OR WEBVIEW2RUNTIMEINSTALLED]]>
+    </Condition>
+
+    <!-- Windows Version Check -->
+    <Condition Message="This application requires Windows 10 or later.">
+      <![CDATA[Installed OR (VersionNT >= 603)]]>
+    </Condition>
+
+    <!-- EULA -->
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.SourceDir)\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.SourceDir)\dialog.bmp" />
+
+    <!-- Custom Actions -->
+    <CustomAction
+      Id="LaunchApplication"
+      BinaryKey="WixCA"
+      DllEntry="WixShellExec"
+      Impersonate="yes"
+      Execute="immediate"
+      Return="ignore"
+    />
+    <CustomActionRef Id="LaunchApplication" />
+
+  </Product>
+</Wix>

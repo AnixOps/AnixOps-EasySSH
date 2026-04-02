@@ -473,7 +473,10 @@ pub fn collaboration_routes() -> Router<AppState> {
         )
         .route("/sessions/{session_id}/join", post(join_session))
         .route("/sessions/{session_id}/leave", post(leave_session))
-        .route("/sessions/{session_id}/participants", get(list_participants))
+        .route(
+            "/sessions/{session_id}/participants",
+            get(list_participants),
+        )
         .route(
             "/sessions/{session_id}/participants/{user_id}/role",
             post(change_role),
@@ -511,7 +514,10 @@ pub fn collaboration_routes() -> Router<AppState> {
             "/sessions/{session_id}/recording/start",
             post(start_recording),
         )
-        .route("/sessions/{session_id}/recording/stop", post(stop_recording))
+        .route(
+            "/sessions/{session_id}/recording/stop",
+            post(stop_recording),
+        )
         .route("/join/{share_link}", get(join_by_link))
         .route("/ws/{session_id}", get(websocket_handler))
 }
@@ -598,12 +604,8 @@ async fn create_session(
     }
 
     // 创建参与者
-    let participant = create_participant(
-        &session.id,
-        &user_id,
-        &username,
-        CollaborationRole::Admin,
-    );
+    let participant =
+        create_participant(&session.id, &user_id, &username, CollaborationRole::Admin);
 
     if let Err(e) = store_participant(&state.db, &participant).await {
         error!("Failed to store participant: {}", e);
@@ -677,12 +679,7 @@ async fn join_session(
                 );
             }
 
-            let participant = create_participant(
-                &session_id,
-                &user_id,
-                &username,
-                role,
-            );
+            let participant = create_participant(&session_id, &user_id, &username, role);
 
             if let Err(e) = store_participant(&state.db, &participant).await {
                 error!("Failed to store participant: {}", e);
@@ -1096,13 +1093,7 @@ async fn add_clipboard(
         _ => ClipboardContentType::Text,
     };
 
-    let item = create_clipboard_item(
-        &session_id,
-        &user_id,
-        &username,
-        &req.content,
-        content_type,
-    );
+    let item = create_clipboard_item(&session_id, &user_id, &username, &req.content, content_type);
 
     if let Err(e) = store_clipboard_item(&state.db, &item).await {
         error!("Failed to store clipboard item: {}", e);
@@ -1541,13 +1532,8 @@ async fn handle_client_message(
             line_number,
             content,
         } => {
-            let comment = create_comment_helper(
-                session_id,
-                user_id,
-                username,
-                line_number,
-                &content,
-            );
+            let comment =
+                create_comment_helper(session_id, user_id, username, line_number, &content);
             let _ = store_comment(&state.db, &comment).await;
 
             let event = CollaborationEvent::CommentCreated {
@@ -1593,10 +1579,7 @@ async fn handle_binary_message(
 
 // ============ 数据库操作 ============
 
-async fn store_session(
-    db: &crate::db::Database,
-    session: &CollaborationSession,
-) -> Result<()> {
+async fn store_session(db: &crate::db::Database, session: &CollaborationSession) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_sessions
            (id, host_id, host_username, team_id, server_id, server_name, state, share_link, created_at, settings)
@@ -1776,10 +1759,7 @@ async fn update_participant_voice_state(
     Ok(())
 }
 
-async fn store_annotation(
-    db: &crate::db::Database,
-    annotation: &Annotation,
-) -> Result<()> {
+async fn store_annotation(db: &crate::db::Database, annotation: &Annotation) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_annotations
            (id, session_id, author_id, author_name, annotation_type, position, content, color, created_at)
@@ -1833,10 +1813,7 @@ async fn resolve_annotation_in_db(db: &crate::db::Database, annotation_id: &str)
     Ok(())
 }
 
-async fn store_comment(
-    db: &crate::db::Database,
-    comment: &Comment,
-) -> Result<()> {
+async fn store_comment(db: &crate::db::Database, comment: &Comment) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_comments
            (id, session_id, author_id, author_name, line_number, content, created_at, resolved)
@@ -1856,10 +1833,7 @@ async fn store_comment(
     Ok(())
 }
 
-async fn get_comments_from_db(
-    db: &crate::db::Database,
-    session_id: &str,
-) -> Result<Vec<Comment>> {
+async fn get_comments_from_db(db: &crate::db::Database, session_id: &str) -> Result<Vec<Comment>> {
     let rows = sqlx::query_as::<_, CommentRow>(
         "SELECT * FROM collaboration_comments WHERE session_id = ? AND resolved = FALSE ORDER BY line_number"
     )
@@ -1908,10 +1882,7 @@ async fn resolve_comment_in_db(db: &crate::db::Database, comment_id: &str) -> Re
     Ok(())
 }
 
-async fn store_clipboard_item(
-    db: &crate::db::Database,
-    item: &SharedClipboardItem,
-) -> Result<()> {
+async fn store_clipboard_item(db: &crate::db::Database, item: &SharedClipboardItem) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_clipboard
            (id, session_id, author_id, author_name, content, content_type, created_at)
@@ -1946,10 +1917,7 @@ async fn get_clipboard_from_db(
     Ok(rows.into_iter().map(|r| r.into()).collect())
 }
 
-async fn store_history(
-    db: &crate::db::Database,
-    entry: &CollaborationHistory,
-) -> Result<()> {
+async fn store_history(db: &crate::db::Database, entry: &CollaborationHistory) -> Result<()> {
     sqlx::query(
         r#"INSERT INTO collaboration_history
            (id, session_id, participant_id, participant_name, action_type, command, output_preview, timestamp)
@@ -2082,15 +2050,13 @@ impl From<AnnotationRow> for Annotation {
             author_id: row.author_id,
             author_name: row.author_name,
             annotation_type: AnnotationType::Highlight, // 简化
-            position: serde_json::from_str(&row.position).unwrap_or(
-                AnnotationPosition {
-                    x: 0.0,
-                    y: 0.0,
-                    width: None,
-                    height: None,
-                    points: None,
-                },
-            ),
+            position: serde_json::from_str(&row.position).unwrap_or(AnnotationPosition {
+                x: 0.0,
+                y: 0.0,
+                width: None,
+                height: None,
+                points: None,
+            }),
             content: row.content,
             color: row.color,
             created_at: row.created_at,

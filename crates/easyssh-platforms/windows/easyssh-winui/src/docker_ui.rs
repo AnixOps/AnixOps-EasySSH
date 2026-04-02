@@ -46,26 +46,38 @@ impl ContainerStatus {
 
     pub fn color(&self) -> Color32 {
         match self {
-            ContainerStatus::Running => Color32::from_rgb(100, 200, 100),    // Green
-            ContainerStatus::Paused => Color32::from_rgb(255, 193, 7),       // Yellow
-            ContainerStatus::Exited => Color32::from_rgb(150, 150, 150),      // Gray
-            ContainerStatus::Dead => Color32::from_rgb(220, 53, 69),        // Red
-            ContainerStatus::Created => Color32::from_rgb(100, 149, 237),   // Cornflower
-            ContainerStatus::Restarting => Color32::from_rgb(255, 165, 0),  // Orange
-            ContainerStatus::Removing => Color32::from_rgb(220, 53, 69),    // Red
+            ContainerStatus::Running => Color32::from_rgb(100, 200, 100), // Green
+            ContainerStatus::Paused => Color32::from_rgb(255, 193, 7),    // Yellow
+            ContainerStatus::Exited => Color32::from_rgb(150, 150, 150),  // Gray
+            ContainerStatus::Dead => Color32::from_rgb(220, 53, 69),      // Red
+            ContainerStatus::Created => Color32::from_rgb(100, 149, 237), // Cornflower
+            ContainerStatus::Restarting => Color32::from_rgb(255, 165, 0), // Orange
+            ContainerStatus::Removing => Color32::from_rgb(220, 53, 69),  // Red
         }
     }
 
     pub fn can_start(&self) -> bool {
-        matches!(self, ContainerStatus::Created | ContainerStatus::Exited | ContainerStatus::Dead)
+        matches!(
+            self,
+            ContainerStatus::Created | ContainerStatus::Exited | ContainerStatus::Dead
+        )
     }
 
     pub fn can_stop(&self) -> bool {
-        matches!(self, ContainerStatus::Running | ContainerStatus::Restarting | ContainerStatus::Paused)
+        matches!(
+            self,
+            ContainerStatus::Running | ContainerStatus::Restarting | ContainerStatus::Paused
+        )
     }
 
     pub fn can_restart(&self) -> bool {
-        matches!(self, ContainerStatus::Running | ContainerStatus::Exited | ContainerStatus::Paused | ContainerStatus::Dead)
+        matches!(
+            self,
+            ContainerStatus::Running
+                | ContainerStatus::Exited
+                | ContainerStatus::Paused
+                | ContainerStatus::Dead
+        )
     }
 }
 
@@ -210,9 +222,11 @@ impl DockerManagerUI {
                 image: "nginx:latest".to_string(),
                 status: ContainerStatus::Running,
                 created: Utc::now() - chrono::Duration::hours(2),
-                ports: vec![
-                    PortMapping { host_port: 8080, container_port: 80, protocol: "tcp".to_string() },
-                ],
+                ports: vec![PortMapping {
+                    host_port: 8080,
+                    container_port: 80,
+                    protocol: "tcp".to_string(),
+                }],
                 cpu_usage: 2.5,
                 memory_usage: 45.2,
             },
@@ -222,9 +236,11 @@ impl DockerManagerUI {
                 image: "redis:7-alpine".to_string(),
                 status: ContainerStatus::Running,
                 created: Utc::now() - chrono::Duration::days(1),
-                ports: vec![
-                    PortMapping { host_port: 6379, container_port: 6379, protocol: "tcp".to_string() },
-                ],
+                ports: vec![PortMapping {
+                    host_port: 6379,
+                    container_port: 6379,
+                    protocol: "tcp".to_string(),
+                }],
                 cpu_usage: 0.8,
                 memory_usage: 12.3,
             },
@@ -234,9 +250,11 @@ impl DockerManagerUI {
                 image: "postgres:15".to_string(),
                 status: ContainerStatus::Exited,
                 created: Utc::now() - chrono::Duration::days(3),
-                ports: vec![
-                    PortMapping { host_port: 5432, container_port: 5432, protocol: "tcp".to_string() },
-                ],
+                ports: vec![PortMapping {
+                    host_port: 5432,
+                    container_port: 5432,
+                    protocol: "tcp".to_string(),
+                }],
                 cpu_usage: 0.0,
                 memory_usage: 0.0,
             },
@@ -377,12 +395,11 @@ impl DockerManagerUI {
                 let is_active = self.active_tab == tab;
                 let text = format!("{} {}", tab.icon(), tab.display_name());
 
-                let btn = egui::Button::new(RichText::new(text).size(12.0))
-                    .fill(if is_active {
-                        egui::Color32::from_rgb(64, 156, 255)
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    });
+                let btn = egui::Button::new(RichText::new(text).size(12.0)).fill(if is_active {
+                    egui::Color32::from_rgb(64, 156, 255)
+                } else {
+                    egui::Color32::TRANSPARENT
+                });
 
                 if ui.add(btn).clicked() {
                     self.active_tab = tab;
@@ -427,8 +444,16 @@ impl DockerManagerUI {
         let filtered_containers: Vec<_> = if self.show_all_containers {
             containers_clone
         } else {
-            containers_clone.into_iter()
-                .filter(|c| matches!(c.status, ContainerStatus::Running | ContainerStatus::Paused | ContainerStatus::Restarting))
+            containers_clone
+                .into_iter()
+                .filter(|c| {
+                    matches!(
+                        c.status,
+                        ContainerStatus::Running
+                            | ContainerStatus::Paused
+                            | ContainerStatus::Restarting
+                    )
+                })
                 .collect()
         };
 
@@ -438,7 +463,8 @@ impl DockerManagerUI {
                     let search_lower = self.search_query.to_lowercase();
                     if !container.name.to_lowercase().contains(&search_lower)
                         && !container.image.to_lowercase().contains(&search_lower)
-                        && !container.id.to_lowercase().contains(&search_lower) {
+                        && !container.id.to_lowercase().contains(&search_lower)
+                    {
                         continue;
                     }
                 }
@@ -447,7 +473,12 @@ impl DockerManagerUI {
         });
     }
 
-    fn render_container_item(&mut self, ui: &mut Ui, container: &ContainerInfo, theme: &DesignTheme) {
+    fn render_container_item(
+        &mut self,
+        ui: &mut Ui,
+        container: &ContainerInfo,
+        theme: &DesignTheme,
+    ) {
         let is_selected = self.selected_container.as_ref() == Some(&container.id);
 
         ui.group(|ui| {
@@ -456,7 +487,11 @@ impl DockerManagerUI {
 
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(&container.name).strong().color(theme.text_primary));
+                        ui.label(
+                            RichText::new(&container.name)
+                                .strong()
+                                .color(theme.text_primary),
+                        );
                         // Status badge
                         let status_text = format!(" {} ", container.status.display_name());
                         ui.label(
@@ -475,15 +510,20 @@ impl DockerManagerUI {
                     // Resource usage
                     if container.status == ContainerStatus::Running {
                         ui.label(
-                            RichText::new(format!("CPU: {:.1}% | 内存: {:.1} MB", container.cpu_usage, container.memory_usage))
-                                .size(10.0)
-                                .color(egui::Color32::from_rgb(100, 200, 100)),
+                            RichText::new(format!(
+                                "CPU: {:.1}% | 内存: {:.1} MB",
+                                container.cpu_usage, container.memory_usage
+                            ))
+                            .size(10.0)
+                            .color(egui::Color32::from_rgb(100, 200, 100)),
                         );
                     }
 
                     // Ports
                     if !container.ports.is_empty() {
-                        let ports_str: Vec<String> = container.ports.iter()
+                        let ports_str: Vec<String> = container
+                            .ports
+                            .iter()
                             .map(|p| format!("{}:{}/{}", p.host_port, p.container_port, p.protocol))
                             .collect();
                         ui.label(
@@ -548,7 +588,10 @@ impl DockerManagerUI {
             for image in &self.images.clone() {
                 if !self.search_query.is_empty() {
                     let search_lower = self.search_query.to_lowercase();
-                    let tag_match = image.repo_tags.iter().any(|t| t.to_lowercase().contains(&search_lower));
+                    let tag_match = image
+                        .repo_tags
+                        .iter()
+                        .any(|t| t.to_lowercase().contains(&search_lower));
                     if !tag_match {
                         continue;
                     }
@@ -568,9 +611,13 @@ impl DockerManagerUI {
                         ui.label(RichText::new(tag).strong().color(theme.text_primary));
                     }
                     ui.label(
-                        RichText::new(format!("ID: {} | 大小: {:.2} MB", &image.id[..12], image.size as f64 / 1_048_576.0))
-                            .size(11.0)
-                            .color(theme.text_secondary),
+                        RichText::new(format!(
+                            "ID: {} | 大小: {:.2} MB",
+                            &image.id[..12],
+                            image.size as f64 / 1_048_576.0
+                        ))
+                        .size(11.0)
+                        .color(theme.text_secondary),
                     );
                 });
 
@@ -613,16 +660,24 @@ impl DockerManagerUI {
                 ui.label(RichText::new("🌐").size(18.0));
 
                 ui.vertical(|ui| {
-                    ui.label(RichText::new(&network.name).strong().color(theme.text_primary));
                     ui.label(
-                        RichText::new(format!("驱动: {} | 范围: {}", network.driver, network.scope))
-                            .size(11.0)
-                            .color(theme.text_secondary),
+                        RichText::new(&network.name)
+                            .strong()
+                            .color(theme.text_primary),
+                    );
+                    ui.label(
+                        RichText::new(format!(
+                            "驱动: {} | 范围: {}",
+                            network.driver, network.scope
+                        ))
+                        .size(11.0)
+                        .color(theme.text_secondary),
                     );
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if network.name != "bridge" && network.name != "host" && network.name != "none" {
+                    if network.name != "bridge" && network.name != "host" && network.name != "none"
+                    {
                         if ui.button("🗑️ 删除").clicked() {
                             self.remove_network(&network.id);
                         }
@@ -659,8 +714,14 @@ impl DockerManagerUI {
                 ui.label(RichText::new("💾").size(18.0));
 
                 ui.vertical(|ui| {
-                    ui.label(RichText::new(&volume.name).strong().color(theme.text_primary));
-                    let size_str = volume.size.map(|s| format!("{:.2} MB", s as f64 / 1_048_576.0))
+                    ui.label(
+                        RichText::new(&volume.name)
+                            .strong()
+                            .color(theme.text_primary),
+                    );
+                    let size_str = volume
+                        .size
+                        .map(|s| format!("{:.2} MB", s as f64 / 1_048_576.0))
                         .unwrap_or_else(|| "大小未知".to_string());
                     ui.label(
                         RichText::new(format!("驱动: {} | {}", volume.driver, size_str))
@@ -730,10 +791,26 @@ impl DockerManagerUI {
                 egui::ComboBox::from_label("restart_policy")
                     .selected_text(&self.new_container_form.restart_policy)
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.new_container_form.restart_policy, "".to_string(), "无");
-                        ui.selectable_value(&mut self.new_container_form.restart_policy, "always".to_string(), "总是");
-                        ui.selectable_value(&mut self.new_container_form.restart_policy, "unless-stopped".to_string(), "除非手动停止");
-                        ui.selectable_value(&mut self.new_container_form.restart_policy, "on-failure".to_string(), "失败时");
+                        ui.selectable_value(
+                            &mut self.new_container_form.restart_policy,
+                            "".to_string(),
+                            "无",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_container_form.restart_policy,
+                            "always".to_string(),
+                            "总是",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_container_form.restart_policy,
+                            "unless-stopped".to_string(),
+                            "除非手动停止",
+                        );
+                        ui.selectable_value(
+                            &mut self.new_container_form.restart_policy,
+                            "on-failure".to_string(),
+                            "失败时",
+                        );
                     });
 
                 ui.add_space(16.0);
@@ -857,7 +934,11 @@ impl DockerManagerUI {
 
     fn run_image(&mut self, image_id: &str) {
         if let Some(image) = self.images.iter().find(|i| i.id == image_id) {
-            let tag = image.repo_tags.first().cloned().unwrap_or_else(|| "unnamed".to_string());
+            let tag = image
+                .repo_tags
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "unnamed".to_string());
             self.new_container_form.image = tag.clone();
             self.show_create_dialog = true;
         }
@@ -874,10 +955,7 @@ impl DockerManagerUI {
     }
 
     fn show_success(&mut self, message: &str) {
-        self.success_message = Some((
-            message.to_string(),
-            std::time::Instant::now(),
-        ));
+        self.success_message = Some((message.to_string(), std::time::Instant::now()));
     }
 
     /// Update and clear expired messages

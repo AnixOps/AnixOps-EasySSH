@@ -3,11 +3,11 @@ use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use crate::models::{AppState, Server, ServerGroup};
-use crate::sidebar::Sidebar;
-use crate::server_list::ServerList;
-use crate::server_detail::ServerDetail;
 use crate::dialogs;
+use crate::models::{AppState, Server, ServerGroup};
+use crate::server_detail::ServerDetail;
+use crate::server_list::ServerList;
+use crate::sidebar::Sidebar;
 
 pub struct EasySSHWindow {
     window: adw::ApplicationWindow,
@@ -170,11 +170,10 @@ impl EasySSHWindow {
         );
 
         // Server connect
-        self.server_list.connect_server_connect(
-            glib::clone!(@weak state => move |server| {
+        self.server_list
+            .connect_server_connect(glib::clone!(@weak state => move |server| {
                 crate::terminal_launcher::launch_terminal(&server);
-            }),
-        );
+            }));
 
         // Server edit
         self.server_list.connect_server_edit(
@@ -213,11 +212,10 @@ impl EasySSHWindow {
         );
 
         // Detail view signals
-        self.server_detail.connect_connect_clicked(
-            glib::clone!(@strong state => move |server| {
+        self.server_detail
+            .connect_connect_clicked(glib::clone!(@strong state => move |server| {
                 crate::terminal_launcher::launch_terminal(&server);
-            }),
-        );
+            }));
 
         self.server_detail.connect_edit_clicked(
             glib::clone!(@weak self.window as window, @strong state => move |server| {

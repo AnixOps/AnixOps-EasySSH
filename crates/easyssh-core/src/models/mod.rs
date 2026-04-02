@@ -36,9 +36,9 @@ pub use server::{
 };
 
 pub use settings::{
-    AppearanceSettings, ApplicationSettings, BackupSettings, CreateSettingsDto,
-    EncryptionSettings, NetworkSettings, SecuritySettings, Settings, SettingsBuilder,
-    TerminalSettings, UpdateSettingsDto,
+    AppearanceSettings, ApplicationSettings, BackupSettings, CreateSettingsDto, EncryptionSettings,
+    NetworkSettings, SecuritySettings, Settings, SettingsBuilder, TerminalSettings,
+    UpdateSettingsDto,
 };
 
 pub use user::{
@@ -54,7 +54,12 @@ pub enum ValidationError {
     /// Field is empty or invalid
     InvalidField { field: String, message: String },
     /// Value is out of range
-    OutOfRange { field: String, min: i64, max: i64, actual: i64 },
+    OutOfRange {
+        field: String,
+        min: i64,
+        max: i64,
+        actual: i64,
+    },
     /// Format is invalid
     InvalidFormat { field: String, expected: String },
     /// Required field is missing
@@ -82,7 +87,11 @@ impl fmt::Display for ValidationError {
                 )
             }
             ValidationError::InvalidFormat { field, expected } => {
-                write!(f, "Field '{}' invalid format, expected: {}", field, expected)
+                write!(
+                    f,
+                    "Field '{}' invalid format, expected: {}",
+                    field, expected
+                )
             }
             ValidationError::MissingField(field) => {
                 write!(f, "Missing required field: {}", field)

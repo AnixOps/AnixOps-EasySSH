@@ -3,19 +3,19 @@ use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::sync::Arc;
 
+mod app;
 mod application;
-mod window;
-mod sidebar;
-mod server_list;
-mod server_detail;
-mod terminal_launcher;
+mod bridge;
 mod dialogs;
+mod enhanced_app;
 mod models;
+mod server_detail;
+mod server_list;
+mod sidebar;
+mod terminal_launcher;
 mod views;
 mod widgets;
-mod app;
-mod enhanced_app;
-mod bridge;
+mod window;
 
 use application::EasySSHApplication;
 

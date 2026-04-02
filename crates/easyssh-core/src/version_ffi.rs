@@ -6,8 +6,8 @@
 //!
 //! 所有字符串返回都通过 `version_free_string` 释放，避免内存泄漏
 
-use crate::version::{FullBuildInfo, PlatformInfo, VersionCompatibility};
 use crate::edition::Edition;
+use crate::version::{FullBuildInfo, PlatformInfo, VersionCompatibility};
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
 

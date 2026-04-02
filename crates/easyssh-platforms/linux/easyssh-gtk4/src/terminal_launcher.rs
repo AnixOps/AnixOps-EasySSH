@@ -57,10 +57,7 @@ fn build_ssh_command(server: &Server) -> String {
 
     // Add identity file for key auth
     if server.auth_type == AuthType::Key {
-        let key_path = server
-            .identity_file
-            .as_deref()
-            .unwrap_or("~/.ssh/id_rsa");
+        let key_path = server.identity_file.as_deref().unwrap_or("~/.ssh/id_rsa");
         let expanded_path = expand_home(key_path);
         cmd.push_str(&format!("-i {} ", expanded_path));
     }

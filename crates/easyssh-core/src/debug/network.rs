@@ -19,11 +19,7 @@ use std::time::{Duration, Instant};
 ///
 /// let result = check_tcp_connectivity("example.com", 80, 5000);
 /// ```
-pub fn check_tcp_connectivity(
-    host: &str,
-    port: u16,
-    timeout_ms: u64,
-) -> NetworkCheckResult {
+pub fn check_tcp_connectivity(host: &str, port: u16, timeout_ms: u64) -> NetworkCheckResult {
     let addr = format!("{}:{}", host, port);
     let start = Instant::now();
 
@@ -114,10 +110,7 @@ pub fn check_https_connectivity(host: &str, timeout_ms: u64) -> NetworkCheckResu
 /// let hosts = vec!["example.com:80", "example.com:443"];
 /// let results = check_multiple_hosts(&hosts, 5000);
 /// ```
-pub fn check_multiple_hosts(
-    hosts: &[&str],
-    timeout_ms: u64,
-) -> Vec<NetworkCheckResult> {
+pub fn check_multiple_hosts(hosts: &[&str], timeout_ms: u64) -> Vec<NetworkCheckResult> {
     hosts
         .iter()
         .filter_map(|host_str| {
@@ -155,19 +148,16 @@ pub struct NetworkDiagnosticsSummary {
 /// 执行一系列网络连通性检查
 pub fn run_network_diagnostics() -> NetworkDiagnosticsReport {
     let tests = vec![
-        check_http_connectivity("1.1.1.1", 5000),   // Cloudflare DNS
+        check_http_connectivity("1.1.1.1", 5000),  // Cloudflare DNS
         check_https_connectivity("1.1.1.1", 5000), // Cloudflare DNS HTTPS
-        check_http_connectivity("8.8.8.8", 5000),   // Google DNS
+        check_http_connectivity("8.8.8.8", 5000),  // Google DNS
     ];
 
     let total_tests = tests.len();
     let passed_tests = tests.iter().filter(|t| t.reachable).count();
     let failed_tests = total_tests - passed_tests;
 
-    let latencies: Vec<f64> = tests
-        .iter()
-        .filter_map(|t| t.latency_ms)
-        .collect();
+    let latencies: Vec<f64> = tests.iter().filter_map(|t| t.latency_ms).collect();
 
     let average_latency_ms = if latencies.is_empty() {
         None

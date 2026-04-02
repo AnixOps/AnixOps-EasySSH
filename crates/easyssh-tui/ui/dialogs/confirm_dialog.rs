@@ -80,8 +80,8 @@ impl Dialog for ConfirmDialog {
             .split(inner);
 
         // Message
-        let message_para = Paragraph::new(self.message.clone())
-            .wrap(ratatui::widgets::Wrap { trim: true });
+        let message_para =
+            Paragraph::new(self.message.clone()).wrap(ratatui::widgets::Wrap { trim: true });
         frame.render_widget(message_para, chunks[0]);
 
         // Buttons

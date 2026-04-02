@@ -208,7 +208,11 @@ impl QueryResult {
     }
 
     /// Convert to SQL INSERT statements with proper escaping to prevent SQL injection
-    pub fn to_sql_inserts(&self, table_name: &str, _db_type: &str) -> Result<String, DatabaseError> {
+    pub fn to_sql_inserts(
+        &self,
+        table_name: &str,
+        _db_type: &str,
+    ) -> Result<String, DatabaseError> {
         let mut statements = Vec::new();
 
         // Escape table name to prevent SQL injection
@@ -273,7 +277,8 @@ pub struct QueryBuilder {
 impl QueryBuilder {
     pub fn new(table: &str) -> Self {
         // Validate table name
-        let validated_table = Self::validate_identifier(table).unwrap_or_else(|_| "invalid_table".to_string());
+        let validated_table =
+            Self::validate_identifier(table).unwrap_or_else(|_| "invalid_table".to_string());
 
         Self {
             table: validated_table,
@@ -399,12 +404,16 @@ impl QueryBuilder {
 
     pub fn join(mut self, table: &str, on: &str, join_type: &str) -> Self {
         // Validate all identifiers
-        let valid_table = Self::validate_identifier(table).unwrap_or_else(|_| "invalid_table".to_string());
+        let valid_table =
+            Self::validate_identifier(table).unwrap_or_else(|_| "invalid_table".to_string());
         let valid_on = Self::validate_identifier(on).unwrap_or_else(|_| "invalid_on".to_string());
-        let valid_join_type = Self::validate_identifier(join_type).unwrap_or_else(|_| "JOIN".to_string());
+        let valid_join_type =
+            Self::validate_identifier(join_type).unwrap_or_else(|_| "JOIN".to_string());
 
-        self.joins
-            .push(format!("{} JOIN {} ON {}", valid_join_type, valid_table, valid_on));
+        self.joins.push(format!(
+            "{} JOIN {} ON {}",
+            valid_join_type, valid_table, valid_on
+        ));
         self
     }
 
@@ -421,7 +430,9 @@ impl QueryBuilder {
         }
 
         if !self.group_by.is_empty() {
-            let valid_group: Vec<String> = self.group_by.iter()
+            let valid_group: Vec<String> = self
+                .group_by
+                .iter()
                 .filter_map(|g| Self::validate_identifier(g).ok())
                 .collect();
             if !valid_group.is_empty() {

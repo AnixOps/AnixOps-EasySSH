@@ -2,8 +2,8 @@
 //!
 //! 本模块展示如何在Windows egui应用中集成版本显示
 
+use easyssh_core::version::{BuildType, Edition, FullVersionInfo};
 use eframe::egui;
-use easyssh_core::version::{Edition, FullVersionInfo, BuildType};
 
 /// Windows应用版本显示组件
 pub struct VersionDisplay {
@@ -24,7 +24,7 @@ impl VersionDisplay {
         let (text, color) = match self.full_info.edition {
             Edition::Lite => ("Lite", egui::Color32::from_rgb(0, 150, 136)), // Teal
             Edition::Standard => ("Standard", egui::Color32::from_rgb(33, 150, 243)), // Blue
-            Edition::Pro => ("Pro", egui::Color32::from_rgb(156, 39, 176)), // Purple
+            Edition::Pro => ("Pro", egui::Color32::from_rgb(156, 39, 176)),  // Purple
         };
 
         let dev_marker = if self.full_info.build_type == BuildType::Dev {
@@ -55,11 +55,7 @@ impl VersionDisplay {
                 ui.vertical_centered(|ui| {
                     // 应用图标/Logo区域
                     ui.add_space(20.0);
-                    ui.label(
-                        egui::RichText::new("EasySSH")
-                            .size(32.0)
-                            .strong(),
-                    );
+                    ui.label(egui::RichText::new("EasySSH").size(32.0).strong());
 
                     // 版本信息
                     ui.add_space(10.0);
@@ -95,7 +91,7 @@ impl VersionDisplay {
             ),
             Edition::Standard => (
                 egui::Color32::from_rgb(227, 242, 253), // Light blue
-                egui::Color32::from_rgb(13, 71, 161),  // Dark blue
+                egui::Color32::from_rgb(13, 71, 161),   // Dark blue
             ),
             Edition::Pro => (
                 egui::Color32::from_rgb(243, 229, 245), // Light purple
@@ -119,8 +115,7 @@ impl VersionDisplay {
         let (rect, _) = ui.allocate_space(ui.spacing().interact_size + padding * 2.0);
 
         ui.painter().rect_filled(
-            rect,
-            6.0, // 圆角
+            rect, 6.0, // 圆角
             bg_color,
         );
 
@@ -145,9 +140,7 @@ impl VersionDisplay {
         if self.full_info.build_type == BuildType::Dev {
             ui.colored_label(
                 egui::Color32::YELLOW,
-                egui::RichText::new("开发版本")
-                    .italics()
-                    .size(12.0),
+                egui::RichText::new("开发版本").italics().size(12.0),
             );
         }
     }
@@ -209,9 +202,17 @@ impl VersionDisplay {
     /// 在状态栏显示精简版本信息
     pub fn render_status_bar_version(&self, ui: &mut egui::Ui) {
         let version_text = if self.full_info.build_type == BuildType::Dev {
-            format!("{} {} [Dev]", self.full_info.edition.code(), self.full_info.version)
+            format!(
+                "{} {} [Dev]",
+                self.full_info.edition.code(),
+                self.full_info.version
+            )
         } else {
-            format!("{} {}", self.full_info.edition.code(), self.full_info.version)
+            format!(
+                "{} {}",
+                self.full_info.edition.code(),
+                self.full_info.version
+            )
         };
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -228,11 +229,7 @@ pub fn render_splash_version(ui: &mut egui::Ui) {
         ui.add_space(100.0);
 
         // Logo
-        ui.label(
-            egui::RichText::new("EasySSH")
-                .size(48.0)
-                .strong(),
-        );
+        ui.label(egui::RichText::new("EasySSH").size(48.0).strong());
 
         ui.add_space(20.0);
 

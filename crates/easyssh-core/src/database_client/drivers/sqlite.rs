@@ -287,9 +287,7 @@ impl DatabaseDriver for SqliteDriver {
             let (name, table_type) = row.map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
             // Get row count - Use parameterized query to prevent SQL injection
-            let count_query = "SELECT COUNT(*) FROM "
-                .to_string()
-                + &Self::escape_identifier(&name);
+            let count_query = "SELECT COUNT(*) FROM ".to_string() + &Self::escape_identifier(&name);
             let row_count: Option<u64> = conn
                 .query_row(&count_query, [], |r| r.get::<_, i64>(0).map(|v| v as u64))
                 .ok();
@@ -460,7 +458,7 @@ impl DatabaseDriver for SqliteDriver {
                 .query_row(
                     &("SELECT COUNT(*) FROM ".to_string() + &Self::escape_identifier(table_name)),
                     [],
-                    |r| { Ok(r.get::<_, i64>(0).map(|v| v as u64).ok()) },
+                    |r| Ok(r.get::<_, i64>(0).map(|v| v as u64).ok()),
                 )
                 .ok()
                 .flatten(),

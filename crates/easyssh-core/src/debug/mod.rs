@@ -24,9 +24,9 @@
 
 // 重新导出 debug_access 的核心类型
 pub use crate::debug_access::{
-    DebugAccess, DebugAccessError, DebugAccessLevel, DebugAccessMethod,
-    DebugAuditAction, DebugAuditRecord, DebugAuditResult, DebugClientInfo,
-    DebugFeature, DebugSession, EditionActivationConfig, KeySequenceDetector,
+    DebugAccess, DebugAccessError, DebugAccessLevel, DebugAccessMethod, DebugAuditAction,
+    DebugAuditRecord, DebugAuditResult, DebugClientInfo, DebugFeature, DebugSession,
+    EditionActivationConfig, KeySequenceDetector,
 };
 
 // 子模块
@@ -159,8 +159,7 @@ pub fn get_debug_capabilities() -> types::DebugCapabilities {
 
 /// 获取当前访问级别
 pub fn get_access_level() -> Option<DebugAccessLevel> {
-    crate::debug_access::get_debug_access()
-        .and_then(|a| a.get_access_level())
+    crate::debug_access::get_debug_access().and_then(|a| a.get_access_level())
 }
 
 /// 检查是否有权限访问特定功能

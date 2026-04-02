@@ -65,8 +65,7 @@ pub fn get_logs(
         .filter(|entry| {
             // 文本过滤
             if let Some(ref f) = text_filter {
-                entry.message.to_lowercase().contains(f)
-                    || entry.target.to_lowercase().contains(f)
+                entry.message.to_lowercase().contains(f) || entry.target.to_lowercase().contains(f)
             } else {
                 true
             }
@@ -136,9 +135,7 @@ pub fn export_logs(format: ExportFormat) -> Result<String, String> {
     let logs = get_logs(None, None, None);
 
     match format {
-        ExportFormat::Json => {
-            serde_json::to_string_pretty(&logs).map_err(|e| e.to_string())
-        }
+        ExportFormat::Json => serde_json::to_string_pretty(&logs).map_err(|e| e.to_string()),
         ExportFormat::Csv => {
             let mut csv = String::new();
             csv.push_str("timestamp,level,target,message\n");
@@ -193,11 +190,7 @@ impl LogSubscriber {
             return Vec::new();
         }
 
-        let new_entries: Vec<LogEntry> = buffer
-            .iter()
-            .skip(self.last_position)
-            .cloned()
-            .collect();
+        let new_entries: Vec<LogEntry> = buffer.iter().skip(self.last_position).cloned().collect();
 
         self.last_position = current_len;
         new_entries
@@ -277,7 +270,10 @@ pub fn apply_filter(entries: &[LogEntry], config: &LogFilterConfig) -> Vec<LogEn
             if config.target_filters.is_empty() {
                 return true;
             }
-            config.target_filters.iter().any(|t| entry.target.contains(t))
+            config
+                .target_filters
+                .iter()
+                .any(|t| entry.target.contains(t))
         })
         .filter(|entry| {
             // 消息过滤

@@ -5,11 +5,11 @@
 //! tokio = { version = "1", features = ["full"] }
 //! ```
 
-use easyssh_core::workflow_engine::*;
-use easyssh_core::workflow_variables::*;
 use easyssh_core::macro_recorder::*;
 use easyssh_core::script_library::*;
+use easyssh_core::workflow_engine::*;
 use easyssh_core::workflow_scheduler::*;
+use easyssh_core::workflow_variables::*;
 
 #[tokio::main]
 async fn main() {
@@ -90,14 +90,17 @@ async fn main() {
     // 3. Create a macro
     println!("\n3. Creating a macro...");
     let mut macro_recorder = MacroRecorder::new();
-    macro_recorder.start_recording("Server Setup", Some(MacroServerContext {
-        server_id: server.id.clone(),
-        server_name: server.name.clone(),
-        host: server.host.clone(),
-        username: server.username.clone(),
-        initial_dir: "/home/admin".to_string(),
-        env_vars: std::collections::HashMap::new(),
-    }));
+    macro_recorder.start_recording(
+        "Server Setup",
+        Some(MacroServerContext {
+            server_id: server.id.clone(),
+            server_name: server.name.clone(),
+            host: server.host.clone(),
+            username: server.username.clone(),
+            initial_dir: "/home/admin".to_string(),
+            env_vars: std::collections::HashMap::new(),
+        }),
+    );
 
     macro_recorder.record_ssh_command("sudo apt update", None);
     macro_recorder.record_ssh_command("sudo apt upgrade -y", None);
@@ -111,7 +114,10 @@ async fn main() {
 
         // Convert to workflow
         let converted_workflow = m.to_workflow();
-        println!("   Converted to workflow with {} steps", converted_workflow.steps.len());
+        println!(
+            "   Converted to workflow with {} steps",
+            converted_workflow.steps.len()
+        );
     }
 
     // 4. Create scheduled task
@@ -125,7 +131,10 @@ async fn main() {
     match task {
         Ok(t) => {
             println!("   Task: {}", t.name);
-            println!("   Schedule: {} ({})", t.cron_expression, t.schedule_description);
+            println!(
+                "   Schedule: {} ({})",
+                t.cron_expression, t.schedule_description
+            );
             println!("   Next run: {:?}", t.next_run);
         }
         Err(e) => println!("   Error: {}", e),

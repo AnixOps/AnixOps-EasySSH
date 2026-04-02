@@ -373,7 +373,11 @@ impl VersionInfo {
             build_type_name: build_type.name().to_string(),
             git_hash: Self::git_hash(),
             build_time: Self::build_time(),
-            features: edition.supported_features().into_iter().map(|s| s.to_string()).collect(),
+            features: edition
+                .supported_features()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect(),
             primary_color: edition.primary_color().to_string(),
             secondary_color: edition.secondary_color().to_string(),
             accent_color: edition.accent_color().to_string(),
@@ -409,7 +413,10 @@ impl VersionInfo {
     /// 窗口标题格式
     pub fn window_title(&self) -> String {
         if self.build_type == BuildType::Dev {
-            format!("{} {} [{}]", self.edition_full_name, self.version, self.build_type_name)
+            format!(
+                "{} {} [{}]",
+                self.edition_full_name, self.version, self.build_type_name
+            )
         } else {
             format!("{} {}", self.edition_full_name, self.version)
         }
@@ -417,22 +424,25 @@ impl VersionInfo {
 
     /// 短版本标识（用于状态栏、托盘图标提示）
     pub fn short_version(&self) -> String {
-        format!("{} {} {}", self.edition.short_identifier(), self.version, self.build_type_name)
+        format!(
+            "{} {} {}",
+            self.edition.short_identifier(),
+            self.version,
+            self.build_type_name
+        )
     }
 
     /// 完整版本字符串（用于日志、错误报告）
     pub fn full_version_string(&self) -> String {
-        let git_info = self.git_hash.as_ref()
+        let git_info = self
+            .git_hash
+            .as_ref()
             .map(|h| format!(" (git: {})", &h[..8.min(h.len())]))
             .unwrap_or_default();
 
         format!(
             "{} {} {} (build: {}){}",
-            self.edition_full_name,
-            self.version,
-            self.build_type_name,
-            self.build_time,
-            git_info
+            self.edition_full_name, self.version, self.build_type_name, self.build_time, git_info
         )
     }
 
@@ -804,11 +814,7 @@ mod tests {
         };
 
         // Result should be one of the three values
-        assert!(
-            result == "lite_value"
-                || result == "standard_value"
-                || result == "pro_value"
-        );
+        assert!(result == "lite_value" || result == "standard_value" || result == "pro_value");
     }
 
     #[test]

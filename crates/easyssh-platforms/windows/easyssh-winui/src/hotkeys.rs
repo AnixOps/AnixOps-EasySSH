@@ -719,6 +719,14 @@ pub struct HotkeyManager {
     terminal_focused: bool,
 }
 
+// Safety: HotkeyManager contains raw pointers (HWND, WNDPROC) but they are only
+// accessed from the main thread. The Send/Sync impls are safe because we ensure
+// thread safety through the Arc<Mutex<>> wrapper in practice.
+#[cfg(windows)]
+unsafe impl Send for HotkeyManager {}
+#[cfg(windows)]
+unsafe impl Sync for HotkeyManager {}
+
 impl HotkeyManager {
     pub fn new() -> Self {
         let mut manager = Self {
@@ -942,7 +950,7 @@ impl HotkeyManager {
         }
 
         unsafe {
-            match RegisterHotKey(hwnd, id, modifiers, vk) {
+            match RegisterHotKey(Some(hwnd), id, modifiers, vk) {
                 Ok(_) => {
                     self.global_hotkeys.insert(id, action.clone());
                     info!(
@@ -974,7 +982,7 @@ impl HotkeyManager {
 
         for id in ids_to_remove {
             unsafe {
-                let _ = UnregisterHotKey(hwnd, id);
+                let _ = UnregisterHotKey(Some(hwnd), id);
             }
             self.global_hotkeys.remove(&id);
             debug!("Unregistered global hotkey id={}", id);
@@ -1083,7 +1091,7 @@ impl HotkeyManager {
                         let vk = binding.to_windows_key();
                         if vk != 0 {
                             unsafe {
-                                if RegisterHotKey(hwnd, id, modifiers, vk).is_ok() {
+                                if RegisterHotKey(Some(hwnd), id, modifiers, vk).is_ok() {
                                     self.global_hotkeys.insert(id, action.clone());
                                     info!(
                                         "Restored global hotkey: {} (id={})",
@@ -1219,7 +1227,7 @@ impl HotkeyManager {
             if let Some(hwnd) = self.hwnd {
                 for id in self.global_hotkeys.keys() {
                     unsafe {
-                        let _ = UnregisterHotKey(hwnd, *id);
+                        let _ = UnregisterHotKey(Some(hwnd), *id);
                     }
                 }
             }
@@ -1245,7 +1253,7 @@ impl Drop for HotkeyManager {
             if let Some(hwnd) = self.hwnd {
                 for id in self.global_hotkeys.keys() {
                     unsafe {
-                        let _ = UnregisterHotKey(hwnd, *id);
+                        let _ = UnregisterHotKey(Some(hwnd), *id);
                     }
                 }
             }

@@ -752,7 +752,8 @@ impl MasterKey {
 
         match entry.get_password() {
             Ok(salt_b64) => {
-                let salt_vec = base64::engine::general_purpose::STANDARD.decode(&salt_b64)
+                let salt_vec = base64::engine::general_purpose::STANDARD
+                    .decode(&salt_b64)
                     .map_err(|_| LiteError::Crypto("Invalid salt encoding".to_string()))?;
 
                 if salt_vec.len() != SALT_LENGTH {
@@ -813,7 +814,7 @@ impl CredentialEncryption {
     ///
     /// Returns `None` if the master key is locked.
     pub fn from_master_key(master_key: &MasterKey) -> Option<Self> {
-        master_key.crypto_state().map(|state| {
+        master_key.crypto_state().map(|_state| {
             // We need to create a new CryptoState with the same key
             // Since CryptoState doesn't implement Clone, we'll need to use a different approach
             // For now, we require the caller to manage this
@@ -1030,7 +1031,7 @@ impl SecureStorage {
             .crypto_state()
             .ok_or(LiteError::InvalidMasterPassword)?;
 
-        let encryption = CredentialEncryption::new(CryptoState::new());
+        let _encryption = CredentialEncryption::new(CryptoState::new());
         // We need to properly initialize the encryption context
         // This is a simplified version - in production, you'd share the key properly
 
@@ -1216,7 +1217,8 @@ impl KeychainIntegration {
     pub fn get_data(&self, account: &str) -> Result<Option<Vec<u8>>, LiteError> {
         match self.get_password(account)? {
             Some(encoded) => {
-                let decoded = base64::engine::general_purpose::STANDARD.decode(&encoded)
+                let decoded = base64::engine::general_purpose::STANDARD
+                    .decode(&encoded)
                     .map_err(|_| LiteError::Crypto("Invalid base64 data".to_string()))?;
                 Ok(Some(decoded))
             }
@@ -1304,6 +1306,7 @@ impl Default for KeychainIntegration {
 ///
 /// Uses `RwLock` instead of `Mutex` for better read concurrency.
 /// Multiple readers can access simultaneously, but writes are exclusive.
+#[allow(clippy::incompatible_msrv)]
 pub static CRYPTO_STATE: std::sync::LazyLock<RwLock<CryptoState>> =
     std::sync::LazyLock::new(|| RwLock::new(CryptoState::new()));
 

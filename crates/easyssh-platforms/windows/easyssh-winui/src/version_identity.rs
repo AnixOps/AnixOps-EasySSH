@@ -66,27 +66,27 @@ impl Edition {
     /// 主色调 - 返回 Color32
     pub fn primary_color(&self) -> Color32 {
         match self {
-            Edition::Lite => Color32::from_hex("#10B981"),     // Emerald 500
-            Edition::Standard => Color32::from_hex("#3B82F6"), // Blue 500
-            Edition::Pro => Color32::from_hex("#8B5CF6"),     // Violet 500
+            Edition::Lite => Color32::from_rgb(16, 185, 129),    // Emerald 500 #10B981
+            Edition::Standard => Color32::from_rgb(59, 130, 246), // Blue 500 #3B82F6
+            Edition::Pro => Color32::from_rgb(139, 92, 246),     // Violet 500 #8B5CF6
         }
     }
 
     /// 次色调
     pub fn secondary_color(&self) -> Color32 {
         match self {
-            Edition::Lite => Color32::from_hex("#34D399"),     // Emerald 400
-            Edition::Standard => Color32::from_hex("#60A5FA"), // Blue 400
-            Edition::Pro => Color32::from_hex("#A78BFA"),     // Violet 400
+            Edition::Lite => Color32::from_rgb(52, 211, 153),    // Emerald 400 #34D399
+            Edition::Standard => Color32::from_rgb(96, 165, 250), // Blue 400 #60A5FA
+            Edition::Pro => Color32::from_rgb(167, 139, 250),    // Violet 400 #A78BFA
         }
     }
 
     /// 强调色
     pub fn accent_color(&self) -> Color32 {
         match self {
-            Edition::Lite => Color32::from_hex("#059669"),     // Emerald 600
-            Edition::Standard => Color32::from_hex("#2563EB"), // Blue 600
-            Edition::Pro => Color32::from_hex("#7C3AED"),       // Violet 600
+            Edition::Lite => Color32::from_rgb(5, 150, 105),     // Emerald 600 #059669
+            Edition::Standard => Color32::from_rgb(37, 99, 235),  // Blue 600 #2563EB
+            Edition::Pro => Color32::from_rgb(124, 58, 237),     // Violet 600 #7C3AED
         }
     }
 
@@ -177,10 +177,7 @@ impl Edition {
 
         ui.colored_label(
             bg,
-            RichText::new(self.short_id())
-                .strong()
-                .color(fg)
-                .size(12.0),
+            RichText::new(self.short_id()).strong().color(fg).size(12.0),
         );
     }
 }
@@ -257,23 +254,28 @@ impl VersionIdentity {
 
     pub fn window_title(&self) -> String {
         match self.build_type {
-            BuildType::Dev => format!("{} {} [{}]", self.full_name(), self.version(), self.build_type_name()),
+            BuildType::Dev => format!(
+                "{} {} [{}]",
+                self.full_name(),
+                self.version(),
+                self.build_type_name()
+            ),
             BuildType::Release => format!("{} {}", self.full_name(), self.version()),
         }
     }
 
     pub fn short_version(&self) -> String {
-        format!("{} {} {}", self.edition.short_id(), self.version(), self.build_type_name())
+        format!(
+            "{} {} {}",
+            self.edition.short_id(),
+            self.version(),
+            self.build_type_name()
+        )
     }
 
     pub fn full_version_string(&self) -> String {
         let build_info = format!("{}", self.build_type_name());
-        format!(
-            "{} {} ({})",
-            self.full_name(),
-            self.version(),
-            build_info
-        )
+        format!("{} {} ({})", self.full_name(), self.version(), build_info)
     }
 
     pub fn version(&self) -> &'static str {
@@ -329,10 +331,7 @@ impl VersionIdentity {
             ui.label("Features:");
             ui.horizontal_wrapped(|ui| {
                 for feature in self.features() {
-                    ui.colored_label(
-                        self.secondary_color(),
-                        format!("{}", feature),
-                    );
+                    ui.colored_label(self.secondary_color(), format!("{}", feature));
                     ui.label(" ");
                 }
             });
@@ -368,7 +367,7 @@ impl VersionAwareTheme {
     pub fn apply_to_design_theme(&self, theme: &mut crate::design::DesignTheme) {
         // 应用版本特定的强调色到 DesignTheme
         // 这会覆盖 DesignTheme 的默认强调色
-        theme.accent_color = self.primary;
+        theme.interactive_primary = self.primary;
     }
 
     /// 应用版本主题到 egui 样式
@@ -396,11 +395,8 @@ impl VersionAwareTheme {
             egui::vec2(24.0, 24.0),
             egui::Layout::centered_and_justified(egui::Direction::TopDown),
             |ui| {
-                ui.painter().rect_filled(
-                    ui.available_rect_before_wrap(),
-                    4.0,
-                    self.primary,
-                );
+                ui.painter()
+                    .rect_filled(ui.available_rect_before_wrap(), 4.0, self.primary);
                 ui.colored_label(Color32::WHITE, text);
             },
         );
@@ -415,9 +411,10 @@ mod tests {
     fn test_edition_current() {
         let edition = Edition::current();
         // 根据当前编译特性，可能是任何版本
-        assert!(
-            matches!(edition, Edition::Lite | Edition::Standard | Edition::Pro)
-        );
+        assert!(matches!(
+            edition,
+            Edition::Lite | Edition::Standard | Edition::Pro
+        ));
     }
 
     #[test]

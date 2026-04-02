@@ -241,10 +241,7 @@ impl CloudSyncUI {
         // Log success after releasing the mutable borrow
         self.log_success(format!(
             "Sync completed: {} servers, {} groups, {} keys, {} snippets",
-            stats.servers_synced,
-            stats.groups_synced,
-            stats.keys_synced,
-            stats.snippets_synced
+            stats.servers_synced, stats.groups_synced, stats.keys_synced, stats.snippets_synced
         ));
     }
 
@@ -378,7 +375,11 @@ impl CloudSyncUI {
         }
     }
 
-    fn render_content(&mut self, ui: &mut egui::Ui, action_message: Option<&(String, chrono::DateTime<chrono::Local>)>) {
+    fn render_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        action_message: Option<&(String, chrono::DateTime<chrono::Local>)>,
+    ) {
         // Header
         let mut should_close = false;
         let mut show_sync_log = false;
@@ -456,8 +457,18 @@ impl CloudSyncUI {
         }
     }
 
-    fn render_provider_list(&mut self, ui: &mut egui::Ui, configs_empty: bool, show_add_dialog_flag: bool, selected_config_id: &Option<String>) {
-        ui.label(egui::RichText::new("Configured Providers").strong().size(14.0));
+    fn render_provider_list(
+        &mut self,
+        ui: &mut egui::Ui,
+        configs_empty: bool,
+        show_add_dialog_flag: bool,
+        selected_config_id: &Option<String>,
+    ) {
+        ui.label(
+            egui::RichText::new("Configured Providers")
+                .strong()
+                .size(14.0),
+        );
         ui.add_space(10.0);
 
         if configs_empty {
@@ -474,18 +485,24 @@ impl CloudSyncUI {
             // Collect configs before the closure
             let configs: Vec<CloudSyncConfig> = self.configs.clone();
             let mut selected_id: Option<String> = selected_config_id.clone();
-            egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                for config in &configs {
-                    Self::render_provider_item(ui, config, &mut selected_id);
-                }
-            });
+            egui::ScrollArea::vertical()
+                .max_height(400.0)
+                .show(ui, |ui| {
+                    for config in &configs {
+                        Self::render_provider_item(ui, config, &mut selected_id);
+                    }
+                });
             if selected_id != *selected_config_id {
                 self.selected_config_id = selected_id;
             }
         }
     }
 
-    fn render_provider_item(ui: &mut egui::Ui, config: &CloudSyncConfig, selected_config_id: &mut Option<String>) {
+    fn render_provider_item(
+        ui: &mut egui::Ui,
+        config: &CloudSyncConfig,
+        selected_config_id: &mut Option<String>,
+    ) {
         let is_selected = selected_config_id
             .as_ref()
             .map(|id| id == &config.id)
@@ -520,11 +537,7 @@ impl CloudSyncUI {
                 );
 
                 ui.vertical(|ui| {
-                    ui.label(
-                        egui::RichText::new(&config.name)
-                            .strong()
-                            .size(14.0),
-                    );
+                    ui.label(egui::RichText::new(&config.name).strong().size(14.0));
 
                     ui.horizontal(|ui| {
                         ui.label(
@@ -553,7 +566,14 @@ impl CloudSyncUI {
             });
         });
 
-        if ui.interact(response.response.rect, egui::Id::new(&config.id), egui::Sense::click()).clicked() {
+        if ui
+            .interact(
+                response.response.rect,
+                egui::Id::new(&config.id),
+                egui::Sense::click(),
+            )
+            .clicked()
+        {
             *selected_config_id = Some(config.id.clone());
         }
     }
@@ -598,9 +618,9 @@ impl CloudSyncUI {
                     ui.add_space(10.0);
 
                     match config.provider {
-                        CloudProviderType::Dropbox |
-                        CloudProviderType::GoogleDrive |
-                        CloudProviderType::OneDrive => {
+                        CloudProviderType::Dropbox
+                        | CloudProviderType::GoogleDrive
+                        | CloudProviderType::OneDrive => {
                             if config.api_token.is_empty() {
                                 ui.horizontal(|ui| {
                                     ui.label("Not connected");
@@ -680,7 +700,10 @@ impl CloudSyncUI {
                     ui.add_space(10.0);
 
                     let mut auto_sync = config.auto_sync;
-                    if ui.checkbox(&mut auto_sync, "Enable automatic sync").changed() {
+                    if ui
+                        .checkbox(&mut auto_sync, "Enable automatic sync")
+                        .changed()
+                    {
                         new_auto_sync = Some(auto_sync);
                     }
 
@@ -713,7 +736,10 @@ impl CloudSyncUI {
 
                     ui.add_space(10.0);
 
-                    ui.checkbox(&mut self.encrypt_sync, "Encrypt cloud data with master password");
+                    ui.checkbox(
+                        &mut self.encrypt_sync,
+                        "Encrypt cloud data with master password",
+                    );
                 });
 
                 // Apply sync option changes
@@ -737,7 +763,9 @@ impl CloudSyncUI {
                     ui.label(format!("Total syncs: {}", config.sync_stats.total_syncs));
                     ui.label(format!("Failed syncs: {}", config.sync_stats.failed_syncs));
                     if config.sync_stats.total_syncs > 0 {
-                        let success_rate = ((config.sync_stats.total_syncs - config.sync_stats.failed_syncs) as f32
+                        let success_rate = ((config.sync_stats.total_syncs
+                            - config.sync_stats.failed_syncs)
+                            as f32
                             / config.sync_stats.total_syncs as f32)
                             * 100.0;
                         ui.label(format!("Success rate: {:.1}%", success_rate));
@@ -817,7 +845,10 @@ impl CloudSyncUI {
                 for provider in providers {
                     let is_selected = self.new_provider == provider;
                     if ui
-                        .selectable_label(is_selected, format!("{} {}", provider_icon(&provider), provider))
+                        .selectable_label(
+                            is_selected,
+                            format!("{} {}", provider_icon(&provider), provider),
+                        )
                         .clicked()
                     {
                         self.new_provider = provider;
@@ -847,7 +878,10 @@ impl CloudSyncUI {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let can_create = !self.new_config_name.is_empty();
 
-                        if ui.add_enabled(can_create, egui::Button::new("Add")).clicked() {
+                        if ui
+                            .add_enabled(can_create, egui::Button::new("Add"))
+                            .clicked()
+                        {
                             should_add = true;
                         }
                     });
@@ -899,34 +933,36 @@ impl CloudSyncUI {
                 if sync_log.is_empty() {
                     ui.label("No log entries yet.");
                 } else {
-                    egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                        for entry in sync_log.iter().rev() {
-                            let color = match entry.level {
-                                LogLevel::Info => egui::Color32::from_rgb(150, 150, 150),
-                                LogLevel::Warning => egui::Color32::from_rgb(255, 193, 7),
-                                LogLevel::Error => egui::Color32::from_rgb(255, 100, 100),
-                                LogLevel::Success => egui::Color32::from_rgb(72, 199, 116),
-                            };
+                    egui::ScrollArea::vertical()
+                        .max_height(300.0)
+                        .show(ui, |ui| {
+                            for entry in sync_log.iter().rev() {
+                                let color = match entry.level {
+                                    LogLevel::Info => egui::Color32::from_rgb(150, 150, 150),
+                                    LogLevel::Warning => egui::Color32::from_rgb(255, 193, 7),
+                                    LogLevel::Error => egui::Color32::from_rgb(255, 100, 100),
+                                    LogLevel::Success => egui::Color32::from_rgb(72, 199, 116),
+                                };
 
-                            let icon = match entry.level {
-                                LogLevel::Info => "ℹ",
-                                LogLevel::Warning => "⚠",
-                                LogLevel::Error => "✗",
-                                LogLevel::Success => "✓",
-                            };
+                                let icon = match entry.level {
+                                    LogLevel::Info => "ℹ",
+                                    LogLevel::Warning => "⚠",
+                                    LogLevel::Error => "✗",
+                                    LogLevel::Success => "✓",
+                                };
 
-                            ui.label(
-                                egui::RichText::new(format!(
-                                    "[{}] {} {}",
-                                    entry.timestamp.format("%H:%M:%S"),
-                                    icon,
-                                    entry.message
-                                ))
-                                .color(color)
-                                .size(12.0),
-                            );
-                        }
-                    });
+                                ui.label(
+                                    egui::RichText::new(format!(
+                                        "[{}] {} {}",
+                                        entry.timestamp.format("%H:%M:%S"),
+                                        icon,
+                                        entry.message
+                                    ))
+                                    .color(color)
+                                    .size(12.0),
+                                );
+                            }
+                        });
                 }
             });
 

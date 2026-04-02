@@ -68,9 +68,12 @@ impl Dialog for HelpDialog {
         lines.push(Line::from(""));
 
         // Group by category
-        lines.push(Line::from(vec![
-            Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "Navigation",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        )]));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
@@ -85,19 +88,19 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::Cancel
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("  {:<12}", key),
-                        Style::default().fg(Color::Yellow),
-                    ),
+                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
                     Span::raw(*desc),
                 ]));
             }
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled("Server Operations", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "Server Operations",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        )]));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
@@ -110,19 +113,19 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::Search
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("  {:<12}", key),
-                        Style::default().fg(Color::Yellow),
-                    ),
+                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
                     Span::raw(*desc),
                 ]));
             }
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled("Group Operations", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "Group Operations",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        )]));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
@@ -133,19 +136,19 @@ impl Dialog for HelpDialog {
                     | crate::keybindings::Action::DeleteGroup
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("  {:<12}", key),
-                        Style::default().fg(Color::Yellow),
-                    ),
+                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
                     Span::raw(*desc),
                 ]));
             }
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled("Other", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "Other",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        )]));
         lines.push(Line::from(""));
 
         for (action, key, desc) in &help_entries {
@@ -154,17 +157,13 @@ impl Dialog for HelpDialog {
                 crate::keybindings::Action::Help | crate::keybindings::Action::Quit
             ) {
                 lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("  {:<12}", key),
-                        Style::default().fg(Color::Yellow),
-                    ),
+                    Span::styled(format!("  {:<12}", key), Style::default().fg(Color::Yellow)),
                     Span::raw(*desc),
                 ]));
             }
         }
 
-        let content = Paragraph::new(lines)
-            .wrap(Wrap { trim: true });
+        let content = Paragraph::new(lines).wrap(Wrap { trim: true });
         frame.render_widget(content, chunks[1]);
 
         // Footer

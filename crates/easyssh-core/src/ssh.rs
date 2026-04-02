@@ -1944,10 +1944,7 @@ impl SshConfig {
 
     /// Check if configuration is valid.
     pub fn is_valid(&self) -> bool {
-        !self.host.is_empty()
-            && self.port > 0
-            && !self.username.is_empty()
-            && self.auth.is_valid()
+        !self.host.is_empty() && self.port > 0 && !self.username.is_empty() && self.auth.is_valid()
     }
 }
 
@@ -2022,13 +2019,12 @@ pub struct PrivateKey {
 impl PrivateKey {
     /// Load key information from file.
     pub fn from_file(path: &Path) -> Result<Self, LiteError> {
-        let content = std::fs::read_to_string(path).map_err(|e| {
-            LiteError::InvalidKey(format!("Failed to read key file: {}", e))
-        })?;
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| LiteError::InvalidKey(format!("Failed to read key file: {}", e)))?;
 
         let format = KeyFormat::detect(content.as_bytes());
-        let is_encrypted = content.contains("ENCRYPTED")
-            || content.contains("Proc-Type: 4,ENCRYPTED");
+        let is_encrypted =
+            content.contains("ENCRYPTED") || content.contains("Proc-Type: 4,ENCRYPTED");
 
         let algorithm = Self::detect_algorithm(&content);
         let comment = Self::extract_comment(&content);
@@ -2219,9 +2215,7 @@ impl AuthManager {
                 let key_info = Self::validate_key(&expanded)?;
 
                 if key_info.needs_passphrase() && passphrase.is_none() {
-                    return Err(LiteError::InvalidKey(
-                        "Key requires passphrase".to_string(),
-                    ));
+                    return Err(LiteError::InvalidKey("Key requires passphrase".to_string()));
                 }
 
                 if !key_info.format.is_supported() {
@@ -2233,9 +2227,7 @@ impl AuthManager {
             }
             AuthMethod::Agent => {
                 if !self.agent_available {
-                    return Err(LiteError::Keychain(
-                        "SSH agent not available".to_string(),
-                    ));
+                    return Err(LiteError::Keychain("SSH agent not available".to_string()));
                 }
             }
         }
@@ -2430,7 +2422,7 @@ impl HostKeyEntry {
 
     /// Get key fingerprint (SHA256 base64).
     pub fn fingerprint(&self) -> String {
-        use base64::{Engine, engine::general_purpose::STANDARD};
+        use base64::{engine::general_purpose::STANDARD, Engine};
         use sha2::{Digest, Sha256};
 
         if let Ok(decoded) = STANDARD.decode(&self.key) {
@@ -2474,11 +2466,9 @@ impl KnownHosts {
     pub async fn load(&mut self, path: &Path) -> Result<(), LiteError> {
         if !path.exists() {
             if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| LiteError::Io(e.to_string()))?;
+                std::fs::create_dir_all(parent).map_err(|e| LiteError::Io(e.to_string()))?;
             }
-            std::fs::write(path, "")
-                .map_err(|e| LiteError::Io(e.to_string()))?;
+            std::fs::write(path, "").map_err(|e| LiteError::Io(e.to_string()))?;
         }
 
         let content = tokio::fs::read_to_string(path)
@@ -2533,9 +2523,8 @@ impl KnownHosts {
 
     /// Add a host key.
     pub fn add_host(&mut self, hostname: &str, key_type: &str, key: &str) {
-        self.entries.retain(|e| {
-            !(e.matches(hostname) && e.key_type == key_type)
-        });
+        self.entries
+            .retain(|e| !(e.matches(hostname) && e.key_type == key_type));
 
         let entry = HostKeyEntry {
             hosts: vec![hostname.to_string()],
@@ -2595,7 +2584,10 @@ impl KnownHosts {
 
     /// Find entries for a host.
     pub fn find_entries(&self, hostname: &str) -> Vec<&HostKeyEntry> {
-        self.entries.iter().filter(|e| e.matches(hostname)).collect()
+        self.entries
+            .iter()
+            .filter(|e| e.matches(hostname))
+            .collect()
     }
 
     /// Get a host's key fingerprint.
@@ -2682,7 +2674,9 @@ impl AgentKey {
 
     /// Check if this key matches a comment pattern.
     pub fn matches_comment(&self, pattern: &str) -> bool {
-        self.comment.to_lowercase().contains(&pattern.to_lowercase())
+        self.comment
+            .to_lowercase()
+            .contains(&pattern.to_lowercase())
     }
 }
 
@@ -2729,7 +2723,8 @@ impl SshAgent {
         #[cfg(target_os = "macos")]
         {
             let home = dirs::home_dir().ok_or(SshAgentError::NotAvailable)?;
-            let launchd_path = home.join("Library/Group Containers/group.com.openssh.ssh-agent/ssh-agent.sock");
+            let launchd_path =
+                home.join("Library/Group Containers/group.com.openssh.ssh-agent/ssh-agent.sock");
             if launchd_path.exists() {
                 return Ok(launchd_path);
             }
@@ -2848,7 +2843,11 @@ impl ConnectionTestResult {
     }
 
     /// Create a failure result.
-    pub fn failed(error: impl Into<String>, auth_method: impl Into<String>, connect_time_ms: u64) -> Self {
+    pub fn failed(
+        error: impl Into<String>,
+        auth_method: impl Into<String>,
+        connect_time_ms: u64,
+    ) -> Self {
         Self {
             success: false,
             error: Some(error.into()),

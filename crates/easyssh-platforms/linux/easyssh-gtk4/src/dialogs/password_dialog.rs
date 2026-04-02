@@ -17,9 +17,7 @@ where
     let header = adw::HeaderBar::new();
     header.add_css_class("flat");
 
-    let cancel_button = gtk4::Button::builder()
-        .label("Cancel")
-        .build();
+    let cancel_button = gtk4::Button::builder().label("Cancel").build();
     header.pack_start(&cancel_button);
 
     let connect_button = gtk4::Button::builder()

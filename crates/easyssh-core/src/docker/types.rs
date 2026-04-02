@@ -30,7 +30,10 @@ impl ContainerStatus {
     }
 
     pub fn can_restart(&self) -> bool {
-        matches!(self, Self::Running | Self::Exited | Self::Paused | Self::Dead)
+        matches!(
+            self,
+            Self::Running | Self::Exited | Self::Paused | Self::Dead
+        )
     }
 
     pub fn can_pause(&self) -> bool {

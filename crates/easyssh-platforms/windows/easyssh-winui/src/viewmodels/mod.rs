@@ -187,14 +187,14 @@ impl AppViewModel {
         // Update with new group_id
         let update = easyssh_core::UpdateServer {
             id: server_id.to_string(),
-            name: server.name,
-            host: server.host,
-            port: server.port,
-            username: server.username,
-            auth_type: server.auth_type,
+            name: Some(server.name),
+            host: Some(server.host),
+            port: Some(server.port),
+            username: Some(server.username),
+            auth_type: Some(server.auth_type),
             identity_file: server.identity_file,
             group_id,
-            status: server.status,
+            status: Some(server.status),
         };
 
         db.update_server(&update)
@@ -219,7 +219,7 @@ impl AppViewModel {
         let state = self.core_state.lock().unwrap();
         let update = easyssh_core::UpdateGroup {
             id: id.to_string(),
-            name: name.to_string(),
+            name: Some(name.to_string()),
         };
         easyssh_core::update_group(&state, &update)?;
         info!("Updated group {}: {}", id, name);
@@ -264,14 +264,14 @@ impl AppViewModel {
 
         let update = easyssh_core::db::UpdateServer {
             id: server_id.to_string(),
-            name: name.to_string(),
-            host: host.to_string(),
-            port,
-            username: username.to_string(),
-            auth_type: auth_type.to_string(),
+            name: Some(name.to_string()),
+            host: Some(host.to_string()),
+            port: Some(port),
+            username: Some(username.to_string()),
+            auth_type: Some(auth_type.to_string()),
             identity_file: None,
             group_id: None,
-            status: "active".to_string(),
+            status: Some("active".to_string()),
         };
 
         easyssh_core::update_server(&state, &update)

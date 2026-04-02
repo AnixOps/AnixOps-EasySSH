@@ -4,17 +4,16 @@
 
 #![cfg(feature = "sync")]
 
-mod types;
-mod engine;
 mod conflict;
+mod engine;
 mod providers;
+mod types;
 
 // Re-export all public types
-pub use types::*;
+pub use conflict::{FieldConflict, SyncConflict, SyncConflictResolution};
 pub use engine::SyncManager;
-pub use conflict::{SyncConflict, FieldConflict, SyncConflictResolution};
 pub use providers::{
-    SyncProviderImpl, LocalSyncHandler, DisabledProvider, ICloudProvider,
-    GoogleDriveProvider, OneDriveProvider, DropBoxProvider, SelfHostedProvider,
-    LocalNetworkProvider, LocalFileProvider,
+    DisabledProvider, DropBoxProvider, GoogleDriveProvider, ICloudProvider, LocalFileProvider,
+    LocalNetworkProvider, LocalSyncHandler, OneDriveProvider, SelfHostedProvider, SyncProviderImpl,
 };
+pub use types::*;

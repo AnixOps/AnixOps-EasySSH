@@ -52,10 +52,7 @@ impl LayoutManager {
         // Split vertically into main content and status bar
         let main_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(0),
-                Constraint::Length(self.status_height),
-            ])
+            .constraints([Constraint::Min(0), Constraint::Length(self.status_height)])
             .split(area);
 
         let main_area = main_layout[0];

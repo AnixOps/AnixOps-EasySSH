@@ -47,9 +47,9 @@ impl SyncManager {
             SyncProvider::GoogleDrive => Box::new(super::providers::GoogleDriveProvider::new()),
             SyncProvider::OneDrive => Box::new(super::providers::OneDriveProvider::new()),
             SyncProvider::DropBox => Box::new(super::providers::DropBoxProvider::new()),
-            SyncProvider::SelfHosted { url, token } => {
-                Box::new(super::providers::SelfHostedProvider::new(url.clone(), token.clone()))
-            }
+            SyncProvider::SelfHosted { url, token } => Box::new(
+                super::providers::SelfHostedProvider::new(url.clone(), token.clone()),
+            ),
             SyncProvider::LocalNetwork => Box::new(super::providers::LocalNetworkProvider::new()),
             SyncProvider::CustomPath(path) => {
                 Box::new(super::providers::LocalFileProvider::new(path.clone()))
@@ -211,7 +211,10 @@ impl SyncManager {
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to resolve conflict for {}: {}", conflict.document_id, e);
+                        warn!(
+                            "Failed to resolve conflict for {}: {}",
+                            conflict.document_id, e
+                        );
                     }
                 }
             }
@@ -633,13 +636,22 @@ impl SyncManager {
                                     .get("group_id")
                                     .and_then(|v| v.as_str())
                                     .map(|s| s.to_string()),
-                                notes: obj.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                color: obj.get("color").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                notes: obj
+                                    .get("notes")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                                color: obj
+                                    .get("color")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
                                 environment: obj
                                     .get("environment")
                                     .and_then(|v| v.as_str())
                                     .map(|s| s.to_string()),
-                                region: obj.get("region").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                region: obj
+                                    .get("region")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
                                 purpose: obj
                                     .get("purpose")
                                     .and_then(|v| v.as_str())
@@ -677,13 +689,22 @@ impl SyncManager {
                                     .get("group_id")
                                     .and_then(|v| v.as_str())
                                     .map(|s| s.to_string()),
-                                notes: obj.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                color: obj.get("color").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                notes: obj
+                                    .get("notes")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                                color: obj
+                                    .get("color")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
                                 environment: obj
                                     .get("environment")
                                     .and_then(|v| v.as_str())
                                     .map(|s| s.to_string()),
-                                region: obj.get("region").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                region: obj
+                                    .get("region")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
                                 purpose: obj
                                     .get("purpose")
                                     .and_then(|v| v.as_str())
@@ -723,7 +744,10 @@ impl SyncManager {
             SyncDocumentType::Identity => {
                 if let Some(obj) = data.as_object() {
                     let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                    let auth_type = obj.get("auth_type").and_then(|v| v.as_str()).unwrap_or("key");
+                    let auth_type = obj
+                        .get("auth_type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("key");
 
                     match db.get_identity(&doc.id) {
                         Ok(_) => {
@@ -823,7 +847,8 @@ impl SyncManager {
 
         if let Some(group_id) = raw.data.get("group_id").and_then(|v| v.as_str()) {
             let group_id_string = group_id.to_string();
-            if !scope.included_groups.is_empty() && !scope.included_groups.contains(&group_id_string)
+            if !scope.included_groups.is_empty()
+                && !scope.included_groups.contains(&group_id_string)
             {
                 return Ok(false);
             }

@@ -11,10 +11,9 @@ use crate::keybindings::{Action, KeyBindings};
 use crate::ui::dialogs::{Dialog, DialogResult};
 use crossterm::event::{KeyCode, KeyModifiers, MouseEvent};
 use easyssh_core::{
-    get_db_path, AppState, GroupRecord, ServerRecord,
-    init_database, get_servers, get_groups, connect_server,
-    NewServer, NewGroup, delete_server, delete_group, update_server,
-    ServerStatus, AuthMethod,
+    connect_server, delete_group, delete_server, get_db_path, get_groups, get_servers,
+    init_database, update_server, AppState, AuthMethod, GroupRecord, NewGroup, NewServer,
+    ServerRecord, ServerStatus,
 };
 use std::io;
 
@@ -131,17 +130,11 @@ impl App {
 
         // Enable mouse capture
         if self.mouse_enabled {
-            crossterm::execute!(
-                io::stdout(),
-                crossterm::event::EnableMouseCapture
-            )?;
+            crossterm::execute!(io::stdout(), crossterm::event::EnableMouseCapture)?;
         }
 
         // Enter alternate screen
-        crossterm::execute!(
-            io::stdout(),
-            crossterm::terminal::EnterAlternateScreen
-        )?;
+        crossterm::execute!(io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
         crossterm::terminal::enable_raw_mode()?;
 
         self.set_status("EasySSH Lite TUI - Press '?' for help");
@@ -168,12 +161,10 @@ impl App {
         self.filtered_servers = (0..self.servers.len()).collect();
 
         // Ensure selection is valid
-        self.selected_server = self.selected_server.min(
-            self.filtered_servers.len().saturating_sub(1)
-        );
-        self.selected_group = self.selected_group.min(
-            self.groups.len().saturating_sub(1)
-        );
+        self.selected_server = self
+            .selected_server
+            .min(self.filtered_servers.len().saturating_sub(1));
+        self.selected_group = self.selected_group.min(self.groups.len().saturating_sub(1));
 
         Ok(())
     }
@@ -192,7 +183,8 @@ impl App {
                 match dialog.handle_key(key.clone()) {
                     DialogResult::Continue => return Ok(()),
                     DialogResult::Confirm(result) => {
-                        self.handle_dialog_confirm(DialogResult::Confirm(result)).await?;
+                        self.handle_dialog_confirm(DialogResult::Confirm(result))
+                            .await?;
                         return Ok(());
                     }
                     DialogResult::Cancel => {
@@ -499,16 +491,10 @@ impl App {
     }
 
     fn reinit_terminal(&self) -> AppResult<()> {
-        crossterm::execute!(
-            io::stdout(),
-            crossterm::terminal::EnterAlternateScreen
-        )?;
+        crossterm::execute!(io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
         crossterm::terminal::enable_raw_mode()?;
         if self.mouse_enabled {
-            crossterm::execute!(
-                io::stdout(),
-                crossterm::event::EnableMouseCapture
-            )?;
+            crossterm::execute!(io::stdout(), crossterm::event::EnableMouseCapture)?;
         }
         Ok(())
     }
@@ -557,10 +543,7 @@ impl App {
     }
 
     async fn new_group_dialog(&mut self) -> AppResult<()> {
-        let dialog = crate::ui::dialogs::GroupDialog::new(
-            "New Group".to_string(),
-            None,
-        );
+        let dialog = crate::ui::dialogs::GroupDialog::new("New Group".to_string(), None);
         self.dialog = Some(Box::new(dialog));
         self.view_mode = ViewMode::DialogOpen;
         Ok(())
@@ -569,10 +552,8 @@ impl App {
     async fn edit_group_dialog(&mut self) -> AppResult<()> {
         if self.selected_group > 0 {
             if let Some(group) = self.groups.get(self.selected_group - 1).cloned() {
-                let dialog = crate::ui::dialogs::GroupDialog::new(
-                    "Edit Group".to_string(),
-                    Some(group),
-                );
+                let dialog =
+                    crate::ui::dialogs::GroupDialog::new("Edit Group".to_string(), Some(group));
                 self.dialog = Some(Box::new(dialog));
                 self.view_mode = ViewMode::DialogOpen;
             }

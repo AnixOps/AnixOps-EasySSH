@@ -7,12 +7,13 @@ fn main() {
 
     // 获取Git commit hash
     let git_hash = Command::new("git")
-        .args(&["rev-parse", "--short", "HEAD"])
+        .args(["rev-parse", "--short", "HEAD"])
         .output()
         .ok()
         .and_then(|output| {
             if output.status.success() {
-                String::from_utf8(output.stdout).ok()
+                String::from_utf8(output.stdout)
+                    .ok()
                     .map(|s| s.trim().to_string())
             } else {
                 None
@@ -23,12 +24,13 @@ fn main() {
 
     // 获取Git分支
     let git_branch = Command::new("git")
-        .args(&["rev-parse", "--abbrev-ref", "HEAD"])
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
         .ok()
         .and_then(|output| {
             if output.status.success() {
-                String::from_utf8(output.stdout).ok()
+                String::from_utf8(output.stdout)
+                    .ok()
                     .map(|s| s.trim().to_string())
             } else {
                 None
@@ -52,7 +54,8 @@ fn main() {
         .ok()
         .and_then(|output| {
             if output.status.success() {
-                String::from_utf8(output.stdout).ok()
+                String::from_utf8(output.stdout)
+                    .ok()
                     .map(|s| s.trim().to_string())
             } else {
                 None
@@ -62,8 +65,7 @@ fn main() {
     println!("cargo:rustc-env=EASYSSH_RUSTC_VERSION={}", rustc_version);
 
     // 获取Cargo特性列表
-    let features = std::env::var("CARGO_FEATURE_FLAGS")
-        .unwrap_or_else(|_| String::new());
+    let features = std::env::var("CARGO_FEATURE_FLAGS").unwrap_or_else(|_| String::new());
     if !features.is_empty() {
         println!("cargo:warning=Building with features: {}", features);
     }

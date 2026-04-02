@@ -241,7 +241,10 @@ impl BatchExecutionResultsPanel {
                 ui.colored_label(Color32::RED, format!("✗ {} failed", summary.failed));
             }
             if summary.cancelled > 0 {
-                ui.colored_label(Color32::YELLOW, format!("⊘ {} cancelled", summary.cancelled));
+                ui.colored_label(
+                    Color32::YELLOW,
+                    format!("⊘ {} cancelled", summary.cancelled),
+                );
             }
 
             ui.separator();
@@ -300,8 +303,16 @@ impl BatchExecutionResultsPanel {
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut self.sort_order, SortOrder::NameAsc, "Name ↑");
                         ui.selectable_value(&mut self.sort_order, SortOrder::NameDesc, "Name ↓");
-                        ui.selectable_value(&mut self.sort_order, SortOrder::DurationAsc, "Duration ↑");
-                        ui.selectable_value(&mut self.sort_order, SortOrder::DurationDesc, "Duration ↓");
+                        ui.selectable_value(
+                            &mut self.sort_order,
+                            SortOrder::DurationAsc,
+                            "Duration ↑",
+                        );
+                        ui.selectable_value(
+                            &mut self.sort_order,
+                            SortOrder::DurationDesc,
+                            "Duration ↓",
+                        );
                         ui.selectable_value(&mut self.sort_order, SortOrder::Status, "Status");
                     });
 
@@ -326,7 +337,8 @@ impl BatchExecutionResultsPanel {
                 return false;
             }
             if !self.server_filter.is_empty()
-                && !r.server_name
+                && !r
+                    .server_name
                     .to_lowercase()
                     .contains(&self.server_filter.to_lowercase())
             {
@@ -354,22 +366,28 @@ impl BatchExecutionResultsPanel {
         response: &mut BatchResultsResponse,
     ) {
         // Collect filtered and sorted results to avoid borrow issues
-        let mut results: Vec<_> = summary.results.iter().filter(|r| {
-            if self.show_only_failed && r.success {
-                return false;
-            }
-            if self.show_only_succeeded && !r.success {
-                return false;
-            }
-            if !self.server_filter.is_empty()
-                && !r.server_name
-                    .to_lowercase()
-                    .contains(&self.server_filter.to_lowercase())
-            {
-                return false;
-            }
-            true
-        }).cloned().collect();
+        let mut results: Vec<_> = summary
+            .results
+            .iter()
+            .filter(|r| {
+                if self.show_only_failed && r.success {
+                    return false;
+                }
+                if self.show_only_succeeded && !r.success {
+                    return false;
+                }
+                if !self.server_filter.is_empty()
+                    && !r
+                        .server_name
+                        .to_lowercase()
+                        .contains(&self.server_filter.to_lowercase())
+                {
+                    return false;
+                }
+                true
+            })
+            .cloned()
+            .collect();
 
         // Apply sorting
         results.sort_by(|a, b| match self.sort_order {
@@ -389,11 +407,13 @@ impl BatchExecutionResultsPanel {
 
         if self.group_by_status {
             // Group by success/failure
-            let (successful, failed): (Vec<_>, Vec<_>) =
-                results.iter().partition(|r| r.success);
+            let (successful, failed): (Vec<_>, Vec<_>) = results.iter().partition(|r| r.success);
 
             if !successful.is_empty() {
-                ui.colored_label(Color32::GREEN, format!("✓ Succeeded ({})", successful.len()));
+                ui.colored_label(
+                    Color32::GREEN,
+                    format!("✓ Succeeded ({})", successful.len()),
+                );
                 ScrollArea::vertical()
                     .id_source("successful_group")
                     .max_height(200.0)
@@ -535,7 +555,8 @@ impl BatchExecutionResultsPanel {
                     return false;
                 }
                 if !self.server_filter.is_empty()
-                    && !r.server_name
+                    && !r
+                        .server_name
                         .to_lowercase()
                         .contains(&self.server_filter.to_lowercase())
                 {
@@ -566,32 +587,29 @@ impl BatchExecutionResultsPanel {
                 ui.set_width(left_width);
                 ui.label(RichText::new("Servers").strong().size(14.0));
 
-                ScrollArea::vertical()
-                    .max_height(450.0)
-                    .show(ui, |ui| {
-                        for result in &results {
-                            let is_selected =
-                                self.selected_server.as_ref() == Some(&result.server_id);
-                            let (icon, color) = if result.success {
-                                ("✓", Color32::GREEN)
-                            } else {
-                                ("✗", Color32::RED)
-                            };
+                ScrollArea::vertical().max_height(450.0).show(ui, |ui| {
+                    for result in &results {
+                        let is_selected = self.selected_server.as_ref() == Some(&result.server_id);
+                        let (icon, color) = if result.success {
+                            ("✓", Color32::GREEN)
+                        } else {
+                            ("✗", Color32::RED)
+                        };
 
-                            let text = format!("{} {}", icon, result.server_name);
-                            let label = if is_selected {
-                                RichText::new(text)
-                                    .strong()
-                                    .background_color(Color32::from_gray(50))
-                            } else {
-                                RichText::new(text).color(color)
-                            };
+                        let text = format!("{} {}", icon, result.server_name);
+                        let label = if is_selected {
+                            RichText::new(text)
+                                .strong()
+                                .background_color(Color32::from_gray(50))
+                        } else {
+                            RichText::new(text).color(color)
+                        };
 
-                            if ui.selectable_label(is_selected, label).clicked() {
-                                self.selected_server = Some(result.server_id.clone());
-                            }
+                        if ui.selectable_label(is_selected, label).clicked() {
+                            self.selected_server = Some(result.server_id.clone());
                         }
-                    });
+                    }
+                });
             });
 
             ui.separator();
@@ -665,7 +683,7 @@ impl BatchExecutionResultsPanel {
                 StepStatus::Skipped => ("⊘", Color32::GRAY, "Skipped"),
                 StepStatus::Pending => ("○", Color32::YELLOW, "Pending"),
                 StepStatus::Running => ("▶", Color32::BLUE, "Running"),
-                StepStatus::Cancelled => ("⊘", Color32::ORANGE, "Cancelled"),
+                StepStatus::Cancelled => ("⊘", Color32::from_rgb(255, 165, 0), "Cancelled"),
             };
 
             Frame::group(ui.style()).show(ui, |ui| {
@@ -750,19 +768,17 @@ impl BatchExecutionResultsPanel {
         ui.separator();
 
         // Log output
-        ScrollArea::vertical()
-            .max_height(400.0)
-            .show(ui, |ui| {
-                let logs = self.generate_combined_logs(summary);
-                Frame::group(ui.style())
-                    .fill(Color32::from_gray(20))
-                    .show(ui, |ui| {
-                        ui.set_min_width(ui.available_width());
-                        ScrollArea::horizontal().show(ui, |ui| {
-                            ui.monospace(&logs);
-                        });
+        ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+            let logs = self.generate_combined_logs(summary);
+            Frame::group(ui.style())
+                .fill(Color32::from_gray(20))
+                .show(ui, |ui| {
+                    ui.set_min_width(ui.available_width());
+                    ScrollArea::horizontal().show(ui, |ui| {
+                        ui.monospace(&logs);
                     });
-            });
+                });
+        });
     }
 
     fn render_analytics_view(&mut self, ui: &mut Ui, summary: &BatchExecutionSummary) {
@@ -781,7 +797,11 @@ impl BatchExecutionResultsPanel {
                 .show(ui, |ui| {
                     ui.set_min_width(150.0);
                     ui.vertical_centered(|ui| {
-                        ui.label(RichText::new("Success Rate").size(12.0).color(Color32::GRAY));
+                        ui.label(
+                            RichText::new("Success Rate")
+                                .size(12.0)
+                                .color(Color32::GRAY),
+                        );
                         ui.label(
                             RichText::new(format!("{:.1}%", success_rate))
                                 .size(24.0)
@@ -827,7 +847,9 @@ impl BatchExecutionResultsPanel {
                         ui.set_min_width(150.0);
                         ui.vertical_centered(|ui| {
                             ui.label(
-                                RichText::new("Avg Execution").size(12.0).color(Color32::GRAY),
+                                RichText::new("Avg Execution")
+                                    .size(12.0)
+                                    .color(Color32::GRAY),
                             );
                             ui.label(
                                 RichText::new(format!("{:.0}ms", avg_time))
@@ -955,16 +977,14 @@ impl BatchExecutionResultsPanel {
 
                 ui.separator();
 
-                ScrollArea::both()
-                    .max_height(350.0)
-                    .show(ui, |ui| {
-                        Frame::group(ui.style())
-                            .fill(Color32::from_gray(20))
-                            .show(ui, |ui| {
-                                ui.set_min_width(ui.available_width());
-                                ui.monospace(&self.log_content);
-                            });
-                    });
+                ScrollArea::both().max_height(350.0).show(ui, |ui| {
+                    Frame::group(ui.style())
+                        .fill(Color32::from_gray(20))
+                        .show(ui, |ui| {
+                            ui.set_min_width(ui.available_width());
+                            ui.monospace(&self.log_content);
+                        });
+                });
             });
     }
 
@@ -975,10 +995,7 @@ impl BatchExecutionResultsPanel {
             "=== Batch Execution: {} ===\n",
             summary.execution_id
         ));
-        logs.push_str(&format!(
-            "Workflow: {}\n",
-            summary.workflow_id
-        ));
+        logs.push_str(&format!("Workflow: {}\n", summary.workflow_id));
         logs.push_str(&format!(
             "Started: {}\n",
             summary.started_at.format("%Y-%m-%d %H:%M:%S")
@@ -1061,7 +1078,10 @@ impl BatchExecutionResultsPanel {
             "Status: {}\n",
             if result.success { "SUCCESS" } else { "FAILED" }
         ));
-        logs.push_str(&format!("Execution time: {}ms\n\n", result.execution_time_ms));
+        logs.push_str(&format!(
+            "Execution time: {}ms\n\n",
+            result.execution_time_ms
+        ));
 
         if let Some(ref error) = result.error_message {
             logs.push_str(&format!("ERROR: {}\n\n", error));
@@ -1192,7 +1212,10 @@ impl BatchExecutionResultsPanel {
             "**Completed:** {}\n\n",
             summary.completed_at.format("%Y-%m-%d %H:%M:%S")
         ));
-        md.push_str(&format!("**Duration:** {} seconds\n\n", duration.num_seconds()));
+        md.push_str(&format!(
+            "**Duration:** {} seconds\n\n",
+            duration.num_seconds()
+        ));
         md.push_str("## Summary\n\n");
         md.push_str(&format!("- **Total Servers:** {}\n", summary.total_servers));
         md.push_str(&format!("- **Successful:** {}\n", summary.successful));

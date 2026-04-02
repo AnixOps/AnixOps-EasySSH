@@ -158,9 +158,9 @@ impl Validatable for Group {
 
 /// Preset group definitions for new installations
 pub const PRESET_GROUPS: &[(&str, &str)] = &[
-    ("开发", "#4A90D9"),    // Blue
-    ("测试", "#F5A623"),    // Orange
-    ("生产", "#D0021B"),    // Red
+    ("开发", "#4A90D9"), // Blue
+    ("测试", "#F5A623"), // Orange
+    ("生产", "#D0021B"), // Red
 ];
 
 /// Default color palette for group selection
@@ -281,9 +281,9 @@ mod tests {
 
         assert!(!is_valid_hex_color("4A90D9")); // Missing #
         assert!(!is_valid_hex_color("#GGGGGG")); // Invalid hex chars
-        assert!(!is_valid_hex_color("#4A90D"));  // Wrong length
+        assert!(!is_valid_hex_color("#4A90D")); // Wrong length
         assert!(!is_valid_hex_color("#4A90D99")); // Wrong length
-        assert!(!is_valid_hex_color(""));        // Empty
+        assert!(!is_valid_hex_color("")); // Empty
     }
 
     #[test]

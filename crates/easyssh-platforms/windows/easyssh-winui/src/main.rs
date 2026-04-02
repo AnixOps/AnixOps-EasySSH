@@ -14,9 +14,9 @@ use uuid::Uuid;
 #[cfg(feature = "lite")]
 mod app;
 #[cfg(feature = "lite")]
-mod dialogs;
-#[cfg(feature = "lite")]
 mod detail_panel;
+#[cfg(feature = "lite")]
+mod dialogs;
 #[cfg(feature = "lite")]
 mod sidebar;
 #[cfg(feature = "lite")]
@@ -32,14 +32,12 @@ mod apple_design;
 mod bridge;
 mod cloud_sync_ui;
 mod connection_pool_ui;
-mod key_manager_ui;
-mod proxy_jump_ui;
-mod session_manager_ui;
 mod design;
 mod file_icons;
 mod file_preview;
 mod hotkey_helpers;
 mod hotkeys;
+mod key_manager_ui;
 mod layout_manager;
 mod notification_panel;
 mod notifications;
@@ -47,7 +45,9 @@ mod pages;
 mod performance;
 mod performance_panel;
 mod port_forward_dialog;
+mod proxy_jump_ui;
 mod search;
+mod session_manager_ui;
 mod settings;
 mod sftp_file_manager;
 mod snippets;
@@ -139,9 +139,9 @@ use app_settings::SettingsManager;
 use cloud_sync_ui::CloudSyncUI;
 use connection_pool_ui::ConnectionPoolManagerUI;
 use key_manager_ui::KeyManagerUI;
+use port_forward_dialog::PortForwardDialog;
 use proxy_jump_ui::ProxyJumpUI;
 use session_manager_ui::SessionManagerUI;
-use port_forward_dialog::PortForwardDialog;
 use theme_system::{ThemeEditor, ThemeGallery, ThemeManager};
 use user_experience::{
     LoadingOperation, OnboardingAction, OnboardingWizard, QuickTip, ToastNotification, UXManager,
@@ -149,7 +149,7 @@ use user_experience::{
 
 // Version identification integration
 mod version_identity;
-use version_identity::{VersionIdentity, VersionAwareTheme};
+use version_identity::{VersionAwareTheme, VersionIdentity};
 
 #[cfg(feature = "team")]
 use team_ui::{render_team_panel, TeamManagerUI};
@@ -183,10 +183,12 @@ fn run_lite_app() -> eframe::Result {
         Ok(vm) => Arc::new(Mutex::new(vm)),
         Err(e) => {
             error!("Failed to initialize: {}", e);
-            return Err(eframe::Error::AppCreation(format!(
-                "Failed to initialize: {}",
-                e
-            )));
+            return Err(eframe::Error::AppCreation(
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to initialize: {}", e)
+                )) as Box<dyn std::error::Error + Send + Sync>
+            ));
         }
     };
 
@@ -201,12 +203,16 @@ fn run_lite_app() -> eframe::Result {
     eframe::run_native(
         "EasySSH Lite",
         options,
-        Box::new(move |_cc| match EasySshApp::new(view_model) {
-            Ok(app) => Ok(Box::new(app)),
-            Err(e) => Err(eframe::Error::AppCreation(format!(
-                "Failed to create app: {}",
-                e
-            ))),
+        Box::new(move |_cc| -> Result<Box<dyn eframe::App>, Box<dyn std::error::Error + Send + Sync>> {
+            match EasySshApp::new(view_model) {
+                Ok(app) => Ok(Box::new(app)),
+                Err(e) => {
+                    let err: Box<dyn std::error::Error + Send + Sync> = Box::new(
+                        std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to create app: {}", e))
+                    );
+                    Err(err)
+                }
+            }
         }),
     )
 }
@@ -224,7 +230,11 @@ fn run_standard_app() -> eframe::Result {
     // Initialize version identification system
     let version_id = VersionIdentity::new();
     info!("Starting {}", version_id.full_version_string());
-    info!("Edition: {} (tier={})", version_id.edition_name(), version_id.edition_tier());
+    info!(
+        "Edition: {} (tier={})",
+        version_id.edition_name(),
+        version_id.edition_tier()
+    );
     info!("Build type: {}", version_id.build_type_name());
     info!("Features: {:?}", version_id.features());
 
@@ -775,7 +785,11 @@ impl EasySSHApp {
         }
     }
 
-    fn new(cc: &eframe::CreationContext<'_>, runtime: Arc<tokio::runtime::Runtime>, version_identity: VersionIdentity) -> Self {
+    fn new(
+        cc: &eframe::CreationContext<'_>,
+        runtime: Arc<tokio::runtime::Runtime>,
+        version_identity: VersionIdentity,
+    ) -> Self {
         // Initialize accessible theme with system accessibility settings (fast path)
         let theme_phase = global_profiler().lock().unwrap().start_phase("theme_init");
 
@@ -2840,7 +2854,10 @@ impl EasySSHApp {
             ui.horizontal(|ui| {
                 ui.label(format!("Active: {}", self.transfer_queue.active_count()));
                 ui.label(format!("Pending: {}", self.transfer_queue.pending_count()));
-                ui.label(format!("Completed: {}", self.transfer_queue.completed_count()));
+                ui.label(format!(
+                    "Completed: {}",
+                    self.transfer_queue.completed_count()
+                ));
             });
             ui.separator();
 
@@ -2850,21 +2867,31 @@ impl EasySSHApp {
                         ui.horizontal(|ui| {
                             ui.label(item.direction_icon());
                             ui.label(&item.file_name);
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if matches!(item.status, transfer_queue::TransferStatus::Completed) {
-                                    if ui.small_button("Clear").clicked() {
-                                        // Clone ID to avoid borrow issues
-                                        let _id = item.id.clone();
-                                        // Queue for removal - will be processed after iteration
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if matches!(
+                                        item.status,
+                                        transfer_queue::TransferStatus::Completed
+                                    ) {
+                                        if ui.small_button("Clear").clicked() {
+                                            // Clone ID to avoid borrow issues
+                                            let _id = item.id.clone();
+                                            // Queue for removal - will be processed after iteration
+                                        }
+                                    } else if matches!(
+                                        item.status,
+                                        transfer_queue::TransferStatus::Failed { .. }
+                                    ) {
+                                        ui.colored_label(egui::Color32::RED, "Failed");
                                     }
-                                } else if matches!(item.status, transfer_queue::TransferStatus::Failed { .. }) {
-                                    ui.colored_label(egui::Color32::RED, "Failed");
-                                }
-                            });
+                                },
+                            );
                         });
 
                         // Progress bar
-                        if let transfer_queue::TransferStatus::InProgress { percent } = item.status {
+                        if let transfer_queue::TransferStatus::InProgress { percent } = item.status
+                        {
                             ui.add_space(4.0);
                             let progress = percent / 100.0;
                             ui.add(egui::ProgressBar::new(progress).text(item.status_text()));
@@ -4943,14 +4970,14 @@ impl eframe::App for EasySSHApp {
                     ui.separator();
                     ui.label("Visual workflow editor and task scheduler");
                     ui.add_space(20.0);
-                    
+
                     ui.horizontal(|ui| {
                         if ui.button("📚 Library").clicked() {}
                         if ui.button("✏ Editor").clicked() {}
                         if ui.button("⏰ Scheduler").clicked() {}
                         if ui.button("📊 Results").clicked() {}
                     });
-                    
+
                     ui.separator();
                     ui.label("Workflow panel integration will be fully implemented here.");
                 });

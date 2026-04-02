@@ -291,7 +291,8 @@ impl LoggerBuilder {
 
     /// Add file output
     pub fn with_file<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.outputs.push(LogOutput::File(path.as_ref().to_path_buf()));
+        self.outputs
+            .push(LogOutput::File(path.as_ref().to_path_buf()));
         self
     }
 
@@ -372,10 +373,7 @@ impl Logger {
                     fs::create_dir_all(parent)?;
                 }
 
-                let file = OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)?;
+                let file = OpenOptions::new().create(true).append(true).open(path)?;
                 file_handles.insert(path.clone(), file);
             }
         }
@@ -604,10 +602,8 @@ static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
 
 /// Initialize global logger
 pub fn init_global_logger(logger: Logger) {
-    LOGGER_INIT.call_once(|| {
-        unsafe {
-            GLOBAL_LOGGER = Some(Arc::new(logger));
-        }
+    LOGGER_INIT.call_once(|| unsafe {
+        GLOBAL_LOGGER = Some(Arc::new(logger));
     });
 }
 

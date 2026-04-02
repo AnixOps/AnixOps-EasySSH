@@ -35,7 +35,12 @@ impl SessionInfo {
         let now = chrono::Local::now();
         Self {
             id: Uuid::new_v4().to_string(),
-            name: format!("{}@{} {}", username, host, chrono::Local::now().format("%H:%M")),
+            name: format!(
+                "{}@{} {}",
+                username,
+                host,
+                chrono::Local::now().format("%H:%M")
+            ),
             server_id,
             server_name,
             host,
@@ -199,16 +204,19 @@ impl SessionManagerUI {
     fn sort_sessions(&mut self) {
         match self.sort_by {
             SessionSortBy::LastAccessed => {
-                self.sessions.sort_by(|a, b| b.last_accessed.cmp(&a.last_accessed));
+                self.sessions
+                    .sort_by(|a, b| b.last_accessed.cmp(&a.last_accessed));
             }
             SessionSortBy::CreatedAt => {
-                self.sessions.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                self.sessions
+                    .sort_by(|a, b| b.created_at.cmp(&a.created_at));
             }
             SessionSortBy::Name => {
                 self.sessions.sort_by(|a, b| a.name.cmp(&b.name));
             }
             SessionSortBy::ServerName => {
-                self.sessions.sort_by(|a, b| a.server_name.cmp(&b.server_name));
+                self.sessions
+                    .sort_by(|a, b| a.server_name.cmp(&b.server_name));
             }
         }
     }
@@ -342,7 +350,11 @@ impl SessionManagerUI {
         }
     }
 
-    fn render_content(&mut self, ui: &mut egui::Ui, action_message: Option<&(String, chrono::DateTime<chrono::Local>)>) {
+    fn render_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        action_message: Option<&(String, chrono::DateTime<chrono::Local>)>,
+    ) {
         // Toolbar
         let mut should_close = false;
         let mut should_import = false;
@@ -443,7 +455,8 @@ impl SessionManagerUI {
         ui.add_space(10.0);
 
         // Session list
-        let filtered: Vec<SessionInfo> = self.get_filtered_sessions().into_iter().cloned().collect();
+        let filtered: Vec<SessionInfo> =
+            self.get_filtered_sessions().into_iter().cloned().collect();
         let total_count = self.sessions.len();
         let active_count = self.sessions.iter().filter(|s| s.is_active).count();
 
@@ -554,30 +567,24 @@ impl SessionManagerUI {
             egui::Color32::from_rgb(150, 150, 150) // Gray
         };
 
-        let frame = egui::Frame::group(ui.style()).inner_margin(8.0).fill(if is_selected {
-            egui::Color32::from_rgb(60, 70, 85)
-        } else {
-            egui::Color32::TRANSPARENT
-        });
+        let frame = egui::Frame::group(ui.style())
+            .inner_margin(8.0)
+            .fill(if is_selected {
+                egui::Color32::from_rgb(60, 70, 85)
+            } else {
+                egui::Color32::TRANSPARENT
+            });
 
         let response = frame.show(ui, |ui| {
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
                 // Status indicator
-                ui.label(
-                    egui::RichText::new("●")
-                        .color(status_color)
-                        .size(16.0),
-                );
+                ui.label(egui::RichText::new("●").color(status_color).size(16.0));
 
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(
-                            egui::RichText::new(&session.name)
-                                .strong()
-                                .size(14.0),
-                        );
+                        ui.label(egui::RichText::new(&session.name).strong().size(14.0));
                         ui.label(
                             egui::RichText::new(format!("Tab #{}", session.tab_index))
                                 .size(11.0)
@@ -608,7 +615,14 @@ impl SessionManagerUI {
         });
 
         // Click to select
-        if ui.interact(response.response.rect, egui::Id::new(&session.id), egui::Sense::click()).clicked() {
+        if ui
+            .interact(
+                response.response.rect,
+                egui::Id::new(&session.id),
+                egui::Sense::click(),
+            )
+            .clicked()
+        {
             *new_selection = Some(session.id.clone());
         }
     }
@@ -642,7 +656,10 @@ impl SessionManagerUI {
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add_enabled(can_save, egui::Button::new("Save")).clicked() {
+                        if ui
+                            .add_enabled(can_save, egui::Button::new("Save"))
+                            .clicked()
+                        {
                             should_save = true;
                         }
                     });
@@ -690,13 +707,15 @@ impl SessionManagerUI {
                 if saved_session_ids.is_empty() {
                     ui.label("No saved sessions available.");
                 } else {
-                    egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                        for (id, name) in &saved_session_ids {
-                            if ui.button(name).clicked() {
-                                sessions_to_restore.push((id.clone(), name.clone()));
+                    egui::ScrollArea::vertical()
+                        .max_height(200.0)
+                        .show(ui, |ui| {
+                            for (id, name) in &saved_session_ids {
+                                if ui.button(name).clicked() {
+                                    sessions_to_restore.push((id.clone(), name.clone()));
+                                }
                             }
-                        }
-                    });
+                        });
                 }
 
                 ui.add_space(10.0);

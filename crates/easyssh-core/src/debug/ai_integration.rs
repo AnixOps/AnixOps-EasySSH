@@ -97,10 +97,7 @@ pub async fn search_code(query: String, path: Option<String>) -> Result<Vec<Sear
                         let _ = walk_dir(&path, query, results);
                     }
                 } else if path.is_file() {
-                    let ext = path
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("");
+                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                     if ["rs", "ts", "tsx", "js", "jsx", "json", "toml", "md"].contains(&ext) {
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             let content_lower = content.to_lowercase();
@@ -395,18 +392,26 @@ pub async fn git_status() -> Result<GitStatus, String> {
                         let stats = stats.1.trim_end_matches(']');
                         for part in stats.split(',').map(|s| s.trim()) {
                             if part.ends_with("ahead") {
-                                ahead = part.split_whitespace().next()
+                                ahead = part
+                                    .split_whitespace()
+                                    .next()
                                     .and_then(|n| n.parse().ok())
                                     .unwrap_or(0);
                             } else if part.ends_with("behind") {
-                                behind = part.split_whitespace().next()
+                                behind = part
+                                    .split_whitespace()
+                                    .next()
                                     .and_then(|n| n.parse().ok())
                                     .unwrap_or(0);
                             }
                         }
                     }
                 } else {
-                    current_branch = branch_info.split_whitespace().next().unwrap_or("HEAD").to_string();
+                    current_branch = branch_info
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("HEAD")
+                        .to_string();
                 }
             }
         } else if line.len() >= 3 {
@@ -427,9 +432,8 @@ pub async fn git_status() -> Result<GitStatus, String> {
         }
     }
 
-    let is_dirty = !staged_files.is_empty()
-        || !unstaged_files.is_empty()
-        || !untracked_files.is_empty();
+    let is_dirty =
+        !staged_files.is_empty() || !unstaged_files.is_empty() || !untracked_files.is_empty();
 
     Ok(GitStatus {
         is_dirty,
@@ -549,20 +553,26 @@ lazy_static::lazy_static! {
 
 /// 设置上下文变量
 pub fn set_context(key: String, value: String) -> Result<(), String> {
-    let mut ctx = AI_CONTEXT.lock().map_err(|e| format!("Failed to lock context: {}", e))?;
+    let mut ctx = AI_CONTEXT
+        .lock()
+        .map_err(|e| format!("Failed to lock context: {}", e))?;
     ctx.insert(key, value);
     Ok(())
 }
 
 /// 获取上下文变量
 pub fn get_context(key: String) -> Result<Option<String>, String> {
-    let ctx = AI_CONTEXT.lock().map_err(|e| format!("Failed to lock context: {}", e))?;
+    let ctx = AI_CONTEXT
+        .lock()
+        .map_err(|e| format!("Failed to lock context: {}", e))?;
     Ok(ctx.get(&key).cloned())
 }
 
 /// 清除所有上下文
 pub fn clear_context() -> Result<(), String> {
-    let mut ctx = AI_CONTEXT.lock().map_err(|e| format!("Failed to lock context: {}", e))?;
+    let mut ctx = AI_CONTEXT
+        .lock()
+        .map_err(|e| format!("Failed to lock context: {}", e))?;
     ctx.clear();
     Ok(())
 }

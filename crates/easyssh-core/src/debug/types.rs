@@ -215,9 +215,9 @@ impl Default for AgentPermissions {
             run_tests: true,
             run_commands: true,
             git_operations: true,
-            create_commits: false,     // 禁止自动提交
+            create_commits: false, // 禁止自动提交
             max_iterations: 5,
-            requires_approval: true,   // 默认需要批准
+            requires_approval: true, // 默认需要批准
         }
     }
 }
@@ -227,10 +227,10 @@ impl AgentPermissions {
     pub fn conservative() -> Self {
         Self {
             read_files: true,
-            write_files: false,        // 需要批准
+            write_files: false, // 需要批准
             run_tests: true,
-            run_commands: false,       // 需要批准
-            git_operations: false,     // 需要批准
+            run_commands: false,   // 需要批准
+            git_operations: false, // 需要批准
             create_commits: false,
             max_iterations: 3,
             requires_approval: true,
@@ -245,7 +245,7 @@ impl AgentPermissions {
             run_tests: true,
             run_commands: true,
             git_operations: true,
-            create_commits: false,     // 始终禁止自动提交
+            create_commits: false, // 始终禁止自动提交
             max_iterations: 10,
             requires_approval: false,
         }

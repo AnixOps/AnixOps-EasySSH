@@ -135,7 +135,7 @@ default = ["lite"]
 
 # ===== Version Features =====
 # Lite: SSH配置保险箱 - 基础SSH连接和配置管理
-lite = ["keychain", "config-crypto", "dev-tools"]
+lite = ["keychain", "config-crypto", "dev-tools", "update-checker"]
 
 # Standard: 全功能客户端 - 在Lite基础上增加终端、分屏、监控、文件管理
 standard = [
@@ -167,6 +167,9 @@ pro = [
 # Core infrastructure
 keychain = []
 config-crypto = []
+
+# Update checker
+update-checker = ["dep:reqwest"]
 
 # Terminal features
 embedded-terminal = ["dep:portable-pty", "dep:async-trait"]
@@ -294,6 +297,10 @@ harness = false
 
 [[bench]]
 name = "ssh_bench"
+harness = false
+
+[[bench]]
+name = "search_bench"
 harness = false
 
 [[bench]]

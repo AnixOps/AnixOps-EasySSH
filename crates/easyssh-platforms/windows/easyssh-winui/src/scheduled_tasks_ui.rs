@@ -241,8 +241,12 @@ impl ScheduledTasksPanel {
 
                 // Filter by search
                 if !self.search_query.is_empty()
-                    && !t.name.to_lowercase().contains(&self.search_query.to_lowercase())
-                    && !t.description
+                    && !t
+                        .name
+                        .to_lowercase()
+                        .contains(&self.search_query.to_lowercase())
+                    && !t
+                        .description
                         .as_ref()
                         .map(|d| d.to_lowercase())
                         .unwrap_or_default()
@@ -363,9 +367,7 @@ impl ScheduledTasksPanel {
                         .color(Color32::LIGHT_GRAY),
                 );
                 ui.label("|");
-                ui.label(
-                    RichText::new(format!("Workflow: {}", task.workflow_id)).size(12.0),
-                );
+                ui.label(RichText::new(format!("Workflow: {}", task.workflow_id)).size(12.0));
                 if !task.target_servers.is_empty() {
                     ui.label("|");
                     ui.label(
@@ -391,13 +393,18 @@ impl ScheduledTasksPanel {
                         _ => "○",
                     };
                     ui.label(
-                        RichText::new(format!("{} Last: {}", status_icon, last.format("%Y-%m-%d %H:%M")))
-                            .size(11.0),
+                        RichText::new(format!(
+                            "{} Last: {}",
+                            status_icon,
+                            last.format("%Y-%m-%d %H:%M")
+                        ))
+                        .size(11.0),
                     );
                 }
                 if task.total_runs > 0 {
                     ui.label("|");
-                    let success_rate = (task.successful_runs as f32 / task.total_runs as f32) * 100.0;
+                    let success_rate =
+                        (task.successful_runs as f32 / task.total_runs as f32) * 100.0;
                     ui.label(
                         RichText::new(format!(
                             "📊 {} runs ({:.0}% success)",
@@ -698,8 +705,8 @@ impl ScheduledTasksPanel {
                                         .strong()
                                         .color(Color32::BLUE),
                                 );
+                            });
                         });
-                    });
 
                     // With failures
                     Frame::group(ui.style())
@@ -723,10 +730,22 @@ impl ScheduledTasksPanel {
                 // Tasks by status
                 ui.label(RichText::new("Tasks by Status:").strong());
 
-                let pending = all_tasks.iter().filter(|t| t.last_status == Some(TaskStatus::Pending)).count();
-                let completed = all_tasks.iter().filter(|t| t.last_status == Some(TaskStatus::Completed)).count();
-                let failed = all_tasks.iter().filter(|t| t.last_status == Some(TaskStatus::Failed)).count();
-                let timed_out = all_tasks.iter().filter(|t| t.last_status == Some(TaskStatus::TimedOut)).count();
+                let pending = all_tasks
+                    .iter()
+                    .filter(|t| t.last_status == Some(TaskStatus::Pending))
+                    .count();
+                let completed = all_tasks
+                    .iter()
+                    .filter(|t| t.last_status == Some(TaskStatus::Completed))
+                    .count();
+                let failed = all_tasks
+                    .iter()
+                    .filter(|t| t.last_status == Some(TaskStatus::Failed))
+                    .count();
+                let timed_out = all_tasks
+                    .iter()
+                    .filter(|t| t.last_status == Some(TaskStatus::TimedOut))
+                    .count();
 
                 let statuses = vec![
                     ("Pending", pending, Color32::YELLOW),
@@ -757,16 +776,20 @@ impl ScheduledTasksPanel {
                     ui.label(format!("Successful: {}", total_successful));
                     ui.label(format!("Failed: {}", total_failed));
 
-                    let overall_success_rate = (total_successful as f32 / total_runs as f32) * 100.0;
+                    let overall_success_rate =
+                        (total_successful as f32 / total_runs as f32) * 100.0;
                     ui.label(
-                        RichText::new(format!("Overall success rate: {:.1}%", overall_success_rate))
-                            .color(if overall_success_rate >= 80.0 {
-                                Color32::GREEN
-                            } else if overall_success_rate >= 50.0 {
-                                Color32::YELLOW
-                            } else {
-                                Color32::RED
-                            }),
+                        RichText::new(format!(
+                            "Overall success rate: {:.1}%",
+                            overall_success_rate
+                        ))
+                        .color(if overall_success_rate >= 80.0 {
+                            Color32::GREEN
+                        } else if overall_success_rate >= 50.0 {
+                            Color32::YELLOW
+                        } else {
+                            Color32::RED
+                        }),
                     );
                 }
             });

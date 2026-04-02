@@ -20,7 +20,9 @@ pub mod xterm_compat;
 pub mod launcher;
 
 // Export launcher types
-pub use launcher::{DetectedTerminal, TerminalLauncher, TerminalPreference, TerminalType, generate_ssh_command};
+pub use launcher::{
+    generate_ssh_command, DetectedTerminal, TerminalLauncher, TerminalPreference, TerminalType,
+};
 
 // Export core types
 #[cfg(feature = "embedded-terminal")]

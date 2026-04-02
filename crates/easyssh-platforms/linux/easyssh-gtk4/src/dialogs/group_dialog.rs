@@ -19,9 +19,7 @@ where
     let header = adw::HeaderBar::new();
     header.add_css_class("flat");
 
-    let cancel_button = gtk4::Button::builder()
-        .label("Cancel")
-        .build();
+    let cancel_button = gtk4::Button::builder().label("Cancel").build();
     header.pack_start(&cancel_button);
 
     let save_button = gtk4::Button::builder()
@@ -117,9 +115,7 @@ where
     let header = adw::HeaderBar::new();
     header.add_css_class("flat");
 
-    let cancel_button = gtk4::Button::builder()
-        .label("Cancel")
-        .build();
+    let cancel_button = gtk4::Button::builder().label("Cancel").build();
     header.pack_start(&cancel_button);
 
     let save_button = gtk4::Button::builder()
@@ -137,13 +133,9 @@ where
     content.set_margin_top(24);
     content.set_margin_bottom(24);
 
-    let pref_group = adw::PreferencesGroup::builder()
-        .title("Group Name")
-        .build();
+    let pref_group = adw::PreferencesGroup::builder().title("Group Name").build();
 
-    let entry = adw::EntryRow::builder()
-        .text(&group.name)
-        .build();
+    let entry = adw::EntryRow::builder().text(&group.name).build();
     pref_group.add(&entry);
 
     content.append(&pref_group);

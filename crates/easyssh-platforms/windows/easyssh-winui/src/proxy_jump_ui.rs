@@ -272,13 +272,21 @@ impl ProxyJumpUI {
             // First, collect the hop data we need
             let hop_data = self.get_config(config_id).and_then(|config| {
                 config.jump_chain.get(hop_index).map(|hop| {
-                    (hop.name.clone(), hop.host.clone(), hop.port, hop.username.clone(),
-                     hop.auth_type.clone(), hop.password.clone(), hop.identity_file.clone())
+                    (
+                        hop.name.clone(),
+                        hop.host.clone(),
+                        hop.port,
+                        hop.username.clone(),
+                        hop.auth_type.clone(),
+                        hop.password.clone(),
+                        hop.identity_file.clone(),
+                    )
                 })
             });
 
             // Now update self with the hop data
-            if let Some((name, host, port, username, auth_type, password, identity_file)) = hop_data {
+            if let Some((name, host, port, username, auth_type, password, identity_file)) = hop_data
+            {
                 self.editing_hop_index = Some(hop_index);
                 self.hop_form = HopForm {
                     name,
@@ -322,7 +330,9 @@ impl ProxyJumpUI {
         };
 
         let editing_index = self.editing_hop_index;
-        let config_id = self.selected_config_id.clone()
+        let config_id = self
+            .selected_config_id
+            .clone()
             .ok_or_else(|| "No configuration selected".to_string())?;
 
         if let Some(config) = self.get_config_mut(&config_id) {
@@ -579,13 +589,15 @@ impl ProxyJumpUI {
         if config_ids.is_empty() {
             ui.label("No proxy jump configurations.");
         } else {
-            egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                for id in config_ids {
-                    if let Some(config) = self.get_config(&id).cloned() {
-                        self.render_config_item(ui, &config);
+            egui::ScrollArea::vertical()
+                .max_height(400.0)
+                .show(ui, |ui| {
+                    for id in config_ids {
+                        if let Some(config) = self.get_config(&id).cloned() {
+                            self.render_config_item(ui, &config);
+                        }
                     }
-                }
-            });
+                });
         }
     }
 
@@ -621,11 +633,7 @@ impl ProxyJumpUI {
                 );
 
                 ui.vertical(|ui| {
-                    ui.label(
-                        egui::RichText::new(&config.name)
-                            .strong()
-                            .size(14.0),
-                    );
+                    ui.label(egui::RichText::new(&config.name).strong().size(14.0));
 
                     ui.label(
                         egui::RichText::new(format!(
@@ -640,7 +648,14 @@ impl ProxyJumpUI {
             });
         });
 
-        if ui.interact(ui.min_rect(), egui::Id::new(&config.id), egui::Sense::click()).clicked() {
+        if ui
+            .interact(
+                ui.min_rect(),
+                egui::Id::new(&config.id),
+                egui::Sense::click(),
+            )
+            .clicked()
+        {
             self.selected_config_id = Some(config.id.clone());
         }
     }
@@ -733,7 +748,11 @@ impl ProxyJumpUI {
                     ui.separator();
                     ui.add_space(10.0);
 
-                    ui.label(egui::RichText::new("Generated SSH Config").strong().size(12.0));
+                    ui.label(
+                        egui::RichText::new("Generated SSH Config")
+                            .strong()
+                            .size(12.0),
+                    );
                     ui.add_space(5.0);
 
                     ui.group(|ui| {
@@ -797,10 +816,7 @@ impl ProxyJumpUI {
                     ui.label(
                         egui::RichText::new(format!(
                             "{}@{}:{} | Auth: {}",
-                            hop.username,
-                            hop.host,
-                            hop.port,
-                            hop.auth_type
+                            hop.username, hop.host, hop.port, hop.auth_type
                         ))
                         .size(11.0)
                         .color(egui::Color32::from_rgb(150, 150, 150)),
@@ -836,17 +852,22 @@ impl ProxyJumpUI {
                 ui.add_space(5.0);
 
                 // Server selection
-                egui::ScrollArea::vertical().max_height(100.0).show(ui, |ui| {
-                    for server in &self.servers_list {
-                        let is_selected = self.new_config_form.target_server_id == server.id;
-                        if ui
-                            .selectable_label(is_selected, format!("{} ({}@{}", server.name, server.username, server.host))
-                            .clicked()
-                        {
-                            self.new_config_form.target_server_id = server.id.clone();
+                egui::ScrollArea::vertical()
+                    .max_height(100.0)
+                    .show(ui, |ui| {
+                        for server in &self.servers_list {
+                            let is_selected = self.new_config_form.target_server_id == server.id;
+                            if ui
+                                .selectable_label(
+                                    is_selected,
+                                    format!("{} ({}@{}", server.name, server.username, server.host),
+                                )
+                                .clicked()
+                            {
+                                self.new_config_form.target_server_id = server.id.clone();
+                            }
                         }
-                    }
-                });
+                    });
 
                 ui.add_space(20.0);
 
@@ -859,16 +880,17 @@ impl ProxyJumpUI {
                         let can_create = !self.new_config_form.name.is_empty()
                             && !self.new_config_form.target_server_id.is_empty();
 
-                        if ui.add_enabled(can_create, egui::Button::new("Create")).clicked() {
+                        if ui
+                            .add_enabled(can_create, egui::Button::new("Create"))
+                            .clicked()
+                        {
                             if let Some(server) = self
                                 .servers_list
                                 .iter()
                                 .find(|s| s.id == self.new_config_form.target_server_id)
                             {
-                                let config = ProxyJumpConfig::new(
-                                    server.id.clone(),
-                                    server.name.clone(),
-                                );
+                                let config =
+                                    ProxyJumpConfig::new(server.id.clone(), server.name.clone());
                                 let id = self.add_config(config);
                                 self.selected_config_id = Some(id);
                                 self.show_add_dialog = false;
@@ -916,10 +938,7 @@ impl ProxyJumpUI {
 
                 ui.horizontal(|ui| {
                     ui.label("Port:");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.hop_form.port)
-                            .desired_width(80.0),
-                    );
+                    ui.add(egui::TextEdit::singleline(&mut self.hop_form.port).desired_width(80.0));
                 });
 
                 ui.add_space(10.0);
@@ -939,9 +958,17 @@ impl ProxyJumpUI {
                 ui.add_space(5.0);
 
                 ui.horizontal(|ui| {
-                    ui.radio_value(&mut self.hop_form.auth_type, JumpAuthType::Password, "Password");
+                    ui.radio_value(
+                        &mut self.hop_form.auth_type,
+                        JumpAuthType::Password,
+                        "Password",
+                    );
                     ui.radio_value(&mut self.hop_form.auth_type, JumpAuthType::Key, "SSH Key");
-                    ui.radio_value(&mut self.hop_form.auth_type, JumpAuthType::Agent, "SSH Agent");
+                    ui.radio_value(
+                        &mut self.hop_form.auth_type,
+                        JumpAuthType::Agent,
+                        "SSH Agent",
+                    );
                 });
 
                 ui.add_space(10.0);
@@ -967,7 +994,8 @@ impl ProxyJumpUI {
                             );
                             if ui.button("📁").clicked() {
                                 if let Some(path) = rfd::FileDialog::new().pick_file() {
-                                    self.hop_form.identity_file = path.to_string_lossy().to_string();
+                                    self.hop_form.identity_file =
+                                        path.to_string_lossy().to_string();
                                 }
                             }
                         });
@@ -989,7 +1017,10 @@ impl ProxyJumpUI {
                             && !self.hop_form.host.is_empty()
                             && !self.hop_form.username.is_empty();
 
-                        if ui.add_enabled(can_save, egui::Button::new("Save")).clicked() {
+                        if ui
+                            .add_enabled(can_save, egui::Button::new("Save"))
+                            .clicked()
+                        {
                             if let Err(e) = self.save_hop() {
                                 self.show_message(format!("Error: {}", e));
                             }

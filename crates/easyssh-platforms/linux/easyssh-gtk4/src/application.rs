@@ -3,8 +3,8 @@ use libadwaita::prelude::*;
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use crate::window::EasySSHWindow;
 use crate::models::AppState;
+use crate::window::EasySSHWindow;
 
 const APP_ID: &str = "com.easyssh.EasySSH";
 
@@ -16,9 +16,7 @@ pub struct EasySSHApplication {
 
 impl EasySSHApplication {
     pub fn new() -> Self {
-        let app = adw::Application::builder()
-            .application_id(APP_ID)
-            .build();
+        let app = adw::Application::builder().application_id(APP_ID).build();
 
         let state = Arc::new(RefCell::new(AppState::new()));
         let window_ref: RefCell<Option<Arc<EasySSHWindow>>> = RefCell::new(None);
@@ -48,7 +46,11 @@ impl EasySSHApplication {
             tracing::info!("EasySSH application shutting down");
         });
 
-        Self { app, state, window: window_ref }
+        Self {
+            app,
+            state,
+            window: window_ref,
+        }
     }
 
     pub fn run(&self) -> glib::ExitCode {
@@ -105,9 +107,7 @@ fn show_about_dialog() {
         .comments("A lightweight SSH client for Linux")
         .build();
 
-    dialog.add_acknowledgement_section(Some("Contributors"), &[
-        "EasySSH Team",
-    ]);
+    dialog.add_acknowledgement_section(Some("Contributors"), &["EasySSH Team"]);
 
     dialog.present();
 }

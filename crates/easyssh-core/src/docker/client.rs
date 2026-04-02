@@ -63,9 +63,16 @@ impl DockerManager {
     }
 
     /// Parse container JSON from docker ps output
-    pub fn parse_container_json(&self, value: serde_json::Value) -> Result<ContainerInfo, LiteError> {
+    pub fn parse_container_json(
+        &self,
+        value: serde_json::Value,
+    ) -> Result<ContainerInfo, LiteError> {
         Ok(ContainerInfo {
-            id: value.get("ID").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            id: value
+                .get("ID")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             names: value
                 .get("Names")
                 .and_then(|v| v.as_str())
@@ -206,7 +213,11 @@ impl DockerManager {
     /// Parse image JSON
     pub fn parse_image_json(&self, value: serde_json::Value) -> Result<ImageInfo, LiteError> {
         Ok(ImageInfo {
-            id: value.get("ID").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            id: value
+                .get("ID")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             repo_tags: value
                 .get("RepoTags")
                 .and_then(|v| v.as_array())
@@ -246,8 +257,14 @@ impl DockerManager {
                 .unwrap_or("")
                 .to_string(),
             size: value.get("Size").and_then(|v| v.as_i64()).unwrap_or(0),
-            virtual_size: value.get("VirtualSize").and_then(|v| v.as_i64()).unwrap_or(0),
-            shared_size: value.get("SharedSize").and_then(|v| v.as_i64()).unwrap_or(0),
+            virtual_size: value
+                .get("VirtualSize")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0),
+            shared_size: value
+                .get("SharedSize")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0),
             labels: value
                 .get("Labels")
                 .and_then(|v| v.as_object())
@@ -263,7 +280,11 @@ impl DockerManager {
     /// Parse network JSON
     pub fn parse_network_json(&self, value: serde_json::Value) -> Result<NetworkInfo, LiteError> {
         Ok(NetworkInfo {
-            id: value.get("Id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            id: value
+                .get("Id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             name: value
                 .get("Name")
                 .and_then(|v| v.as_str())
@@ -279,8 +300,14 @@ impl DockerManager {
                 .and_then(|v| v.as_str())
                 .unwrap_or("local")
                 .to_string(),
-            internal: value.get("Internal").and_then(|v| v.as_bool()).unwrap_or(false),
-            enable_ipv6: value.get("EnableIPv6").and_then(|v| v.as_bool()).unwrap_or(false),
+            internal: value
+                .get("Internal")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            enable_ipv6: value
+                .get("EnableIPv6")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
             ipam: super::types::IpamConfig {
                 driver: "default".to_string(),
                 config: Vec::new(),
@@ -295,7 +322,11 @@ impl DockerManager {
     /// Parse volume JSON
     pub fn parse_volume_json(&self, value: serde_json::Value) -> Result<VolumeInfo, LiteError> {
         Ok(VolumeInfo {
-            name: value.get("Name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            name: value
+                .get("Name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             driver: value
                 .get("Driver")
                 .and_then(|v| v.as_str())
@@ -333,7 +364,10 @@ impl DockerManager {
             .parse()
             .unwrap_or(0.0);
 
-        let unit: String = size_str.chars().skip_while(|c| c.is_digit(10) || *c == '.').collect();
+        let unit: String = size_str
+            .chars()
+            .skip_while(|c| c.is_digit(10) || *c == '.')
+            .collect();
 
         let multiplier = match unit.to_lowercase().as_str() {
             "b" => 1.0,

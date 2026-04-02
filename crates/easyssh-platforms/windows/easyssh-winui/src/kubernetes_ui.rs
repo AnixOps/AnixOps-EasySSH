@@ -43,11 +43,11 @@ impl PodStatus {
 
     pub fn color(&self) -> Color32 {
         match self {
-            PodStatus::Running => Color32::from_rgb(100, 200, 100),    // Green
-            PodStatus::Pending => Color32::from_rgb(255, 193, 7),    // Yellow
+            PodStatus::Running => Color32::from_rgb(100, 200, 100), // Green
+            PodStatus::Pending => Color32::from_rgb(255, 193, 7),   // Yellow
             PodStatus::Succeeded => Color32::from_rgb(64, 156, 255), // Blue
-            PodStatus::Failed => Color32::from_rgb(220, 53, 69),     // Red
-            PodStatus::Unknown => Color32::from_rgb(150, 150, 150),  // Gray
+            PodStatus::Failed => Color32::from_rgb(220, 53, 69),    // Red
+            PodStatus::Unknown => Color32::from_rgb(150, 150, 150), // Gray
             PodStatus::Terminating => Color32::from_rgb(255, 165, 0), // Orange
         }
     }
@@ -247,18 +247,16 @@ impl KubernetesManagerUI {
         ];
 
         // Mock nodes
-        self.nodes = vec![
-            NodeInfo {
-                name: "minikube".to_string(),
-                status: "Ready".to_string(),
-                role: "control-plane".to_string(),
-                version: "v1.28.3".to_string(),
-                cpu_capacity: "4".to_string(),
-                memory_capacity: "8Gi".to_string(),
-                cpu_usage: Some(35.5),
-                memory_usage: Some(42.3),
-            },
-        ];
+        self.nodes = vec![NodeInfo {
+            name: "minikube".to_string(),
+            status: "Ready".to_string(),
+            role: "control-plane".to_string(),
+            version: "v1.28.3".to_string(),
+            cpu_capacity: "4".to_string(),
+            memory_capacity: "8Gi".to_string(),
+            cpu_usage: Some(35.5),
+            memory_usage: Some(42.3),
+        }];
 
         // Mock pods
         self.pods = vec![
@@ -271,15 +269,13 @@ impl KubernetesManagerUI {
                 age: Utc::now() - chrono::Duration::hours(2),
                 ip: "10.244.0.15".to_string(),
                 node: "minikube".to_string(),
-                containers: vec![
-                    ContainerInfo {
-                        name: "nginx".to_string(),
-                        image: "nginx:1.25".to_string(),
-                        ready: true,
-                        restart_count: 0,
-                        state: "Running".to_string(),
-                    },
-                ],
+                containers: vec![ContainerInfo {
+                    name: "nginx".to_string(),
+                    image: "nginx:1.25".to_string(),
+                    ready: true,
+                    restart_count: 0,
+                    state: "Running".to_string(),
+                }],
             },
             PodInfo {
                 name: "postgres-0".to_string(),
@@ -290,15 +286,13 @@ impl KubernetesManagerUI {
                 age: Utc::now() - chrono::Duration::days(1),
                 ip: "10.244.0.20".to_string(),
                 node: "minikube".to_string(),
-                containers: vec![
-                    ContainerInfo {
-                        name: "postgres".to_string(),
-                        image: "postgres:15".to_string(),
-                        ready: true,
-                        restart_count: 1,
-                        state: "Running".to_string(),
-                    },
-                ],
+                containers: vec![ContainerInfo {
+                    name: "postgres".to_string(),
+                    image: "postgres:15".to_string(),
+                    ready: true,
+                    restart_count: 1,
+                    state: "Running".to_string(),
+                }],
             },
             PodInfo {
                 name: "redis-cache-5d4f8b7c9-x2y3z".to_string(),
@@ -309,15 +303,13 @@ impl KubernetesManagerUI {
                 age: Utc::now() - chrono::Duration::minutes(5),
                 ip: "<none>".to_string(),
                 node: "minikube".to_string(),
-                containers: vec![
-                    ContainerInfo {
-                        name: "redis".to_string(),
-                        image: "redis:7".to_string(),
-                        ready: false,
-                        restart_count: 0,
-                        state: "Pending".to_string(),
-                    },
-                ],
+                containers: vec![ContainerInfo {
+                    name: "redis".to_string(),
+                    image: "redis:7".to_string(),
+                    ready: false,
+                    restart_count: 0,
+                    state: "Pending".to_string(),
+                }],
             },
             PodInfo {
                 name: "failed-job-xxxxx".to_string(),
@@ -328,15 +320,13 @@ impl KubernetesManagerUI {
                 age: Utc::now() - chrono::Duration::hours(3),
                 ip: "10.244.0.25".to_string(),
                 node: "minikube".to_string(),
-                containers: vec![
-                    ContainerInfo {
-                        name: "job-runner".to_string(),
-                        image: "busybox:latest".to_string(),
-                        ready: false,
-                        restart_count: 3,
-                        state: "Error".to_string(),
-                    },
-                ],
+                containers: vec![ContainerInfo {
+                    name: "job-runner".to_string(),
+                    image: "busybox:latest".to_string(),
+                    ready: false,
+                    restart_count: 3,
+                    state: "Error".to_string(),
+                }],
             },
         ];
 
@@ -379,14 +369,12 @@ impl KubernetesManagerUI {
                 type_: "ClusterIP".to_string(),
                 cluster_ip: "10.96.0.1".to_string(),
                 external_ip: "<none>".to_string(),
-                ports: vec![
-                    ServicePort {
-                        name: "https".to_string(),
-                        port: 443,
-                        target_port: "6443".to_string(),
-                        protocol: "TCP".to_string(),
-                    },
-                ],
+                ports: vec![ServicePort {
+                    name: "https".to_string(),
+                    port: 443,
+                    target_port: "6443".to_string(),
+                    protocol: "TCP".to_string(),
+                }],
                 age: Utc::now() - chrono::Duration::days(30),
             },
             ServiceInfo {
@@ -395,14 +383,12 @@ impl KubernetesManagerUI {
                 type_: "NodePort".to_string(),
                 cluster_ip: "10.99.123.45".to_string(),
                 external_ip: "<none>".to_string(),
-                ports: vec![
-                    ServicePort {
-                        name: "http".to_string(),
-                        port: 80,
-                        target_port: "80".to_string(),
-                        protocol: "TCP".to_string(),
-                    },
-                ],
+                ports: vec![ServicePort {
+                    name: "http".to_string(),
+                    port: 80,
+                    target_port: "80".to_string(),
+                    protocol: "TCP".to_string(),
+                }],
                 age: Utc::now() - chrono::Duration::days(2),
             },
             ServiceInfo {
@@ -411,14 +397,12 @@ impl KubernetesManagerUI {
                 type_: "ClusterIP".to_string(),
                 cluster_ip: "10.99.200.1".to_string(),
                 external_ip: "<none>".to_string(),
-                ports: vec![
-                    ServicePort {
-                        name: "postgresql".to_string(),
-                        port: 5432,
-                        target_port: "5432".to_string(),
-                        protocol: "TCP".to_string(),
-                    },
-                ],
+                ports: vec![ServicePort {
+                    name: "postgresql".to_string(),
+                    port: 5432,
+                    target_port: "5432".to_string(),
+                    protocol: "TCP".to_string(),
+                }],
                 age: Utc::now() - chrono::Duration::days(1),
             },
         ];
@@ -493,7 +477,11 @@ impl KubernetesManagerUI {
                 .width(120.0)
                 .show_ui(ui, |ui| {
                     for ns in &self.namespaces {
-                        ui.selectable_value(&mut self.selected_namespace, ns.name.clone(), &ns.name);
+                        ui.selectable_value(
+                            &mut self.selected_namespace,
+                            ns.name.clone(),
+                            &ns.name,
+                        );
                     }
                 });
         });
@@ -515,12 +503,11 @@ impl KubernetesManagerUI {
                 let is_active = self.active_tab == tab;
                 let text = format!("{} {}", tab.icon(), tab.display_name());
 
-                let btn = egui::Button::new(RichText::new(text).size(11.0))
-                    .fill(if is_active {
-                        egui::Color32::from_rgb(64, 156, 255)
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    });
+                let btn = egui::Button::new(RichText::new(text).size(11.0)).fill(if is_active {
+                    egui::Color32::from_rgb(64, 156, 255)
+                } else {
+                    egui::Color32::TRANSPARENT
+                });
 
                 if ui.add(btn).clicked() {
                     self.active_tab = tab;
@@ -581,7 +568,12 @@ impl KubernetesManagerUI {
 
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(&pod.name).strong().color(theme.text_primary).size(13.0));
+                        ui.label(
+                            RichText::new(&pod.name)
+                                .strong()
+                                .color(theme.text_primary)
+                                .size(13.0),
+                        );
                         // Status badge
                         let status_text = format!(" {} ", pod.status.display_name());
                         ui.label(
@@ -594,9 +586,12 @@ impl KubernetesManagerUI {
 
                     ui.horizontal(|ui| {
                         ui.label(
-                            RichText::new(format!("命名空间: {} | 节点: {}", pod.namespace, pod.node))
-                                .size(10.0)
-                                .color(theme.text_secondary),
+                            RichText::new(format!(
+                                "命名空间: {} | 节点: {}",
+                                pod.namespace, pod.node
+                            ))
+                            .size(10.0)
+                            .color(theme.text_secondary),
                         );
                     });
 
@@ -681,20 +676,31 @@ impl KubernetesManagerUI {
                         continue;
                     }
                 }
-                if deployment.namespace == self.selected_namespace || self.selected_namespace == "all" {
+                if deployment.namespace == self.selected_namespace
+                    || self.selected_namespace == "all"
+                {
                     self.render_deployment_item(ui, deployment, theme);
                 }
             }
         });
     }
 
-    fn render_deployment_item(&mut self, ui: &mut Ui, deployment: &DeploymentInfo, theme: &DesignTheme) {
+    fn render_deployment_item(
+        &mut self,
+        ui: &mut Ui,
+        deployment: &DeploymentInfo,
+        theme: &DesignTheme,
+    ) {
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 ui.label(RichText::new("🚀").size(16.0));
 
                 ui.vertical(|ui| {
-                    ui.label(RichText::new(&deployment.name).strong().color(theme.text_primary));
+                    ui.label(
+                        RichText::new(&deployment.name)
+                            .strong()
+                            .color(theme.text_primary),
+                    );
                     ui.label(
                         RichText::new(format!(
                             "命名空间: {} | 策略: {}",
@@ -759,7 +765,8 @@ impl KubernetesManagerUI {
                         continue;
                     }
                 }
-                if service.namespace == self.selected_namespace || self.selected_namespace == "all" {
+                if service.namespace == self.selected_namespace || self.selected_namespace == "all"
+                {
                     self.render_service_item(ui, service, theme);
                 }
             }
@@ -772,7 +779,11 @@ impl KubernetesManagerUI {
                 ui.label(RichText::new("🔌").size(16.0));
 
                 ui.vertical(|ui| {
-                    ui.label(RichText::new(&service.name).strong().color(theme.text_primary));
+                    ui.label(
+                        RichText::new(&service.name)
+                            .strong()
+                            .color(theme.text_primary),
+                    );
                     ui.label(
                         RichText::new(format!(
                             "类型: {} | ClusterIP: {} | 外部IP: {}",
@@ -781,8 +792,12 @@ impl KubernetesManagerUI {
                         .size(10.0)
                         .color(theme.text_secondary),
                     );
-                    let ports: Vec<String> = service.ports.iter()
-                        .map(|p| format!("{}:{}/{} ({})", p.port, p.target_port, p.protocol, p.name))
+                    let ports: Vec<String> = service
+                        .ports
+                        .iter()
+                        .map(|p| {
+                            format!("{}:{}/{} ({})", p.port, p.target_port, p.protocol, p.name)
+                        })
                         .collect();
                     ui.label(
                         RichText::new(format!("端口: {}", ports.join(", ")))
@@ -894,12 +909,9 @@ impl KubernetesManagerUI {
 
                     if let (Some(cpu), Some(mem)) = (node.cpu_usage, node.memory_usage) {
                         ui.label(
-                            RichText::new(format!(
-                                "使用率: CPU {:.1}% | 内存 {:.1}%",
-                                cpu, mem
-                            ))
-                            .size(10.0)
-                            .color(Color32::from_rgb(100, 200, 100)),
+                            RichText::new(format!("使用率: CPU {:.1}% | 内存 {:.1}%", cpu, mem))
+                                .size(10.0)
+                                .color(Color32::from_rgb(100, 200, 100)),
                         );
                     }
                 });
@@ -1044,7 +1056,8 @@ impl KubernetesManagerUI {
 
     fn delete_pod(&mut self, name: &str, namespace: &str) {
         self.show_success(format!("删除 Pod {}/{}", namespace, name).as_str());
-        self.pods.retain(|p| !(p.name == name && p.namespace == namespace));
+        self.pods
+            .retain(|p| !(p.name == name && p.namespace == namespace));
     }
 
     fn show_pod_logs(&mut self, name: &str, namespace: &str) {
@@ -1061,7 +1074,8 @@ impl KubernetesManagerUI {
 
     fn delete_deployment(&mut self, name: &str, namespace: &str) {
         self.show_success(format!("删除 Deployment {}/{}", namespace, name).as_str());
-        self.deployments.retain(|d| !(d.name == name && d.namespace == namespace));
+        self.deployments
+            .retain(|d| !(d.name == name && d.namespace == namespace));
     }
 
     fn restart_deployment(&mut self, name: &str, namespace: &str) {
@@ -1071,7 +1085,8 @@ impl KubernetesManagerUI {
 
     fn delete_service(&mut self, name: &str, namespace: &str) {
         self.show_success(format!("删除 Service {}/{}", namespace, name).as_str());
-        self.services.retain(|s| !(s.name == name && s.namespace == namespace));
+        self.services
+            .retain(|s| !(s.name == name && s.namespace == namespace));
     }
 
     fn delete_namespace(&mut self, name: &str) {
@@ -1095,15 +1110,13 @@ impl KubernetesManagerUI {
                     age: Utc::now(),
                     ip: "<none>".to_string(),
                     node: "minikube".to_string(),
-                    containers: vec![
-                        ContainerInfo {
-                            name: "main".to_string(),
-                            image: self.new_resource_form.image.clone(),
-                            ready: false,
-                            restart_count: 0,
-                            state: "Pending".to_string(),
-                        },
-                    ],
+                    containers: vec![ContainerInfo {
+                        name: "main".to_string(),
+                        image: self.new_resource_form.image.clone(),
+                        ready: false,
+                        restart_count: 0,
+                        state: "Pending".to_string(),
+                    }],
                 };
                 self.pods.push(pod);
             }
@@ -1126,14 +1139,12 @@ impl KubernetesManagerUI {
                     type_: "ClusterIP".to_string(),
                     cluster_ip: "10.99.x.x".to_string(),
                     external_ip: "<none>".to_string(),
-                    ports: vec![
-                        ServicePort {
-                            name: "http".to_string(),
-                            port: self.new_resource_form.port,
-                            target_port: self.new_resource_form.port.to_string(),
-                            protocol: "TCP".to_string(),
-                        },
-                    ],
+                    ports: vec![ServicePort {
+                        name: "http".to_string(),
+                        port: self.new_resource_form.port,
+                        target_port: self.new_resource_form.port.to_string(),
+                        protocol: "TCP".to_string(),
+                    }],
                     age: Utc::now(),
                 };
                 self.services.push(service);
@@ -1151,10 +1162,7 @@ impl KubernetesManagerUI {
     }
 
     fn show_success(&mut self, message: &str) {
-        self.success_message = Some((
-            message.to_string(),
-            std::time::Instant::now(),
-        ));
+        self.success_message = Some((message.to_string(), std::time::Instant::now()));
     }
 
     /// Update and clear expired messages

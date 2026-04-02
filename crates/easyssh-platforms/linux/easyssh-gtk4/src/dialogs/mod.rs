@@ -4,14 +4,14 @@ use libadwaita::prelude::*;
 mod add_server_dialog;
 mod edit_server_dialog;
 mod group_dialog;
-mod password_dialog;
 mod master_password_dialog;
+mod password_dialog;
 
 pub use add_server_dialog::show_add_server_dialog;
 pub use edit_server_dialog::show_edit_server_dialog;
 pub use group_dialog::show_add_group_dialog;
-pub use password_dialog::show_password_dialog;
 pub use master_password_dialog::*;
+pub use password_dialog::show_password_dialog;
 
 pub fn show_confirm_delete_dialog<F>(parent: &adw::ApplicationWindow, item_name: &str, callback: F)
 where

@@ -39,7 +39,7 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "db module available".to_string(),
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -50,7 +50,7 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "crypto module available".to_string(),
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -61,7 +61,7 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "ssh module available".to_string(),
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -77,7 +77,7 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
             "pro module not available (expected for Lite/Standard)".to_string()
         },
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     if pro_available {
         passed += 1;
@@ -92,7 +92,7 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         passed: true,
         message: "terminal module available".to_string(),
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -103,12 +103,9 @@ pub fn quick_check() -> Result<DebugTestReport, String> {
         name: "debug access".to_string(),
         category: "debug".to_string(),
         passed: is_enabled,
-        message: format!(
-            "Debug access: enabled={}, level={:?}",
-            is_enabled, level
-        ),
+        message: format!("Debug access: enabled={}, level={:?}", is_enabled, level),
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     if is_enabled {
         passed += 1;
@@ -285,9 +282,12 @@ pub fn test_ssh() -> Result<DebugTestReport, String> {
         name: test_name.to_string(),
         category: "ssh".to_string(),
         passed: true,
-        message: format!("SshSessionManager created, session count: {}", session_count),
+        message: format!(
+            "SshSessionManager created, session count: {}",
+            session_count
+        ),
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     passed += 1;
 
@@ -304,7 +304,7 @@ pub fn test_ssh() -> Result<DebugTestReport, String> {
             "has_session incorrectly returned true".to_string()
         },
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     if !has_none {
         passed += 1;
@@ -341,7 +341,7 @@ pub fn test_terminal() -> Result<DebugTestReport, String> {
             "SSH command format error".to_string()
         },
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     if valid {
         passed += 1;
@@ -362,7 +362,7 @@ pub fn test_terminal() -> Result<DebugTestReport, String> {
             "Terminal size error".to_string()
         },
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     if valid {
         passed += 1;
@@ -383,7 +383,7 @@ pub fn test_terminal() -> Result<DebugTestReport, String> {
             "Terminal signal values error".to_string()
         },
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     if valid {
         passed += 1;
@@ -459,7 +459,7 @@ pub fn test_pro() -> Result<DebugTestReport, String> {
             "TeamRole permissions error".to_string()
         },
         details: None,
-                duration_ms: None,
+        duration_ms: None,
     });
     if both_correct {
         passed += 1;
@@ -489,7 +489,7 @@ pub fn test_pro() -> Result<DebugTestReport, String> {
             passed: false,
             message: "Pro feature not enabled - requires Pro edition".to_string(),
             details: None,
-                duration_ms: None,
+            duration_ms: None,
         }],
         duration_ms: 0,
     })

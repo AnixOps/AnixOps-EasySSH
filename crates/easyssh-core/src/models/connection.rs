@@ -3,11 +3,13 @@
 //! This module defines the Connection domain model for recording
 //! connection history and managing active connections.
 
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::{is_valid_host, is_valid_port as validate_port, Validatable, ValidationError, DEFAULT_SSH_PORT};
+use super::{
+    is_valid_host, is_valid_port as validate_port, Validatable, ValidationError, DEFAULT_SSH_PORT,
+};
 
 /// Connection status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,12 +51,18 @@ impl fmt::Display for ConnectionStatus {
 impl ConnectionStatus {
     /// Check if the connection is active (connecting or connected)
     pub fn is_active(&self) -> bool {
-        matches!(self, ConnectionStatus::Connecting | ConnectionStatus::Connected)
+        matches!(
+            self,
+            ConnectionStatus::Connecting | ConnectionStatus::Connected
+        )
     }
 
     /// Check if the connection is closed (disconnected or failed or timeout)
     pub fn is_closed(&self) -> bool {
-        matches!(self, ConnectionStatus::Disconnected | ConnectionStatus::Failed | ConnectionStatus::Timeout)
+        matches!(
+            self,
+            ConnectionStatus::Disconnected | ConnectionStatus::Failed | ConnectionStatus::Timeout
+        )
     }
 
     /// Check if the connection has ended (not connecting or connected)
@@ -265,16 +273,21 @@ impl Connection {
 
     /// Get duration as human-readable string
     pub fn duration_text(&self) -> String {
-        let seconds = self.duration_seconds.unwrap_or_else(|| {
-            self.current_duration().num_seconds().max(0) as u64
-        });
+        let seconds = self
+            .duration_seconds
+            .unwrap_or_else(|| self.current_duration().num_seconds().max(0) as u64);
 
         if seconds < 60 {
             format!("{}s", seconds)
         } else if seconds < 3600 {
             format!("{}m {}s", seconds / 60, seconds % 60)
         } else {
-            format!("{}h {}m {}s", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
+            format!(
+                "{}h {}m {}s",
+                seconds / 3600,
+                (seconds % 3600) / 60,
+                seconds % 60
+            )
         }
     }
 
@@ -318,7 +331,10 @@ impl Connection {
 
     /// Check if connection was successful
     pub fn was_successful(&self) -> bool {
-        matches!(self.status, ConnectionStatus::Connected | ConnectionStatus::Disconnected)
+        matches!(
+            self.status,
+            ConnectionStatus::Connected | ConnectionStatus::Disconnected
+        )
     }
 
     /// Get connection summary
@@ -430,7 +446,8 @@ impl ConnectionHistory {
         self.last_connection = Some(connection.started_at);
 
         // Update per-server count
-        let count = self.connections_per_server
+        let count = self
+            .connections_per_server
             .entry(connection.server_id.clone())
             .or_insert(0);
         *count += 1;
@@ -595,8 +612,7 @@ impl ConnectionFilter {
 
         // Check tags
         if !self.tags.is_empty() {
-            let has_matching_tag = self.tags.iter()
-                .any(|tag| connection.tags.contains(tag));
+            let has_matching_tag = self.tags.iter().any(|tag| connection.tags.contains(tag));
             if !has_matching_tag {
                 return false;
             }
@@ -614,7 +630,10 @@ impl ConnectionFilter {
             let search_lower = search.to_lowercase();
             let matches_search = connection.host.to_lowercase().contains(&search_lower)
                 || connection.username.to_lowercase().contains(&search_lower)
-                || connection.server_name.to_lowercase().contains(&search_lower);
+                || connection
+                    .server_name
+                    .to_lowercase()
+                    .contains(&search_lower);
             if !matches_search {
                 return false;
             }
@@ -736,10 +755,16 @@ mod tests {
             "password".to_string(),
         );
 
-        conn.mark_failed("Authentication failed".to_string(), Some("AUTH_FAILED".to_string()));
+        conn.mark_failed(
+            "Authentication failed".to_string(),
+            Some("AUTH_FAILED".to_string()),
+        );
 
         assert!(matches!(conn.status, ConnectionStatus::Failed));
-        assert_eq!(conn.error_message, Some("Authentication failed".to_string()));
+        assert_eq!(
+            conn.error_message,
+            Some("Authentication failed".to_string())
+        );
         assert_eq!(conn.error_code, Some("AUTH_FAILED".to_string()));
         assert!(!conn.was_successful());
     }
@@ -836,7 +861,9 @@ mod tests {
             "root".to_string(),
             "agent".to_string(),
         );
-        assert!(matches!(conn.validate(), Err(ValidationError::MissingField(field)) if field == "host"));
+        assert!(
+            matches!(conn.validate(), Err(ValidationError::MissingField(field)) if field == "host")
+        );
     }
 
     #[test]
@@ -849,7 +876,9 @@ mod tests {
             "root".to_string(),
             "agent".to_string(),
         );
-        assert!(matches!(conn.validate(), Err(ValidationError::InvalidField { field, .. }) if field == "port"));
+        assert!(
+            matches!(conn.validate(), Err(ValidationError::InvalidField { field, .. }) if field == "port")
+        );
     }
 
     #[test]
@@ -888,7 +917,10 @@ mod tests {
         );
 
         conn.set_metadata("client_version".to_string(), "1.0.0".to_string());
-        assert_eq!(conn.get_metadata("client_version"), Some(&"1.0.0".to_string()));
+        assert_eq!(
+            conn.get_metadata("client_version"),
+            Some(&"1.0.0".to_string())
+        );
         assert_eq!(conn.get_metadata("nonexistent"), None);
     }
 

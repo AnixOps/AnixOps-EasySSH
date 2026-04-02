@@ -2,10 +2,10 @@
 
 #![cfg(feature = "docker")]
 
-mod types;
 mod client;
 mod containers;
 mod images;
+mod types;
 
-pub use types::*;
 pub use client::DockerManager;
+pub use types::*;

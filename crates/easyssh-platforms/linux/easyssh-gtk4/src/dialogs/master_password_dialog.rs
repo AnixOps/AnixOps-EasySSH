@@ -22,9 +22,16 @@ pub enum MasterPasswordMode {
 #[derive(Debug, Clone)]
 pub enum MasterPasswordResult {
     Cancelled,
-    SetPassword { password: String },
-    Verify { password: String },
-    ChangePassword { old_password: String, new_password: String },
+    SetPassword {
+        password: String,
+    },
+    Verify {
+        password: String,
+    },
+    ChangePassword {
+        old_password: String,
+        new_password: String,
+    },
     ResetConfirmed,
     ForgotPassword,
 }
@@ -126,11 +133,19 @@ where
 }
 
 /// Show master password dialog for verification
-pub fn show_master_password_verify<F>(parent: &adw::ApplicationWindow, failed_attempts: u32, callback: F)
-where
+pub fn show_master_password_verify<F>(
+    parent: &adw::ApplicationWindow,
+    failed_attempts: u32,
+    callback: F,
+) where
     F: FnOnce(MasterPasswordResult) + 'static,
 {
-    show_master_password_dialog(parent, MasterPasswordMode::Verify, failed_attempts, callback);
+    show_master_password_dialog(
+        parent,
+        MasterPasswordMode::Verify,
+        failed_attempts,
+        callback,
+    );
 }
 
 /// Show master password dialog for changing password
@@ -180,9 +195,7 @@ fn show_master_password_dialog<F>(
     let header = adw::HeaderBar::new();
     header.add_css_class("flat");
 
-    let cancel_button = gtk4::Button::builder()
-        .label("Cancel")
-        .build();
+    let cancel_button = gtk4::Button::builder().label("Cancel").build();
     header.pack_start(&cancel_button);
 
     let action_button = gtk4::Button::builder()
@@ -235,10 +248,18 @@ fn show_master_password_dialog<F>(
     // Description
     let desc_label = gtk4::Label::builder()
         .label(match mode {
-            MasterPasswordMode::Setup => "Create a strong master password to secure your SSH configurations.",
-            MasterPasswordMode::Verify => "Enter your master password to access your encrypted server configurations.",
-            MasterPasswordMode::Change => "Change your master password. All encrypted data will be re-encrypted.",
-            MasterPasswordMode::Reset => "WARNING: This will permanently delete all encrypted data!",
+            MasterPasswordMode::Setup => {
+                "Create a strong master password to secure your SSH configurations."
+            }
+            MasterPasswordMode::Verify => {
+                "Enter your master password to access your encrypted server configurations."
+            }
+            MasterPasswordMode::Change => {
+                "Change your master password. All encrypted data will be re-encrypted."
+            }
+            MasterPasswordMode::Reset => {
+                "WARNING: This will permanently delete all encrypted data!"
+            }
         })
         .wrap(true)
         .wrap_mode(gtk4::pango::WrapMode::Word)
@@ -342,26 +363,36 @@ fn setup_setup_ui(content: &gtk4::Box, action_button: &gtk4::Button) {
     let expander = adw::ExpanderRow::builder()
         .title("Password Requirements")
         .build();
-    expander.add_row(&gtk4::Label::builder()
-        .label("• At least 8 characters")
-        .halign(gtk4::Align::Start)
-        .build());
-    expander.add_row(&gtk4::Label::builder()
-        .label("• Uppercase letters (A-Z)")
-        .halign(gtk4::Align::Start)
-        .build());
-    expander.add_row(&gtk4::Label::builder()
-        .label("• Lowercase letters (a-z)")
-        .halign(gtk4::Align::Start)
-        .build());
-    expander.add_row(&gtk4::Label::builder()
-        .label("• Numbers (0-9)")
-        .halign(gtk4::Align::Start)
-        .build());
-    expander.add_row(&gtk4::Label::builder()
-        .label("• Special characters (!@#$...)")
-        .halign(gtk4::Align::Start)
-        .build());
+    expander.add_row(
+        &gtk4::Label::builder()
+            .label("• At least 8 characters")
+            .halign(gtk4::Align::Start)
+            .build(),
+    );
+    expander.add_row(
+        &gtk4::Label::builder()
+            .label("• Uppercase letters (A-Z)")
+            .halign(gtk4::Align::Start)
+            .build(),
+    );
+    expander.add_row(
+        &gtk4::Label::builder()
+            .label("• Lowercase letters (a-z)")
+            .halign(gtk4::Align::Start)
+            .build(),
+    );
+    expander.add_row(
+        &gtk4::Label::builder()
+            .label("• Numbers (0-9)")
+            .halign(gtk4::Align::Start)
+            .build(),
+    );
+    expander.add_row(
+        &gtk4::Label::builder()
+            .label("• Special characters (!@#$...)")
+            .halign(gtk4::Align::Start)
+            .build(),
+    );
 
     content.append(&expander);
 
@@ -375,14 +406,16 @@ fn setup_setup_ui(content: &gtk4::Box, action_button: &gtk4::Button) {
     content.append(&error_label);
 
     // Update strength on password change
-    password_row.connect_text_notify(glib::clone!(@weak password_row, @weak strength_bar, @weak strength_label => move |_| {
-        let text = password_row.text();
-        let (score, _) = calculate_password_strength(&text);
-        let strength = PasswordStrength::from_score(score);
+    password_row.connect_text_notify(
+        glib::clone!(@weak password_row, @weak strength_bar, @weak strength_label => move |_| {
+            let text = password_row.text();
+            let (score, _) = calculate_password_strength(&text);
+            let strength = PasswordStrength::from_score(score);
 
-        strength_bar.set_value(score as f64);
-        strength_label.set_label(&format!("Strength: {}", strength.as_str()));
-    }));
+            strength_bar.set_value(score as f64);
+            strength_label.set_label(&format!("Strength: {}", strength.as_str()));
+        }),
+    );
 
     // Store references for validation
     password_row.set_data("confirm_row", confirm_row.clone());
@@ -511,14 +544,16 @@ fn setup_change_ui(content: &gtk4::Box, action_button: &gtk4::Button) {
     content.append(&error_label);
 
     // Update strength
-    new_row.connect_text_notify(glib::clone!(@weak new_row, @weak strength_bar, @weak strength_label => move |_| {
-        let text = new_row.text();
-        let (score, _) = calculate_password_strength(&text);
-        let strength = PasswordStrength::from_score(score);
+    new_row.connect_text_notify(
+        glib::clone!(@weak new_row, @weak strength_bar, @weak strength_label => move |_| {
+            let text = new_row.text();
+            let (score, _) = calculate_password_strength(&text);
+            let strength = PasswordStrength::from_score(score);
 
-        strength_bar.set_value(score as f64);
-        strength_label.set_label(&format!("Strength: {}", strength.as_str()));
-    }));
+            strength_bar.set_value(score as f64);
+            strength_label.set_label(&format!("Strength: {}", strength.as_str()));
+        }),
+    );
 
     // Store references
     content.set_data("current_row", current_row.clone());
@@ -541,9 +576,7 @@ fn setup_reset_ui(content: &gtk4::Box, _action_button: &gtk4::Button) {
     ];
 
     for warning in warnings {
-        let row = adw::ActionRow::builder()
-            .title(warning)
-            .build();
+        let row = adw::ActionRow::builder().title(warning).build();
         row.add_prefix(&gtk4::Image::from_icon_name("dialog-warning-symbolic"));
         warning_group.add(&row);
     }
@@ -562,9 +595,7 @@ fn setup_reset_ui(content: &gtk4::Box, _action_button: &gtk4::Button) {
         .build();
     confirm_group.add(&confirm_label);
 
-    let confirm_entry = adw::EntryRow::builder()
-        .title("Confirmation")
-        .build();
+    let confirm_entry = adw::EntryRow::builder().title("Confirmation").build();
     confirm_group.add(&confirm_entry);
 
     content.append(&confirm_group);
@@ -606,7 +637,9 @@ fn handle_setup_action(content: &gtk4::Box) -> Option<MasterPasswordResult> {
     let has_special = password.chars().any(|c| !c.is_alphanumeric());
 
     if !has_lower || !has_upper || !has_digit || !has_special {
-        error_label.set_label("Password must contain uppercase, lowercase, numbers, and special characters");
+        error_label.set_label(
+            "Password must contain uppercase, lowercase, numbers, and special characters",
+        );
         error_label.set_visible(true);
         return None;
     }
@@ -676,7 +709,9 @@ fn handle_change_action(content: &gtk4::Box) -> Option<MasterPasswordResult> {
     let has_special = new_pass.chars().any(|c| !c.is_alphanumeric());
 
     if !has_lower || !has_upper || !has_digit || !has_special {
-        error_label.set_label("New password must contain uppercase, lowercase, numbers, and special characters");
+        error_label.set_label(
+            "New password must contain uppercase, lowercase, numbers, and special characters",
+        );
         error_label.set_visible(true);
         return None;
     }

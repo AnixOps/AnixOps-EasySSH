@@ -74,12 +74,14 @@ impl axum::response::IntoResponse for SsoError {
                 (axum::http::StatusCode::BAD_REQUEST, self.to_string())
             }
             SsoError::RequestExpired => (axum::http::StatusCode::GONE, self.to_string()),
-            SsoError::DatabaseError(_) => {
-                (axum::http::StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
-            }
-            SsoError::Internal(_) => {
-                (axum::http::StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
-            }
+            SsoError::DatabaseError(_) => (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                self.to_string(),
+            ),
+            SsoError::Internal(_) => (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                self.to_string(),
+            ),
         };
 
         let body = axum::Json(serde_json::json!({
@@ -264,9 +266,7 @@ impl SsoService {
 
     #[cfg(feature = "saml-sso")]
     pub async fn generate_saml_login_url(&self, team_id: &str) -> Result<SsoLoginUrl, SsoError> {
-        let config = self
-            .get_team_sso_config_by_type(team_id, "saml")
-            .await?;
+        let config = self.get_team_sso_config_by_type(team_id, "saml").await?;
 
         if !config.is_enabled {
             return Err(SsoError::ProviderDisabled);
@@ -295,7 +295,8 @@ impl SsoService {
 
         // Build SAML AuthnRequest
         let authn_request = self.build_saml_authn_request(&config, &state)?;
-        let encoded_request = base64::engine::general_purpose::STANDARD.encode(authn_request.as_bytes());
+        let encoded_request =
+            base64::engine::general_purpose::STANDARD.encode(authn_request.as_bytes());
         let url_encoded = urlencoding::encode(&encoded_request);
 
         Ok(SsoLoginUrl {
@@ -309,12 +310,18 @@ impl SsoService {
 
     #[cfg(not(feature = "saml-sso"))]
     pub async fn generate_saml_login_url(&self, _team_id: &str) -> Result<SsoLoginUrl, SsoError> {
-        Err(SsoError::Internal("SAML SSO not enabled. Build with --features saml-sso".to_string()))
+        Err(SsoError::Internal(
+            "SAML SSO not enabled. Build with --features saml-sso".to_string(),
+        ))
     }
 
     #[cfg(feature = "saml-sso")]
     /// Build SAML AuthnRequest XML
-    fn build_saml_authn_request(&self, config: &SsoConfig, request_id: &str) -> Result<String, SsoError> {
+    fn build_saml_authn_request(
+        &self,
+        config: &SsoConfig,
+        request_id: &str,
+    ) -> Result<String, SsoError> {
         let issue_instant = Utc::now().to_rfc3339();
 
         let sp_entity_id = config
@@ -327,7 +334,10 @@ impl SsoService {
             .config
             .get("sp_acs_url")
             .and_then(|v| v.as_str())
-            .unwrap_or(&format!("https://easyssh.io/sso/saml/{}/acs", config.team_id));
+            .unwrap_or(&format!(
+                "https://easyssh.io/sso/saml/{}/acs",
+                config.team_id
+            ));
 
         let idp_sso_url = config
             .config
@@ -353,12 +363,7 @@ impl SsoService {
     <saml:Issuer>{}</saml:Issuer>
     <samlp:NameIDPolicy Format="{}" AllowCreate="true"/>
 </samlp:AuthnRequest>"#,
-            request_id,
-            issue_instant,
-            idp_sso_url,
-            sp_acs_url,
-            sp_entity_id,
-            name_id_format
+            request_id, issue_instant, idp_sso_url, sp_acs_url, sp_entity_id, name_id_format
         );
 
         Ok(request)
@@ -371,9 +376,7 @@ impl SsoService {
         saml_response: &str,
         relay_state: Option<&str>,
     ) -> Result<LoginResponse, SsoError> {
-        let config = self
-            .get_team_sso_config_by_type(team_id, "saml")
-            .await?;
+        let config = self.get_team_sso_config_by_type(team_id, "saml").await?;
 
         if !config.is_enabled {
             return Err(SsoError::ProviderDisabled);
@@ -385,7 +388,8 @@ impl SsoService {
         }
 
         // 1. Base64 decode SAML response
-        let decoded_response = base64::engine::general_purpose::STANDARD.decode(saml_response)
+        let decoded_response = base64::engine::general_purpose::STANDARD
+            .decode(saml_response)
             .map_err(|e| SsoError::InvalidSamlResponse(format!("Base64 decode failed: {}", e)))?;
 
         // 2. Parse SAML Response XML
@@ -397,7 +401,9 @@ impl SsoService {
             .config
             .get("certificate")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| SsoError::InvalidSamlResponse("IdP certificate not configured".to_string()))?;
+            .ok_or_else(|| {
+                SsoError::InvalidSamlResponse("IdP certificate not configured".to_string())
+            })?;
 
         // Parse and validate SAML response
         let user_info = self
@@ -463,7 +469,9 @@ impl SsoService {
         _saml_response: &str,
         _relay_state: Option<&str>,
     ) -> Result<LoginResponse, SsoError> {
-        Err(SsoError::Internal("SAML SSO not enabled. Build with --features saml-sso".to_string()))
+        Err(SsoError::Internal(
+            "SAML SSO not enabled. Build with --features saml-sso".to_string(),
+        ))
     }
 
     #[cfg(feature = "saml-sso")]
@@ -491,8 +499,11 @@ impl SsoService {
                 .replace("-----BEGIN CERTIFICATE-----", "")
                 .replace("-----END CERTIFICATE-----", "")
                 .replace('\n', "");
-            let cert_bytes = base64::engine::general_purpose::STANDARD.decode(&cert_pem)
-                .map_err(|e| SsoError::SamlSignatureVerificationFailed(format!("Invalid certificate: {}", e)))?;
+            let cert_bytes = base64::engine::general_purpose::STANDARD
+                .decode(&cert_pem)
+                .map_err(|e| {
+                    SsoError::SamlSignatureVerificationFailed(format!("Invalid certificate: {}", e))
+                })?;
 
             // Note: Full signature verification requires xmlsec feature or RSA verification
             // For now, we do basic validation. In production, enable the xmlsec feature.
@@ -500,7 +511,10 @@ impl SsoService {
             {
                 use samael::traits::VerifySignature;
                 if let Err(e) = response.verify_signature(&cert_bytes) {
-                    return Err(SsoError::SamlSignatureVerificationFailed(format!("{:?}", e)));
+                    return Err(SsoError::SamlSignatureVerificationFailed(format!(
+                        "{:?}",
+                        e
+                    )));
                 }
             }
 
@@ -552,17 +566,16 @@ impl SsoService {
             for stmt in attr_statements {
                 for attr in &stmt.attributes {
                     let name = attr.name.as_deref().unwrap_or("");
-                    let values: Vec<String> = attr
-                        .values
-                        .iter()
-                        .filter_map(|v| v.value.clone())
-                        .collect();
+                    let values: Vec<String> =
+                        attr.values.iter().filter_map(|v| v.value.clone()).collect();
 
                     match name {
-                        "firstName" | "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname" => {
+                        "firstName"
+                        | "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname" => {
                             first_name = values.first().cloned();
                         }
-                        "lastName" | "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname" => {
+                        "lastName"
+                        | "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname" => {
                             last_name = values.first().cloned();
                         }
                         "groups" | "http://schemas.xmlsoap.org/claims/Group" => {
@@ -600,7 +613,9 @@ impl SsoService {
         _idp_certificate: &str,
         _config: &SsoConfig,
     ) -> Result<SsoUserInfo, SsoError> {
-        Err(SsoError::Internal("SAML SSO not enabled. Build with --features saml-sso".to_string()))
+        Err(SsoError::Internal(
+            "SAML SSO not enabled. Build with --features saml-sso".to_string(),
+        ))
     }
 
     #[cfg(feature = "saml-sso")]
@@ -634,7 +649,9 @@ impl SsoService {
                 .map_err(|e| SsoError::InvalidSamlResponse(format!("Invalid NotOnOrAfter: {}", e)))?
                 .with_timezone(&chrono::Utc);
             if now >= not_on_or_after_time {
-                return Err(SsoError::InvalidSamlResponse("Assertion has expired".to_string()));
+                return Err(SsoError::InvalidSamlResponse(
+                    "Assertion has expired".to_string(),
+                ));
             }
         }
 
@@ -662,14 +679,14 @@ impl SsoService {
         _assertion: &(),
         _expected_audience: &str,
     ) -> Result<(), SsoError> {
-        Err(SsoError::Internal("SAML SSO not enabled. Build with --features saml-sso".to_string()))
+        Err(SsoError::Internal(
+            "SAML SSO not enabled. Build with --features saml-sso".to_string(),
+        ))
     }
 
     #[cfg(feature = "saml-sso")]
     pub async fn generate_saml_metadata(&self, team_id: &str) -> Result<String, SsoError> {
-        let config = self
-            .get_team_sso_config_by_type(team_id, "saml")
-            .await?;
+        let config = self.get_team_sso_config_by_type(team_id, "saml").await?;
 
         let sp_entity_id = config
             .config
@@ -701,15 +718,15 @@ impl SsoService {
 
     #[cfg(not(feature = "saml-sso"))]
     pub async fn generate_saml_metadata(&self, _team_id: &str) -> Result<String, SsoError> {
-        Err(SsoError::Internal("SAML SSO not enabled. Build with --features saml-sso".to_string()))
+        Err(SsoError::Internal(
+            "SAML SSO not enabled. Build with --features saml-sso".to_string(),
+        ))
     }
 
     // ============== OIDC Methods ==============
 
     pub async fn generate_oidc_login_url(&self, team_id: &str) -> Result<SsoLoginUrl, SsoError> {
-        let config = self
-            .get_team_sso_config_by_type(team_id, "oidc")
-            .await?;
+        let config = self.get_team_sso_config_by_type(team_id, "oidc").await?;
 
         if !config.is_enabled {
             return Err(SsoError::ProviderDisabled);
@@ -719,7 +736,9 @@ impl SsoService {
             .config
             .get("authorization_url")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| SsoError::InvalidOidcCallback("Authorization URL not configured".to_string()))?;
+            .ok_or_else(|| {
+                SsoError::InvalidOidcCallback("Authorization URL not configured".to_string())
+            })?;
 
         let client_id = config
             .config
@@ -731,7 +750,9 @@ impl SsoService {
             .config
             .get("redirect_url")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| SsoError::InvalidOidcCallback("Redirect URL not configured".to_string()))?;
+            .ok_or_else(|| {
+                SsoError::InvalidOidcCallback("Redirect URL not configured".to_string())
+            })?;
 
         let scopes = config
             .config
@@ -778,7 +799,10 @@ impl SsoService {
             .map_err(|e| SsoError::Internal(e.to_string()))?
             .insert(state.clone(), pending);
 
-        Ok(SsoLoginUrl { url: auth_url, state })
+        Ok(SsoLoginUrl {
+            url: auth_url,
+            state,
+        })
     }
 
     pub async fn process_oidc_callback(
@@ -787,9 +811,7 @@ impl SsoService {
         code: &str,
         state: Option<&str>,
     ) -> Result<LoginResponse, SsoError> {
-        let config = self
-            .get_team_sso_config_by_type(team_id, "oidc")
-            .await?;
+        let config = self.get_team_sso_config_by_type(team_id, "oidc").await?;
 
         if !config.is_enabled {
             return Err(SsoError::ProviderDisabled);
@@ -800,7 +822,10 @@ impl SsoService {
         let pending = self.validate_state(state)?;
 
         // Extract PKCE verifier
-        let pkce_verifier = pending.pkce_verifier.as_ref().ok_or(SsoError::PkceVerificationFailed)?;
+        let pkce_verifier = pending
+            .pkce_verifier
+            .as_ref()
+            .ok_or(SsoError::PkceVerificationFailed)?;
 
         // Build OIDC config
         let oidc_config = self.build_oidc_config(&config).await?;
@@ -892,7 +917,9 @@ impl SsoService {
             .config
             .get("redirect_url")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| SsoError::InvalidOidcCallback("Redirect URL not configured".to_string()))?
+            .ok_or_else(|| {
+                SsoError::InvalidOidcCallback("Redirect URL not configured".to_string())
+            })?
             .to_string();
 
         let token_endpoint = config
@@ -943,18 +970,10 @@ impl SsoService {
         pkce_verifier: &str,
         config: &OidcConfig,
     ) -> Result<OidcTokenResponse, SsoError> {
-        let client_id = config
-            .client_id
-            .clone();
-        let client_secret = config
-            .client_secret
-            .clone();
-        let redirect_url = config
-            .redirect_uri
-            .clone();
-        let token_endpoint = config
-            .token_endpoint
-            .clone();
+        let client_id = config.client_id.clone();
+        let client_secret = config.client_secret.clone();
+        let redirect_url = config.redirect_uri.clone();
+        let token_endpoint = config.token_endpoint.clone();
 
         let mut params = std::collections::HashMap::new();
         params.insert("grant_type", "authorization_code");
@@ -971,7 +990,9 @@ impl SsoService {
             .form(&params)
             .send()
             .await
-            .map_err(|e| SsoError::OidcTokenExchangeFailed(format!("HTTP request failed: {}", e)))?;
+            .map_err(|e| {
+                SsoError::OidcTokenExchangeFailed(format!("HTTP request failed: {}", e))
+            })?;
 
         if !http_response.status().is_success() {
             let error_text = http_response.text().await.unwrap_or_default();
@@ -1000,23 +1021,36 @@ impl SsoService {
         // In production, use a proper JWT verification library
         let id_token_parts: Vec<&str> = token_response.id_token.split('.').collect();
         if id_token_parts.len() != 3 {
-            return Err(SsoError::OidcTokenValidationFailed("Invalid ID token format".to_string()));
+            return Err(SsoError::OidcTokenValidationFailed(
+                "Invalid ID token format".to_string(),
+            ));
         }
 
         // Decode payload (middle part)
         let payload = id_token_parts[1];
-        let decoded_payload = base64::engine::general_purpose::STANDARD.decode(payload)
-            .map_err(|e| SsoError::OidcTokenValidationFailed(format!("Failed to decode token: {}", e)))?;
-        let claims: serde_json::Value = serde_json::from_slice(&decoded_payload)
-            .map_err(|e| SsoError::OidcTokenValidationFailed(format!("Failed to parse claims: {}", e)))?;
+        let decoded_payload = base64::engine::general_purpose::STANDARD
+            .decode(payload)
+            .map_err(|e| {
+                SsoError::OidcTokenValidationFailed(format!("Failed to decode token: {}", e))
+            })?;
+        let claims: serde_json::Value = serde_json::from_slice(&decoded_payload).map_err(|e| {
+            SsoError::OidcTokenValidationFailed(format!("Failed to parse claims: {}", e))
+        })?;
 
         // Extract user information
         let email = claims
             .get("email")
             .and_then(|e| e.as_str())
             .map(|s| s.to_string())
-            .or_else(|| claims.get("sub").and_then(|s| s.as_str()).map(|s| s.to_string()))
-            .ok_or_else(|| SsoError::OidcTokenValidationFailed("No email or subject in ID token".to_string()))?;
+            .or_else(|| {
+                claims
+                    .get("sub")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string())
+            })
+            .ok_or_else(|| {
+                SsoError::OidcTokenValidationFailed("No email or subject in ID token".to_string())
+            })?;
 
         let sso_id = claims
             .get("sub")
@@ -1040,13 +1074,11 @@ impl SsoService {
             .get("name")
             .and_then(|n| n.as_str())
             .map(|s| s.to_string())
-            .or_else(|| {
-                match (first_name.as_ref(), last_name.as_ref()) {
-                    (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
-                    (Some(f), None) => Some(f.clone()),
-                    (None, Some(l)) => Some(l.clone()),
-                    (None, None) => None,
-                }
+            .or_else(|| match (first_name.as_ref(), last_name.as_ref()) {
+                (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+                (Some(f), None) => Some(f.clone()),
+                (None, Some(l)) => Some(l.clone()),
+                (None, None) => None,
             })
             .unwrap_or_else(|| email.split('@').next().unwrap_or("User").to_string());
 
@@ -1104,7 +1136,7 @@ impl SsoService {
     ) -> Result<User, SsoError> {
         // Try to find existing user by SSO provider and ID
         let existing_by_sso: Option<User> = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE sso_provider = ? AND sso_id = ? AND is_active = TRUE"
+            "SELECT * FROM users WHERE sso_provider = ? AND sso_id = ? AND is_active = TRUE",
         )
         .bind(sso_provider)
         .bind(sso_id)
@@ -1130,13 +1162,15 @@ impl SsoService {
 
         if let Some(mut user) = existing_by_email {
             // Link SSO to existing user
-            sqlx::query("UPDATE users SET sso_provider = ?, sso_id = ?, last_login_at = ? WHERE id = ?")
-                .bind(sso_provider)
-                .bind(sso_id)
-                .bind(Utc::now())
-                .bind(&user.id)
-                .execute(&self.db)
-                .await?;
+            sqlx::query(
+                "UPDATE users SET sso_provider = ?, sso_id = ?, last_login_at = ? WHERE id = ?",
+            )
+            .bind(sso_provider)
+            .bind(sso_id)
+            .bind(Utc::now())
+            .bind(&user.id)
+            .execute(&self.db)
+            .await?;
             user.sso_provider = Some(sso_provider.to_string());
             user.sso_id = Some(sso_id.to_string());
             return Ok(user);
@@ -1144,7 +1178,7 @@ impl SsoService {
 
         // Check if auto-provisioning is enabled
         let auto_provision = sqlx::query_scalar::<_, bool>(
-            "SELECT COALESCE(auto_provision_users, TRUE) FROM teams WHERE id = ?"
+            "SELECT COALESCE(auto_provision_users, TRUE) FROM teams WHERE id = ?",
         )
         .bind(team_id)
         .fetch_one(&self.db)
@@ -1178,7 +1212,7 @@ impl SsoService {
         // Auto-join team
         let member_id = Uuid::new_v4().to_string();
         let default_role = sqlx::query_scalar::<_, String>(
-            "SELECT COALESCE(default_sso_role, 'member') FROM teams WHERE id = ?"
+            "SELECT COALESCE(default_sso_role, 'member') FROM teams WHERE id = ?",
         )
         .bind(team_id)
         .fetch_one(&self.db)

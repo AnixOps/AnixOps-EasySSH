@@ -361,9 +361,12 @@ impl MacroAction {
             },
         };
 
-        WorkflowStep::new(step_type, self.description.as_deref().unwrap_or("Recorded Action"))
-            .with_description(&format!("Recorded: {:?}", self.action_type))
-            .with_config(config)
+        WorkflowStep::new(
+            step_type,
+            self.description.as_deref().unwrap_or("Recorded Action"),
+        )
+        .with_description(&format!("Recorded: {:?}", self.action_type))
+        .with_config(config)
     }
 }
 

@@ -4,7 +4,9 @@ use eframe::egui;
 use egui::{Color32, Frame, RichText, ScrollArea, Ui, Vec2};
 use std::sync::{Arc, Mutex};
 
-use easyssh_core::audit::{AuditAction, AuditEntry, AuditFilter, AuditLogger, AuditResult, AuditTarget};
+use easyssh_core::audit::{
+    AuditAction, AuditEntry, AuditFilter, AuditLogger, AuditResult, AuditTarget,
+};
 
 /// Audit Log UI Panel for viewing and filtering operation records
 pub struct AuditLogPanel {
@@ -68,17 +70,17 @@ impl AuditLogPanel {
         }
     }
 
-    pub fn ui(
-        &mut self,
-        ui: &mut Ui,
-        audit_logger: &Arc<Mutex<AuditLogger>>,
-    ) -> AuditLogResponse {
+    pub fn ui(&mut self, ui: &mut Ui, audit_logger: &Arc<Mutex<AuditLogger>>) -> AuditLogResponse {
         let mut response = AuditLogResponse::default();
 
         // Header
         ui.horizontal(|ui| {
             ui.heading("📋 Audit Log");
-            ui.label(RichText::new("Operation records and activity tracking").size(12.0).color(Color32::GRAY));
+            ui.label(
+                RichText::new("Operation records and activity tracking")
+                    .size(12.0)
+                    .color(Color32::GRAY),
+            );
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("📥 Export").clicked() {
@@ -133,20 +135,50 @@ impl AuditLogPanel {
         ui.horizontal_wrapped(|ui| {
             // Action filter
             ui.label("Action:");
-            let mut action_text = self.filter_action.map_or("All".to_string(), |a| format!("{:?}", a));
+            let mut action_text = self
+                .filter_action
+                .map_or("All".to_string(), |a| format!("{:?}", a));
             egui::ComboBox::from_id_source("audit_action_filter")
                 .selected_text(action_text)
                 .width(120.0)
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.filter_action, None, "All");
                     ui.selectable_value(&mut self.filter_action, Some(AuditAction::Login), "Login");
-                    ui.selectable_value(&mut self.filter_action, Some(AuditAction::Logout), "Logout");
-                    ui.selectable_value(&mut self.filter_action, Some(AuditAction::ServerConnect), "Server Connect");
-                    ui.selectable_value(&mut self.filter_action, Some(AuditAction::ServerCreate), "Server Create");
-                    ui.selectable_value(&mut self.filter_action, Some(AuditAction::ServerUpdate), "Server Update");
-                    ui.selectable_value(&mut self.filter_action, Some(AuditAction::ServerDelete), "Server Delete");
-                    ui.selectable_value(&mut self.filter_action, Some(AuditAction::KeyImport), "Key Import");
-                    ui.selectable_value(&mut self.filter_action, Some(AuditAction::WorkflowExecute), "Workflow Execute");
+                    ui.selectable_value(
+                        &mut self.filter_action,
+                        Some(AuditAction::Logout),
+                        "Logout",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_action,
+                        Some(AuditAction::ServerConnect),
+                        "Server Connect",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_action,
+                        Some(AuditAction::ServerCreate),
+                        "Server Create",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_action,
+                        Some(AuditAction::ServerUpdate),
+                        "Server Update",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_action,
+                        Some(AuditAction::ServerDelete),
+                        "Server Delete",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_action,
+                        Some(AuditAction::KeyImport),
+                        "Key Import",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_action,
+                        Some(AuditAction::WorkflowExecute),
+                        "Workflow Execute",
+                    );
                 });
 
             ui.add_space(16.0);
@@ -154,13 +186,28 @@ impl AuditLogPanel {
             // Result filter
             ui.label("Result:");
             egui::ComboBox::from_id_source("audit_result_filter")
-                .selected_text(self.filter_result.map_or("All".to_string(), |r| format!("{:?}", r)))
+                .selected_text(
+                    self.filter_result
+                        .map_or("All".to_string(), |r| format!("{:?}", r)),
+                )
                 .width(100.0)
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.filter_result, None, "All");
-                    ui.selectable_value(&mut self.filter_result, Some(AuditResult::Success), "Success");
-                    ui.selectable_value(&mut self.filter_result, Some(AuditResult::Failure), "Failure");
-                    ui.selectable_value(&mut self.filter_result, Some(AuditResult::Denied), "Denied");
+                    ui.selectable_value(
+                        &mut self.filter_result,
+                        Some(AuditResult::Success),
+                        "Success",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_result,
+                        Some(AuditResult::Failure),
+                        "Failure",
+                    );
+                    ui.selectable_value(
+                        &mut self.filter_result,
+                        Some(AuditResult::Denied),
+                        "Denied",
+                    );
                 });
 
             ui.add_space(16.0);
@@ -189,7 +236,10 @@ impl AuditLogPanel {
                     ui.selectable_value(&mut self.sort_by, SortBy::Result, "Result");
                 });
 
-            if ui.button(if self.sort_descending { "↓" } else { "↑" }).clicked() {
+            if ui
+                .button(if self.sort_descending { "↓" } else { "↑" })
+                .clicked()
+            {
                 self.sort_descending = !self.sort_descending;
             }
         });
@@ -197,7 +247,8 @@ impl AuditLogPanel {
 
     fn render_entry_list(&mut self, ui: &mut Ui, audit_logger: &Arc<Mutex<AuditLogger>>) {
         let logger = audit_logger.lock().unwrap();
-        let entries: Vec<AuditEntry> = logger.get_all()
+        let entries: Vec<AuditEntry> = logger
+            .get_all()
             .iter()
             .filter(|e| self.matches_filters(e))
             .cloned()
@@ -232,7 +283,12 @@ impl AuditLogPanel {
         let start_idx = self.current_page * self.items_per_page;
         let end_idx = ((start_idx + self.items_per_page).min(total_entries)) as usize;
 
-        for (idx, entry) in entries.iter().enumerate().skip(start_idx).take(end_idx - start_idx) {
+        for (idx, entry) in entries
+            .iter()
+            .enumerate()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+        {
             self.render_entry_row(ui, entry, idx);
         }
 
@@ -241,7 +297,12 @@ impl AuditLogPanel {
             ui.separator();
             let total_pages = (total_entries + self.items_per_page - 1) / self.items_per_page;
             ui.horizontal(|ui| {
-                ui.label(format!("Page {} of {} ({} entries)", self.current_page + 1, total_pages, total_entries));
+                ui.label(format!(
+                    "Page {} of {} ({} entries)",
+                    self.current_page + 1,
+                    total_pages,
+                    total_entries
+                ));
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("→").clicked() && self.current_page < total_pages - 1 {
@@ -256,7 +317,8 @@ impl AuditLogPanel {
     }
 
     fn render_entry_row(&mut self, ui: &mut Ui, entry: &AuditEntry, _idx: usize) {
-        let is_selected = self.selected_entry.as_ref().map(|e| e.timestamp) == Some(entry.timestamp);
+        let is_selected =
+            self.selected_entry.as_ref().map(|e| e.timestamp) == Some(entry.timestamp);
 
         let bg_color = if is_selected {
             Color32::from_rgb(40, 60, 90)
@@ -276,9 +338,11 @@ impl AuditLogPanel {
 
             let row_response = ui.horizontal(|ui| {
                 // Timestamp
-                ui.label(RichText::new(entry.timestamp.format("%Y-%m-%d %H:%M:%S").to_string())
-                    .size(12.0)
-                    .monospace());
+                ui.label(
+                    RichText::new(entry.timestamp.format("%Y-%m-%d %H:%M:%S").to_string())
+                        .size(12.0)
+                        .monospace(),
+                );
                 ui.add_space(20.0);
 
                 // Action
@@ -289,9 +353,15 @@ impl AuditLogPanel {
                 // Actor
                 let actor_text = match &entry.actor {
                     easyssh_core::audit::Actor::User { user_id, .. } => user_id.clone(),
-                    easyssh_core::audit::Actor::System { process_id, .. } => format!("system:{}", process_id),
-                    easyssh_core::audit::Actor::Api { api_key_id, .. } => format!("api:{}", api_key_id),
-                    easyssh_core::audit::Actor::Automation { workflow_id, .. } => format!("auto:{}", workflow_id),
+                    easyssh_core::audit::Actor::System { process_id, .. } => {
+                        format!("system:{}", process_id)
+                    }
+                    easyssh_core::audit::Actor::Api { api_key_id, .. } => {
+                        format!("api:{}", api_key_id)
+                    }
+                    easyssh_core::audit::Actor::Automation { workflow_id, .. } => {
+                        format!("auto:{}", workflow_id)
+                    }
                 };
                 ui.label(RichText::new(actor_text).size(12.0));
                 ui.add_space(20.0);
@@ -306,7 +376,11 @@ impl AuditLogPanel {
                     AuditTarget::System => "system".to_string(),
                     _ => "unknown".to_string(),
                 };
-                ui.label(RichText::new(target_text).size(12.0).color(Color32::LIGHT_GRAY));
+                ui.label(
+                    RichText::new(target_text)
+                        .size(12.0)
+                        .color(Color32::LIGHT_GRAY),
+                );
                 ui.add_space(20.0);
 
                 // Result indicator
@@ -367,10 +441,18 @@ impl AuditLogPanel {
                 // Actor details
                 ui.label(RichText::new("Actor:").strong());
                 match &entry.actor {
-                    easyssh_core::audit::Actor::User { user_id, username, ip_address, .. } => {
+                    easyssh_core::audit::Actor::User {
+                        user_id,
+                        username,
+                        ip_address,
+                        ..
+                    } => {
                         ui.label(format!("  Type: User"));
                         ui.label(format!("  ID: {}", user_id));
-                        ui.label(format!("  Username: {}", username.as_deref().unwrap_or("N/A")));
+                        ui.label(format!(
+                            "  Username: {}",
+                            username.as_deref().unwrap_or("N/A")
+                        ));
                         ui.label(format!("  IP: {}", ip_address.as_deref().unwrap_or("N/A")));
                     }
                     easyssh_core::audit::Actor::System { process_id, .. } => {
@@ -476,7 +558,9 @@ impl AuditLogPanel {
                 easyssh_core::audit::Actor::User { user_id, .. } => user_id.to_lowercase(),
                 easyssh_core::audit::Actor::System { process_id, .. } => process_id.to_lowercase(),
                 easyssh_core::audit::Actor::Api { api_key_id, .. } => api_key_id.to_lowercase(),
-                easyssh_core::audit::Actor::Automation { workflow_id, .. } => workflow_id.to_lowercase(),
+                easyssh_core::audit::Actor::Automation { workflow_id, .. } => {
+                    workflow_id.to_lowercase()
+                }
             };
 
             let target_text = match &entry.target {

@@ -239,9 +239,10 @@ impl SearchService {
 
     /// Rebuild the search index from database
     pub fn rebuild_index(&self) -> Result<(), LiteError> {
-        let mut index = self.index.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock search index".to_string())
-        })?;
+        let mut index = self
+            .index
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock search index".to_string()))?;
 
         index.clear();
 
@@ -250,10 +251,7 @@ impl SearchService {
         let host_tags = self.load_all_host_tags()?;
 
         for host in hosts {
-            let tags = host_tags
-                .get(&host.id)
-                .cloned()
-                .unwrap_or_default();
+            let tags = host_tags.get(&host.id).cloned().unwrap_or_default();
 
             let mut search_terms = vec![
                 host.name.to_lowercase(),
@@ -262,9 +260,10 @@ impl SearchService {
             ];
 
             // Add pinyin variants for Chinese search
-            let mut pinyin_cache = self.pinyin_cache.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock pinyin cache".to_string())
-            })?;
+            let mut pinyin_cache = self
+                .pinyin_cache
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock pinyin cache".to_string()))?;
             search_terms.push(pinyin_cache.to_pinyin(&host.name));
             search_terms.push(pinyin_cache.to_pinyin(&host.host));
             drop(pinyin_cache);
@@ -289,9 +288,10 @@ impl SearchService {
         }
 
         // Update last index time
-        let mut last_update = self.last_index_update.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock last update time".to_string())
-        })?;
+        let mut last_update = self
+            .last_index_update
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock last update time".to_string()))?;
         *last_update = Instant::now();
 
         Ok(())
@@ -312,9 +312,10 @@ impl SearchService {
 
     /// Check if index needs refresh (debounced)
     fn should_refresh_index(&self) -> Result<bool, LiteError> {
-        let last_update = self.last_index_update.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock last update time".to_string())
-        })?;
+        let last_update = self
+            .last_index_update
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock last update time".to_string()))?;
 
         Ok(last_update.elapsed() > self.debounce_duration)
     }
@@ -332,9 +333,10 @@ impl SearchService {
         // Ensure index is up to date
         self.refresh_index_if_needed()?;
 
-        let index = self.index.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock search index".to_string())
-        })?;
+        let index = self
+            .index
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock search index".to_string()))?;
 
         let mut results: Vec<SearchResult> = Vec::new();
 
@@ -440,9 +442,10 @@ impl SearchService {
 
         // Pinyin pattern (if keyword looks like pinyin)
         if keyword_lower.chars().all(|c| c.is_ascii_alphabetic()) {
-            let pinyin_cache = self.pinyin_cache.lock().map_err(|_| {
-                LiteError::Internal("Failed to lock pinyin cache".to_string())
-            })?;
+            let pinyin_cache = self
+                .pinyin_cache
+                .lock()
+                .map_err(|_| LiteError::Internal("Failed to lock pinyin cache".to_string()))?;
             // Add pinyin matching capability
             drop(pinyin_cache);
         }
@@ -535,14 +538,17 @@ impl SearchService {
     /// Highlight matches in text using markdown-style emphasis
     fn highlight_matches(&self, text: &str, pattern: &Regex) -> Result<String, LiteError> {
         // Replace matches with **matched_text**
-        let result = pattern.replace_all(text, |caps: &regex::Captures| {
-            format!("**{}**", &caps[0])
-        });
+        let result =
+            pattern.replace_all(text, |caps: &regex::Captures| format!("**{}**", &caps[0]));
         Ok(result.to_string())
     }
 
     /// Sort results based on query parameters
-    fn sort_results(&self, results: &mut [SearchResult], query: &SearchQuery) -> Result<(), LiteError> {
+    fn sort_results(
+        &self,
+        results: &mut [SearchResult],
+        query: &SearchQuery,
+    ) -> Result<(), LiteError> {
         match query.sort_by {
             SortBy::Name => {
                 results.sort_by(|a, b| {
@@ -593,7 +599,10 @@ impl SearchService {
                 } else {
                     // Fall back to score-based sorting for custom order without explicit order
                     results.sort_by(|a, b| {
-                        let cmp = b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal);
+                        let cmp = b
+                            .score
+                            .partial_cmp(&a.score)
+                            .unwrap_or(std::cmp::Ordering::Equal);
                         match query.sort_order {
                             SortOrder::Asc => cmp.reverse(),
                             SortOrder::Desc => cmp,
@@ -608,9 +617,10 @@ impl SearchService {
 
     /// Add search to history
     fn add_to_history(&self, query: &SearchQuery, result_count: usize) -> Result<(), LiteError> {
-        let mut history = self.history.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock search history".to_string())
-        })?;
+        let mut history = self
+            .history
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock search history".to_string()))?;
 
         let entry = SearchHistoryEntry {
             id: uuid::Uuid::new_v4().to_string(),
@@ -632,9 +642,10 @@ impl SearchService {
 
     /// Get search history
     pub fn get_search_history(&self, limit: usize) -> Result<Vec<SearchHistoryEntry>, LiteError> {
-        let history = self.history.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock search history".to_string())
-        })?;
+        let history = self
+            .history
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock search history".to_string()))?;
 
         let result: Vec<_> = history.iter().take(limit).cloned().collect();
         Ok(result)
@@ -642,9 +653,10 @@ impl SearchService {
 
     /// Clear search history
     pub fn clear_search_history(&self) -> Result<(), LiteError> {
-        let mut history = self.history.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock search history".to_string())
-        })?;
+        let mut history = self
+            .history
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock search history".to_string()))?;
 
         history.clear();
         Ok(())
@@ -658,9 +670,10 @@ impl SearchService {
 
         self.refresh_index_if_needed()?;
 
-        let index = self.index.lock().map_err(|_| {
-            LiteError::Internal("Failed to lock search index".to_string())
-        })?;
+        let index = self
+            .index
+            .lock()
+            .map_err(|_| LiteError::Internal("Failed to lock search index".to_string()))?;
 
         let partial_lower = partial.to_lowercase();
         let mut suggestions: HashSet<String> = HashSet::new();

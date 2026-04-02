@@ -52,7 +52,10 @@ impl fmt::Display for DatabaseError {
             DatabaseError::NotFound { entity, id } => {
                 write!(f, "{} not found: {}", entity, id)
             }
-            DatabaseError::ConstraintViolation { constraint, message } => {
+            DatabaseError::ConstraintViolation {
+                constraint,
+                message,
+            } => {
                 write!(f, "Constraint violation ({}): {}", constraint, message)
             }
             DatabaseError::Transaction(msg) => write!(f, "Transaction error: {}", msg),

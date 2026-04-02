@@ -309,7 +309,9 @@ impl EasySSHErrors {
     /// Get the error severity
     pub fn severity(&self) -> ErrorSeverity {
         match self {
-            EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword) => ErrorSeverity::Critical,
+            EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword) => {
+                ErrorSeverity::Critical
+            }
             EasySSHErrors::Authentication(_) => ErrorSeverity::Critical,
             EasySSHErrors::PermissionDenied(_) => ErrorSeverity::Critical,
             EasySSHErrors::Ssh(CoreSshError::AuthFailed { .. }) => ErrorSeverity::Critical,
@@ -351,10 +353,9 @@ impl EasySSHErrors {
                 ("port", port.to_string()),
                 ("message", message.clone()),
             ],
-            EasySSHErrors::Ssh(CoreSshError::AuthFailed { host, username }) => vec![
-                ("host", host.clone()),
-                ("username", username.clone()),
-            ],
+            EasySSHErrors::Ssh(CoreSshError::AuthFailed { host, username }) => {
+                vec![("host", host.clone()), ("username", username.clone())]
+            }
             EasySSHErrors::Ssh(CoreSshError::SessionNotFound(id))
             | EasySSHErrors::Ssh(CoreSshError::SessionDisconnected(id)) => {
                 vec![("session_id", id.clone())]
@@ -366,10 +367,9 @@ impl EasySSHErrors {
             EasySSHErrors::Authentication(msg) => vec![("auth_msg", msg.clone())],
             EasySSHErrors::PermissionDenied(msg) => vec![("permission_msg", msg.clone())],
             EasySSHErrors::Internal(msg) => vec![("internal_msg", msg.clone())],
-            EasySSHErrors::FeatureNotAvailable { feature, edition } => vec![
-                ("feature", feature.clone()),
-                ("edition", edition.clone()),
-            ],
+            EasySSHErrors::FeatureNotAvailable { feature, edition } => {
+                vec![("feature", feature.clone()), ("edition", edition.clone())]
+            }
             _ => vec![],
         }
     }
@@ -422,9 +422,7 @@ impl From<LiteError> for EasySSHErrors {
             LiteError::Database(msg) => EasySSHErrors::Database(CoreDatabaseError::Connection(msg)),
             LiteError::Crypto(msg) => EasySSHErrors::Crypto(CoreCryptoError::Encryption(msg)),
             LiteError::Ssh(msg) => EasySSHErrors::Ssh(CoreSshError::CommandFailed(msg)),
-            LiteError::Io(msg) => {
-                EasySSHErrors::Io(std::io::Error::new(std::io::ErrorKind::Other, msg))
-            }
+            LiteError::Io(msg) => EasySSHErrors::Io(std::io::Error::other(msg)),
             LiteError::Config(msg) => EasySSHErrors::Config(msg),
             LiteError::InvalidMasterPassword => {
                 EasySSHErrors::Crypto(CoreCryptoError::InvalidMasterPassword)
@@ -442,7 +440,9 @@ impl From<LiteError> for EasySSHErrors {
             LiteError::SshAuthFailed { host, username } => {
                 EasySSHErrors::Ssh(CoreSshError::AuthFailed { host, username })
             }
-            LiteError::SshSessionNotFound(id) => EasySSHErrors::Ssh(CoreSshError::SessionNotFound(id)),
+            LiteError::SshSessionNotFound(id) => {
+                EasySSHErrors::Ssh(CoreSshError::SessionNotFound(id))
+            }
             LiteError::SshSessionDisconnected(id) => {
                 EasySSHErrors::Ssh(CoreSshError::SessionDisconnected(id))
             }
@@ -465,7 +465,7 @@ trait CustomJsonError {
 }
 
 impl CustomJsonError for serde_json::Error {
-    fn custom<T: fmt::Display>(msg: T) -> Self {
+    fn custom<T: fmt::Display>(_msg: T) -> Self {
         serde_json::from_str::<serde_json::Value>("").unwrap_err()
     }
 }

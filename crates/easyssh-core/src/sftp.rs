@@ -2425,7 +2425,7 @@ mod tests {
         let stats = queue.stats().await;
         assert_eq!(stats.total, 5);
         assert_eq!(stats.completed, 2); // Cancelled items count as completed
-        assert_eq!(stats.pending, 3);   // 1 paused + 2 pending
+        assert_eq!(stats.pending, 3); // 1 paused + 2 pending
 
         // Cleanup completed
         let cleaned = queue.cleanup_completed().await;
@@ -2495,7 +2495,11 @@ mod tests {
                 TransferOptions::default(),
                 None,
             );
-            assert_eq!(item.progress.filename, expected, "Failed for path: {}", path);
+            assert_eq!(
+                item.progress.filename, expected,
+                "Failed for path: {}",
+                path
+            );
         }
     }
 
@@ -2633,7 +2637,9 @@ mod tests {
 
     #[test]
     fn test_enhanced_connection_state_debug() {
-        let state = EnhancedConnectionState::Failed { reason: "connection refused" };
+        let state = EnhancedConnectionState::Failed {
+            reason: "connection refused",
+        };
         let debug = format!("{:?}", state);
         assert!(debug.contains("Failed") || debug.contains("connection"));
     }

@@ -49,12 +49,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     };
 
     let all_symbol = if all_selected { "▶ " } else { "  " };
-    items.push(ListItem::new(Line::from(vec![
-        Span::styled(
-            format!("{}{} ({})", all_symbol, "All", all_count),
-            all_style,
-        ),
-    ])));
+    items.push(ListItem::new(Line::from(vec![Span::styled(
+        format!("{}{} ({})", all_symbol, "All", all_count),
+        all_style,
+    )])));
 
     // Add groups with server counts
     for (index, group) in app.groups.iter().enumerate() {
@@ -80,14 +78,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         let group_color = Color::Cyan;
 
         items.push(ListItem::new(Line::from(vec![
-            Span::styled(
-                format!("{}{} ", symbol, group.name),
-                style.fg(group_color),
-            ),
-            Span::styled(
-                format!("({})", count),
-                style.fg(Color::Gray),
-            ),
+            Span::styled(format!("{}{} ", symbol, group.name), style.fg(group_color)),
+            Span::styled(format!("({})", count), style.fg(Color::Gray)),
         ])));
     }
 

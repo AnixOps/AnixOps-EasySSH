@@ -72,7 +72,10 @@ pub fn incident_routes() -> Router<AppState> {
         .route("/escalation-policies", get(list_escalation_policies))
         .route("/escalation-policies/{id}", get(get_escalation_policy))
         .route("/escalation-policies/{id}", put(update_escalation_policy))
-        .route("/escalation-policies/{id}", delete(delete_escalation_policy))
+        .route(
+            "/escalation-policies/{id}",
+            delete(delete_escalation_policy),
+        )
         .route(
             "/escalation-policies/{id}/test",
             post(test_escalation_policy),
@@ -89,7 +92,10 @@ pub fn incident_routes() -> Router<AppState> {
         .route("/post-mortems/{id}", get(get_post_mortem_by_id))
         .route("/post-mortems/{id}", put(update_post_mortem))
         .route("/post-mortems/{id}/publish", post(publish_post_mortem))
-        .route("/post-mortems/{id}/report", get(generate_post_mortem_report))
+        .route(
+            "/post-mortems/{id}/report",
+            get(generate_post_mortem_report),
+        )
         .route(
             "/post-mortems/{id}/suggestions",
             get(get_improvement_suggestions),

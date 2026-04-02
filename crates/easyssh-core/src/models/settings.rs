@@ -1003,7 +1003,9 @@ mod tests {
     #[test]
     fn test_settings_validation_empty_user_id() {
         let settings = Settings::new("".to_string());
-        assert!(matches!(settings.validate(), Err(ValidationError::MissingField(field)) if field == "user_id"));
+        assert!(
+            matches!(settings.validate(), Err(ValidationError::MissingField(field)) if field == "user_id")
+        );
     }
 
     #[test]
@@ -1073,7 +1075,9 @@ mod tests {
             font_size: 5,
             ..Default::default()
         };
-        assert!(matches!(invalid_font_size.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "terminal.font_size"));
+        assert!(
+            matches!(invalid_font_size.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "terminal.font_size")
+        );
 
         let invalid_cursor = TerminalSettings {
             cursor_style: "invalid".to_string(),
@@ -1100,7 +1104,9 @@ mod tests {
             compression_level: 10,
             ..Default::default()
         };
-        assert!(matches!(invalid_compression.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "network.compression_level"));
+        assert!(
+            matches!(invalid_compression.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "network.compression_level")
+        );
     }
 
     #[test]

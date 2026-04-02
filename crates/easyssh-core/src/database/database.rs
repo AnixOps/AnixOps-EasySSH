@@ -4,9 +4,8 @@
 //! pool and provides access to various repositories.
 
 use crate::database::{
-    error::Result,
-    migrations::{MigrationManager},
-    ConfigRepository, GroupRepository, ServerRepository,
+    error::Result, migrations::MigrationManager, ConfigRepository, GroupRepository,
+    ServerRepository,
 };
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
@@ -193,9 +192,8 @@ impl Database {
     ///
     /// Performs a simple query to verify connectivity.
     pub async fn health_check(&self) -> Result<bool> {
-        let result: std::result::Result<(i64,), _> = sqlx::query_as("SELECT 1")
-            .fetch_one(&self.pool)
-            .await;
+        let result: std::result::Result<(i64,), _> =
+            sqlx::query_as("SELECT 1").fetch_one(&self.pool).await;
 
         Ok(result.is_ok())
     }
@@ -285,9 +283,7 @@ mod tests {
         assert!(db.health_check().await.unwrap());
 
         // Tables should exist
-        let result = db
-            .execute("SELECT 1 FROM servers LIMIT 1")
-            .await;
+        let result = db.execute("SELECT 1 FROM servers LIMIT 1").await;
         assert!(result.is_ok());
     }
 

@@ -162,9 +162,7 @@ impl ServerRepository {
                 group_id = f.group_id;
             }
             if f.search.is_some() {
-                query.push_str(
-                    " AND (name LIKE ? OR host LIKE ?)",
-                );
+                query.push_str(" AND (name LIKE ? OR host LIKE ?)");
                 search = f.search.map(|s| format!("%{}%", s));
             }
         }
@@ -300,23 +298,20 @@ impl ServerRepository {
 
     /// Count servers in a group
     pub async fn count_by_group(&self, group_id: &str) -> Result<i64> {
-        let count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM servers WHERE group_id = ?")
-                .bind(group_id)
-                .fetch_one(&self.pool)
-                .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM servers WHERE group_id = ?")
+            .bind(group_id)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(count.0)
     }
 
     /// Check if a server exists
     pub async fn exists(&self, id: &str) -> Result<bool> {
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM servers WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_one(&self.pool)
-        .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM servers WHERE id = ?")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(count.0 > 0)
     }
@@ -334,8 +329,7 @@ impl ServerRepository {
         }
 
         // Build parameterized query
-        let placeholders: Vec<String> =
-            server_ids.iter().map(|_| "?".to_string()).collect();
+        let placeholders: Vec<String> = server_ids.iter().map(|_| "?".to_string()).collect();
         let placeholders_str = placeholders.join(",");
 
         let query = format!(
@@ -380,9 +374,7 @@ impl ServerRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::{
-        models::ServerFilters, Database, GroupRepository, NewGroup,
-    };
+    use crate::database::{models::ServerFilters, Database, GroupRepository, NewGroup};
     use tempfile::TempDir;
 
     async fn create_test_db() -> (Database, TempDir) {

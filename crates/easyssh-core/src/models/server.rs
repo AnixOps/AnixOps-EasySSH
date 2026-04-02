@@ -7,7 +7,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::{Validatable, ValidationError, MAX_NAME_LENGTH, MAX_USERNAME_LENGTH, is_valid_host, is_valid_port as validate_port};
+use super::{
+    is_valid_host, is_valid_port as validate_port, Validatable, ValidationError, MAX_NAME_LENGTH,
+    MAX_USERNAME_LENGTH,
+};
 
 /// Server authentication method
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -250,7 +253,10 @@ impl Server {
 
     /// Check if server is in a group
     pub fn is_in_group(&self, group_id: &str) -> bool {
-        self.group_id.as_ref().map(|id| id == group_id).unwrap_or(false)
+        self.group_id
+            .as_ref()
+            .map(|id| id == group_id)
+            .unwrap_or(false)
     }
 
     /// Get the connection string (username@host:port)

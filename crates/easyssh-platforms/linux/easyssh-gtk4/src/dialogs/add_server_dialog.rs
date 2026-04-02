@@ -20,9 +20,7 @@ where
     let header = adw::HeaderBar::new();
     header.add_css_class("flat");
 
-    let cancel_button = gtk4::Button::builder()
-        .label("Cancel")
-        .build();
+    let cancel_button = gtk4::Button::builder().label("Cancel").build();
     header.pack_start(&cancel_button);
 
     let save_button = gtk4::Button::builder()
@@ -56,9 +54,7 @@ where
     content.append(&name_group);
 
     // Connection info
-    let conn_group = adw::PreferencesGroup::builder()
-        .title("Connection")
-        .build();
+    let conn_group = adw::PreferencesGroup::builder().title("Connection").build();
 
     let host_row = adw::EntryRow::builder()
         .title("Host")
@@ -137,11 +133,13 @@ where
     dialog.set_child(Some(&toolbar_view));
 
     // Auth type change handler
-    auth_row.connect_selected_notify(glib::clone!(@weak password_entry as pw, @weak key_row as key => move |row| {
-        let selected = row.selected();
-        pw.set_visible(selected == 0);
-        key.set_visible(selected == 1);
-    }));
+    auth_row.connect_selected_notify(
+        glib::clone!(@weak password_entry as pw, @weak key_row as key => move |row| {
+            let selected = row.selected();
+            pw.set_visible(selected == 0);
+            key.set_visible(selected == 1);
+        }),
+    );
 
     // Cancel button
     let dialog_weak = dialog.downgrade();

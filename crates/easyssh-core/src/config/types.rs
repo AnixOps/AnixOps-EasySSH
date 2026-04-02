@@ -480,7 +480,10 @@ impl ConfigPaths {
     /// Ensure config directory exists
     pub fn ensure_config_dir() -> std::io::Result<std::path::PathBuf> {
         let dir = Self::config_dir().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::NotFound, "Could not determine config directory")
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Could not determine config directory",
+            )
         })?;
         std::fs::create_dir_all(&dir)?;
         Ok(dir)

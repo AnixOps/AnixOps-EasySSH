@@ -2,8 +2,8 @@
 //!
 //! 这是对 `crate::debug_access::DebugFeature` 的扩展
 
+use crate::debug::{can_access_feature, DebugAccessLevel};
 pub use crate::debug_access::DebugFeature;
-use crate::debug::{DebugAccessLevel, can_access_feature};
 
 /// 获取功能显示名称
 pub fn feature_display_name(feature: DebugFeature) -> &'static str {
@@ -31,21 +31,12 @@ pub fn get_feature_groups() -> Vec<FeatureGroup> {
         FeatureGroup {
             name: "System",
             description: "System diagnostics and monitoring",
-            features: vec![
-                NetworkInspector,
-                LogViewer,
-                PerformanceMonitor,
-            ],
+            features: vec![NetworkInspector, LogViewer, PerformanceMonitor],
         },
         FeatureGroup {
             name: "Development",
             description: "Development and debugging tools",
-            features: vec![
-                AiProgramming,
-                TestRunner,
-                FeatureFlags,
-                DebugWebSocket,
-            ],
+            features: vec![AiProgramming, TestRunner, FeatureFlags, DebugWebSocket],
         },
         FeatureGroup {
             name: "Enterprise",
@@ -80,9 +71,7 @@ pub fn get_available_features() -> Vec<DebugFeature> {
         DebugWebSocket,
     ];
 
-    all.into_iter()
-        .filter(|f| can_access_feature(*f))
-        .collect()
+    all.into_iter().filter(|f| can_access_feature(*f)).collect()
 }
 
 /// 运行时特性开关存储

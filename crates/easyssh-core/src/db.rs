@@ -365,10 +365,7 @@ impl Database {
         params.push(&server.id as &dyn rusqlite::ToSql);
 
         if !fields.is_empty() {
-            let sql = format!(
-                "UPDATE servers SET {} WHERE id = ?",
-                fields.join(", ")
-            );
+            let sql = format!("UPDATE servers SET {} WHERE id = ?", fields.join(", "));
             self.conn.execute(&sql, params.as_slice())?;
         }
 

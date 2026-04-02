@@ -172,15 +172,17 @@ async fn export_audit_logs(
             "attachment; filename=\"audit_logs.csv\"",
         )
         .body(axum::body::Body::from(csv))
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: "response_build_failed".to_string(),
-                message: e.to_string(),
-                code: None,
-                details: None,
-            }),
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "response_build_failed".to_string(),
+                    message: e.to_string(),
+                    code: None,
+                    details: None,
+                }),
+            )
+        })?;
 
     Ok(response)
 }

@@ -3,7 +3,6 @@
 //! This module handles database schema migrations, ensuring that the database
 /// is always at the correct version. Migrations are applied incrementally and
 /// tracked in the schema_migrations table.
-
 use crate::database::error::{DatabaseError, Result};
 use sqlx::SqlitePool;
 
@@ -67,25 +66,22 @@ impl MigrationManager {
     ///
     /// Returns 0 if no migrations have been applied yet.
     pub async fn current_version(&self) -> Result<i64> {
-        let version: Option<(i64,)> = sqlx::query_as(
-            "SELECT MAX(version) FROM schema_migrations",
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(DatabaseError::SqlError)?;
+        let version: Option<(i64,)> = sqlx::query_as("SELECT MAX(version) FROM schema_migrations")
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(version.map(|v| v.0).unwrap_or(0))
     }
 
     /// Check if a specific migration has been applied
     pub async fn is_applied(&self, version: i64) -> Result<bool> {
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM schema_migrations WHERE version = ?",
-        )
-        .bind(version)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(DatabaseError::SqlError)?;
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM schema_migrations WHERE version = ?")
+                .bind(version)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(DatabaseError::SqlError)?;
 
         Ok(count.0 > 0)
     }
@@ -101,11 +97,7 @@ impl MigrationManager {
         }
 
         // Execute migration in a transaction
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(DatabaseError::SqlError)?;
+        let mut tx = self.pool.begin().await.map_err(DatabaseError::SqlError)?;
 
         // Execute the migration SQL
         sqlx::query(&migration.sql)
@@ -117,17 +109,15 @@ impl MigrationManager {
             })?;
 
         // Record the migration
-        sqlx::query(
-            "INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
-        )
-        .bind(migration.version)
-        .bind(&migration.description)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| DatabaseError::Migration {
-            version: migration.version,
-            message: format!("Failed to record migration: {}", e),
-        })?;
+        sqlx::query("INSERT INTO schema_migrations (version, description) VALUES (?, ?)")
+            .bind(migration.version)
+            .bind(&migration.description)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| DatabaseError::Migration {
+                version: migration.version,
+                message: format!("Failed to record migration: {}", e),
+            })?;
 
         // Commit the transaction
         tx.commit().await.map_err(DatabaseError::SqlError)?;
@@ -238,11 +228,7 @@ impl MigrationManager {
     /// Reset all migrations (dangerous - for testing only)
     #[cfg(test)]
     pub async fn reset(&self) -> Result<()> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(DatabaseError::SqlError)?;
+        let mut tx = self.pool.begin().await.map_err(DatabaseError::SqlError)?;
 
         // Drop all known tables
         sqlx::query("DROP TABLE IF EXISTS servers")
@@ -282,10 +268,7 @@ mod tests {
     use sqlx::sqlite::SqlitePoolOptions;
 
     async fn create_test_pool() -> SqlitePool {
-        SqlitePoolOptions::new()
-            .connect(":memory:")
-            .await
-            .unwrap()
+        SqlitePoolOptions::new().connect(":memory:").await.unwrap()
     }
 
     #[tokio::test]
@@ -349,10 +332,12 @@ mod tests {
         assert!(version >= 1);
 
         // Check that tables exist by trying to query them
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='servers'")
-            .fetch_one(&manager.pool)
-            .await
-            .unwrap();
+        let count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='servers'",
+        )
+        .fetch_one(&manager.pool)
+        .await
+        .unwrap();
         assert_eq!(count.0, 1);
     }
 

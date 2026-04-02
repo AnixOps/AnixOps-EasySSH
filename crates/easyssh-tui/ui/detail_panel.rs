@@ -112,26 +112,27 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("ID: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Gray)),
+                Span::styled(
+                    "ID: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(Color::Gray),
+                ),
                 Span::styled(&server.id, Style::default().fg(Color::Gray)),
             ]),
         ]
     } else {
         vec![
             Line::from(""),
-            Line::from(
-                Span::styled(
-                    "No server selected",
-                    Style::default().fg(Color::Gray),
-                )
-            ),
+            Line::from(Span::styled(
+                "No server selected",
+                Style::default().fg(Color::Gray),
+            )),
             Line::from(""),
-            Line::from(
-                Span::styled(
-                    "Select a server from the list to view details",
-                    Style::default().fg(Color::Gray),
-                )
-            ),
+            Line::from(Span::styled(
+                "Select a server from the list to view details",
+                Style::default().fg(Color::Gray),
+            )),
         ]
     };
 

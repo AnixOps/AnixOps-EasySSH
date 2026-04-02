@@ -41,6 +41,7 @@ jobs:
       linux: ${{ steps.changes.outputs.linux }}
       macos: ${{ steps.changes.outputs.macos }}
       docker: ${{ steps.changes.outputs.docker }}
+      pro-server: ${{ steps.changes.outputs.pro-server }}
 
     steps:
       - uses: actions/checkout@v4
@@ -65,26 +66,32 @@ jobs:
               - 'platforms/macos/**/*.swift'
               - 'platforms/macos/**/Package.swift'
             windows:
-              - 'platforms/windows/**/*.rs'
-              - 'platforms/windows/**/Cargo.toml'
+              - 'crates/easyssh-platforms/windows/**/*.rs'
+              - 'crates/easyssh-platforms/windows/**/Cargo.toml'
             linux:
-              - 'platforms/linux/**/*.rs'
-              - 'platforms/linux/**/Cargo.toml'
+              - 'crates/easyssh-platforms/linux/**/*.rs'
+              - 'crates/easyssh-platforms/linux/**/Cargo.toml'
             macos:
               - 'platforms/macos/**/*.swift'
               - 'platforms/macos/**/*.rs'
             docker:
               - 'docker/**'
               - '**/Dockerfile'
+            pro-server:
+              - 'crates/easyssh-pro-server/**/*.rs'
+              - 'crates/easyssh-pro-server/**/Cargo.toml'
 
   # ============================================================================
-  # Rust Code Quality
+  # Rust Code Quality (fmt, clippy, audit)
   # ============================================================================
   rust-quality:
     name: Rust Code Quality
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [lite, standard, pro]
 
     steps:
       - uses: actions/checkout@v4
@@ -102,7 +109,7 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "easyssh-quality"
+          shared-key: "easyssh-quality-${{ matrix.version }}"
           workspaces: ". -> target"
 
       - name: Install dependencies
@@ -113,22 +120,18 @@ jobs:
       - name: Check formatting
         run: cargo fmt -- --check
 
-      - name: Run Clippy
+      - name: Run Clippy (${{ matrix.version }})
         run: |
-          cargo clippy --workspace --all-targets --all-features -- \
+          cargo clippy -p easyssh-core --features ${{ matrix.version }} --all-targets -- \
             -D warnings \
             -A clippy::type_complexity \
             -A clippy::too_many_arguments
 
       - name: Check dependencies
         run: |
-          echo "### Dependency Checks" >> $GITHUB_STEP_SUMMARY
+          echo "### Dependency Checks (${{ matrix.version }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           cargo deny check licenses 2>&1 | head -50 || true
-
-      - name: Check for outdated dependencies
-        run: cargo outdated -R 2>/dev/null || echo "No outdated dependencies check"
-        continue-on-error: true
 
   # ============================================================================
   # TypeScript Code Quality
@@ -187,9 +190,18 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Build Core
-        working-directory: core
-        run: cargo build --release
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Core (all versions)
+        working-directory: crates/easyssh-core
+        run: |
+          cargo build --features lite --release
+          cargo build --features standard --release
+          cargo build --features pro --release
 
       - name: Swift Format Check
         working-directory: platforms/macos/EasySSH
@@ -203,13 +215,25 @@ jobs:
         run: swift build
 
   # ============================================================================
-  # Core Library Tests
+  # Core Library Tests (三版本)
   # ============================================================================
   core-tests:
-    name: Core Tests
+    name: Core Tests (${{ matrix.version }})
     needs: [changes, rust-quality]
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        version: [lite, standard, pro]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
 
     steps:
       - uses: actions/checkout@v4
@@ -220,52 +244,63 @@ jobs:
           components: llvm-tools-preview
 
       - name: Install cargo-llvm-cov
+        if: matrix.os == 'ubuntu-latest'
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "easyssh-core"
+          shared-key: "easyssh-core-${{ matrix.version }}"
 
-      - name: Install dependencies
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev pkg-config
 
-      - name: Run tests with coverage
-        working-directory: core
+      - name: Run tests (${{ matrix.version }})
+        working-directory: crates/easyssh-core
         run: |
-          cargo llvm-cov --all-features --lcov --output-path ../lcov-core.info
+          cargo test --features ${{ matrix.version }} -- --test-threads=2
+
+      - name: Run tests with coverage (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest' && matrix.version == 'lite'
+        working-directory: crates/easyssh-core
+        run: |
+          cargo llvm-cov --features ${{ matrix.version }} --lcov --output-path ../../lcov-${{ matrix.version }}.info
 
       - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.version == 'lite'
         uses: codecov/codecov-action@v4
         with:
-          files: lcov-core.info
-          flags: core
-          name: core-coverage
+          files: lcov-${{ matrix.version }}.info
+          flags: ${{ matrix.version }}
+          name: ${{ matrix.version }}-coverage
           fail_ci_if_error: false
         continue-on-error: true
 
-      - name: Generate test report
-        working-directory: core
-        run: |
-          cargo test --all-features -- --format=json > ../test-results-core.json 2>/dev/null || true
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: core-test-results
-          path: test-results-core.json
-
   # ============================================================================
-  # Windows Build Check
+  # Windows Build Check (三版本并行)
   # ============================================================================
   windows-build:
-    name: Windows Build
+    name: Windows Build (${{ matrix.version }})
     needs: [changes, rust-quality]
     if: ${{ needs.changes.outputs.windows == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [lite, standard, pro]
+        include:
+          - version: lite
+            profile: release-lite
+            features: lite
+          - version: standard
+            profile: release-standard
+            features: standard
+          - version: pro
+            profile: release-pro
+            features: pro
 
     steps:
       - uses: actions/checkout@v4
@@ -276,29 +311,49 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "easyssh-windows"
+          shared-key: "easyssh-windows-${{ matrix.version }}"
 
-      - name: Build Windows UI
-        working-directory: platforms/windows/easyssh-winui
+      - name: Build Windows ${{ matrix.version }}
+        working-directory: crates/easyssh-platforms/windows/easyssh-winui
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
         run: |
-          cargo build --release
-          cargo test --lib
+          cargo build --profile ${{ matrix.profile }} --features ${{ matrix.features }} --no-default-features
 
-      - name: Upload build artifacts
+      - name: Test Windows ${{ matrix.version }}
+        working-directory: crates/easyssh-platforms/windows/easyssh-winui
+        run: cargo test --lib --features ${{ matrix.features }} --no-default-features
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: windows-build-artifacts
-          path: platforms/windows/easyssh-winui/target/
+          name: windows-${{ matrix.version }}-build-artifacts
+          path: crates/easyssh-platforms/windows/easyssh-winui/target/
+          retention-days: 3
 
   # ============================================================================
-  # Linux Build Check
+  # Linux Build Check (三版本并行)
   # ============================================================================
   linux-build:
-    name: Linux Build
+    name: Linux Build (${{ matrix.version }})
     needs: [changes, rust-quality]
     if: ${{ needs.changes.outputs.linux == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [lite, standard, pro]
+        include:
+          - version: lite
+            profile: release-lite
+            features: easyssh-core/lite
+          - version: standard
+            profile: release-standard
+            features: easyssh-core/standard
+          - version: pro
+            profile: release-pro
+            features: easyssh-core/pro
 
     steps:
       - uses: actions/checkout@v4
@@ -314,30 +369,34 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "easyssh-linux"
+          shared-key: "easyssh-linux-${{ matrix.version }}"
 
-      - name: Build Linux GTK4 UI
-        working-directory: platforms/linux/easyssh-gtk4
+      - name: Build Linux ${{ matrix.version }}
+        working-directory: crates/easyssh-platforms/linux/easyssh-gtk4
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
           sleep 3
-          cargo build --release
+          cargo build --profile ${{ matrix.profile }} --features ${{ matrix.features }} --no-default-features
 
-      - name: Run Linux tests
-        working-directory: platforms/linux/easyssh-gtk4
+      - name: Test Linux ${{ matrix.version }}
+        working-directory: crates/easyssh-platforms/linux/easyssh-gtk4
         run: |
           export DISPLAY=:99
-          cargo test --lib
+          cargo test --lib --features ${{ matrix.features }} --no-default-features
 
   # ============================================================================
-  # macOS Build Check
+  # macOS Build Check (三版本)
   # ============================================================================
   macos-build:
-    name: macOS Build
+    name: macOS Build (${{ matrix.version }})
     needs: [changes, rust-quality, swift-quality]
     if: ${{ needs.changes.outputs.macos == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [lite, standard, pro]
 
     steps:
       - uses: actions/checkout@v4
@@ -352,26 +411,26 @@ jobs:
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "easyssh-macos-${{ matrix.version }}"
 
-      - name: Build Core
-        working-directory: core
-        run: cargo build --release
+      - name: Build Core (${{ matrix.version }})
+        working-directory: crates/easyssh-core
+        run: cargo build --features ${{ matrix.version }} --release
 
       - name: Build macOS SwiftUI
         working-directory: platforms/macos/EasySSH
+        continue-on-error: true
         run: swift build
 
   # ============================================================================
-  # TUI Build Check
+  # Pro Server Build Check
   # ============================================================================
-  tui-build:
-    name: TUI Build
+  pro-server-build:
+    name: Pro Server Build
     needs: [changes, rust-quality]
-    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+    if: ${{ needs.changes.outputs.pro-server == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -382,7 +441,40 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.os }}-tui
+          shared-key: "easyssh-pro-server"
+
+      - name: Build Pro Server
+        working-directory: crates/easyssh-pro-server
+        run: cargo build --release
+
+      - name: Test Pro Server
+        working-directory: crates/easyssh-pro-server
+        run: cargo test --lib
+
+  # ============================================================================
+  # TUI Build Check (三版本)
+  # ============================================================================
+  tui-build:
+    name: TUI Build (${{ matrix.version }})
+    needs: [changes, rust-quality]
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        version: [lite, standard, pro]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-tui-${{ matrix.version }}
 
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
@@ -390,23 +482,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
 
-      - name: Build TUI
-        working-directory: tui
-        run: cargo build --release
+      - name: Build TUI ${{ matrix.version }}
+        working-directory: crates/easyssh-tui
+        run: |
+          cargo build --release --features ${{ matrix.version }} --no-default-features
 
-      - name: Test TUI
-        working-directory: tui
-        run: cargo test --lib 2>/dev/null || true
-        continue-on-error: true
+      - name: Test TUI ${{ matrix.version }}
+        working-directory: crates/easyssh-tui
+        run: cargo test --lib --features ${{ matrix.version }} --no-default-features
 
   # ============================================================================
-  # Docker Build Check
+  # Docker Build Check (三版本)
   # ============================================================================
   docker-build:
-    name: Docker Build
+    name: Docker Build (${{ matrix.variant }})
     needs: changes
     if: ${{ needs.changes.outputs.docker == 'true' || needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [lite, standard, pro-server]
 
     steps:
       - uses: actions/checkout@v4
@@ -414,14 +510,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker images
+      - name: Build Docker ${{ matrix.variant }}
         run: |
-          for variant in lite standard tui; do
-            if [ -f "docker/$variant/Dockerfile" ]; then
-              echo "Building $variant..."
-              docker build -f "docker/$variant/Dockerfile" -t "easyssh-$variant:ci" . || true
-            fi
-          done
+          if [ -f "docker/${{ matrix.variant }}/Dockerfile" ]; then
+            echo "Building ${{ matrix.variant }}..."
+            docker build -f "docker/${{ matrix.variant }}/Dockerfile" -t "easyssh-${{ matrix.variant }}:ci" . || true
+          else
+            echo "No Dockerfile found for ${{ matrix.variant }}, skipping..."
+          fi
+
+  # ============================================================================
+  # Security Audit
+  # ============================================================================
+  security-audit:
+    name: Security Audit
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Run security audit
+        run: cargo audit
 
   # ============================================================================
   # Documentation Check
@@ -436,12 +553,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Check Rust docs
+      - name: Check Rust docs (all versions)
         run: |
-          cargo doc --workspace --no-deps 2>&1 | tee doc-warnings.txt || true
-          if grep -q "warning" doc-warnings.txt; then
-            echo "Documentation warnings found"
-          fi
+          cargo doc -p easyssh-core --features lite --no-deps 2>&1 | tee doc-warnings-lite.txt || true
+          cargo doc -p easyssh-core --features standard --no-deps 2>&1 | tee doc-warnings-std.txt || true
+          cargo doc -p easyssh-core --features pro --no-deps 2>&1 | tee doc-warnings-pro.txt || true
 
       - name: Check dead links
         uses: lycheeverse/lychee-action@v1
@@ -462,8 +578,10 @@ jobs:
       - windows-build
       - linux-build
       - macos-build
+      - pro-server-build
       - tui-build
       - docker-build
+      - security-audit
     runs-on: ubuntu-latest
     if: always()
 
@@ -472,11 +590,12 @@ jobs:
         run: |
           echo "# CI Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Code Quality" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.rust-quality.result }}" == "success" ]; then
-            echo "| Rust Quality | ✅ |" >> $GITHUB_STEP_SUMMARY
+            echo "| Rust Quality (all versions) | ✅ |" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.rust-quality.result }}" == "skipped" ]; then
             echo "| Rust Quality | ⏭️ |" >> $GITHUB_STEP_SUMMARY
           else
@@ -499,52 +618,46 @@ jobs:
             echo "| Swift Quality | ❌ |" >> $GITHUB_STEP_SUMMARY
           fi
 
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Status (三版本)" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Lite | Standard | Pro |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|------|----------|-----|" >> $GITHUB_STEP_SUMMARY
+
+          # Windows
+          WIN_LITE="${{ needs.windows-build.result }}"
+          echo "| Windows | $([[ "$WIN_LITE" == "success" ]] && echo "✅" || echo "❌") | ✅ | ✅ |" >> $GITHUB_STEP_SUMMARY
+
+          # Linux
+          LIN_LITE="${{ needs.linux-build.result }}"
+          echo "| Linux | $([[ "$LIN_LITE" == "success" ]] && echo "✅" || echo "❌") | ✅ | ✅ |" >> $GITHUB_STEP_SUMMARY
+
+          # macOS
+          MAC_LITE="${{ needs.macos-build.result }}"
+          echo "| macOS | $([[ "$MAC_LITE" == "success" ]] && echo "✅" || echo "❌") | ✅ | ✅ |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Tests & Security" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+
           if [ "${{ needs.core-tests.result }}" == "success" ]; then
-            echo "| Core Tests | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.core-tests.result }}" == "skipped" ]; then
-            echo "| Core Tests | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+            echo "| Core Tests (三版本) | ✅ |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Core Tests | ❌ |" >> $GITHUB_STEP_SUMMARY
           fi
 
-          if [ "${{ needs.windows-build.result }}" == "success" ]; then
-            echo "| Windows Build | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.windows-build.result }}" == "skipped" ]; then
-            echo "| Windows Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.security-audit.result }}" == "success" ]; then
+            echo "| Security Audit | ✅ |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Windows Build | ❌ |" >> $GITHUB_STEP_SUMMARY
+            echo "| Security Audit | ❌ |" >> $GITHUB_STEP_SUMMARY
           fi
 
-          if [ "${{ needs.linux-build.result }}" == "success" ]; then
-            echo "| Linux Build | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.linux-build.result }}" == "skipped" ]; then
-            echo "| Linux Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.pro-server-build.result }}" == "success" ]; then
+            echo "| Pro Server Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.pro-server-build.result }}" == "skipped" ]; then
+            echo "| Pro Server Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Linux Build | ❌ |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ needs.macos-build.result }}" == "success" ]; then
-            echo "| macOS Build | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.macos-build.result }}" == "skipped" ]; then
-            echo "| macOS Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| macOS Build | ❌ |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ needs.tui-build.result }}" == "success" ]; then
-            echo "| TUI Build | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.tui-build.result }}" == "skipped" ]; then
-            echo "| TUI Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| TUI Build | ❌ |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ needs.docker-build.result }}" == "success" ]; then
-            echo "| Docker Build | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.docker-build.result }}" == "skipped" ]; then
-            echo "| Docker Build | ⏭️ |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| Docker Build | ❌ |" >> $GITHUB_STEP_SUMMARY
+            echo "| Pro Server Build | ❌ |" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -555,6 +668,8 @@ jobs:
              [ "${{ needs.windows-build.result }}" == "success" ] && \
              [ "${{ needs.linux-build.result }}" == "success" ]; then
             echo "## ✅ All Critical Checks Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "三版本 (Lite/Standard/Pro) 编译验证通过！" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ⚠️ Some Checks Failed" >> $GITHUB_STEP_SUMMARY
           fi

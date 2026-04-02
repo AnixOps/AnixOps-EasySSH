@@ -2,10 +2,10 @@
 
 #![cfg(feature = "team")]
 
-mod types;
 mod manager;
 mod permissions;
+mod types;
 
-pub use types::*;
 pub use manager::TeamManager;
-pub use permissions::{TeamPermission, check_permission};
+pub use permissions::{check_permission, TeamPermission};
+pub use types::*;

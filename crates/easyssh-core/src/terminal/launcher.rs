@@ -219,47 +219,21 @@ impl TerminalLauncher {
 
         match terminal {
             // Windows terminals
-            TerminalType::WindowsTerminal => {
-                launch_windows_terminal(&ssh_cmd, server)
-            }
-            TerminalType::PowerShell => {
-                launch_powershell(&ssh_cmd, server)
-            }
-            TerminalType::Cmd => {
-                launch_cmd(&ssh_cmd, server)
-            }
-            TerminalType::GitBash => {
-                launch_gitbash(&ssh_cmd, server)
-            }
+            TerminalType::WindowsTerminal => launch_windows_terminal(&ssh_cmd, server),
+            TerminalType::PowerShell => launch_powershell(&ssh_cmd, server),
+            TerminalType::Cmd => launch_cmd(&ssh_cmd, server),
+            TerminalType::GitBash => launch_gitbash(&ssh_cmd, server),
             // Linux terminals
-            TerminalType::GnomeTerminal => {
-                launch_gnome_terminal(&ssh_cmd, server)
-            }
-            TerminalType::Konsole => {
-                launch_konsole(&ssh_cmd, server)
-            }
-            TerminalType::Xfce4Terminal => {
-                launch_xfce4_terminal(&ssh_cmd, server)
-            }
-            TerminalType::Xterm => {
-                launch_xterm(&ssh_cmd, server)
-            }
-            TerminalType::Alacritty => {
-                launch_alacritty(&ssh_cmd, server)
-            }
-            TerminalType::Kitty => {
-                launch_kitty(&ssh_cmd, server)
-            }
+            TerminalType::GnomeTerminal => launch_gnome_terminal(&ssh_cmd, server),
+            TerminalType::Konsole => launch_konsole(&ssh_cmd, server),
+            TerminalType::Xfce4Terminal => launch_xfce4_terminal(&ssh_cmd, server),
+            TerminalType::Xterm => launch_xterm(&ssh_cmd, server),
+            TerminalType::Alacritty => launch_alacritty(&ssh_cmd, server),
+            TerminalType::Kitty => launch_kitty(&ssh_cmd, server),
             // macOS terminals
-            TerminalType::TerminalApp => {
-                launch_terminal_app(&ssh_cmd, server)
-            }
-            TerminalType::ITerm2 => {
-                launch_iterm2(&ssh_cmd, server)
-            }
-            TerminalType::Warp => {
-                launch_warp(&ssh_cmd, server)
-            }
+            TerminalType::TerminalApp => launch_terminal_app(&ssh_cmd, server),
+            TerminalType::ITerm2 => launch_iterm2(&ssh_cmd, server),
+            TerminalType::Warp => launch_warp(&ssh_cmd, server),
         }
     }
 
@@ -268,45 +242,19 @@ impl TerminalLauncher {
         let terminal = self.get_best_terminal()?;
 
         match terminal {
-            TerminalType::WindowsTerminal => {
-                launch_windows_terminal_raw(command, title)
-            }
-            TerminalType::PowerShell => {
-                launch_powershell_raw(command, title)
-            }
-            TerminalType::Cmd => {
-                launch_cmd_raw(command, title)
-            }
-            TerminalType::GitBash => {
-                launch_gitbash_raw(command, title)
-            }
-            TerminalType::GnomeTerminal => {
-                launch_gnome_terminal_raw(command, title)
-            }
-            TerminalType::Konsole => {
-                launch_konsole_raw(command, title)
-            }
-            TerminalType::Xfce4Terminal => {
-                launch_xfce4_terminal_raw(command, title)
-            }
-            TerminalType::Xterm => {
-                launch_xterm_raw(command, title)
-            }
-            TerminalType::Alacritty => {
-                launch_alacritty_raw(command, title)
-            }
-            TerminalType::Kitty => {
-                launch_kitty_raw(command, title)
-            }
-            TerminalType::TerminalApp => {
-                launch_terminal_app_raw(command, title)
-            }
-            TerminalType::ITerm2 => {
-                launch_iterm2_raw(command, title)
-            }
-            TerminalType::Warp => {
-                launch_warp_raw(command, title)
-            }
+            TerminalType::WindowsTerminal => launch_windows_terminal_raw(command, title),
+            TerminalType::PowerShell => launch_powershell_raw(command, title),
+            TerminalType::Cmd => launch_cmd_raw(command, title),
+            TerminalType::GitBash => launch_gitbash_raw(command, title),
+            TerminalType::GnomeTerminal => launch_gnome_terminal_raw(command, title),
+            TerminalType::Konsole => launch_konsole_raw(command, title),
+            TerminalType::Xfce4Terminal => launch_xfce4_terminal_raw(command, title),
+            TerminalType::Xterm => launch_xterm_raw(command, title),
+            TerminalType::Alacritty => launch_alacritty_raw(command, title),
+            TerminalType::Kitty => launch_kitty_raw(command, title),
+            TerminalType::TerminalApp => launch_terminal_app_raw(command, title),
+            TerminalType::ITerm2 => launch_iterm2_raw(command, title),
+            TerminalType::Warp => launch_warp_raw(command, title),
         }
     }
 }
@@ -330,10 +278,7 @@ pub fn generate_ssh_command(server: &Server) -> String {
             )
         }
         AuthMethod::Agent => {
-            format!(
-                "ssh -p {} {}@{}",
-                server.port, server.username, server.host
-            )
+            format!("ssh -p {} {}@{}", server.port, server.username, server.host)
         }
     }
 }
@@ -414,10 +359,14 @@ fn find_executable(name: &str) -> Option<String> {
 
         // Check common paths
         let common_paths = vec![
-            format!("/usr/bin/{}" , name),
-            format!("/usr/local/bin/{}" , name),
-            format!("/opt/{}/bin/{}" , name, name),
-            format!("/Applications/{}.app/Contents/MacOS/{}" , capitalize(name), name),
+            format!("/usr/bin/{}", name),
+            format!("/usr/local/bin/{}", name),
+            format!("/opt/{}/bin/{}", name, name),
+            format!(
+                "/Applications/{}.app/Contents/MacOS/{}",
+                capitalize(name),
+                name
+            ),
         ];
 
         for path in common_paths {
@@ -442,10 +391,23 @@ fn expand_windows_env_vars(path: &str) -> String {
 
     // Replace common environment variables
     let vars_to_expand = [
-        ("%LOCALAPPDATA%", std::env::var("LOCALAPPDATA").unwrap_or_default()),
-        ("%ProgramFiles%", std::env::var("ProgramFiles").unwrap_or_default()),
-        ("%ProgramFiles(x86)%", std::env::var("ProgramFiles(x86)").unwrap_or_default()),
-        ("%SystemRoot%", std::env::var("SystemRoot").unwrap_or_else(|_| std::env::var("WINDIR").unwrap_or_default())),
+        (
+            "%LOCALAPPDATA%",
+            std::env::var("LOCALAPPDATA").unwrap_or_default(),
+        ),
+        (
+            "%ProgramFiles%",
+            std::env::var("ProgramFiles").unwrap_or_default(),
+        ),
+        (
+            "%ProgramFiles(x86)%",
+            std::env::var("ProgramFiles(x86)").unwrap_or_default(),
+        ),
+        (
+            "%SystemRoot%",
+            std::env::var("SystemRoot")
+                .unwrap_or_else(|_| std::env::var("WINDIR").unwrap_or_default()),
+        ),
         ("%WINDIR%", std::env::var("WINDIR").unwrap_or_default()),
     ];
 
@@ -606,10 +568,10 @@ fn launch_gnome_terminal_raw(command: &str, title: Option<&str>) -> Result<(), L
         cmd.arg("--title").arg(t);
     }
 
-    cmd.arg("--").arg("bash").arg("-c").arg(format!(
-        "{}; read -p 'Press Enter to exit...'",
-        command
-    ));
+    cmd.arg("--")
+        .arg("bash")
+        .arg("-c")
+        .arg(format!("{}; read -p 'Press Enter to exit...'", command));
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("GNOME Terminal: {}", e)))?;
@@ -631,10 +593,10 @@ fn launch_konsole_raw(command: &str, title: Option<&str>) -> Result<(), LiteErro
         cmd.arg("--title").arg(t);
     }
 
-    cmd.arg("-e").arg("bash").arg("-c").arg(format!(
-        "{}; read -p 'Press Enter to exit...'",
-        command
-    ));
+    cmd.arg("-e")
+        .arg("bash")
+        .arg("-c")
+        .arg(format!("{}; read -p 'Press Enter to exit...'", command));
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("Konsole: {}", e)))?;
@@ -681,10 +643,10 @@ fn launch_xterm_raw(command: &str, title: Option<&str>) -> Result<(), LiteError>
         cmd.arg("-title").arg(t);
     }
 
-    cmd.arg("-e").arg("bash").arg("-c").arg(format!(
-        "{}; read -p 'Press Enter to exit...'",
-        command
-    ));
+    cmd.arg("-e")
+        .arg("bash")
+        .arg("-c")
+        .arg(format!("{}; read -p 'Press Enter to exit...'", command));
 
     cmd.spawn()
         .map_err(|e| LiteError::Terminal(format!("XTerm: {}", e)))?;
@@ -700,10 +662,10 @@ fn launch_alacritty(ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
 #[cfg(target_os = "linux")]
 fn launch_alacritty_raw(command: &str, _title: Option<&str>) -> Result<(), LiteError> {
     Command::new("alacritty")
-        .arg("-e").arg("bash").arg("-c").arg(format!(
-            "{}; read -p 'Press Enter to exit...'",
-            command
-        ))
+        .arg("-e")
+        .arg("bash")
+        .arg("-c")
+        .arg(format!("{}; read -p 'Press Enter to exit...'", command))
         .spawn()
         .map_err(|e| LiteError::Terminal(format!("Alacritty: {}", e)))?;
 
@@ -718,10 +680,10 @@ fn launch_kitty(ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
 #[cfg(target_os = "linux")]
 fn launch_kitty_raw(command: &str, _title: Option<&str>) -> Result<(), LiteError> {
     Command::new("kitty")
-        .arg("-e").arg("bash").arg("-c").arg(format!(
-            "{}; read -p 'Press Enter to exit...'",
-            command
-        ))
+        .arg("-e")
+        .arg("bash")
+        .arg("-c")
+        .arg(format!("{}; read -p 'Press Enter to exit...'", command))
         .spawn()
         .map_err(|e| LiteError::Terminal(format!("Kitty: {}", e)))?;
 
@@ -813,133 +775,185 @@ fn launch_warp_raw(command: &str, _title: Option<&str>) -> Result<(), LiteError>
 
 #[cfg(not(target_os = "windows"))]
 fn launch_windows_terminal(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Windows Terminal not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Windows Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
 fn launch_powershell(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("PowerShell not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "PowerShell not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
 fn launch_cmd(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("CMD not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "CMD not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
 fn launch_gitbash(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Git Bash not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Git Bash not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_gnome_terminal(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("GNOME Terminal not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "GNOME Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_konsole(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Konsole not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Konsole not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_xfce4_terminal(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("XFCE4 Terminal not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "XFCE4 Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_xterm(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("XTerm not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "XTerm not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_alacritty(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Alacritty not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Alacritty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_kitty(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Kitty not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Kitty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
 fn launch_terminal_app(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Terminal.app not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Terminal.app not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
 fn launch_iterm2(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("iTerm2 not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "iTerm2 not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
 fn launch_warp(_ssh_cmd: &str, _server: &Server) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Warp not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Warp not available on this platform".to_string(),
+    ))
 }
 
 // Raw command stubs
 #[cfg(not(target_os = "windows"))]
 fn launch_windows_terminal_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Windows Terminal not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Windows Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
 fn launch_powershell_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("PowerShell not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "PowerShell not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
 fn launch_cmd_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("CMD not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "CMD not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "windows"))]
 fn launch_gitbash_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Git Bash not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Git Bash not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_gnome_terminal_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("GNOME Terminal not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "GNOME Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_konsole_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Konsole not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Konsole not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_xfce4_terminal_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("XFCE4 Terminal not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "XFCE4 Terminal not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_xterm_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("XTerm not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "XTerm not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_alacritty_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Alacritty not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Alacritty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]
 fn launch_kitty_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Kitty not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Kitty not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
 fn launch_terminal_app_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Terminal.app not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Terminal.app not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
 fn launch_iterm2_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("iTerm2 not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "iTerm2 not available on this platform".to_string(),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
 fn launch_warp_raw(_command: &str, _title: Option<&str>) -> Result<(), LiteError> {
-    Err(LiteError::Terminal("Warp not available on this platform".to_string()))
+    Err(LiteError::Terminal(
+        "Warp not available on this platform".to_string(),
+    ))
 }
 
 // ============================================================================
@@ -997,7 +1011,10 @@ mod tests {
 
     #[test]
     fn test_terminal_type_display_name() {
-        assert_eq!(TerminalType::WindowsTerminal.display_name(), "Windows Terminal");
+        assert_eq!(
+            TerminalType::WindowsTerminal.display_name(),
+            "Windows Terminal"
+        );
         assert_eq!(TerminalType::PowerShell.display_name(), "PowerShell");
         assert_eq!(TerminalType::GnomeTerminal.display_name(), "GNOME Terminal");
         assert_eq!(TerminalType::ITerm2.display_name(), "iTerm2");

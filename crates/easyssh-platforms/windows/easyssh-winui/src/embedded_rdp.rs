@@ -90,7 +90,7 @@ impl RemoteDesktopViewer {
         // Check if mstsc exists
         if !std::path::Path::new(mstsc_path).exists() {
             return Err(RemoteDesktopError::ClientNotFound(
-                "mstsc.exe not found. Please ensure Remote Desktop is enabled.".to_string()
+                "mstsc.exe not found. Please ensure Remote Desktop is enabled.".to_string(),
             ));
         }
 
@@ -104,7 +104,10 @@ impl RemoteDesktopViewer {
             .map_err(|e| RemoteDesktopError::Connection(format!("Failed to start mstsc: {}", e)))?;
 
         self.state = ViewerState::Connected;
-        println!("Launched mstsc for RDP connection to {}:{}", self.settings.host, self.settings.port);
+        println!(
+            "Launched mstsc for RDP connection to {}:{}",
+            self.settings.host, self.settings.port
+        );
 
         Ok(())
     }
@@ -135,20 +138,20 @@ gatewayusagemethod:i:0\n\
 gatewayprofileusagemethod:i:1\n\
 gatewaycredentialssource:i:0\n\
 full address:s:{}:{}\n",
-            self.settings.username,
-            self.settings.host,
-            self.settings.port
+            self.settings.username, self.settings.host, self.settings.port
         );
 
         // Write to temp file
         let temp_dir = std::env::temp_dir();
         let rdp_file = temp_dir.join(format!("easyssh_rdp_{}.rdp", uuid::Uuid::new_v4()));
 
-        let mut file = std::fs::File::create(&rdp_file)
-            .map_err(|e| RemoteDesktopError::Connection(format!("Failed to create RDP file: {}", e)))?;
+        let mut file = std::fs::File::create(&rdp_file).map_err(|e| {
+            RemoteDesktopError::Connection(format!("Failed to create RDP file: {}", e))
+        })?;
 
-        file.write_all(rdp_content.as_bytes())
-            .map_err(|e| RemoteDesktopError::Connection(format!("Failed to write RDP file: {}", e)))?;
+        file.write_all(rdp_content.as_bytes()).map_err(|e| {
+            RemoteDesktopError::Connection(format!("Failed to write RDP file: {}", e))
+        })?;
 
         Ok(rdp_file.to_string_lossy().to_string())
     }
@@ -164,19 +167,22 @@ full address:s:{}:{}\n",
             "C:\\Program Files\\TigerVNC\\vncviewer.exe",
         ];
 
-        let vnc_path = vnc_paths.iter()
+        let vnc_path = vnc_paths
+            .iter()
             .find(|p| std::path::Path::new(p).exists())
-            .ok_or_else(|| RemoteDesktopError::ClientNotFound(
-                "VNC viewer not found. Please install TightVNC, RealVNC, or TigerVNC.".to_string()
-            ))?;
+            .ok_or_else(|| {
+                RemoteDesktopError::ClientNotFound(
+                    "VNC viewer not found. Please install TightVNC, RealVNC, or TigerVNC."
+                        .to_string(),
+                )
+            })?;
 
         let addr = format!("{}:{}", self.settings.host, self.settings.port);
 
         // Launch VNC viewer
-        let _result = Command::new(vnc_path)
-            .arg(&addr)
-            .spawn()
-            .map_err(|e| RemoteDesktopError::Connection(format!("Failed to start VNC viewer: {}", e)))?;
+        let _result = Command::new(vnc_path).arg(&addr).spawn().map_err(|e| {
+            RemoteDesktopError::Connection(format!("Failed to start VNC viewer: {}", e))
+        })?;
 
         self.state = ViewerState::Connected;
         println!("Launched VNC viewer for connection to {}", addr);
@@ -196,7 +202,10 @@ full address:s:{}:{}\n",
         match self.state {
             ViewerState::Connected => {
                 ui.label("✅ External remote desktop client launched successfully.");
-                ui.label(format!("Connected to {}:{}", self.settings.host, self.settings.port));
+                ui.label(format!(
+                    "Connected to {}:{}",
+                    self.settings.host, self.settings.port
+                ));
                 ui.separator();
                 ui.label("Note: The remote desktop is running in a separate window.");
                 if ui.button("Disconnect").clicked() {

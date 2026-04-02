@@ -143,45 +143,41 @@ impl Dialog for ServerDialog {
             Field::Host => {
                 handle_text_input(key, &mut self.data.host, &mut self.cursor_host);
             }
-            Field::Port => {
-                match key.code {
-                    KeyCode::Char(c) if c.is_ascii_digit() => {
-                        let port_str = self.data.port.to_string();
-                        if port_str.len() < 5 {
-                            self.data.port = (self.data.port * 10 + c.to_digit(10).unwrap() as u16)
-                                .min(65535);
-                        }
+            Field::Port => match key.code {
+                KeyCode::Char(c) if c.is_ascii_digit() => {
+                    let port_str = self.data.port.to_string();
+                    if port_str.len() < 5 {
+                        self.data.port =
+                            (self.data.port * 10 + c.to_digit(10).unwrap() as u16).min(65535);
                     }
-                    KeyCode::Backspace => {
-                        self.data.port /= 10;
-                    }
-                    _ => {}
                 }
-            }
+                KeyCode::Backspace => {
+                    self.data.port /= 10;
+                }
+                _ => {}
+            },
             Field::Username => {
                 handle_text_input(key, &mut self.data.username, &mut self.cursor_username);
             }
-            Field::AuthMethod => {
-                match key.code {
-                    KeyCode::Char('1') => {
-                        self.data.auth_method = AuthMethod::Agent;
-                        self.data.identity_file = None;
-                    }
-                    KeyCode::Char('2') => {
-                        self.data.auth_method = AuthMethod::Password {
-                            password: String::new(),
-                        };
-                        self.data.identity_file = None;
-                    }
-                    KeyCode::Char('3') => {
-                        self.data.auth_method = AuthMethod::PrivateKey {
-                            key_path: self.data.identity_file.clone().unwrap_or_default(),
-                            passphrase: None,
-                        };
-                    }
-                    _ => {}
+            Field::AuthMethod => match key.code {
+                KeyCode::Char('1') => {
+                    self.data.auth_method = AuthMethod::Agent;
+                    self.data.identity_file = None;
                 }
-            }
+                KeyCode::Char('2') => {
+                    self.data.auth_method = AuthMethod::Password {
+                        password: String::new(),
+                    };
+                    self.data.identity_file = None;
+                }
+                KeyCode::Char('3') => {
+                    self.data.auth_method = AuthMethod::PrivateKey {
+                        key_path: self.data.identity_file.clone().unwrap_or_default(),
+                        passphrase: None,
+                    };
+                }
+                _ => {}
+            },
             Field::IdentityFile => {
                 let mut path = self.data.identity_file.clone().unwrap_or_default();
                 handle_text_input(key, &mut path, &mut self.cursor_identity);
@@ -195,20 +191,18 @@ impl Dialog for ServerDialog {
                     };
                 }
             }
-            Field::Group => {
-                match key.code {
-                    KeyCode::Char('0') => {
-                        self.data.group_id = None;
-                    }
-                    KeyCode::Char(c) if c.is_ascii_digit() => {
-                        let idx = (c.to_digit(10).unwrap() as usize).saturating_sub(1);
-                        if let Some(group) = self.groups.get(idx) {
-                            self.data.group_id = Some(group.id.clone());
-                        }
-                    }
-                    _ => {}
+            Field::Group => match key.code {
+                KeyCode::Char('0') => {
+                    self.data.group_id = None;
                 }
-            }
+                KeyCode::Char(c) if c.is_ascii_digit() => {
+                    let idx = (c.to_digit(10).unwrap() as usize).saturating_sub(1);
+                    if let Some(group) = self.groups.get(idx) {
+                        self.data.group_id = Some(group.id.clone());
+                    }
+                }
+                _ => {}
+            },
         }
 
         DialogResult::Continue
@@ -249,9 +243,7 @@ impl Dialog for ServerDialog {
             cursor_pos: usize,
         ) {
             let style = if is_focused {
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::White)
+                Style::default().fg(Color::Black).bg(Color::White)
             } else {
                 Style::default()
             };
@@ -274,10 +266,7 @@ impl Dialog for ServerDialog {
             frame.render_widget(para, area);
 
             if is_focused {
-                frame.set_cursor(
-                    area.x + label.len() as u16 + 1 + cursor_pos as u16,
-                    area.y,
-                );
+                frame.set_cursor(area.x + label.len() as u16 + 1 + cursor_pos as u16, area.y);
             }
         }
 

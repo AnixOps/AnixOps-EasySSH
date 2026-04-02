@@ -5,7 +5,7 @@
 //! - Edit form for server details
 //! - Connection actions
 
-use crate::terminal_launcher::{SshConnection, TerminalPreference, TerminalDiagnostics};
+use crate::terminal_launcher::{SshConnection, TerminalDiagnostics, TerminalPreference};
 use crate::viewmodels::{GroupViewModel, ServerViewModel};
 use egui::{Align, Button, Color32, Layout, RichText, TextEdit, Ui, Vec2};
 
@@ -18,11 +18,7 @@ pub struct ServerInfo {
 }
 
 impl ServerInfo {
-    pub fn new(
-        server: ServerViewModel,
-        groups: &[GroupViewModel],
-        is_connected: bool,
-    ) -> Self {
+    pub fn new(server: ServerViewModel, groups: &[GroupViewModel], is_connected: bool) -> Self {
         let group_name = server
             .group_id
             .as_ref()
@@ -102,7 +98,10 @@ impl ServerInfo {
             ui.horizontal(|ui| {
                 // Connect/Disconnect button
                 if self.is_connected {
-                    if ui.button(RichText::new("🔌 Disconnect").size(14.0)).clicked() {
+                    if ui
+                        .button(RichText::new("🔌 Disconnect").size(14.0))
+                        .clicked()
+                    {
                         response.disconnect_clicked = true;
                     }
                 } else {
@@ -113,10 +112,7 @@ impl ServerInfo {
 
                     // Show terminal availability info
                     if !self.terminal_diagnostics.ssh_available {
-                        ui.colored_label(
-                            Color32::YELLOW,
-                            "⚠ SSH command not found in PATH",
-                        );
+                        ui.colored_label(Color32::YELLOW, "⚠ SSH command not found in PATH");
                     }
                 }
             });
@@ -328,7 +324,10 @@ impl EditForm {
                         )
                         .show_ui(ui, |ui| {
                             let mut changed = false;
-                            if ui.selectable_value(&mut self.edited_group_id, None, "None").clicked() {
+                            if ui
+                                .selectable_value(&mut self.edited_group_id, None, "None")
+                                .clicked()
+                            {
                                 changed = true;
                             }
                             for group in &self.groups {
@@ -500,7 +499,12 @@ impl DetailPanel {
         });
     }
 
-    pub fn set_info(&mut self, server: ServerViewModel, groups: &[GroupViewModel], is_connected: bool) {
+    pub fn set_info(
+        &mut self,
+        server: ServerViewModel,
+        groups: &[GroupViewModel],
+        is_connected: bool,
+    ) {
         *self = DetailPanel::Info(ServerInfo::new(server, groups, is_connected));
     }
 
@@ -605,7 +609,12 @@ impl DetailPanelContainer {
         response
     }
 
-    pub fn show_server(&mut self, server: ServerViewModel, groups: &[GroupViewModel], is_connected: bool) {
+    pub fn show_server(
+        &mut self,
+        server: ServerViewModel,
+        groups: &[GroupViewModel],
+        is_connected: bool,
+    ) {
         self.panel.set_info(server, groups, is_connected);
         self.show_edit_button = true;
     }
@@ -779,7 +788,10 @@ mod tests {
         };
 
         assert!(diag.any_terminal_available());
-        assert_eq!(diag.get_best_terminal(), TerminalPreference::WindowsTerminal);
+        assert_eq!(
+            diag.get_best_terminal(),
+            TerminalPreference::WindowsTerminal
+        );
 
         let diag2 = TerminalDiagnostics {
             windows_terminal_available: false,

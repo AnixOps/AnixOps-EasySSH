@@ -184,12 +184,7 @@ impl User {
     }
 
     /// Create a user with specific ID (for loading from database)
-    pub fn with_id(
-        id: UserId,
-        username: String,
-        display_name: String,
-        is_local: bool,
-    ) -> Self {
+    pub fn with_id(id: UserId, username: String, display_name: String, is_local: bool) -> Self {
         let now = Utc::now();
         Self {
             id,
@@ -462,30 +457,40 @@ mod tests {
     #[test]
     fn test_user_validation_empty_username() {
         let user = User::new_local("".to_string(), "Test".to_string());
-        assert!(matches!(user.validate(), Err(ValidationError::InvalidField { field, .. }) if field == "username"));
+        assert!(
+            matches!(user.validate(), Err(ValidationError::InvalidField { field, .. }) if field == "username")
+        );
     }
 
     #[test]
     fn test_user_validation_long_username() {
         let user = User::new_local("a".repeat(101), "Test".to_string());
-        assert!(matches!(user.validate(), Err(ValidationError::InvalidField { field, .. }) if field == "username"));
+        assert!(
+            matches!(user.validate(), Err(ValidationError::InvalidField { field, .. }) if field == "username")
+        );
     }
 
     #[test]
     fn test_user_validation_invalid_email() {
         let mut user = User::new_local("test".to_string(), "Test".to_string());
         user.profile.email = Some("invalid-email".to_string());
-        assert!(matches!(user.validate(), Err(ValidationError::InvalidFormat { field, .. }) if field == "profile.email"));
+        assert!(
+            matches!(user.validate(), Err(ValidationError::InvalidFormat { field, .. }) if field == "profile.email")
+        );
     }
 
     #[test]
     fn test_user_validation_font_size_range() {
         let mut user = User::new_local("test".to_string(), "Test".to_string());
         user.preferences.terminal_font_size = 5;
-        assert!(matches!(user.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "preferences.terminal_font_size"));
+        assert!(
+            matches!(user.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "preferences.terminal_font_size")
+        );
 
         user.preferences.terminal_font_size = 80;
-        assert!(matches!(user.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "preferences.terminal_font_size"));
+        assert!(
+            matches!(user.validate(), Err(ValidationError::OutOfRange { field, .. }) if field == "preferences.terminal_font_size")
+        );
     }
 
     #[test]
@@ -593,7 +598,8 @@ mod tests {
 
     #[test]
     fn test_create_user_dto() {
-        let json = r##"{"username": "john", "display_name": "John Doe", "email": "john@example.com"}"##;
+        let json =
+            r##"{"username": "john", "display_name": "John Doe", "email": "john@example.com"}"##;
         let dto: CreateUserDto = serde_json::from_str(json).unwrap();
         assert_eq!(dto.username, "john");
         assert_eq!(dto.display_name, "John Doe");

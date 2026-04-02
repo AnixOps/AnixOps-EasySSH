@@ -6,8 +6,8 @@ pub mod search_service;
 pub mod server_service;
 
 pub use search_service::{
-    AuthMethod as SearchAuthMethod, ConnectionStatus, SearchHistoryEntry, SearchQuery, SearchQueryBuilder,
-    SearchResult, SearchService, SortBy, SortOrder,
+    AuthMethod as SearchAuthMethod, ConnectionStatus, SearchHistoryEntry, SearchQuery,
+    SearchQueryBuilder, SearchResult, SearchService, SortBy, SortOrder,
 };
 
 pub use server_service::{

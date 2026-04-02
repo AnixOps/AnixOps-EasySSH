@@ -24,11 +24,36 @@ impl Monitor {
     fn new() -> Self {
         Self {
             results: vec![
-                CheckResult { name: "代码质量", status: '⏳', message: "等待检查...".to_string(), last_check: "--:--:--".to_string() },
-                CheckResult { name: "构建状态", status: '⏳', message: "等待检查...".to_string(), last_check: "--:--:--".to_string() },
-                CheckResult { name: "测试执行", status: '⏳', message: "等待检查...".to_string(), last_check: "--:--:--".to_string() },
-                CheckResult { name: "安全审计", status: '⏳', message: "等待检查...".to_string(), last_check: "--:--:--".to_string() },
-                CheckResult { name: "CI/CD配置", status: '⏳', message: "等待检查...".to_string(), last_check: "--:--:--".to_string() },
+                CheckResult {
+                    name: "代码质量",
+                    status: '⏳',
+                    message: "等待检查...".to_string(),
+                    last_check: "--:--:--".to_string(),
+                },
+                CheckResult {
+                    name: "构建状态",
+                    status: '⏳',
+                    message: "等待检查...".to_string(),
+                    last_check: "--:--:--".to_string(),
+                },
+                CheckResult {
+                    name: "测试执行",
+                    status: '⏳',
+                    message: "等待检查...".to_string(),
+                    last_check: "--:--:--".to_string(),
+                },
+                CheckResult {
+                    name: "安全审计",
+                    status: '⏳',
+                    message: "等待检查...".to_string(),
+                    last_check: "--:--:--".to_string(),
+                },
+                CheckResult {
+                    name: "CI/CD配置",
+                    status: '⏳',
+                    message: "等待检查...".to_string(),
+                    last_check: "--:--:--".to_string(),
+                },
             ],
             last_update: Instant::now(),
         }
@@ -47,11 +72,22 @@ impl Monitor {
     fn render(&self) {
         Self::clear_screen();
 
-        println!("╔══════════════════════════════════════════════════════════════════════════════╗");
-        println!("║                    🔧 EasySSH 前台自动化监控中心 🔧                           ║");
-        println!("╠══════════════════════════════════════════════════════════════════════════════╣");
-        println!("║ 刷新时间: {}                                              ║", self.get_time());
-        println!("╠══════════════════════════════════════════════════════════════════════════════╣");
+        println!(
+            "╔══════════════════════════════════════════════════════════════════════════════╗"
+        );
+        println!(
+            "║                    🔧 EasySSH 前台自动化监控中心 🔧                           ║"
+        );
+        println!(
+            "╠══════════════════════════════════════════════════════════════════════════════╣"
+        );
+        println!(
+            "║ 刷新时间: {}                                              ║",
+            self.get_time()
+        );
+        println!(
+            "╠══════════════════════════════════════════════════════════════════════════════╣"
+        );
 
         for (i, result) in self.results.iter().enumerate() {
             let icon = match result.status {
@@ -64,22 +100,34 @@ impl Monitor {
             } else {
                 result.message.clone()
             };
-            println!("║ {:12} │ {:2} │ {:8} │ {:40} ║",
-                result.name, icon, result.last_check, msg);
+            println!(
+                "║ {:12} │ {:2} │ {:8} │ {:40} ║",
+                result.name, icon, result.last_check, msg
+            );
         }
 
-        println!("╠══════════════════════════════════════════════════════════════════════════════╣");
-        println!("║ 状态: {}                                                        ║",
+        println!(
+            "╠══════════════════════════════════════════════════════════════════════════════╣"
+        );
+        println!(
+            "║ 状态: {}                                                        ║",
             if self.results.iter().all(|r| r.status == '✅') {
                 "🎉 全部通过"
             } else if self.results.iter().any(|r| r.status == '✗') {
                 "⚠️  需要修复"
             } else {
                 "⏳ 检查中..."
-            });
-        println!("╠══════════════════════════════════════════════════════════════════════════════╣");
-        println!("║ 操作: [R]刷新 [F]格式化 [C]清理 [A]全部修复 [S]提交 [Q]退出                    ║");
-        println!("╚══════════════════════════════════════════════════════════════════════════════╝");
+            }
+        );
+        println!(
+            "╠══════════════════════════════════════════════════════════════════════════════╣"
+        );
+        println!(
+            "║ 操作: [R]刷新 [F]格式化 [C]清理 [A]全部修复 [S]提交 [Q]退出                    ║"
+        );
+        println!(
+            "╚══════════════════════════════════════════════════════════════════════════════╝"
+        );
     }
 
     fn check_code_quality(&mut self) {
@@ -135,14 +183,22 @@ impl Monitor {
         self.results[idx].last_check = self.get_time();
 
         let test = Command::new("cargo")
-            .args(["test", "-p", "easyssh-core", "--no-fail-fast", "--", "--test-threads=1"])
+            .args([
+                "test",
+                "-p",
+                "easyssh-core",
+                "--no-fail-fast",
+                "--",
+                "--test-threads=1",
+            ])
             .output();
 
         match test {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 if stdout.contains("test result: ok") {
-                    let passed = stdout.lines()
+                    let passed = stdout
+                        .lines()
                         .find(|l| l.contains("test result:"))
                         .and_then(|l| l.split_whitespace().nth(3))
                         .unwrap_or("0");
@@ -167,9 +223,7 @@ impl Monitor {
         let idx = 3;
         self.results[idx].last_check = self.get_time();
 
-        let audit = Command::new("cargo")
-            .arg("audit")
-            .output();
+        let audit = Command::new("cargo").arg("audit").output();
 
         match audit {
             Ok(output) => {

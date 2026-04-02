@@ -153,7 +153,10 @@ impl ConfigManager {
             if let Err(errors) = ConfigValidator::validate(&config) {
                 self.last_validation_errors = errors;
                 // Log validation errors but don't fail loading
-                eprintln!("Configuration validation warnings: {:?}", self.last_validation_errors);
+                eprintln!(
+                    "Configuration validation warnings: {:?}",
+                    self.last_validation_errors
+                );
             }
 
             if !fixes.is_empty() {
@@ -180,9 +183,9 @@ impl ConfigManager {
             return Ok(config);
         }
 
-        let content = tokio::fs::read_to_string(&config_path)
-            .await
-            .map_err(|e| EasySSHErrors::configuration(format!("Failed to read config file: {}", e)))?;
+        let content = tokio::fs::read_to_string(&config_path).await.map_err(|e| {
+            EasySSHErrors::configuration(format!("Failed to read config file: {}", e))
+        })?;
 
         let mut config: FullConfig = serde_json::from_str(&content).map_err(|e| {
             EasySSHErrors::configuration(format!("Failed to parse config file: {}", e))
@@ -227,7 +230,9 @@ impl ConfigManager {
     pub fn save(&mut self) -> EasySSHResult<()> {
         // Validate before saving
         if let Err(errors) = ConfigValidator::validate(&self.config) {
-            let has_errors = errors.iter().any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
+            let has_errors = errors
+                .iter()
+                .any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
             if has_errors {
                 return Err(EasySSHErrors::configuration(format!(
                     "Cannot save invalid configuration: {:?}",
@@ -263,7 +268,9 @@ impl ConfigManager {
     pub async fn save_async(&self) -> EasySSHResult<()> {
         // Validate before saving
         if let Err(errors) = ConfigValidator::validate(&self.config) {
-            let has_errors = errors.iter().any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
+            let has_errors = errors
+                .iter()
+                .any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
             if has_errors {
                 return Err(EasySSHErrors::configuration(format!(
                     "Cannot save invalid configuration: {:?}",
@@ -274,9 +281,9 @@ impl ConfigManager {
 
         // Ensure config directory exists
         if let Some(parent) = self.config_path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| EasySSHErrors::configuration(format!("Failed to create config directory: {}", e)))?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                EasySSHErrors::configuration(format!("Failed to create config directory: {}", e))
+            })?;
         }
 
         // Serialize and write
@@ -286,7 +293,9 @@ impl ConfigManager {
 
         tokio::fs::write(&self.config_path, json)
             .await
-            .map_err(|e| EasySSHErrors::configuration(format!("Failed to write config file: {}", e)))?;
+            .map_err(|e| {
+                EasySSHErrors::configuration(format!("Failed to write config file: {}", e))
+            })?;
 
         Ok(())
     }
@@ -294,9 +303,8 @@ impl ConfigManager {
     /// Save if dirty and auto-save is enabled
     pub async fn auto_save_if_needed(&mut self) -> EasySSHResult<()> {
         if self.dirty && self.auto_save {
-            self.save().map_err(|e| {
-                EasySSHErrors::configuration(format!("Auto-save failed: {}", e))
-            })?;
+            self.save()
+                .map_err(|e| EasySSHErrors::configuration(format!("Auto-save failed: {}", e)))?;
         }
         Ok(())
     }
@@ -409,7 +417,9 @@ impl ConfigManager {
 
         // Trim to max
         if prefs.recent_connections.len() > prefs.max_recent_connections {
-            prefs.recent_connections.truncate(prefs.max_recent_connections);
+            prefs
+                .recent_connections
+                .truncate(prefs.max_recent_connections);
         }
 
         self.dirty = true;
@@ -453,8 +463,15 @@ impl ConfigManager {
         match ConfigValidator::validate(&self.config) {
             Ok(()) => Ok(()),
             Err(errors) => {
-                let msg = errors.iter().map(|e| format!("{}: {}", e.field, e.message)).collect::<Vec<_>>().join(", ");
-                Err(EasySSHErrors::configuration(format!("Config validation failed: {}", msg)))
+                let msg = errors
+                    .iter()
+                    .map(|e| format!("{}: {}", e.field, e.message))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                Err(EasySSHErrors::configuration(format!(
+                    "Config validation failed: {}",
+                    msg
+                )))
             }
         }
     }
@@ -491,7 +508,9 @@ impl ConfigManager {
         ConfigValidator::sanitize(&mut config);
 
         if let Err(errors) = ConfigValidator::validate(&config) {
-            let has_errors = errors.iter().any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
+            let has_errors = errors
+                .iter()
+                .any(|e| matches!(e.severity, super::validation::ValidationSeverity::Error));
             if has_errors {
                 return Err(EasySSHErrors::configuration(format!(
                     "Imported configuration is invalid: {:?}",
@@ -574,7 +593,9 @@ impl ConfigManager {
     /// Create a backup of the current configuration
     pub async fn backup(&self) -> EasySSHResult<PathBuf> {
         if !self.config_path.exists() {
-            return Err(EasySSHErrors::configuration("No configuration file to backup"));
+            return Err(EasySSHErrors::configuration(
+                "No configuration file to backup",
+            ));
         }
 
         ConfigBackup::create_backup(&self.config_path)
@@ -586,7 +607,9 @@ impl ConfigManager {
     pub async fn restore(&mut self, backup_path: &Path) -> EasySSHResult<()> {
         ConfigBackup::restore_backup(backup_path, &self.config_path)
             .await
-            .map_err(|e| EasySSHErrors::configuration(format!("Failed to restore backup: {}", e)))?;
+            .map_err(|e| {
+                EasySSHErrors::configuration(format!("Failed to restore backup: {}", e))
+            })?;
 
         // Reload after restore
         self.reload().await
@@ -725,7 +748,10 @@ mod tests {
         // Should receive notification
         let event = rx.try_recv();
         assert!(event.is_ok());
-        assert!(matches!(event.unwrap(), ConfigChangeEvent::AppConfigChanged));
+        assert!(matches!(
+            event.unwrap(),
+            ConfigChangeEvent::AppConfigChanged
+        ));
     }
 
     #[test]

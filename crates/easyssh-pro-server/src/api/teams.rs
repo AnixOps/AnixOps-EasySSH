@@ -26,7 +26,10 @@ pub fn team_routes() -> Router<AppState> {
         .route("/invitations/{token}/accept", post(accept_invitation))
         .route("/invitations/{token}/decline", post(decline_invitation))
         .route("/{id}/invitations", get(list_invitations))
-        .route("/{id}/invitations/{invitation_id}", delete(cancel_invitation))
+        .route(
+            "/{id}/invitations/{invitation_id}",
+            delete(cancel_invitation),
+        )
         // Settings
         .route("/{id}/settings", get(get_team_settings))
         .route("/{id}/settings", put(update_team_settings))

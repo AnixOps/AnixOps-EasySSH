@@ -78,8 +78,11 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                     Span::styled(status_symbol, style.fg(status_color)),
                 ])),
                 Cell::from(server.name.clone()).style(style),
-                Cell::from(format!("{}@{}:{}", server.username, server.host, server.port))
-                    .style(style),
+                Cell::from(format!(
+                    "{}@{}:{}",
+                    server.username, server.host, server.port
+                ))
+                .style(style),
                 Cell::from(group_name.to_string()).style(style.fg(Color::Gray)),
             ];
 

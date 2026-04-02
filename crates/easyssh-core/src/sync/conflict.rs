@@ -139,9 +139,7 @@ impl ConflictResolver {
                     None
                 }
                 "notes" | "description" => {
-                    if let (Some(local_str), Some(remote_str)) =
-                        (local.as_str(), remote.as_str())
-                    {
+                    if let (Some(local_str), Some(remote_str)) = (local.as_str(), remote.as_str()) {
                         let merged = format!("{}\n---\n{}", local_str, remote_str);
                         return Some(serde_json::Value::String(merged));
                     }

@@ -123,15 +123,9 @@ pub fn launch_ssh_terminal(
     };
 
     match preference {
-        TerminalPreference::WindowsTerminal => {
-            launch_windows_terminal(connection)
-        }
-        TerminalPreference::PowerShell => {
-            launch_powershell(connection)
-        }
-        TerminalPreference::Cmd => {
-            launch_cmd(connection)
-        }
+        TerminalPreference::WindowsTerminal => launch_windows_terminal(connection),
+        TerminalPreference::PowerShell => launch_powershell(connection),
+        TerminalPreference::Cmd => launch_cmd(connection),
         TerminalPreference::Auto => unreachable!(),
     }
 }
@@ -188,9 +182,7 @@ fn launch_powershell(connection: &SshConnection) -> Result<(), TerminalError> {
     let ssh_cmd = connection.to_command_string();
 
     let mut cmd = Command::new("powershell.exe");
-    cmd.arg("-NoExit")
-        .arg("-Command")
-        .arg(&ssh_cmd);
+    cmd.arg("-NoExit").arg("-Command").arg(&ssh_cmd);
 
     cmd.spawn()
         .map_err(|e| TerminalError::LaunchFailed(format!("PowerShell: {}", e)))?;
@@ -266,9 +258,7 @@ pub struct TerminalDiagnostics {
 
 impl TerminalDiagnostics {
     pub fn any_terminal_available(&self) -> bool {
-        self.windows_terminal_available
-            || self.powershell_available
-            || self.cmd_available
+        self.windows_terminal_available || self.powershell_available || self.cmd_available
     }
 
     pub fn get_best_terminal(&self) -> TerminalPreference {
@@ -338,7 +328,10 @@ mod tests {
 
     #[test]
     fn test_terminal_preference_names() {
-        assert_eq!(TerminalPreference::WindowsTerminal.name(), "Windows Terminal");
+        assert_eq!(
+            TerminalPreference::WindowsTerminal.name(),
+            "Windows Terminal"
+        );
         assert_eq!(TerminalPreference::PowerShell.name(), "PowerShell");
         assert_eq!(TerminalPreference::Cmd.name(), "Command Prompt");
         assert_eq!(TerminalPreference::Auto.name(), "Auto-detect");

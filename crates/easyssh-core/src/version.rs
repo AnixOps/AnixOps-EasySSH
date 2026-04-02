@@ -270,7 +270,9 @@ impl VersionCompatibility {
             (Edition::Standard, Edition::Pro) => "平滑升级：现有配置保留，建议启用审计日志",
             (Edition::Standard, Edition::Lite) => "降级注意：分屏布局、监控数据将不可用",
             (Edition::Pro, Edition::Lite) => "降级警告：团队数据、审计日志将丢失！建议先备份",
-            (Edition::Pro, Edition::Standard) => "降级警告：团队协作功能将不可用，建议先导出团队数据",
+            (Edition::Pro, Edition::Standard) => {
+                "降级警告：团队协作功能将不可用，建议先导出团队数据"
+            }
         }
     }
 
@@ -469,23 +471,50 @@ mod tests {
     #[test]
     fn test_version_compatibility() {
         // 相同版本兼容
-        assert!(VersionCompatibility::is_compatible(Edition::Lite, Edition::Lite));
-        assert!(VersionCompatibility::is_compatible(Edition::Standard, Edition::Standard));
-        assert!(VersionCompatibility::is_compatible(Edition::Pro, Edition::Pro));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Lite,
+            Edition::Lite
+        ));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Standard,
+            Edition::Standard
+        ));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Pro,
+            Edition::Pro
+        ));
 
         // Lite可以升级到任何版本
-        assert!(VersionCompatibility::is_compatible(Edition::Lite, Edition::Standard));
-        assert!(VersionCompatibility::is_compatible(Edition::Lite, Edition::Pro));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Lite,
+            Edition::Standard
+        ));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Lite,
+            Edition::Pro
+        ));
 
         // 任何版本都可以降级到Lite
-        assert!(VersionCompatibility::is_compatible(Edition::Standard, Edition::Lite));
-        assert!(VersionCompatibility::is_compatible(Edition::Pro, Edition::Lite));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Standard,
+            Edition::Lite
+        ));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Pro,
+            Edition::Lite
+        ));
 
         // Standard可以升级到Pro
-        assert!(VersionCompatibility::is_compatible(Edition::Standard, Edition::Pro));
+        assert!(VersionCompatibility::is_compatible(
+            Edition::Standard,
+            Edition::Pro
+        ));
 
         // Pro降级到Standard不兼容
-        assert!(!VersionCompatibility::is_compatible(Edition::Pro, Edition::Standard));
+        assert!(!VersionCompatibility::is_compatible(
+            Edition::Pro,
+            Edition::Standard
+        ));
     }
 
     #[test]

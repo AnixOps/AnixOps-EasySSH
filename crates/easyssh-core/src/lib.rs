@@ -103,7 +103,7 @@ pub mod ai_programming {
     //! 在release builds中，AI编程接口默认被禁用。
     //! 通过debug_access模块激活后可获得完整功能。
 
-    use crate::debug_access::{DebugAccess, DebugFeature, get_debug_access};
+    use crate::debug_access::{get_debug_access, DebugAccess, DebugFeature};
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct SearchResult {
@@ -173,7 +173,10 @@ pub mod ai_programming {
                 return Ok(());
             }
         }
-        Err(format!("AI编程接口未启用: 需要通过debug access激活{}功能", feature.name()))
+        Err(format!(
+            "AI编程接口未启用: 需要通过debug access激活{}功能",
+            feature.name()
+        ))
     }
 
     fn disabled_error<T>(msg: &str) -> Result<T, String> {
@@ -379,7 +382,10 @@ pub mod ai_programming {
             .map_err(|e| format!("读取文件失败 {_path}: {e}"))
     }
 
-    pub async fn ai_list_files(_dir: String, _pattern: Option<String>) -> Result<Vec<String>, String> {
+    pub async fn ai_list_files(
+        _dir: String,
+        _pattern: Option<String>,
+    ) -> Result<Vec<String>, String> {
         if !is_ai_programming_enabled() {
             return disabled_error("list_files");
         }
@@ -407,7 +413,10 @@ pub mod ai_programming {
         Ok(results)
     }
 
-    pub async fn ai_search_code(_query: String, _path: Option<String>) -> Result<Vec<SearchResult>, String> {
+    pub async fn ai_search_code(
+        _query: String,
+        _path: Option<String>,
+    ) -> Result<Vec<SearchResult>, String> {
         if !is_ai_programming_enabled() {
             return disabled_error("search_code");
         }
@@ -523,7 +532,11 @@ pub mod ai_programming {
             .map_err(|e| format!("写入文件失败 {_path}: {e}"))
     }
 
-    pub async fn edit_file(_path: String, _old: String, _new: String) -> Result<crate::ai_programming::EditResult, String> {
+    pub async fn edit_file(
+        _path: String,
+        _old: String,
+        _new: String,
+    ) -> Result<crate::ai_programming::EditResult, String> {
         if !is_ai_programming_enabled() {
             return disabled_error("edit_file");
         }
@@ -600,11 +613,7 @@ pub mod ai_programming {
         check_debug_access(DebugFeature::AiProgramming)?;
 
         let output = tokio::process::Command::new("git")
-            .args([
-                "log",
-                &format!("--max-count={}", _count),
-                "--oneline",
-            ])
+            .args(["log", &format!("--max-count={}", _count), "--oneline"])
             .current_dir(".")
             .output()
             .await
@@ -675,10 +684,6 @@ pub mod crypto;
 #[cfg(feature = "database")]
 pub mod database;
 pub mod db;
-pub mod models;
-pub mod services;
-pub mod version;
-pub mod version_ffi;
 pub mod edition;
 pub mod edition_ffi;
 pub mod error;
@@ -686,7 +691,6 @@ pub mod ffi;
 pub mod i18n;
 pub mod i18n_ffi;
 pub mod keychain;
-pub mod logger;
 #[cfg(feature = "split-screen")]
 pub mod layout;
 #[cfg(all(feature = "standard", target_os = "linux"))]
@@ -695,12 +699,15 @@ pub mod linux_service;
 pub mod log_monitor;
 #[cfg(feature = "log-monitor")]
 pub mod log_monitor_ffi;
+pub mod logger;
+pub mod models;
 #[cfg(feature = "monitoring")]
 pub mod monitoring;
 #[cfg(feature = "pro")]
 pub mod pro;
 #[cfg(feature = "pro")]
 pub mod rbac;
+pub mod services;
 #[cfg(feature = "sftp")]
 pub mod sftp;
 pub mod ssh;
@@ -710,6 +717,8 @@ pub mod sso;
 pub mod team;
 #[cfg(feature = "telemetry")]
 pub mod telemetry;
+pub mod version;
+pub mod version_ffi;
 pub use ssh::{ConnectionHealth, PoolStats, SessionMetadata, SshSessionManager};
 #[cfg(feature = "embedded-terminal")]
 pub use terminal::{
@@ -766,6 +775,7 @@ pub mod remote_desktop;
 
 #[cfg(feature = "auto-update")]
 pub mod auto_update;
+pub mod update_checker;
 pub mod port_forward;
 
 // Unified Debug Module exports - 统一Debug模块
@@ -774,11 +784,11 @@ pub mod debug;
 
 // Debug access exports - available in all builds (基础导出)
 pub use debug_access::{
-    create_lite_key_detector, create_standard_key_detector, DebugAccess, DebugAccessError,
-    DebugAccessLevel, DebugAccessMethod, DebugAuditAction, DebugAuditRecord, DebugAuditResult,
-    DebugClientInfo, DebugFeature, DebugSession, EditionActivationConfig, get_debug_access,
-    init_global_debug_access, is_debug_enabled, KeySequenceDetector, try_activate_from_cli,
-    try_activate_from_env,
+    create_lite_key_detector, create_standard_key_detector, get_debug_access,
+    init_global_debug_access, is_debug_enabled, try_activate_from_cli, try_activate_from_env,
+    DebugAccess, DebugAccessError, DebugAccessLevel, DebugAccessMethod, DebugAuditAction,
+    DebugAuditRecord, DebugAuditResult, DebugClientInfo, DebugFeature, DebugSession,
+    EditionActivationConfig, KeySequenceDetector,
 };
 
 // Debug Access FFI exports for platform UI integration
@@ -787,9 +797,9 @@ pub use debug_access_ffi::{
     debug_access_get_edition, debug_access_get_level, debug_access_get_session_id,
     debug_access_get_timeout, debug_access_init, debug_access_is_ai_enabled,
     debug_access_is_enabled, debug_access_log_feature_access, debug_access_quick_activate_from_cli,
-    debug_access_set_show_indicator, debug_access_set_timeout,
-    debug_access_should_show_indicator, key_detector_create_lite, key_detector_create_standard,
-    key_detector_destroy, key_detector_get_progress, key_detector_on_key, key_detector_reset,
+    debug_access_set_show_indicator, debug_access_set_timeout, debug_access_should_show_indicator,
+    key_detector_create_lite, key_detector_create_standard, key_detector_destroy,
+    key_detector_get_progress, key_detector_on_key, key_detector_reset,
 };
 
 // AI Programming interface - 向后兼容导出
@@ -813,9 +823,8 @@ pub use ai_programming::{
 // dev-tools feature启用的统一导出
 #[cfg(feature = "dev-tools")]
 pub use debug::{
-    get_debug_capabilities, get_capabilities_summary, health_check,
-    enable_debug_via_hidden_entry, disable_debug, get_access_level,
-    can_access_feature,
+    can_access_feature, disable_debug, enable_debug_via_hidden_entry, get_access_level,
+    get_capabilities_summary, get_debug_capabilities, health_check,
 };
 
 // 向后兼容类型导出 - 从debug模块
@@ -832,6 +841,15 @@ pub use connection_pool::{
     EnhancedPoolStats, EnhancedSshManager, EnhancedSshManagerBuilder, HealthCheckConfig,
     ReconnectConfig, SessionStoreStats,
 };
+#[cfg(feature = "database")]
+pub use database::{
+    ensure_db_directory, get_default_db_path, AppConfig, ConfigRepository,
+    Database as SqlxDatabase, DatabaseError, Group as SqlxGroup, GroupRepository, GroupWithCount,
+    Migration, MigrationManager, MigrationStatus, NewGroup as NewSqlxGroup,
+    NewServer as NewSqlxServer, QueryOptions, Result as SqlxDatabaseResult, Server as SqlxServer,
+    ServerFilters, ServerRepository, ServerWithGroup, UpdateGroup as UpdateSqlxGroup,
+    UpdateServer as UpdateSqlxServer,
+};
 pub use db::{
     AuditEventRecord, GroupRecord, HostRecord, IdentityRecord, LayoutRecord, NewAuditEvent,
     NewGroup, NewHost, NewIdentity, NewLayout, NewServer, NewSession, NewSnippet, NewSyncState,
@@ -839,30 +857,21 @@ pub use db::{
     UpdateHost, UpdateIdentity, UpdateLayout, UpdateServer, UpdateSession, UpdateSnippet,
     UpdateSyncState, UpdateTag,
 };
-#[cfg(feature = "database")]
-pub use database::{
-    Database as SqlxDatabase, DatabaseError, ConfigRepository, GroupRepository, ServerRepository,
-    MigrationManager, Migration, MigrationStatus,
-    Server as SqlxServer, NewServer as NewSqlxServer, UpdateServer as UpdateSqlxServer,
-    Group as SqlxGroup, NewGroup as NewSqlxGroup, UpdateGroup as UpdateSqlxGroup, AppConfig,
-    ServerFilters, QueryOptions, ServerWithGroup, GroupWithCount,
-    get_default_db_path, ensure_db_directory, Result as SqlxDatabaseResult,
+pub use edition::{
+    AppIdentity, BuildType, Edition, VersionComparator, VersionComparison, VersionInfo,
 };
+pub use edition_ffi::*;
 pub use models::{
-    AuthMethod, CreateServerDto, Server, ServerBuilder, ServerStatus,
-    UpdateServerDto, ValidationError,
-    Group, GroupId, GroupStats, GroupWithServers, ServerReference,
-    CreateGroupRequest, UpdateGroupRequest, MoveServerRequest,
-    UNGROUPED_ID, UNGROUPED_NAME, UNGROUPED_COLOR,
-    PRESET_GROUPS, DEFAULT_COLOR_PALETTE,
+    AuthMethod, CreateGroupRequest, CreateServerDto, Group, GroupId, GroupStats, GroupWithServers,
+    MoveServerRequest, Server, ServerBuilder, ServerReference, ServerStatus, UpdateGroupRequest,
+    UpdateServerDto, ValidationError, DEFAULT_COLOR_PALETTE, PRESET_GROUPS, UNGROUPED_COLOR,
+    UNGROUPED_ID, UNGROUPED_NAME,
 };
 pub use services::{
-    AsyncServerService, ConnectionTestResult, ServerService, ServerServiceError,
-    SearchAuthMethod, ConnectionStatus as SearchConnectionStatus, SearchHistoryEntry, SearchQuery, SearchQueryBuilder,
-    SearchResult, SearchService, SortBy, SortOrder,
+    AsyncServerService, ConnectionStatus as SearchConnectionStatus, ConnectionTestResult,
+    SearchAuthMethod, SearchHistoryEntry, SearchQuery, SearchQueryBuilder, SearchResult,
+    SearchService, ServerService, ServerServiceError, SortBy, SortOrder,
 };
-pub use edition::{Edition, VersionInfo, BuildType, AppIdentity, VersionComparator, VersionComparison};
-pub use edition_ffi::*;
 
 // Version system FFI exports
 pub use version_ffi::{
@@ -875,11 +884,10 @@ pub use version_ffi::{
 };
 
 // Version system exports - 版本系统扩展（补充 edition 模块）
-pub use version::{
-    FullBuildInfo, PlatformInfo, VersionCompatibility,
+pub use error::{
+    CoreCryptoError, CoreDatabaseError, CoreSshError, EasySSHErrors, EasySSHResult, ErrorDisplay,
+    ErrorSeverity, LiteError, Result,
 };
-pub use error::{LiteError, EasySSHErrors, CoreCryptoError, CoreDatabaseError, CoreSshError, EasySSHResult, Result, ErrorSeverity, ErrorDisplay};
-pub use logger::{Logger, LogLevel, LogContext, LogEntry, LoggerBuilder, init_global_logger, global_logger, init_from_env};
 pub use i18n::{
     format_date, format_datetime, format_number, get_current_language, get_language_display_name,
     get_rtl_class, get_supported_languages, get_text_direction, init as init_i18n, is_language_rtl,
@@ -896,9 +904,12 @@ pub use linux_service::{
 #[cfg(feature = "log-monitor")]
 pub use log_monitor::{
     Anomaly, ErrorPattern, ExportConfig, LogAlertAction, LogAlertCondition, LogAlertEvent,
-    LogAlertRule, LogAnalysisResult, LogFilter, LogMonitorCenter,
-    LogMonitorWebSocketServer, LogSource, LogStats, LogTrendDirection, LogType, ParserConfig,
-    TimeSeriesPoint, Trend,
+    LogAlertRule, LogAnalysisResult, LogFilter, LogMonitorCenter, LogMonitorWebSocketServer,
+    LogSource, LogStats, LogTrendDirection, LogType, ParserConfig, TimeSeriesPoint, Trend,
+};
+pub use logger::{
+    global_logger, init_from_env, init_global_logger, LogContext, LogEntry, LogLevel, Logger,
+    LoggerBuilder,
 };
 #[cfg(feature = "sftp")]
 pub use sftp::SftpSessionManager;
@@ -908,6 +919,7 @@ pub use sync::{
     SyncConflict, SyncConflictResolution, SyncDocument, SyncDocumentType, SyncEvent, SyncManager,
     SyncMetadata, SyncOperation, SyncProvider, SyncScope, SyncStats, SyncStatus, SyncVersion,
 };
+pub use version::{FullBuildInfo, PlatformInfo, VersionCompatibility};
 
 // Monitoring exports
 #[cfg(feature = "audit")]
@@ -966,6 +978,13 @@ pub use port_forward::{
     TopologyNodeType as ForwardTopologyNodeType, TrafficStats,
 };
 
+// Update checker exports (Lite版本简化更新检测)
+pub use update_checker::{
+    check_update, has_update, AssetInfo, UpdateChannel, UpdateCheckError, UpdateChecker,
+    UpdateCheckerConfig, UpdateCheckResult, UpdateInfo, VersionCompareResult, CURRENT_VERSION,
+    DEFAULT_GITHUB_API_URL, DEFAULT_GITHUB_RELEASES_URL, get_platform_asset_name,
+};
+
 #[cfg(feature = "kubernetes")]
 pub use kubernetes::{
     ContainerState, ExecOptions, HelmChart, HelmMaintainer, HelmRelease, HelmRepo, K8sCluster,
@@ -991,10 +1010,9 @@ pub use docker::{
     Actor, ClusterInfo, ClusterSpec, ComposeProject, ComposeService, ContainerInfo,
     ContainerNetworkInfo, ContainerStats, ContainerStatus, CpuStats, DockerConnection, DockerEvent,
     DockerHostType, DockerManager, DockerSystemInfo, DockerTlsConfig, HostConfig, ImageInfo,
-    IoEntry, IoStats, IpamConfig, IpamSubnetConfig, MemoryStats, MountPoint,
-    NetworkContainer, NetworkInfo, NetworkSettings, NetworkStats, PidsStats, PluginsInfo,
-    PortMapping, RuntimeInfo, SwarmInfo, ThrottlingData, VolumeInfo,
-    VolumeUsageData,
+    IoEntry, IoStats, IpamConfig, IpamSubnetConfig, MemoryStats, MountPoint, NetworkContainer,
+    NetworkInfo, NetworkSettings, NetworkStats, PidsStats, PluginsInfo, PortMapping, RuntimeInfo,
+    SwarmInfo, ThrottlingData, VolumeInfo, VolumeUsageData,
 };
 
 use std::sync::Arc;
@@ -1188,7 +1206,10 @@ pub fn add_server(state: &AppState, server: &NewServer) -> std::result::Result<(
 }
 
 /// Update server
-pub fn update_server(state: &AppState, server: &UpdateServer) -> std::result::Result<(), LiteError> {
+pub fn update_server(
+    state: &AppState,
+    server: &UpdateServer,
+) -> std::result::Result<(), LiteError> {
     let db_lock = state.db.lock().unwrap();
     let db = db_lock
         .as_ref()
@@ -1370,7 +1391,10 @@ pub async fn ssh_execute_once(
 }
 
 /// Disconnect SSH session
-pub async fn ssh_disconnect(state: &AppState, session_id: &str) -> std::result::Result<(), LiteError> {
+pub async fn ssh_disconnect(
+    state: &AppState,
+    session_id: &str,
+) -> std::result::Result<(), LiteError> {
     let mut ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.disconnect(session_id).await
 }
@@ -1414,14 +1438,20 @@ pub async fn ssh_write_shell_input(
 }
 
 /// Interrupt command (Ctrl+C)
-pub async fn ssh_interrupt(state: &AppState, session_id: &str) -> std::result::Result<(), LiteError> {
+pub async fn ssh_interrupt(
+    state: &AppState,
+    session_id: &str,
+) -> std::result::Result<(), LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.interrupt_command(session_id).await
 }
 
 /// Create SFTP session
 #[cfg(feature = "sftp")]
-pub async fn ssh_create_sftp(state: &AppState, session_id: &str) -> std::result::Result<ssh2::Sftp, LiteError> {
+pub async fn ssh_create_sftp(
+    state: &AppState,
+    session_id: &str,
+) -> std::result::Result<ssh2::Sftp, LiteError> {
     let ssh_manager = state.ssh_manager.lock().await;
     ssh_manager.create_sftp(session_id).await
 }

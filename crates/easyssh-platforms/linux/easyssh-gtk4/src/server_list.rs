@@ -107,7 +107,11 @@ impl ServerList {
                     list.select_row(Some(&row));
 
                     if let Some(server_id) = row.data::<String>("server-id") {
-                        if let Some(server) = servers_clone.borrow().iter().find(|s| s.id == *server_id.as_ref()) {
+                        if let Some(server) = servers_clone
+                            .borrow()
+                            .iter()
+                            .find(|s| s.id == *server_id.as_ref())
+                        {
                             let menu = gio::Menu::new();
                             menu.append(Some("Connect"), Some("server.connect"));
                             menu.append(Some("Edit"), Some("server.edit"));

@@ -7,11 +7,11 @@
 //! - Detail panel rendering
 //! - Dialog rendering
 
+pub mod detail_panel;
 pub mod dialogs;
 pub mod layout;
 pub mod server_list;
 pub mod sidebar;
-pub mod detail_panel;
 
 use crate::app::App;
 use ratatui::Frame;
@@ -32,10 +32,7 @@ impl Ui {
         self.layout.update(frame.size());
 
         // Clear background
-        frame.render_widget(
-            ratatui::widgets::Clear,
-            frame.size(),
-        );
+        frame.render_widget(ratatui::widgets::Clear, frame.size());
 
         // Render main layout areas
         let areas = self.layout.calculate_areas(frame.size());
@@ -85,9 +82,10 @@ impl Ui {
             )
         };
 
-        let status = Paragraph::new(Line::from(vec![
-            Span::styled(status_text, Style::default().fg(Color::White).bg(Color::Blue)),
-        ]));
+        let status = Paragraph::new(Line::from(vec![Span::styled(
+            status_text,
+            Style::default().fg(Color::White).bg(Color::Blue),
+        )]));
 
         frame.render_widget(status, area);
     }

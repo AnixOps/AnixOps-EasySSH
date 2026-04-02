@@ -14,8 +14,7 @@ use crate::config_import_export::ServerExport;
 use crate::db::{Database, NewServer, ServerRecord, UpdateServer};
 use crate::error::LiteError;
 use crate::models::server::{
-    AuthMethod, CreateServerDto, Server, ServerBuilder, ServerStatus,
-    UpdateServerDto,
+    AuthMethod, CreateServerDto, Server, ServerBuilder, ServerStatus, UpdateServerDto,
 };
 use crate::models::{Validatable, ValidationError};
 
@@ -254,8 +253,8 @@ impl ServerService {
         let start = std::time::Instant::now();
 
         let addr = format!("{}:{}", host, port);
-        let conn_result = timeout(Duration::from_secs(timeout_secs), TcpStream::connect(&addr))
-            .await;
+        let conn_result =
+            timeout(Duration::from_secs(timeout_secs), TcpStream::connect(&addr)).await;
 
         let latency = start.elapsed().as_millis() as u64;
 
@@ -300,7 +299,8 @@ impl ServerService {
             None => self.list_servers()?,
         };
 
-        let exports: Vec<ServerExport> = servers.iter().map(|s| Self::server_to_export(s)).collect();
+        let exports: Vec<ServerExport> =
+            servers.iter().map(|s| Self::server_to_export(s)).collect();
 
         serde_json::to_string_pretty(&exports)
             .map_err(|e| ServerServiceError::ImportExport(e.to_string()))
@@ -356,11 +356,9 @@ impl ServerService {
 
             match self.create_server(dto) {
                 Ok(_) => result.imported += 1,
-                Err(e) => result.errors.push(format!(
-                    "Failed to import {}: {}",
-                    host_for_error,
-                    e
-                )),
+                Err(e) => result
+                    .errors
+                    .push(format!("Failed to import {}: {}", host_for_error, e)),
             }
         }
 
@@ -447,9 +445,10 @@ impl ServerService {
             let group_id = parts.get(5).map(|s| Self::unescape_csv_field(s));
 
             // Skip duplicates
-            let existing = self.list_servers()?.into_iter().find(|s| {
-                s.host == host && s.username == username && s.port == port
-            });
+            let existing = self
+                .list_servers()?
+                .into_iter()
+                .find(|s| s.host == host && s.username == username && s.port == port);
 
             if existing.is_some() {
                 result.skipped += 1;
@@ -488,7 +487,10 @@ impl ServerService {
     }
 
     /// Batch update server statuses
-    pub fn update_server_statuses(&self, statuses: HashMap<String, ServerStatus>) -> ServerResult<usize> {
+    pub fn update_server_statuses(
+        &self,
+        statuses: HashMap<String, ServerStatus>,
+    ) -> ServerResult<usize> {
         let mut updated = 0;
 
         for (id, status) in statuses {
@@ -512,7 +514,13 @@ impl ServerService {
                     status: Some(status_str),
                 };
 
-                if self.db.lock().unwrap().update_server(&update_record).is_ok() {
+                if self
+                    .db
+                    .lock()
+                    .unwrap()
+                    .update_server(&update_record)
+                    .is_ok()
+                {
                     updated += 1;
                 }
             }
@@ -534,9 +542,9 @@ impl ServerService {
     /// Check if server name already exists
     fn is_duplicate_name(&self, name: &str, exclude_id: Option<&str>) -> ServerResult<bool> {
         let servers = self.list_servers()?;
-        Ok(servers.iter().any(|s| {
-            s.name == name && exclude_id.map(|id| s.id != id).unwrap_or(true)
-        }))
+        Ok(servers
+            .iter()
+            .any(|s| s.name == name && exclude_id.map(|id| s.id != id).unwrap_or(true)))
     }
 
     /// Convert a database record to Server model
@@ -553,7 +561,8 @@ impl ServerService {
             .map(|ts| DateTime::from_timestamp(ts, 0).unwrap_or_default())
             .unwrap_or_else(|_| Utc::now());
 
-        let auth_method = AuthMethod::from_db_string(&record.auth_type, record.identity_file.as_deref());
+        let auth_method =
+            AuthMethod::from_db_string(&record.auth_type, record.identity_file.as_deref());
 
         Ok(Server {
             id: record.id,
@@ -721,10 +730,7 @@ mod tests {
         service.create_server(dto.clone()).unwrap();
 
         let result = service.create_server(dto);
-        assert!(matches!(
-            result,
-            Err(ServerServiceError::DuplicateName(_))
-        ));
+        assert!(matches!(result, Err(ServerServiceError::DuplicateName(_))));
     }
 
     #[test]

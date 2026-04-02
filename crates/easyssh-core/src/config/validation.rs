@@ -328,7 +328,9 @@ impl ConfigValidator {
 
         // Limit recent connections to max
         if prefs.recent_connections.len() > prefs.max_recent_connections {
-            prefs.recent_connections.truncate(prefs.max_recent_connections);
+            prefs
+                .recent_connections
+                .truncate(prefs.max_recent_connections);
         }
 
         // Remove empty search history entries
@@ -404,9 +406,10 @@ impl ConfigAutoFix {
         // Fix search history size
         if config.user_preferences.search_history.len() > config.user_preferences.max_search_history
         {
-            config.user_preferences.search_history.truncate(
-                config.user_preferences.max_search_history,
-            );
+            config
+                .user_preferences
+                .search_history
+                .truncate(config.user_preferences.max_search_history);
             fixes.push("Truncated search history to max limit".to_string());
         }
 
@@ -414,9 +417,10 @@ impl ConfigAutoFix {
         if config.user_preferences.recent_connections.len()
             > config.user_preferences.max_recent_connections
         {
-            config.user_preferences.recent_connections.truncate(
-                config.user_preferences.max_recent_connections,
-            );
+            config
+                .user_preferences
+                .recent_connections
+                .truncate(config.user_preferences.max_recent_connections);
             fixes.push("Truncated recent connections to max limit".to_string());
         }
 
@@ -459,8 +463,8 @@ impl ConfigAutoFix {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::*;
+    use super::*;
 
     #[test]
     fn test_validate_valid_config() {
@@ -487,7 +491,9 @@ mod tests {
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| e.field.contains("window_geometry.width")));
+        assert!(errors
+            .iter()
+            .any(|e| e.field.contains("window_geometry.width")));
     }
 
     #[test]

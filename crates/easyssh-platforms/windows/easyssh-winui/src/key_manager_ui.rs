@@ -62,16 +62,16 @@ impl std::fmt::Display for KeyType {
 impl SshKeyInfo {
     pub fn formatted_fingerprint(&self) -> String {
         // Format: AB:CD:EF:... (16-byte MD5 format)
-        self.fingerprint.chars().enumerate().fold(
-            String::new(),
-            |mut acc, (i, c)| {
+        self.fingerprint
+            .chars()
+            .enumerate()
+            .fold(String::new(), |mut acc, (i, c)| {
                 if i > 0 && i % 2 == 0 && i < self.fingerprint.len() - 1 {
                     acc.push(':');
                 }
                 acc.push(c);
                 acc
-            },
-        )
+            })
     }
 
     pub fn short_fingerprint(&self) -> String {
@@ -498,7 +498,11 @@ impl KeyManagerUI {
         }
     }
 
-    fn render_content(&mut self, ui: &mut egui::Ui, action_message: Option<&(String, chrono::DateTime<chrono::Local>)>) {
+    fn render_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        action_message: Option<&(String, chrono::DateTime<chrono::Local>)>,
+    ) {
         // Header
         let mut should_close = false;
         let mut should_refresh = false;
@@ -564,7 +568,10 @@ impl KeyManagerUI {
                 )
                 .width(100.0)
                 .show_ui(ui, |ui| {
-                    if ui.selectable_label(current_filter.is_none(), "All").clicked() {
+                    if ui
+                        .selectable_label(current_filter.is_none(), "All")
+                        .clicked()
+                    {
                         new_filter = None;
                         filter_changed = true;
                     }
@@ -624,11 +631,19 @@ impl KeyManagerUI {
 
             let mut new_selection: Option<String> = None;
             let mut show_details = false;
-            egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                for key in &filtered {
-                    Self::render_key_item(ui, key, selected_key_id, &mut new_selection, &mut show_details);
-                }
-            });
+            egui::ScrollArea::vertical()
+                .max_height(400.0)
+                .show(ui, |ui| {
+                    for key in &filtered {
+                        Self::render_key_item(
+                            ui,
+                            key,
+                            selected_key_id,
+                            &mut new_selection,
+                            &mut show_details,
+                        );
+                    }
+                });
 
             if let Some(id) = new_selection {
                 self.selected_key_id = Some(id);
@@ -675,11 +690,7 @@ impl KeyManagerUI {
                 ui.vertical(|ui| {
                     // Name and default badge
                     ui.horizontal(|ui| {
-                        ui.label(
-                            egui::RichText::new(&key.name)
-                                .strong()
-                                .size(14.0),
-                        );
+                        ui.label(egui::RichText::new(&key.name).strong().size(14.0));
                         if key.is_default {
                             ui.label(
                                 egui::RichText::new("★ Default")
@@ -702,7 +713,8 @@ impl KeyManagerUI {
                             egui::RichText::new(format!(
                                 "{} {} | {}",
                                 key.key_type,
-                                key.key_size.map(|s| format!("({} bits)", s))
+                                key.key_size
+                                    .map(|s| format!("({} bits)", s))
                                     .unwrap_or_default(),
                                 key.short_fingerprint()
                             ))
@@ -746,7 +758,14 @@ impl KeyManagerUI {
         });
 
         // Click to select and show details
-        if ui.interact(response.response.rect, egui::Id::new(&key.id), egui::Sense::click()).clicked() {
+        if ui
+            .interact(
+                response.response.rect,
+                egui::Id::new(&key.id),
+                egui::Sense::click(),
+            )
+            .clicked()
+        {
             *new_selection = Some(key.id.clone());
             *show_details = true;
         }
@@ -786,10 +805,7 @@ impl KeyManagerUI {
                             for key_type in [KeyType::Ed25519, KeyType::Rsa, KeyType::Ecdsa] {
                                 let selected = current_type == key_type;
                                 if ui
-                                    .selectable_label(
-                                        selected,
-                                        key_type.to_string(),
-                                    )
+                                    .selectable_label(selected, key_type.to_string())
                                     .clicked()
                                     && !selected
                                 {
@@ -819,10 +835,7 @@ impl KeyManagerUI {
                             .show_ui(ui, |ui| {
                                 for size in sizes {
                                     if ui
-                                        .selectable_label(
-                                            current_size == size,
-                                            size.to_string(),
-                                        )
+                                        .selectable_label(current_size == size, size.to_string())
                                         .clicked()
                                         && current_size != size
                                     {
@@ -1053,11 +1066,14 @@ impl KeyManagerUI {
                                 should_cancel = true;
                             }
 
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("Export").clicked() {
-                                    should_export = true;
-                                }
-                            });
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.button("Export").clicked() {
+                                        should_export = true;
+                                    }
+                                },
+                            );
                         });
                     } else {
                         ui.label("Key not found");
@@ -1072,14 +1088,12 @@ impl KeyManagerUI {
             self.show_export_dialog = false;
         }
         if should_export {
-            let key_info = self.selected_key_id.as_ref().and_then(|id| {
-                self.get_key(id).map(|k| (id.clone(), k.name.clone()))
-            });
+            let key_info = self
+                .selected_key_id
+                .as_ref()
+                .and_then(|id| self.get_key(id).map(|k| (id.clone(), k.name.clone())));
             if let Some((key_id, key_name)) = key_info {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_file_name(&key_name)
-                    .save_file()
-                {
+                if let Some(path) = rfd::FileDialog::new().set_file_name(&key_name).save_file() {
                     match self.export_key(&key_id, &path) {
                         Ok(_) => {
                             self.show_message("Key exported".to_string());
@@ -1120,12 +1134,24 @@ impl KeyManagerUI {
                             ui.label(format!("Fingerprint: {}", key.formatted_fingerprint()));
                             ui.label(format!("SHA256: {}", key.fingerprint_sha256));
                             ui.label(format!("Comment: {}", key.comment));
-                            ui.label(format!("Created: {}", key.created_at.format("%Y-%m-%d %H:%M")));
+                            ui.label(format!(
+                                "Created: {}",
+                                key.created_at.format("%Y-%m-%d %H:%M")
+                            ));
                             if let Some(last_used) = key.last_used {
-                                ui.label(format!("Last Used: {}", last_used.format("%Y-%m-%d %H:%M")));
+                                ui.label(format!(
+                                    "Last Used: {}",
+                                    last_used.format("%Y-%m-%d %H:%M")
+                                ));
                             }
-                            ui.label(format!("Encrypted: {}", if key.is_encrypted { "Yes" } else { "No" }));
-                            ui.label(format!("Default: {}", if key.is_default { "Yes" } else { "No" }));
+                            ui.label(format!(
+                                "Encrypted: {}",
+                                if key.is_encrypted { "Yes" } else { "No" }
+                            ));
+                            ui.label(format!(
+                                "Default: {}",
+                                if key.is_default { "Yes" } else { "No" }
+                            ));
                         });
 
                         ui.add_space(15.0);

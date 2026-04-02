@@ -110,7 +110,9 @@ pub fn get_system_default_terminal() -> String {
     #[cfg(target_os = "windows")]
     {
         // Try to find the best available terminal on Windows
-        if std::path::Path::new("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe").exists() {
+        if std::path::Path::new("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe")
+            .exists()
+        {
             "powershell.exe".to_string()
         } else if std::path::Path::new("C:\\Windows\\System32\\cmd.exe").exists() {
             "cmd.exe".to_string()

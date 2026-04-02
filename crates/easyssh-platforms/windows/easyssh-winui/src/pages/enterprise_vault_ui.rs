@@ -334,10 +334,30 @@ impl EnterpriseVaultWindow {
 
     fn load_sample_data(&mut self) {
         self.entries = vec![
-            VaultEntry::new("Production Server", "admin", "P@ssw0rd123!", VaultCategory::Server),
-            VaultEntry::new("AWS Root Account", "root", "aws-secret-key-here", VaultCategory::ApiKey),
-            VaultEntry::new("Company Database", "dbadmin", "db-password-456", VaultCategory::Database),
-            VaultEntry::new("GitHub Token", "token", "ghp_xxxxxxxxxxxx", VaultCategory::ApiKey),
+            VaultEntry::new(
+                "Production Server",
+                "admin",
+                "P@ssw0rd123!",
+                VaultCategory::Server,
+            ),
+            VaultEntry::new(
+                "AWS Root Account",
+                "root",
+                "aws-secret-key-here",
+                VaultCategory::ApiKey,
+            ),
+            VaultEntry::new(
+                "Company Database",
+                "dbadmin",
+                "db-password-456",
+                VaultCategory::Database,
+            ),
+            VaultEntry::new(
+                "GitHub Token",
+                "token",
+                "ghp_xxxxxxxxxxxx",
+                VaultCategory::ApiKey,
+            ),
         ];
 
         // Mark some as favorites
@@ -434,14 +454,28 @@ impl EnterpriseVaultWindow {
 
                 // Categories
                 for category in VaultCategory::all() {
-                    let count = self.entries.iter().filter(|e| e.category == category).count();
+                    let count = self
+                        .entries
+                        .iter()
+                        .filter(|e| e.category == category)
+                        .count();
                     let is_selected = self.selected_category.as_ref() == Some(&category);
 
                     let btn = if is_selected {
-                        egui::Button::new(format!("{} {} ({})", category.icon(), category.display_name(), count))
-                            .fill(theme.bg_secondary)
+                        egui::Button::new(format!(
+                            "{} {} ({})",
+                            category.icon(),
+                            category.display_name(),
+                            count
+                        ))
+                        .fill(theme.bg_secondary)
                     } else {
-                        egui::Button::new(format!("{} {} ({})", category.icon(), category.display_name(), count))
+                        egui::Button::new(format!(
+                            "{} {} ({})",
+                            category.icon(),
+                            category.display_name(),
+                            count
+                        ))
                     };
 
                     if ui.add(btn).clicked() {
@@ -453,10 +487,17 @@ impl EnterpriseVaultWindow {
 
                 // Quick stats
                 ui.separator();
-                ui.label(egui::RichText::new("Statistics").size(12.0).color(theme.text_secondary));
+                ui.label(
+                    egui::RichText::new("Statistics")
+                        .size(12.0)
+                        .color(theme.text_secondary),
+                );
                 ui.label(format!("Total: {}", all_count));
                 ui.label(format!("Favorites: {}", fav_count));
-                ui.label(format!("Expired: {}", self.entries.iter().filter(|e| e.is_expired()).count()));
+                ui.label(format!(
+                    "Expired: {}",
+                    self.entries.iter().filter(|e| e.is_expired()).count()
+                ));
             });
 
             egui::CentralPanel::default().show_inside(ui, |ui| {
@@ -514,7 +555,11 @@ impl EnterpriseVaultWindow {
                         ui.selectable_value(&mut self.sort_by, SortOption::Name, "Name");
                         ui.selectable_value(&mut self.sort_by, SortOption::Updated, "Last Updated");
                         ui.selectable_value(&mut self.sort_by, SortOption::Created, "Created");
-                        ui.selectable_value(&mut self.sort_by, SortOption::Accessed, "Last Accessed");
+                        ui.selectable_value(
+                            &mut self.sort_by,
+                            SortOption::Accessed,
+                            "Last Accessed",
+                        );
                         ui.selectable_value(&mut self.sort_by, SortOption::Category, "Category");
                     });
             });
@@ -553,14 +598,28 @@ impl EnterpriseVaultWindow {
 
         // Categories
         for category in VaultCategory::all() {
-            let count = self.entries.iter().filter(|e| e.category == category).count();
+            let count = self
+                .entries
+                .iter()
+                .filter(|e| e.category == category)
+                .count();
             let is_selected = self.selected_category.as_ref() == Some(&category);
 
             let btn = if is_selected {
-                egui::Button::new(format!("{} {} ({})", category.icon(), category.display_name(), count))
-                    .fill(self.theme.bg_secondary)
+                egui::Button::new(format!(
+                    "{} {} ({})",
+                    category.icon(),
+                    category.display_name(),
+                    count
+                ))
+                .fill(self.theme.bg_secondary)
             } else {
-                egui::Button::new(format!("{} {} ({})", category.icon(), category.display_name(), count))
+                egui::Button::new(format!(
+                    "{} {} ({})",
+                    category.icon(),
+                    category.display_name(),
+                    count
+                ))
             };
 
             if ui.add(btn).clicked() {
@@ -572,10 +631,17 @@ impl EnterpriseVaultWindow {
 
         // Quick stats
         ui.separator();
-        ui.label(egui::RichText::new("Statistics").size(12.0).color(self.theme.text_secondary));
+        ui.label(
+            egui::RichText::new("Statistics")
+                .size(12.0)
+                .color(self.theme.text_secondary),
+        );
         ui.label(format!("Total: {}", all_count));
         ui.label(format!("Favorites: {}", fav_count));
-        ui.label(format!("Expired: {}", self.entries.iter().filter(|e| e.is_expired()).count()));
+        ui.label(format!(
+            "Expired: {}",
+            self.entries.iter().filter(|e| e.is_expired()).count()
+        ));
     }
 
     fn render_entries_list(&mut self, ui: &mut egui::Ui) {
@@ -585,7 +651,9 @@ impl EnterpriseVaultWindow {
         let theme = self.theme.clone();
 
         // First pass: collect entry IDs that match filters
-        let mut entry_refs: Vec<(VaultEntry, usize)> = self.entries.iter()
+        let mut entry_refs: Vec<(VaultEntry, usize)> = self
+            .entries
+            .iter()
             .enumerate()
             .filter(|(_, e)| self.matches_filters(e))
             .map(|(i, e)| (e.clone(), i))
@@ -605,9 +673,11 @@ impl EnterpriseVaultWindow {
                 ui.add_space(50.0);
                 ui.label(egui::RichText::new("🔐").size(48.0));
                 ui.label("No entries found");
-                ui.label(egui::RichText::new("Add your first password entry to get started")
-                    .size(12.0)
-                    .color(theme.text_secondary));
+                ui.label(
+                    egui::RichText::new("Add your first password entry to get started")
+                        .size(12.0)
+                        .color(theme.text_secondary),
+                );
             });
             return;
         }
@@ -636,33 +706,36 @@ impl EnterpriseVaultWindow {
                         );
                     }
                 });
-            },
+            }
             ViewMode::Grid => {
                 let column_count = (ui.available_width() / 200.0).max(1.0) as usize;
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    egui::Grid::new("vault_grid").spacing([16.0, 16.0]).show(ui, |ui| {
-                        for (idx, (entry, original_idx)) in entry_refs.iter().enumerate() {
-                            if idx > 0 && idx % column_count == 0 {
-                                ui.end_row();
+                    egui::Grid::new("vault_grid")
+                        .spacing([16.0, 16.0])
+                        .show(ui, |ui| {
+                            for (idx, (entry, original_idx)) in entry_refs.iter().enumerate() {
+                                if idx > 0 && idx % column_count == 0 {
+                                    ui.end_row();
+                                }
+                                Self::render_grid_view_entry(
+                                    ui,
+                                    entry,
+                                    *original_idx,
+                                    &theme,
+                                    &mut copy_actions,
+                                    &mut edit_actions,
+                                );
                             }
-                            Self::render_grid_view_entry(
-                                ui,
-                                entry,
-                                *original_idx,
-                                &theme,
-                                &mut copy_actions,
-                                &mut edit_actions,
-                            );
-                        }
-                    });
+                        });
                 });
-            },
+            }
             ViewMode::Tree => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     // Group by category
                     let mut grouped: HashMap<String, Vec<(VaultEntry, usize)>> = HashMap::new();
                     for (entry, idx) in entry_refs {
-                        grouped.entry(entry.category.display_name())
+                        grouped
+                            .entry(entry.category.display_name())
                             .or_default()
                             .push((entry, idx));
                     }
@@ -672,16 +745,11 @@ impl EnterpriseVaultWindow {
                         // Use a different approach - don't capture self in collapsing header
                         ui.label(format!("📂 {} ({})", category, count));
                         for (entry, idx) in cat_entries {
-                            Self::render_tree_view_entry(
-                                ui,
-                                entry,
-                                *idx,
-                                &mut copy_actions,
-                            );
+                            Self::render_tree_view_entry(ui, entry, *idx, &mut copy_actions);
                         }
                     }
                 });
-            },
+            }
         }
 
         // Handle actions after rendering
@@ -715,7 +783,11 @@ impl EnterpriseVaultWindow {
         let is_selected = selected_entry.as_ref() == Some(&entry.id);
 
         let response = egui::Frame::group(ui.style())
-            .fill(if is_selected { theme.bg_secondary } else { ui.visuals().panel_fill })
+            .fill(if is_selected {
+                theme.bg_secondary
+            } else {
+                ui.visuals().panel_fill
+            })
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     // Favorite toggle
@@ -739,10 +811,18 @@ impl EnterpriseVaultWindow {
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Action buttons
-                        if ui.small_button("📋").on_hover_text("Copy password").clicked() {
+                        if ui
+                            .small_button("📋")
+                            .on_hover_text("Copy password")
+                            .clicked()
+                        {
                             copy_actions.push(entry.password.clone());
                         }
-                        if ui.small_button("👁️").on_hover_text("View details").clicked() {
+                        if ui
+                            .small_button("👁️")
+                            .on_hover_text("View details")
+                            .clicked()
+                        {
                             select_actions.push(entry.id.clone());
                         }
                         if ui.small_button("✏️").on_hover_text("Edit").clicked() {
@@ -773,9 +853,11 @@ impl EnterpriseVaultWindow {
                 ui.vertical_centered(|ui| {
                     ui.label(egui::RichText::new(entry.category.icon()).size(32.0));
                     ui.label(&entry.title);
-                    ui.label(egui::RichText::new(&entry.username)
-                        .size(11.0)
-                        .color(theme.text_secondary));
+                    ui.label(
+                        egui::RichText::new(&entry.username)
+                            .size(11.0)
+                            .color(theme.text_secondary),
+                    );
 
                     ui.horizontal(|ui| {
                         if ui.small_button("📋").clicked() {
@@ -849,80 +931,108 @@ impl EnterpriseVaultWindow {
         let _is_password_visible = self.show_password;
 
         // Render the form
-        egui::Grid::new("entry_form").spacing([10.0, 8.0]).show(ui, |ui| {
-            let entry = if is_new {
-                &mut self.new_entry
-            } else if let Some(ref mut e) = self.editing_entry {
-                e
-            } else {
-                return;
-            };
+        egui::Grid::new("entry_form")
+            .spacing([10.0, 8.0])
+            .show(ui, |ui| {
+                let entry = if is_new {
+                    &mut self.new_entry
+                } else if let Some(ref mut e) = self.editing_entry {
+                    e
+                } else {
+                    return;
+                };
 
-            ui.label("Title:");
-            ui.add(egui::TextEdit::singleline(&mut entry.title).desired_width(280.0));
-            ui.end_row();
+                ui.label("Title:");
+                ui.add(egui::TextEdit::singleline(&mut entry.title).desired_width(280.0));
+                ui.end_row();
 
-            ui.label("Category:");
-            egui::ComboBox::from_label("")
-                .selected_text(entry.category.display_name())
-                .show_ui(ui, |ui| {
-                    for cat in VaultCategory::all() {
-                        ui.selectable_value(&mut entry.category, cat.clone(),
-                            format!("{} {}", cat.icon(), cat.display_name()));
+                ui.label("Category:");
+                egui::ComboBox::from_label("")
+                    .selected_text(entry.category.display_name())
+                    .show_ui(ui, |ui| {
+                        for cat in VaultCategory::all() {
+                            ui.selectable_value(
+                                &mut entry.category,
+                                cat.clone(),
+                                format!("{} {}", cat.icon(), cat.display_name()),
+                            );
+                        }
+                    });
+                ui.end_row();
+
+                ui.label("Username:");
+                ui.add(egui::TextEdit::singleline(&mut entry.username).desired_width(280.0));
+                ui.end_row();
+
+                ui.label("Password:");
+                ui.horizontal(|ui| {
+                    if self.show_password {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut entry.password).desired_width(200.0),
+                        );
+                    } else {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut entry.password)
+                                .password(true)
+                                .desired_width(200.0),
+                        );
+                    }
+                    if ui
+                        .button(if self.show_password {
+                            "🙈"
+                        } else {
+                            "👁️"
+                        })
+                        .clicked()
+                    {
+                        self.show_password = !self.show_password;
+                    }
+                    if ui.button("🎲").on_hover_text("Generate password").clicked() {
+                        self.show_password_generator = true;
+                        self.generated_password = self.password_generator.generate();
                     }
                 });
-            ui.end_row();
+                ui.end_row();
 
-            ui.label("Username:");
-            ui.add(egui::TextEdit::singleline(&mut entry.username).desired_width(280.0));
-            ui.end_row();
+                ui.label("URL:");
+                let mut url = entry.url.clone().unwrap_or_default();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut url).desired_width(280.0))
+                    .changed()
+                {
+                    entry.url = if url.is_empty() { None } else { Some(url) };
+                }
+                ui.end_row();
 
-            ui.label("Password:");
-            ui.horizontal(|ui| {
-                if self.show_password {
-                    ui.add(egui::TextEdit::singleline(&mut entry.password).desired_width(200.0));
-                } else {
-                    ui.add(egui::TextEdit::singleline(&mut entry.password)
-                        .password(true)
-                        .desired_width(200.0));
+                ui.label("Tags:");
+                ui.horizontal(|ui| {
+                    for tag in &entry.tags {
+                        ui.label(format!("🏷️ {}", tag));
+                    }
+                    if ui.button("+").clicked() && !self.new_tag_input.is_empty() {
+                        entry.tags.push(self.new_tag_input.clone());
+                        self.new_tag_input.clear();
+                    }
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.new_tag_input).desired_width(100.0),
+                    );
+                });
+                ui.end_row();
+
+                ui.label("Notes:");
+                let mut notes = entry.notes.clone().unwrap_or_default();
+                if ui
+                    .add(
+                        egui::TextEdit::multiline(&mut notes)
+                            .desired_width(280.0)
+                            .desired_rows(3),
+                    )
+                    .changed()
+                {
+                    entry.notes = if notes.is_empty() { None } else { Some(notes) };
                 }
-                if ui.button(if self.show_password { "🙈" } else { "👁️" }).clicked() {
-                    self.show_password = !self.show_password;
-                }
-                if ui.button("🎲").on_hover_text("Generate password").clicked() {
-                    self.show_password_generator = true;
-                    self.generated_password = self.password_generator.generate();
-                }
+                ui.end_row();
             });
-            ui.end_row();
-
-            ui.label("URL:");
-            let mut url = entry.url.clone().unwrap_or_default();
-            if ui.add(egui::TextEdit::singleline(&mut url).desired_width(280.0)).changed() {
-                entry.url = if url.is_empty() { None } else { Some(url) };
-            }
-            ui.end_row();
-
-            ui.label("Tags:");
-            ui.horizontal(|ui| {
-                for tag in &entry.tags {
-                    ui.label(format!("🏷️ {}", tag));
-                }
-                if ui.button("+").clicked() && !self.new_tag_input.is_empty() {
-                    entry.tags.push(self.new_tag_input.clone());
-                    self.new_tag_input.clear();
-                }
-                ui.add(egui::TextEdit::singleline(&mut self.new_tag_input).desired_width(100.0));
-            });
-            ui.end_row();
-
-            ui.label("Notes:");
-            let mut notes = entry.notes.clone().unwrap_or_default();
-            if ui.add(egui::TextEdit::multiline(&mut notes).desired_width(280.0).desired_rows(3)).changed() {
-                entry.notes = if notes.is_empty() { None } else { Some(notes) };
-            }
-            ui.end_row();
-        });
 
         ui.separator();
 
@@ -984,7 +1094,11 @@ impl EnterpriseVaultWindow {
                     ui.add_space(8.0);
                     ui.group(|ui| {
                         ui.set_min_width(300.0);
-                        ui.label(egui::RichText::new(&self.generated_password).monospace().size(16.0));
+                        ui.label(
+                            egui::RichText::new(&self.generated_password)
+                                .monospace()
+                                .size(16.0),
+                        );
                     });
 
                     if ui.button("🔄 Regenerate").clicked() {
@@ -1001,14 +1115,32 @@ impl EnterpriseVaultWindow {
 
                     ui.horizontal(|ui| {
                         ui.label("Length:");
-                        ui.add(egui::Slider::new(&mut self.password_generator.length, 8..=64));
+                        ui.add(egui::Slider::new(
+                            &mut self.password_generator.length,
+                            8..=64,
+                        ));
                     });
 
-                    ui.checkbox(&mut self.password_generator.include_uppercase, "Uppercase (A-Z)");
-                    ui.checkbox(&mut self.password_generator.include_lowercase, "Lowercase (a-z)");
-                    ui.checkbox(&mut self.password_generator.include_numbers, "Numbers (0-9)");
-                    ui.checkbox(&mut self.password_generator.include_symbols, "Symbols (!@#$%)");
-                    ui.checkbox(&mut self.password_generator.exclude_ambiguous, "Exclude ambiguous (0, O, l, 1)");
+                    ui.checkbox(
+                        &mut self.password_generator.include_uppercase,
+                        "Uppercase (A-Z)",
+                    );
+                    ui.checkbox(
+                        &mut self.password_generator.include_lowercase,
+                        "Lowercase (a-z)",
+                    );
+                    ui.checkbox(
+                        &mut self.password_generator.include_numbers,
+                        "Numbers (0-9)",
+                    );
+                    ui.checkbox(
+                        &mut self.password_generator.include_symbols,
+                        "Symbols (!@#$%)",
+                    );
+                    ui.checkbox(
+                        &mut self.password_generator.exclude_ambiguous,
+                        "Exclude ambiguous (0, O, l, 1)",
+                    );
 
                     ui.add_space(16.0);
 
@@ -1139,8 +1271,15 @@ impl EnterpriseVaultWindow {
         }
     }
 
-    pub fn add_entry(&mut self, title: &str, username: &str, password: &str, category: VaultCategory) {
-        self.entries.push(VaultEntry::new(title, username, password, category));
+    pub fn add_entry(
+        &mut self,
+        title: &str,
+        username: &str,
+        password: &str,
+        category: VaultCategory,
+    ) {
+        self.entries
+            .push(VaultEntry::new(title, username, password, category));
     }
 
     pub fn delete_entry(&mut self, id: &str) {
@@ -1157,7 +1296,8 @@ impl EnterpriseVaultWindow {
 
     pub fn search(&self, query: &str) -> Vec<&VaultEntry> {
         let query = query.to_lowercase();
-        self.entries.iter()
+        self.entries
+            .iter()
             .filter(|e| {
                 e.title.to_lowercase().contains(&query)
                     || e.username.to_lowercase().contains(&query)
@@ -1166,4 +1306,3 @@ impl EnterpriseVaultWindow {
             .collect()
     }
 }
-

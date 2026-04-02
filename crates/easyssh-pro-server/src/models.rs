@@ -389,10 +389,18 @@ pub struct SsoLoginUrl {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum WebSocketMessage {
-    Ping { timestamp: DateTime<Utc> },
-    Pong { timestamp: DateTime<Utc> },
-    Subscribe { channels: Vec<String> },
-    Unsubscribe { channels: Vec<String> },
+    Ping {
+        timestamp: DateTime<Utc>,
+    },
+    Pong {
+        timestamp: DateTime<Utc>,
+    },
+    Subscribe {
+        channels: Vec<String>,
+    },
+    Unsubscribe {
+        channels: Vec<String>,
+    },
     CollaborationUpdate {
         resource_type: String,
         resource_id: String,

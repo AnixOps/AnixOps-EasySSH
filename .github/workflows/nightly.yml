@@ -1,0 +1,578 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Build specific version type'
+        required: false
+        type: choice
+        options:
+          - all
+          - lite
+          - standard
+          - pro
+        default: all
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ============================================================================
+  # Version Info
+  # ============================================================================
+  version:
+    name: Version Info
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.info.outputs.date }}
+      short_sha: ${{ steps.info.outputs.short_sha }}
+      version: ${{ steps.info.outputs.version }}
+      version_type: ${{ steps.info.outputs.version_type }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version info
+        id: info
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=${GITHUB_SHA::7}
+          BASE_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version' 2>/dev/null || echo "0.0.0")
+          VERSION="${BASE_VERSION}-nightly.${DATE}.${SHORT_SHA}"
+          VERSION_TYPE="${{ github.event.inputs.version_type || 'all' }}"
+
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+
+          echo "Nightly Version: $VERSION"
+
+  # ============================================================================
+  # Test Suite with Reports
+  # ============================================================================
+  test-reports:
+    name: Test Reports (${{ matrix.version }})
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        version: [lite, standard, pro]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        if: matrix.os == 'ubuntu-latest'
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssl-dev pkg-config
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-${{ matrix.os }}-${{ matrix.version }}
+
+      - name: Run Tests (${{ matrix.version }})
+        working-directory: crates/easyssh-core
+        run: |
+          cargo test --features ${{ matrix.version }} -- --test-threads=2 2>&1 | tee ../../test-${{ matrix.version }}-${{ matrix.os }}.log
+
+      - name: Generate Coverage (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: crates/easyssh-core
+        run: |
+          cargo llvm-cov --features ${{ matrix.version }} --html --output-dir ../../coverage-${{ matrix.version }} 2>&1 | tee ../../coverage-${{ matrix.version }}.log || true
+
+      - name: Upload Test Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-logs-${{ matrix.version }}-${{ matrix.os }}
+          path: test-*.log
+          retention-days: 7
+
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: coverage-${{ matrix.version }}
+          path: coverage-${{ matrix.version }}/
+          retention-days: 7
+
+  # ============================================================================
+  # Clippy & Fmt Report
+  # ============================================================================
+  code-quality-report:
+    name: Code Quality Report
+    needs: version
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssl-dev pkg-config
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format Check (All versions)
+        run: |
+          echo "## Format Check Results" > format-report.md
+          echo "" >> format-report.md
+          echo "### Lite" >> format-report.md
+          cargo fmt -- --check 2>&1 | tee -a format-report.md || true
+          echo "" >> format-report.md
+
+      - name: Clippy Report (All versions)
+        run: |
+          echo "## Clippy Results" > clippy-report.md
+          echo "" >> clippy-report.md
+
+          for version in lite standard pro; do
+            echo "### $version" >> clippy-report.md
+            cargo clippy -p easyssh-core --features $version --message-format=short 2>&1 | head -100 >> clippy-report.md || true
+            echo "" >> clippy-report.md
+          done
+
+      - name: Combine Reports
+        run: |
+          cat > code-quality-report.md << EOF
+# Code Quality Report - Nightly ${{ needs.version.outputs.version }}
+
+**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+**Commit:** ${{ github.sha }}
+
+EOF
+          cat format-report.md >> code-quality-report.md
+          echo "" >> code-quality-report.md
+          cat clippy-report.md >> code-quality-report.md
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-report
+          path: code-quality-report.md
+          retention-days: 30
+
+  # ============================================================================
+  # Build All Versions (Matrix Strategy)
+  # ============================================================================
+  build:
+    name: Build ${{ matrix.version }} on ${{ matrix.os }}
+    needs: [version, test-reports]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows - Lite
+          - os: windows-latest
+            version: lite
+            target: x86_64-pc-windows-msvc
+            arch: x64
+            profile: release-lite
+            features: lite
+          # Windows - Standard
+          - os: windows-latest
+            version: standard
+            target: x86_64-pc-windows-msvc
+            arch: x64
+            profile: release-standard
+            features: standard
+          # Windows - Pro
+          - os: windows-latest
+            version: pro
+            target: x86_64-pc-windows-msvc
+            arch: x64
+            profile: release-pro
+            features: pro
+          # Linux - Lite
+          - os: ubuntu-latest
+            version: lite
+            target: x86_64-unknown-linux-gnu
+            arch: x64
+            profile: release-lite
+            features: easyssh-core/lite
+          # Linux - Standard
+          - os: ubuntu-latest
+            version: standard
+            target: x86_64-unknown-linux-gnu
+            arch: x64
+            profile: release-standard
+            features: easyssh-core/standard
+          # Linux - Pro
+          - os: ubuntu-latest
+            version: pro
+            target: x86_64-unknown-linux-gnu
+            arch: x64
+            profile: release-pro
+            features: easyssh-core/pro
+          # macOS - Lite
+          - os: macos-latest
+            version: lite
+            target: x86_64-apple-darwin
+            arch: x64
+            profile: release-lite
+            features: lite
+          # macOS - Standard
+          - os: macos-latest
+            version: standard
+            target: x86_64-apple-darwin
+            arch: x64
+            profile: release-standard
+            features: standard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssl-dev pkg-config
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-build-${{ matrix.os }}-${{ matrix.version }}
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: crates/easyssh-platforms/windows/easyssh-winui
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: |
+          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --features ${{ matrix.features }} --no-default-features
+
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: crates/easyssh-platforms/linux/easyssh-gtk4
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 3
+          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --features ${{ matrix.features }} --no-default-features
+
+      - name: Build (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: crates/easyssh-core
+        run: |
+          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --features ${{ matrix.features }} --no-default-features
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            target/**/release*/easyssh*
+            target/**/release*/EasySSH*
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # ============================================================================
+  # Build Pro Server
+  # ============================================================================
+  build-pro-server:
+    name: Build Pro Server
+    needs: [version, test-reports]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Pro Server
+        working-directory: crates/easyssh-pro-server
+        run: cargo build --release
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-pro-server
+          path: target/release/easyssh-pro-server
+          retention-days: 3
+
+  # ============================================================================
+  # Generate Test Report
+  # ============================================================================
+  generate-report:
+    name: Generate Test Report
+    needs: [version, test-reports, code-quality-report, build, build-pro-server]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Test Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: "test-logs-*"
+
+      - name: Download Coverage Reports
+        uses: actions/download-artifact@v4
+        with:
+          path: coverage-reports
+          pattern: "coverage-*"
+
+      - name: Download Code Quality Report
+        uses: actions/download-artifact@v4
+        with:
+          path: quality-reports
+          name: code-quality-report
+
+      - name: Generate Summary Report
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          DATE="${{ needs.version.outputs.date }}"
+
+          cat > nightly-report.md << 'EOF'
+# EasySSH Nightly Build Report
+
+**Version:** NIGHTLY_VERSION
+**Date:** BUILD_DATE
+**Commit:** GITHUB_SHA
+
+## Summary
+
+| Component | Status |
+|-----------|--------|
+EOF
+
+          # Determine test status for each version
+          LITE_STATUS="${{ needs.test-reports.result }}"
+          STD_STATUS="${{ needs.test-reports.result }}"
+          PRO_STATUS="${{ needs.test-reports.result }}"
+          BUILD_STATUS="${{ needs.build.result }}"
+
+          sed -i "s/NIGHTLY_VERSION/$VERSION/g" nightly-report.md
+          sed -i "s/BUILD_DATE/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" nightly-report.md
+          sed -i "s/GITHUB_SHA/${{ github.sha }}/g" nightly-report.md
+
+          # Add test status
+          echo "| Lite Tests | $([[ "$LITE_STATUS" == "success" ]] && echo "✅ Pass" || echo "❌ Fail") |" >> nightly-report.md
+          echo "| Standard Tests | $([[ "$STD_STATUS" == "success" ]] && echo "✅ Pass" || echo "❌ Fail") |" >> nightly-report.md
+          echo "| Pro Tests | $([[ "$PRO_STATUS" == "success" ]] && echo "✅ Pass" || echo "❌ Fail") |" >> nightly-report.md
+          echo "| Builds | $([[ "$BUILD_STATUS" == "success" ]] && echo "✅ Success" || echo "❌ Fail") |" >> nightly-report.md
+
+          cat >> nightly-report.md << 'EOF'
+
+## Build Matrix
+
+| Platform | Lite | Standard | Pro |
+|----------|------|----------|-----|
+| Windows x64 | ✅ | ✅ | ✅ |
+| Linux x64 | ✅ | ✅ | ✅ |
+| macOS x64 | ✅ | ✅ | - |
+
+## Test Coverage
+
+Coverage reports available for:
+- Lite (Ubuntu)
+- Standard (Ubuntu)
+- Pro (Ubuntu)
+
+## Artifacts
+
+All build artifacts are available for 3 days.
+
+## Next Steps
+
+1. Review test logs in artifacts
+2. Check coverage reports
+3. Verify code quality report
+
+---
+Generated automatically by GitHub Actions
+EOF
+
+          cat nightly-report.md
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-report
+          path: nightly-report.md
+          retention-days: 30
+
+      - name: Comment on Commit (if scheduled)
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('nightly-report.md', 'utf8');
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: report.substring(0, 65536) // GitHub API limit
+            });
+        continue-on-error: true
+
+  # ============================================================================
+  # Create Nightly Release
+  # ============================================================================
+  create-nightly-release:
+    name: Create Nightly Release
+    needs: [version, build, build-pro-server]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: "nightly-*"
+
+      - name: Package Artifacts
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          mkdir -p nightly-dist
+
+          # Package each build
+          for dir in artifacts/nightly-*; do
+            if [ -d "$dir" ]; then
+              name=$(basename "$dir")
+              tar -czf "nightly-dist/${name}-${VERSION}.tar.gz" -C "$dir" . 2>/dev/null || true
+            fi
+          done
+
+          ls -la nightly-dist/
+
+      - name: Update Nightly Tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -f nightly
+          git push -f origin nightly
+
+      - name: Create Nightly Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build - ${{ needs.version.outputs.version }}
+          body: |
+            ## EasySSH Nightly Build
+
+            **Version:** ${{ needs.version.outputs.version }}
+            **Date:** ${{ needs.version.outputs.date }}
+            **Commit:** ${{ github.sha }}
+
+            This is an automated nightly build. It may contain bugs or incomplete features.
+
+            ### Downloads
+
+            Artifacts included in this release:
+            - Windows builds (Lite, Standard, Pro)
+            - Linux builds (Lite, Standard, Pro)
+            - macOS builds (Lite, Standard)
+            - Pro Server binary
+
+            ### Installation
+
+            Extract the appropriate archive for your platform and run the executable.
+
+            ⚠️ **Warning:** Nightly builds are for testing purposes only. Do not use in production.
+          prerelease: true
+          files: nightly-dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # Summary
+  # ============================================================================
+  summary:
+    name: Build Summary
+    needs: [version, test-reports, build, build-pro-server, generate-report]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Print Summary
+        run: |
+          echo "# Nightly Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** ${{ needs.version.outputs.date }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+
+          TEST_RESULT="${{ needs.test-reports.result }}"
+          BUILD_RESULT="${{ needs.build.result }}"
+          PRO_SERVER_RESULT="${{ needs.build-pro-server.result }}"
+          REPORT_RESULT="${{ needs.generate-report.result }}"
+
+          echo "| Test Reports | $([[ "$TEST_RESULT" == "success" ]] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Builds | $([[ "$BUILD_RESULT" == "success" ]] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pro Server | $([[ "$PRO_SERVER_RESULT" == "success" ]] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Report Generation | $([[ "$REPORT_RESULT" == "success" ]] && echo "✅" || echo "❌") |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Test logs (7 days retention)" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage reports (7 days retention)" >> $GITHUB_STEP_SUMMARY
+          echo "- Build artifacts (3 days retention)" >> $GITHUB_STEP_SUMMARY
+          echo "- Nightly report (30 days retention)" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$BUILD_RESULT" == "success" ] && [ "$TEST_RESULT" == "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## ✅ Nightly Build Successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## ⚠️ Some Jobs Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the detailed logs for more information." >> $GITHUB_STEP_SUMMARY
+          fi

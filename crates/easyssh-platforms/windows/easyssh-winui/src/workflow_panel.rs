@@ -141,7 +141,12 @@ impl WorkflowPanel {
                 self.render_editor_tab(ui, &mut response);
             }
             WorkflowTab::Recorder => {
+                #[cfg(feature = "macro-recorder")]
                 self.render_recorder_tab(ui, view_model, &mut response);
+                #[cfg(not(feature = "macro-recorder"))]
+                {
+                    ui.label("Macro recorder not available");
+                }
             }
             WorkflowTab::Scheduler => {
                 self.render_scheduler_tab(ui, &mut response);

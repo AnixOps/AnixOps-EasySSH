@@ -64,12 +64,10 @@ impl ConfigRepository {
     ///
     /// Returns `Some(value)` if the key exists, `None` otherwise.
     pub async fn get(&self, key: &str) -> Result<Option<String>> {
-        let value: Option<(String,)> = sqlx::query_as(
-            "SELECT value FROM app_config WHERE key = ?",
-        )
-        .bind(key)
-        .fetch_optional(&self.pool)
-        .await?;
+        let value: Option<(String,)> = sqlx::query_as("SELECT value FROM app_config WHERE key = ?")
+            .bind(key)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(value.map(|v| v.0))
     }
@@ -138,11 +136,7 @@ impl ConfigRepository {
             return Ok(());
         }
 
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(DatabaseError::SqlError)?;
+        let mut tx = self.pool.begin().await.map_err(DatabaseError::SqlError)?;
 
         for (key, value) in items {
             sqlx::query(
@@ -183,23 +177,20 @@ impl ConfigRepository {
 
     /// Check if a configuration key exists
     pub async fn exists(&self, key: &str) -> Result<bool> {
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM app_config WHERE key = ?",
-        )
-        .bind(key)
-        .fetch_one(&self.pool)
-        .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM app_config WHERE key = ?")
+            .bind(key)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(count.0 > 0)
     }
 
     /// Get all configuration values
     pub async fn get_all(&self) -> Result<Vec<(String, String)>> {
-        let rows: Vec<(String, String)> = sqlx::query_as(
-            "SELECT key, value FROM app_config ORDER BY key ASC",
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<(String, String)> =
+            sqlx::query_as("SELECT key, value FROM app_config ORDER BY key ASC")
+                .fetch_all(&self.pool)
+                .await?;
 
         Ok(rows)
     }
@@ -212,12 +203,11 @@ impl ConfigRepository {
     pub async fn get_by_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>> {
         let pattern = format!("{}%", prefix);
 
-        let rows: Vec<(String, String)> = sqlx::query_as(
-            "SELECT key, value FROM app_config WHERE key LIKE ? ORDER BY key ASC",
-        )
-        .bind(&pattern)
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<(String, String)> =
+            sqlx::query_as("SELECT key, value FROM app_config WHERE key LIKE ? ORDER BY key ASC")
+                .bind(&pattern)
+                .fetch_all(&self.pool)
+                .await?;
 
         Ok(rows)
     }
@@ -260,10 +250,8 @@ impl ConfigRepository {
         match self.get(key).await? {
             Some(value) => {
                 let normalized = value.to_lowercase();
-                let bool_value = matches!(
-                    normalized.as_str(),
-                    "true" | "1" | "yes" | "on" | "enabled"
-                );
+                let bool_value =
+                    matches!(normalized.as_str(), "true" | "1" | "yes" | "on" | "enabled");
                 Ok(Some(bool_value))
             }
             None => Ok(None),
@@ -324,8 +312,8 @@ impl ConfigRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use crate::database::Database;
+    use tempfile::TempDir;
 
     async fn create_test_db() -> (ConfigRepository, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -371,12 +359,18 @@ mod tests {
         let (repo, _temp) = create_test_db().await;
 
         // Non-existent key returns default
-        let value = repo.get_or_default("nonexistent", "default_val").await.unwrap();
+        let value = repo
+            .get_or_default("nonexistent", "default_val")
+            .await
+            .unwrap();
         assert_eq!(value, "default_val");
 
         // Existing key returns stored value
         repo.set("existing.key", "stored_value").await.unwrap();
-        let value = repo.get_or_default("existing.key", "default_val").await.unwrap();
+        let value = repo
+            .get_or_default("existing.key", "default_val")
+            .await
+            .unwrap();
         assert_eq!(value, "stored_value");
     }
 
@@ -414,11 +408,7 @@ mod tests {
     async fn test_set_many() {
         let (repo, _temp) = create_test_db().await;
 
-        let items = [
-            ("key1", "value1"),
-            ("key2", "value2"),
-            ("key3", "value3"),
-        ];
+        let items = [("key1", "value1"), ("key2", "value2"), ("key3", "value3")];
 
         repo.set_many(&items).await.unwrap();
 
@@ -540,13 +530,22 @@ mod tests {
         repo.init_defaults().await.unwrap();
 
         // Existing value should not be overwritten
-        assert_eq!(repo.get(keys::THEME).await.unwrap(), Some("existing_theme".to_string()));
+        assert_eq!(
+            repo.get(keys::THEME).await.unwrap(),
+            Some("existing_theme".to_string())
+        );
 
         // Missing defaults should be set
         assert!(repo.get(keys::FIRST_RUN_AT).await.unwrap().is_some());
-        assert_eq!(repo.get(keys::LANGUAGE).await.unwrap(), Some("en".to_string()));
+        assert_eq!(
+            repo.get(keys::LANGUAGE).await.unwrap(),
+            Some("en".to_string())
+        );
         assert_eq!(repo.get_int(keys::SSH_TIMEOUT).await.unwrap(), Some(30));
-        assert_eq!(repo.get_bool(keys::SSH_AUTO_RECONNECT).await.unwrap(), Some(false));
+        assert_eq!(
+            repo.get_bool(keys::SSH_AUTO_RECONNECT).await.unwrap(),
+            Some(false)
+        );
     }
 
     #[tokio::test]

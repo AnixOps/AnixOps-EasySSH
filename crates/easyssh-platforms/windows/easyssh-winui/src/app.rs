@@ -330,7 +330,10 @@ impl EasySshApp {
         if self.pending_password_server.is_some() {
             let pwd_result = self.password_prompt_dialog.show(ctx);
             match pwd_result {
-                PasswordDialogResult::Ok { password, save_password } => {
+                PasswordDialogResult::Ok {
+                    password,
+                    save_password,
+                } => {
                     if let Some((server_id, _, _)) = self.pending_password_server.take() {
                         // Connect with password
                         self.connect_with_password(&server_id, &password, save_password);
@@ -367,8 +370,10 @@ impl EasySshApp {
         // Show toasts in top-right corner
         if !self.toasts.is_empty() {
             let screen_rect = ctx.screen_rect();
-            let toast_area = egui::Area::new(egui::Id::new("toasts"))
-                .fixed_pos(egui::pos2(screen_rect.max.x - 10.0, screen_rect.min.y + 10.0));
+            let toast_area = egui::Area::new(egui::Id::new("toasts")).fixed_pos(egui::pos2(
+                screen_rect.max.x - 10.0,
+                screen_rect.min.y + 10.0,
+            ));
 
             toast_area.show(ctx, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
@@ -406,13 +411,20 @@ impl EasySshApp {
                 ));
                 ui.label(format!(
                     "  PowerShell: {}",
-                    if diag.powershell_available { "✓" } else { "✗" }
+                    if diag.powershell_available {
+                        "✓"
+                    } else {
+                        "✗"
+                    }
                 ));
                 ui.label(format!(
                     "  CMD: {}",
                     if diag.cmd_available { "✓" } else { "✗" }
                 ));
-                ui.label(format!("  SSH: {}", if diag.ssh_available { "✓" } else { "✗" }));
+                ui.label(format!(
+                    "  SSH: {}",
+                    if diag.ssh_available { "✓" } else { "✗" }
+                ));
 
                 ui.separator();
 
@@ -468,8 +480,11 @@ impl EasySshApp {
         auth_type: String,
         group_id: Option<String>,
     ) {
-        let vm = self.view_model.lock().unwrap();
-        match vm.add_server(&name, &host, port, &username, &auth_type, group_id) {
+        let result = {
+            let vm = self.view_model.lock().unwrap();
+            vm.add_server(&name, &host, port, &username, &auth_type, group_id)
+        };
+        match result {
             Ok(_) => {
                 info!("Added server: {}", name);
                 self.show_toast(format!("Server '{}' added", name), ToastLevel::Success);
@@ -484,26 +499,39 @@ impl EasySshApp {
     }
 
     fn update_server(&mut self, data: ServerUpdateData) {
-        let vm = self.view_model.lock().unwrap();
-        match vm.update_server(
-            &data.id,
-            &data.name,
-            &data.host,
-            data.port,
-            &data.username,
-            &data.auth_type,
-        ) {
+        let (update_result, group_result) = {
+            let vm = self.view_model.lock().unwrap();
+            let update_result = vm.update_server(
+                &data.id,
+                &data.name,
+                &data.host,
+                data.port,
+                &data.username,
+                &data.auth_type,
+            );
+            let group_result = if update_result.is_ok() {
+                vm.update_server_group(&data.id, data.group_id)
+            } else {
+                Ok(())
+            };
+            (update_result, group_result)
+        };
+
+        match update_result {
             Ok(_) => {
-                // Update group if changed
-                if let Err(e) = vm.update_server_group(&data.id, data.group_id) {
+                if let Err(e) = group_result {
                     warn!("Failed to update server group: {}", e);
                 }
 
                 info!("Updated server: {}", data.name);
-                self.show_toast(format!("Server '{}' updated", data.name), ToastLevel::Success);
+                self.show_toast(
+                    format!("Server '{}' updated", data.name),
+                    ToastLevel::Success,
+                );
                 self.refresh_data();
 
                 // Update detail panel
+                let vm = self.view_model.lock().unwrap();
                 let servers = vm.get_servers();
                 let groups = vm.get_groups();
                 if let Some(server) = servers.iter().find(|s| s.id == data.id).cloned() {
@@ -520,8 +548,11 @@ impl EasySshApp {
     }
 
     fn add_group(&mut self, name: String) {
-        let vm = self.view_model.lock().unwrap();
-        match vm.add_group(&name) {
+        let result = {
+            let vm = self.view_model.lock().unwrap();
+            vm.add_group(&name)
+        };
+        match result {
             Ok(id) => {
                 info!("Added group: {} ({})", name, id);
                 self.show_toast(format!("Group '{}' added", name), ToastLevel::Success);
@@ -536,8 +567,11 @@ impl EasySshApp {
     }
 
     fn update_group(&mut self, id: String, name: String) {
-        let vm = self.view_model.lock().unwrap();
-        match vm.update_group(&id, &name) {
+        let result = {
+            let vm = self.view_model.lock().unwrap();
+            vm.update_group(&id, &name)
+        };
+        match result {
             Ok(_) => {
                 info!("Updated group {}: {}", id, name);
                 self.show_toast(format!("Group '{}' updated", name), ToastLevel::Success);
@@ -552,8 +586,11 @@ impl EasySshApp {
     }
 
     fn delete_group(&mut self, id: String) {
-        let vm = self.view_model.lock().unwrap();
-        match vm.delete_group(&id) {
+        let result = {
+            let vm = self.view_model.lock().unwrap();
+            vm.delete_group(&id)
+        };
+        match result {
             Ok(_) => {
                 info!("Deleted group: {}", id);
                 self.show_toast("Group deleted", ToastLevel::Success);
@@ -568,16 +605,20 @@ impl EasySshApp {
     }
 
     fn connect_to_server(&mut self, server_id: &str) {
-        let vm = self.view_model.lock().unwrap();
-        let servers = vm.get_servers();
+        // Check if already connected first (no need for vm lock)
+        if self.connected_servers.contains_key(server_id) {
+            self.show_toast("Already connected", ToastLevel::Warning);
+            return;
+        }
 
-        if let Some(server) = servers.iter().find(|s| &s.id == server_id) {
-            // Check if already connected
-            if self.connected_servers.contains_key(server_id) {
-                self.show_toast("Already connected", ToastLevel::Warning);
-                return;
-            }
+        // Get server data from view model
+        let server = {
+            let vm = self.view_model.lock().unwrap();
+            let servers = vm.get_servers();
+            servers.iter().find(|s| &s.id == server_id).cloned()
+        };
 
+        if let Some(server) = server {
             // Build SSH connection
             let connection = SshConnection::new(
                 server.host.clone(),
@@ -598,7 +639,8 @@ impl EasySshApp {
                         ToastLevel::Success,
                     );
 
-                    // Update UI
+                    // Update UI - need vm lock again
+                    let vm = self.view_model.lock().unwrap();
                     let groups = vm.get_groups();
                     let is_connected = self.connected_servers.contains_key(server_id);
                     self.detail_panel
@@ -614,17 +656,25 @@ impl EasySshApp {
     }
 
     fn connect_with_password(&mut self, server_id: &str, password: &str, save_password: bool) {
-        let vm = self.view_model.lock().unwrap();
-        let servers = vm.get_servers();
+        // Get server data and optionally save password
+        let server = {
+            let vm = self.view_model.lock().unwrap();
+            let servers = vm.get_servers();
 
-        if let Some(server) = servers.iter().find(|s| &s.id == server_id) {
-            // Save password if requested
-            if save_password {
-                if let Err(e) = vm.save_password(server_id, password) {
-                    warn!("Failed to save password: {}", e);
+            if let Some(server) = servers.iter().find(|s| &s.id == server_id) {
+                // Save password if requested
+                if save_password {
+                    if let Err(e) = vm.save_password(server_id, password) {
+                        warn!("Failed to save password: {}", e);
+                    }
                 }
+                Some(server.clone())
+            } else {
+                None
             }
+        };
 
+        if let Some(server) = server {
             // Build SSH connection
             let connection = SshConnection::new(
                 server.host.clone(),
@@ -660,10 +710,14 @@ impl EasySshApp {
             self.show_toast("Disconnected", ToastLevel::Info);
 
             // Update UI
-            let vm = self.view_model.lock().unwrap();
-            let groups = vm.get_groups();
-            let servers = vm.get_servers();
-            if let Some(server) = servers.iter().find(|s| &s.id == server_id).cloned() {
+            let (groups, server) = {
+                let vm = self.view_model.lock().unwrap();
+                let groups = vm.get_groups();
+                let servers = vm.get_servers();
+                let server = servers.iter().find(|s| &s.id == server_id).cloned();
+                (groups, server)
+            };
+            if let Some(server) = server {
                 self.detail_panel.show_server(server, &groups, false);
             }
         }

@@ -390,8 +390,12 @@ impl RemoteDesktopManagerUI {
 
             // Launch external remote desktop client
             let viewer_type = match connection.protocol {
-                RemoteDesktopProtocol::Rdp | RemoteDesktopProtocol::SshTunnelRdp => RemoteDesktopType::Rdp,
-                RemoteDesktopProtocol::Vnc | RemoteDesktopProtocol::SshTunnelVnc => RemoteDesktopType::Vnc,
+                RemoteDesktopProtocol::Rdp | RemoteDesktopProtocol::SshTunnelRdp => {
+                    RemoteDesktopType::Rdp
+                }
+                RemoteDesktopProtocol::Vnc | RemoteDesktopProtocol::SshTunnelVnc => {
+                    RemoteDesktopType::Vnc
+                }
             };
 
             let settings = ConnectionSettings {
@@ -399,7 +403,11 @@ impl RemoteDesktopManagerUI {
                 port: connection.port,
                 username: connection.username.clone(),
                 password: connection.password.clone(),
-                domain: if connection.domain.is_empty() { None } else { Some(connection.domain.clone()) },
+                domain: if connection.domain.is_empty() {
+                    None
+                } else {
+                    Some(connection.domain.clone())
+                },
             };
 
             // Try to create viewer and connect
@@ -439,7 +447,10 @@ impl RemoteDesktopManagerUI {
                         view_mode: ViewMode::ExternalWindow,
                     };
                     self.active_sessions.insert(session_id.clone(), session);
-                    println!("Launched external remote desktop client for session {}", session_id);
+                    println!(
+                        "Launched external remote desktop client for session {}",
+                        session_id
+                    );
                     return Some(session_id);
                 }
                 Err(e) => {

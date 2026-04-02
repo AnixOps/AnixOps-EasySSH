@@ -118,8 +118,8 @@ impl Dialog for GroupDialog {
                 // Check for number keys to select preset colors
                 match key.code {
                     KeyCode::Char(c) if c.is_ascii_digit() => {
-                        let idx = (c.to_digit(10).unwrap() as usize)
-                            .min(self.preset_colors.len() - 1);
+                        let idx =
+                            (c.to_digit(10).unwrap() as usize).min(self.preset_colors.len() - 1);
                         if let Some(&color) = self.preset_colors.get(idx) {
                             self.data.color = color.to_string();
                             self.cursor_color = self.data.color.len();
@@ -166,9 +166,7 @@ impl Dialog for GroupDialog {
             cursor_pos: usize,
         ) {
             let style = if is_focused {
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::White)
+                Style::default().fg(Color::Black).bg(Color::White)
             } else {
                 Style::default()
             };
@@ -191,10 +189,7 @@ impl Dialog for GroupDialog {
             frame.render_widget(para, area);
 
             if is_focused {
-                frame.set_cursor(
-                    area.x + label.len() as u16 + 1 + cursor_pos as u16,
-                    area.y,
-                );
+                frame.set_cursor(area.x + label.len() as u16 + 1 + cursor_pos as u16, area.y);
             }
         }
 
@@ -236,14 +231,11 @@ impl Dialog for GroupDialog {
         frame.render_widget(color_para, chunks[1]);
 
         // Preset colors
-        let mut preset_spans = vec![Span::styled(
-            "Presets: ",
-            Style::default().fg(Color::Gray),
-        )];
+        let mut preset_spans = vec![Span::styled("Presets: ", Style::default().fg(Color::Gray))];
 
         for (idx, &color) in [
-            "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#0EA5E9", "#3B82F6",
-            "#A855F7", "#EC4899", "#6B7280",
+            "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#0EA5E9", "#3B82F6", "#A855F7", "#EC4899",
+            "#6B7280",
         ]
         .iter()
         .enumerate()
@@ -251,7 +243,9 @@ impl Dialog for GroupDialog {
             let rgb = parse_hex_color(color);
             preset_spans.push(Span::styled(
                 format!("{}  ", idx),
-                Style::default().bg(Color::Rgb(rgb.0, rgb.1, rgb.2)).fg(Color::White),
+                Style::default()
+                    .bg(Color::Rgb(rgb.0, rgb.1, rgb.2))
+                    .fg(Color::White),
             ));
         }
 

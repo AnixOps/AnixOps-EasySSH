@@ -182,7 +182,9 @@ impl Default for Profiler {
 impl Profiler {
     /// 创建新的分析器
     pub fn new() -> Self {
-        Self { records: Vec::new() }
+        Self {
+            records: Vec::new(),
+        }
     }
 
     /// 添加记录
@@ -205,12 +207,20 @@ impl Profiler {
 
     /// 获取最长执行时间
     pub fn max_duration(&self) -> u64 {
-        self.records.iter().map(|r| r.duration_ms).max().unwrap_or(0)
+        self.records
+            .iter()
+            .map(|r| r.duration_ms)
+            .max()
+            .unwrap_or(0)
     }
 
     /// 获取最短执行时间
     pub fn min_duration(&self) -> u64 {
-        self.records.iter().map(|r| r.duration_ms).min().unwrap_or(0)
+        self.records
+            .iter()
+            .map(|r| r.duration_ms)
+            .min()
+            .unwrap_or(0)
     }
 
     /// 生成报告

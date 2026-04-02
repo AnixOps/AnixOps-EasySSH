@@ -56,9 +56,11 @@ impl ServerDetail {
     }
 
     fn build_empty_state(&self) {
-        self.widget.set_icon_name(Some("network-wired-disconnected-symbolic"));
+        self.widget
+            .set_icon_name(Some("network-wired-disconnected-symbolic"));
         self.widget.set_title("No Server Selected");
-        self.widget.set_description(Some("Select a server from the list to view details"));
+        self.widget
+            .set_description(Some("Select a server from the list to view details"));
     }
 
     fn build_server_details(&self, server: &Server) {
@@ -110,10 +112,7 @@ impl ServerDetail {
             AuthType::Password => ("Password", "Stored in keychain"),
             AuthType::Key => (
                 "SSH Key",
-                server
-                    .identity_file
-                    .as_deref()
-                    .unwrap_or("~/.ssh/id_rsa"),
+                server.identity_file.as_deref().unwrap_or("~/.ssh/id_rsa"),
             ),
             AuthType::Agent => ("SSH Agent", "System SSH agent"),
         };
@@ -134,9 +133,7 @@ impl ServerDetail {
         self.content_box.append(&auth_group);
 
         // Status group
-        let status_group = adw::PreferencesGroup::builder()
-            .title("Status")
-            .build();
+        let status_group = adw::PreferencesGroup::builder().title("Status").build();
 
         let status_str = match server.status {
             ServerStatus::Connected => "Connected",
@@ -162,9 +159,7 @@ impl ServerDetail {
         self.content_box.append(&status_group);
 
         // Actions group
-        let actions_group = adw::PreferencesGroup::builder()
-            .title("Actions")
-            .build();
+        let actions_group = adw::PreferencesGroup::builder().title("Actions").build();
 
         // Connect button
         let connect_button = gtk4::Button::builder()

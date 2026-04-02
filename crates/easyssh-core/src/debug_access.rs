@@ -63,7 +63,9 @@ impl DebugAccessMethod {
             DebugAccessMethod::CliFlag { flag } => format!("命令行参数: {}", flag),
             DebugAccessMethod::EnvVar { var, value } => format!("环境变量: {}={}", var, value),
             DebugAccessMethod::ConfigFile { path } => format!("配置文件: {:?}", path),
-            DebugAccessMethod::AdminSwitch { admin_id } => format!("管理员开关 (admin: {})", admin_id),
+            DebugAccessMethod::AdminSwitch { admin_id } => {
+                format!("管理员开关 (admin: {})", admin_id)
+            }
             DebugAccessMethod::ApiCall { endpoint, .. } => format!("API调用: {}", endpoint),
             DebugAccessMethod::Gesture { pattern } => format!("手势: {}", pattern),
         }
@@ -220,7 +222,10 @@ pub enum DebugAccessError {
     /// 认证失败
     AuthenticationFailed,
     /// 权限不足
-    InsufficientLevel { required: DebugAccessLevel, current: DebugAccessLevel },
+    InsufficientLevel {
+        required: DebugAccessLevel,
+        current: DebugAccessLevel,
+    },
     /// 已超时
     SessionExpired,
     /// 功能未找到
@@ -238,7 +243,12 @@ impl std::fmt::Display for DebugAccessError {
             DebugAccessError::ActivationFailed { reason } => write!(f, "激活失败: {}", reason),
             DebugAccessError::AuthenticationFailed => write!(f, "认证失败"),
             DebugAccessError::InsufficientLevel { required, current } => {
-                write!(f, "权限不足: 需要{}权限，当前为{}", required.name(), current.name())
+                write!(
+                    f,
+                    "权限不足: 需要{}权限，当前为{}",
+                    required.name(),
+                    current.name()
+                )
             }
             DebugAccessError::SessionExpired => write!(f, "Debug会话已超时"),
             DebugAccessError::FeatureNotFound(name) => write!(f, "功能未找到: {}", name),
@@ -385,9 +395,12 @@ impl DebugAccess {
                     if now - s.last_activity > timeout {
                         // 已超时，自动禁用
                         drop(session);
-                        let _ = self.deactivate_internal(DebugAccessMethod::CliFlag {
-                            flag: "auto_timeout".to_string(),
-                        }, true);
+                        let _ = self.deactivate_internal(
+                            DebugAccessMethod::CliFlag {
+                                flag: "auto_timeout".to_string(),
+                            },
+                            true,
+                        );
                         return false;
                     }
                     return true;
@@ -615,7 +628,10 @@ impl DebugAccess {
             },
             method: Some(method),
             result: DebugAuditResult::Success,
-            details: Some(format!("原因: {}", if is_timeout { "超时" } else { "手动" })),
+            details: Some(format!(
+                "原因: {}",
+                if is_timeout { "超时" } else { "手动" }
+            )),
             actor,
             client_info,
         });
@@ -827,9 +843,7 @@ pub fn get_debug_access() -> Option<Arc<DebugAccess>> {
 
 /// 检查全局Debug模式是否启用
 pub fn is_debug_enabled() -> bool {
-    get_debug_access()
-        .map(|a| a.is_enabled())
-        .unwrap_or(false)
+    get_debug_access().map(|a| a.is_enabled()).unwrap_or(false)
 }
 
 /// 尝试从环境变量激活Debug模式
@@ -859,9 +873,7 @@ pub fn try_activate_from_cli(args: &[String]) -> Result<DebugSession, DebugAcces
     for arg in args {
         if arg == "--dev-mode" || arg == "--debug" || arg == "-d" {
             let access = get_debug_access().ok_or(DebugAccessError::Disabled)?;
-            let method = DebugAccessMethod::CliFlag {
-                flag: arg.clone(),
-            };
+            let method = DebugAccessMethod::CliFlag { flag: arg.clone() };
             let client_info = DebugClientInfo {
                 platform: Some(std::env::consts::OS.to_string()),
                 ..Default::default()

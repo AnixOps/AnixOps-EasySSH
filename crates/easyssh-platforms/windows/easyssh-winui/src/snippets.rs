@@ -601,7 +601,11 @@ impl SnippetManager {
                         description: snippet.description.clone(),
                         folder_id,
                         variables_json: vars_json,
-                        scope: if snippet.is_shared { "team".to_string() } else { "local".to_string() },
+                        scope: if snippet.is_shared {
+                            "team".to_string()
+                        } else {
+                            "local".to_string()
+                        },
                     };
                     db.update_snippet(&update)?;
                 }
@@ -614,7 +618,11 @@ impl SnippetManager {
                         description: snippet.description.clone(),
                         folder_id,
                         variables_json: vars_json,
-                        scope: if snippet.is_shared { "team".to_string() } else { "local".to_string() },
+                        scope: if snippet.is_shared {
+                            "team".to_string()
+                        } else {
+                            "local".to_string()
+                        },
                     };
                     db.add_snippet(&new)?;
                 }
@@ -640,7 +648,8 @@ impl SnippetManager {
             };
 
             // Parse tags from variables_json
-            let tags = record.variables_json
+            let tags = record
+                .variables_json
                 .and_then(|json| serde_json::from_str::<Vec<String>>(&json).ok())
                 .unwrap_or_default();
 

@@ -4,9 +4,9 @@
 
 #[cfg(feature = "database-client")]
 use crate::debug::access::{check_access, get_access_level};
+use crate::debug::types::*;
 #[cfg(feature = "database-client")]
 use crate::debug::DebugAccessLevel;
-use crate::debug::types::*;
 
 /// 访问控制错误类型别名
 #[cfg(feature = "database-client")]
@@ -85,12 +85,12 @@ pub async fn execute_query(
     let sql_upper = sql.trim().to_uppercase();
     let allowed_prefixes = ["SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "WITH"];
 
-    let is_readonly = allowed_prefixes.iter().any(|prefix| sql_upper.starts_with(prefix));
+    let is_readonly = allowed_prefixes
+        .iter()
+        .any(|prefix| sql_upper.starts_with(prefix));
 
     if !is_readonly {
-        return Err(
-            "Only read-only queries are allowed in debug console".to_string(),
-        );
+        return Err("Only read-only queries are allowed in debug console".to_string());
     }
 
     let start = std::time::Instant::now();
@@ -107,9 +107,7 @@ pub async fn execute_query(
 
 /// 获取数据库表列表
 #[cfg(feature = "database-client")]
-pub async fn list_tables(
-    _config: DatabaseConnectionConfig,
-) -> Result<Vec<TableInfo>, String> {
+pub async fn list_tables(_config: DatabaseConnectionConfig) -> Result<Vec<TableInfo>, String> {
     if !check_access(DebugAccessLevel::Admin) {
         return Err("Database console requires Admin access level".to_string());
     }
@@ -226,7 +224,9 @@ pub mod sqlite {
         let sql_upper = sql.trim().to_uppercase();
         let allowed_prefixes = ["SELECT", "PRAGMA", "EXPLAIN"];
 
-        let is_readonly = allowed_prefixes.iter().any(|prefix| sql_upper.starts_with(prefix));
+        let is_readonly = allowed_prefixes
+            .iter()
+            .any(|prefix| sql_upper.starts_with(prefix));
 
         if !is_readonly {
             return Err("Only read-only queries allowed".to_string());
