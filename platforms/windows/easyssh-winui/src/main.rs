@@ -135,6 +135,10 @@ use user_experience::{
     LoadingOperation, OnboardingAction, OnboardingWizard, QuickTip, ToastNotification, UXManager,
 };
 
+// Version identification integration
+mod version_identity;
+use version_identity::{VersionIdentity, VersionAwareTheme};
+
 #[cfg(feature = "team")]
 use team_ui::{render_team_panel, TeamManagerUI};
 
@@ -151,7 +155,13 @@ fn main() -> eframe::Result {
     let _early_phase = profiler.lock().unwrap().start_phase("early_init");
 
     tracing_subscriber::fmt::init();
-    info!("Starting EasySSH for Windows");
+
+    // Initialize version identification system
+    let version_id = VersionIdentity::new();
+    info!("Starting {}", version_id.full_version_string());
+    info!("Edition: {} (tier={})", version_id.edition_name(), version_id.edition_tier());
+    info!("Build type: {}", version_id.build_type_name());
+    info!("Features: {:?}", version_id.features());
 
     // Initialize accessibility settings from system preferences (WCAG 2.1 AA)
     let a11y = AccessibilitySettings::global();
@@ -203,8 +213,9 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1000.0, 700.0])
-            .with_min_inner_size([600.0, 400.0]),
+            .with_inner_size([1200.0, 800.0])
+            .with_min_inner_size([800.0, 500.0])
+            .with_title(&version_id.window_title()),
         ..Default::default()
     };
 
@@ -212,11 +223,11 @@ fn main() -> eframe::Result {
     deferred.run_all();
 
     eframe::run_native(
-        "EasySSH",
+        &version_id.window_title(),
         options,
         Box::new(move |cc| {
             let _ui_phase = global_profiler().lock().unwrap().start_phase("ui_init");
-            let app = EasySSHApp::new(cc, rt.clone());
+            let app = EasySSHApp::new(cc, rt.clone(), version_id.clone());
             global_profiler().lock().unwrap().end_phase("ui_init");
             global_profiler().lock().unwrap().mark_ui_ready();
 
@@ -586,6 +597,10 @@ struct EasySSHApp {
     // === Cloud Sync Configuration (Feature #99) ===
     cloud_sync_ui: CloudSyncUI,
     show_cloud_sync: bool,
+
+    // === Version Identity System ===
+    /// Version identity for edition-specific UI theming
+    version_identity: VersionIdentity,
 }
 
 #[derive(Default)]
@@ -695,14 +710,22 @@ impl EasySSHApp {
         }
     }
 
-    fn new(cc: &eframe::CreationContext<'_>, runtime: Arc<tokio::runtime::Runtime>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>, runtime: Arc<tokio::runtime::Runtime>, version_identity: VersionIdentity) -> Self {
         // Initialize accessible theme with system accessibility settings (fast path)
         let theme_phase = global_profiler().lock().unwrap().start_phase("theme_init");
+
+        // Apply version-specific theme colors
+        let version_theme = VersionAwareTheme::from_identity(&version_identity);
+
         let mut theme = if AccessibilitySettings::global().is_high_contrast() {
             DesignTheme::high_contrast()
         } else {
             DesignTheme::dark()
         };
+
+        // Apply version-specific accent colors
+        version_theme.apply_to_design_theme(&mut theme);
+
         theme.apply_accessibility_settings();
         theme.apply_to_ctx(&cc.egui_ctx);
         global_profiler().lock().unwrap().end_phase(&theme_phase);
@@ -1082,6 +1105,9 @@ impl EasySSHApp {
             // Cloud Sync
             cloud_sync_ui: CloudSyncUI::new(),
             show_cloud_sync: false,
+
+            // Version Identity
+            version_identity,
         }
     }
 

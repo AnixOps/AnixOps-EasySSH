@@ -661,11 +661,14 @@ pub mod connection_pool;
 pub mod crypto;
 pub mod db;
 pub mod edition;
+pub mod edition_ffi;
 pub mod error;
 pub mod ffi;
 pub mod i18n;
 pub mod i18n_ffi;
 pub mod keychain;
+pub mod version;
+pub mod version_ffi;
 #[cfg(feature = "split-screen")]
 pub mod layout;
 #[cfg(all(feature = "standard", target_os = "linux"))]
@@ -818,7 +821,23 @@ pub use db::{
     UpdateHost, UpdateIdentity, UpdateLayout, UpdateServer, UpdateSession, UpdateSnippet,
     UpdateSyncState, UpdateTag,
 };
-pub use edition::{Edition, VersionInfo};
+pub use edition::{Edition, VersionInfo, BuildType, AppIdentity, VersionComparator, VersionComparison};
+pub use edition_ffi::*;
+
+// Version system FFI exports
+pub use version_ffi::{
+    version_check_compatibility, version_free_build_info, version_free_platform_info,
+    version_free_string, version_get_build_date, version_get_build_info,
+    version_get_build_info_json, version_get_git_branch, version_get_migration_advice,
+    version_get_platform_display, version_get_platform_info, version_get_rustc_version,
+    version_get_summary, version_get_user_agent, version_get_verbose_info, version_get_version_id,
+    CFullBuildInfo, CPlatformInfo,
+};
+
+// Version system exports - 版本系统扩展（补充 edition 模块）
+pub use version::{
+    FullBuildInfo, PlatformInfo, VersionCompatibility,
+};
 pub use error::LiteError;
 pub use i18n::{
     format_date, format_datetime, format_number, get_current_language, get_language_display_name,
