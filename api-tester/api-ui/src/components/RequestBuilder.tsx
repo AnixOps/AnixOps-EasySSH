@@ -10,8 +10,27 @@ import {
   Lock,
   Unlock,
 } from 'lucide-react';
-import { useApiTesterStore, HttpMethod, KeyValue, Auth, Body } from '../stores/apiTesterStore';
-import { executeRequest } from '../utils/tauriCommands';
+import { useApiTesterStore, HttpMethod, KeyValue, Auth, Body, ApiResponse, TestResult } from '../stores/apiTesterStore';
+// TODO: Replace with native API calls
+// import { executeRequest } from '../utils/tauriCommands';
+
+// Stub for executeRequest until native API is implemented
+const executeRequest = async (_request: any, _environmentId?: string): Promise<{ response: ApiResponse; testResults: TestResult[] }> => {
+  console.log('executeRequest not implemented');
+  return Promise.resolve({
+    response: {
+      id: 'stub',
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      body: '{}',
+      size: 0,
+      time: 0,
+      timestamp: new Date(),
+    },
+    testResults: [],
+  });
+};
 
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 

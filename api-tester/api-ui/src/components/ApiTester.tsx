@@ -4,7 +4,14 @@ import { RequestBuilder } from './RequestBuilder';
 import { ResponseViewer } from './ResponseViewer';
 import { WebSocketClient } from './WebSocketClient';
 import { useApiTesterStore, ApiRequest } from '../stores/apiTesterStore';
-import { saveRequest } from '../utils/tauriCommands';
+// TODO: Replace with native API calls
+// import { saveRequest } from '../utils/tauriCommands';
+
+// Stub for saveRequest until native API is implemented
+const saveRequest = async (_request: ApiRequest, _collectionId?: string) => {
+  console.log('saveRequest not implemented');
+  return Promise.resolve();
+};
 
 export const ApiTester: React.FC = () => {
   const [activeView, setActiveView] = useState<'http' | 'websocket' | 'grpc'>('http');

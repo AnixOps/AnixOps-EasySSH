@@ -52,7 +52,7 @@
 ┌──────────────────────────────────────────────────────────────┐
 │                     平台适配与展示层                         │
 ├──────────────────────────────────────────────────────────────┤
-│ Desktop Shell (Tauri 或 Electron)                            │
+│ Desktop Shell (egui/GTK4/WinUI/SwiftUI)                        │
 │ Mobile Shell (React Native)                                  │
 │ Optional Web Admin / Pro Console                             │
 └──────────────────────────────────────────────────────────────┘

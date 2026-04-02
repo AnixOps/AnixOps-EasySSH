@@ -74,11 +74,6 @@ api-tester/
 │   │   ├── environment.rs # Environment variables
 │   │   └── history.rs     # History management
 │   └── Cargo.toml
-├── api-tauri/         # Tauri integration
-│   ├── src/
-│   │   ├── commands.rs    # Tauri commands
-│   │   └── lib.rs
-│   └── Cargo.toml
 └── api-ui/            # React frontend
     ├── src/
     │   ├── components/
@@ -87,10 +82,8 @@ api-tester/
     │   │   ├── ResponseViewer.tsx
     │   │   ├── WebSocketClient.tsx
     │   │   └── ApiTester.tsx
-    │   ├── stores/
-    │   │   └── apiTesterStore.ts
-    │   └── utils/
-    │       └── tauriCommands.ts
+    │   └── stores/
+    │       └── apiTesterStore.ts
     └── package.json
 ```
 
@@ -103,10 +96,6 @@ api-tester/
 cd api-tester/api-core
 cargo build
 
-# Build the Tauri integration
-cd api-tester/api-tauri
-cargo build
-
 # Build the UI
 cd api-tester/api-ui
 npm install
@@ -114,17 +103,6 @@ npm run build
 ```
 
 ### Integration
-
-Add to your Tauri app:
-
-```rust
-fn main() {
-    tauri::Builder::default()
-        .plugin(api_tester_tauri::init())
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
-```
 
 Use in React:
 

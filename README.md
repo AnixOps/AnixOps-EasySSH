@@ -25,9 +25,9 @@
 .
 ├── core/                   # 核心库 (Rust)
 ├── platforms/              # 原生UI实现
-│   ├── tauri/              # Tauri跨平台版本
-│   ├── windows/            # WinUI3原生版本
-│   └── linux/              # GTK4原生版本
+│   ├── windows/            # egui原生版本
+│   ├── linux/              # GTK4原生版本
+│   └── macos/              # SwiftUI原生版本
 ├── docs/                   # 完整文档
 │   ├── architecture/       # 架构设计
 │   ├── developers/         # 开发者指南
@@ -42,8 +42,10 @@
 
 | 组件 | 技术选型 |
 |------|----------|
-| 框架 | Tauri 2.x / GTK4 / WinUI3 |
-| 前端 | React 18 + TypeScript + Vite |
+| Windows UI | egui (纯Rust原生) |
+| Linux UI | GTK4 (纯原生) |
+| macOS UI | SwiftUI (纯原生) |
+| 前端 (API Tester) | React 18 + TypeScript |
 | 状态管理 | Zustand |
 | 终端 | xterm.js + xterm-addon-webgl |
 | SSH | ssh2 crate / russh |

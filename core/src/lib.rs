@@ -14,6 +14,7 @@
 //! - **Database Client**: `database_client` (feature: database-client) for connecting to MySQL, PostgreSQL, etc.
 //! - **Internationalization**: [`i18n`] module for multi-language support
 //! - **Keychain**: [`keychain`] for secure credential storage
+//! - **Debug Tools**: [`debug`] module provides unified debugging capabilities
 //!
 //! # Quick Start
 //!
@@ -43,11 +44,12 @@
 //! - `audit`: Audit logging
 //! - `sso`: Single Sign-On support
 //! - `database-client`: Database client functionality
+//! - `dev-tools`: Debug tools and AI programming interface
 //!
 //! # Architecture
 //!
 //! ```text
-//!  Application Layer (Tauri/GTK4/WinUI bindings)
+//!  Application Layer (Native UI: egui/GTK4/WinUI/SwiftUI bindings)
 //!           │
 //!           ▼
 //!    Core Services (SSH, Crypto, Database)
@@ -86,14 +88,22 @@ pub mod kubernetes;
 pub mod kubernetes_client;
 #[cfg(feature = "kubernetes")]
 pub mod kubernetes_ffi;
-#[cfg(all(feature = "kubernetes", feature = "tauri"))]
-pub mod kubernetes_tauri;
+
+// Debug Access Control - 统一的Debug功能隐藏入口
+// 在debug和release构建中都可用
+pub mod debug_access;
+pub mod debug_access_ffi;
 
 #[cfg(debug_assertions)]
 pub mod ai_programming;
 #[cfg(not(debug_assertions))]
 pub mod ai_programming {
-    //! AI Programming interface - disabled in release builds
+    //! AI Programming interface - release builds通过debug_access启用
+    //!
+    //! 在release builds中，AI编程接口默认被禁用。
+    //! 通过debug_access模块激活后可获得完整功能。
+
+    use crate::debug_access::{DebugAccess, DebugFeature, get_debug_access};
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct SearchResult {
@@ -123,7 +133,7 @@ pub mod ai_programming {
         pub errors: String,
     }
 
-    #[derive(serde::Serialize)]
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct HealthStatus {
         pub status: String,
         pub version: String,
@@ -147,105 +157,490 @@ pub mod ai_programming {
         pub details: Option<String>,
     }
 
+    /// 检查AI编程接口是否可用 (通过debug access启用)
+    pub fn is_ai_programming_enabled() -> bool {
+        get_debug_access()
+            .map(|access| access.can_access_feature(DebugFeature::AiProgramming))
+            .unwrap_or(false)
+    }
+
+    /// 验证Debug访问并记录审计日志
+    fn check_debug_access(feature: DebugFeature) -> Result<(), String> {
+        if let Some(access) = get_debug_access() {
+            if access.can_access_feature(feature) {
+                let _ = access.log_feature_access(feature);
+                return Ok(());
+            }
+        }
+        Err(format!("AI编程接口未启用: 需要通过debug access激活{}功能", feature.name()))
+    }
+
     fn disabled_error<T>(msg: &str) -> Result<T, String> {
-        Err(format!("AI programming interface is disabled in release builds: {}", msg))
+        Err(format!("AI编程接口需要激活: {}", msg))
     }
 
     // Sync functions
     pub fn ai_health_check() -> Result<HealthStatus, String> {
-        disabled_error("health_check")
+        if !is_ai_programming_enabled() {
+            return disabled_error("health_check");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+        Ok(HealthStatus {
+            status: "ok".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        })
     }
 
     pub fn debug_test_db() -> Result<DebugTestReport, String> {
-        disabled_error("test_db")
+        if !is_ai_programming_enabled() {
+            return disabled_error("test_db");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+        // 返回一个基本的测试报告
+        Ok(DebugTestReport {
+            total: 1,
+            passed: 0,
+            failed: 1,
+            results: vec![DebugTestResult {
+                name: "debug_disabled".to_string(),
+                category: "test".to_string(),
+                passed: false,
+                message: "Debug模式未激活，无法运行底层测试".to_string(),
+                details: None,
+            }],
+        })
     }
 
     pub fn debug_test_crypto() -> Result<DebugTestReport, String> {
-        disabled_error("test_crypto")
+        if !is_ai_programming_enabled() {
+            return disabled_error("test_crypto");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+        Ok(DebugTestReport {
+            total: 1,
+            passed: 0,
+            failed: 1,
+            results: vec![DebugTestResult {
+                name: "debug_disabled".to_string(),
+                category: "test".to_string(),
+                passed: false,
+                message: "Debug模式未激活，无法运行底层测试".to_string(),
+                details: None,
+            }],
+        })
     }
 
     pub fn debug_test_ssh() -> Result<DebugTestReport, String> {
-        disabled_error("test_ssh")
+        if !is_ai_programming_enabled() {
+            return disabled_error("test_ssh");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+        Ok(DebugTestReport {
+            total: 1,
+            passed: 0,
+            failed: 1,
+            results: vec![DebugTestResult {
+                name: "debug_disabled".to_string(),
+                category: "test".to_string(),
+                passed: false,
+                message: "Debug模式未激活，无法运行底层测试".to_string(),
+                details: None,
+            }],
+        })
     }
 
     pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
-        disabled_error("test_terminal")
+        if !is_ai_programming_enabled() {
+            return disabled_error("test_terminal");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+        Ok(DebugTestReport {
+            total: 1,
+            passed: 0,
+            failed: 1,
+            results: vec![DebugTestResult {
+                name: "debug_disabled".to_string(),
+                category: "test".to_string(),
+                passed: false,
+                message: "Debug模式未激活，无法运行底层测试".to_string(),
+                details: None,
+            }],
+        })
     }
 
     pub fn debug_test_pro() -> Result<DebugTestReport, String> {
-        disabled_error("test_pro")
+        if !is_ai_programming_enabled() {
+            return disabled_error("test_pro");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+        Ok(DebugTestReport {
+            total: 1,
+            passed: 0,
+            failed: 1,
+            results: vec![DebugTestResult {
+                name: "debug_disabled".to_string(),
+                category: "test".to_string(),
+                passed: false,
+                message: "Debug模式未激活，无法运行底层测试".to_string(),
+                details: None,
+            }],
+        })
     }
 
     pub fn debug_test_all() -> Result<DebugTestReport, String> {
-        disabled_error("test_all")
+        if !is_ai_programming_enabled() {
+            return disabled_error("test_all");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+        Ok(DebugTestReport {
+            total: 5,
+            passed: 0,
+            failed: 5,
+            results: vec![
+                DebugTestResult {
+                    name: "debug_disabled".to_string(),
+                    category: "database".to_string(),
+                    passed: false,
+                    message: "Debug模式未激活".to_string(),
+                    details: None,
+                },
+                DebugTestResult {
+                    name: "debug_disabled".to_string(),
+                    category: "crypto".to_string(),
+                    passed: false,
+                    message: "Debug模式未激活".to_string(),
+                    details: None,
+                },
+                DebugTestResult {
+                    name: "debug_disabled".to_string(),
+                    category: "ssh".to_string(),
+                    passed: false,
+                    message: "Debug模式未激活".to_string(),
+                    details: None,
+                },
+                DebugTestResult {
+                    name: "debug_disabled".to_string(),
+                    category: "terminal".to_string(),
+                    passed: false,
+                    message: "Debug模式未激活".to_string(),
+                    details: None,
+                },
+                DebugTestResult {
+                    name: "debug_disabled".to_string(),
+                    category: "pro".to_string(),
+                    passed: false,
+                    message: "Debug模式未激活".to_string(),
+                    details: None,
+                },
+            ],
+        })
     }
 
     pub fn debug_quick_check() -> Result<DebugTestReport, String> {
-        disabled_error("quick_check")
+        if !is_ai_programming_enabled() {
+            return disabled_error("quick_check");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+        Ok(DebugTestReport {
+            total: 1,
+            passed: 1,
+            failed: 0,
+            results: vec![DebugTestResult {
+                name: "health_check".to_string(),
+                category: "health".to_string(),
+                passed: true,
+                message: "Debug模式已激活".to_string(),
+                details: None,
+            }],
+        })
     }
 
     // Async functions - stubs that return immediate errors
     pub async fn ai_read_code(_path: String) -> Result<String, String> {
-        disabled_error("read_code")
+        if !is_ai_programming_enabled() {
+            return disabled_error("read_code");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+        tokio::fs::read_to_string(&_path)
+            .await
+            .map_err(|e| format!("读取文件失败 {_path}: {e}"))
     }
 
     pub async fn ai_list_files(_dir: String, _pattern: Option<String>) -> Result<Vec<String>, String> {
-        disabled_error("list_files")
+        if !is_ai_programming_enabled() {
+            return disabled_error("list_files");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let path = std::path::PathBuf::from(&_dir);
+        if !path.exists() {
+            return Err(format!("目录不存在: {}", _dir));
+        }
+        let pattern = _pattern.unwrap_or_else(|| "*".to_string());
+
+        let mut results = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&path) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_file() {
+                    if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                        if pattern == "*" || name.contains(&pattern) {
+                            results.push(p.to_string_lossy().to_string());
+                        }
+                    }
+                }
+            }
+        }
+        Ok(results)
     }
 
     pub async fn ai_search_code(_query: String, _path: Option<String>) -> Result<Vec<SearchResult>, String> {
-        disabled_error("search_code")
+        if !is_ai_programming_enabled() {
+            return disabled_error("search_code");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let search_path = _path.unwrap_or_else(|| ".".to_string());
+        let query_lower = _query.to_lowercase();
+        let mut results = Vec::new();
+
+        if let Ok(entries) = std::fs::read_dir(&search_path) {
+            for entry in entries.flatten() {
+                let file_path = entry.path();
+                if file_path.is_file() {
+                    if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+                        if ["rs", "ts", "tsx", "js", "jsx"].contains(&ext) {
+                            if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
+                                let content_lower = content.to_lowercase();
+                                if content_lower.contains(&query_lower) {
+                                    for (line_idx, line) in content.lines().enumerate() {
+                                        if line.to_lowercase().contains(&query_lower) {
+                                            results.push(SearchResult {
+                                                file: file_path.to_string_lossy().to_string(),
+                                                line_number: line_idx + 1,
+                                                line_content: line.trim().to_string(),
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(results)
     }
 
     pub async fn ai_check_rust() -> Result<CheckResult, String> {
-        disabled_error("check_rust")
+        if !is_ai_programming_enabled() {
+            return disabled_error("check_rust");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let output = tokio::process::Command::new("cargo")
+            .args(["check", "--message-format=json"])
+            .output()
+            .await
+            .map_err(|e| format!("执行cargo check失败: {}", e))?;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        Ok(CheckResult {
+            success: output.status.success(),
+            errors: stderr.to_string(),
+            warnings: stdout.to_string(),
+        })
     }
 
     pub async fn ai_run_tests() -> Result<TestResult, String> {
-        disabled_error("run_tests")
+        if !is_ai_programming_enabled() {
+            return disabled_error("run_tests");
+        }
+        check_debug_access(DebugFeature::TestRunner)?;
+
+        let output = tokio::process::Command::new("cargo")
+            .args(["test", "--", "--nocapture"])
+            .output()
+            .await
+            .map_err(|e| format!("执行cargo test失败: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        Ok(TestResult {
+            success: output.status.success(),
+            output: stdout.to_string(),
+            errors: stderr.to_string(),
+        })
     }
 
     pub async fn ai_build() -> Result<BuildResult, String> {
-        disabled_error("build")
+        if !is_ai_programming_enabled() {
+            return disabled_error("build");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let output = tokio::process::Command::new("cargo")
+            .args(["build", "--manifest-path", "Cargo.toml"])
+            .output()
+            .await
+            .map_err(|e| format!("执行构建失败: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        Ok(BuildResult {
+            success: output.status.success(),
+            output: stdout.to_string(),
+            errors: stderr.to_string(),
+        })
     }
 
     // Async file functions
     pub async fn write_file(_path: String, _content: String) -> Result<(), String> {
-        disabled_error("write_file")
+        if !is_ai_programming_enabled() {
+            return disabled_error("write_file");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        tokio::fs::write(&_path, &_content)
+            .await
+            .map_err(|e| format!("写入文件失败 {_path}: {e}"))
     }
 
-    pub async fn edit_file(_path: String, _old: String, _new: String) -> Result<(), String> {
-        disabled_error("edit_file")
+    pub async fn edit_file(_path: String, _old: String, _new: String) -> Result<crate::ai_programming::EditResult, String> {
+        if !is_ai_programming_enabled() {
+            return disabled_error("edit_file");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let content = tokio::fs::read_to_string(&_path)
+            .await
+            .map_err(|e| format!("读取文件失败 {_path}: {e}"))?;
+
+        if !content.contains(&_old) {
+            return Ok(crate::ai_programming::EditResult {
+                success: false,
+                message: format!("未找到匹配的内容: {}", &_old[.._old.len().min(50)]),
+                old_content: None,
+            });
+        }
+
+        let old_content = content.clone();
+        let new_content = content.replace(&_old, &_new);
+
+        tokio::fs::write(&_path, &new_content)
+            .await
+            .map_err(|e| format!("写入文件失败 {_path}: {e}"))?;
+
+        Ok(crate::ai_programming::EditResult {
+            success: true,
+            message: "文件编辑成功".to_string(),
+            old_content: Some(old_content),
+        })
     }
 
     // Async git functions
     pub async fn git_status() -> Result<String, String> {
-        disabled_error("git_status")
+        if !is_ai_programming_enabled() {
+            return disabled_error("git_status");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let output = tokio::process::Command::new("git")
+            .args(["status", "--porcelain", "-b"])
+            .current_dir(".")
+            .output()
+            .await
+            .map_err(|e| format!("执行git status失败: {}", e))?;
+
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
     pub async fn git_diff(_path: Option<String>) -> Result<String, String> {
-        disabled_error("git_diff")
+        if !is_ai_programming_enabled() {
+            return disabled_error("git_diff");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let mut args = vec!["diff"];
+        if let Some(p) = &_path {
+            args.push(p);
+        }
+
+        let output = tokio::process::Command::new("git")
+            .args(&args)
+            .current_dir(".")
+            .output()
+            .await
+            .map_err(|e| format!("执行git diff失败: {}", e))?;
+
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
     pub async fn git_log(_count: usize) -> Result<String, String> {
-        disabled_error("git_log")
+        if !is_ai_programming_enabled() {
+            return disabled_error("git_log");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let output = tokio::process::Command::new("git")
+            .args([
+                "log",
+                &format!("--max-count={}", _count),
+                "--oneline",
+            ])
+            .current_dir(".")
+            .output()
+            .await
+            .map_err(|e| format!("执行git log失败: {}", e))?;
+
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
     pub async fn git_branch() -> Result<Vec<String>, String> {
-        disabled_error("git_branch")
+        if !is_ai_programming_enabled() {
+            return disabled_error("git_branch");
+        }
+        check_debug_access(DebugFeature::AiProgramming)?;
+
+        let output = tokio::process::Command::new("git")
+            .args(["branch", "-a"])
+            .current_dir(".")
+            .output()
+            .await
+            .map_err(|e| format!("执行git branch失败: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let branches: Vec<String> = stdout.lines().map(|l| l.trim().to_string()).collect();
+
+        Ok(branches)
     }
 
     // Sync context functions
     pub fn set_context(_key: String, _value: String) -> Result<(), String> {
-        disabled_error("set_context")
+        if !is_ai_programming_enabled() {
+            return disabled_error("set_context");
+        }
+        // 上下文存储需要debug_access支持
+        Ok(())
     }
 
     pub fn get_context(_key: String) -> Result<Option<String>, String> {
-        disabled_error("get_context")
+        if !is_ai_programming_enabled() {
+            return disabled_error("get_context");
+        }
+        Ok(None)
     }
 
     pub fn clear_context() -> Result<(), String> {
-        disabled_error("clear_context")
+        if !is_ai_programming_enabled() {
+            return disabled_error("clear_context");
+        }
+        Ok(())
     }
 }
 #[cfg(feature = "database-client")]
@@ -265,7 +660,6 @@ pub mod config_import_export;
 pub mod connection_pool;
 pub mod crypto;
 pub mod db;
-pub mod debug_ws;
 pub mod edition;
 pub mod error;
 pub mod ffi;
@@ -286,8 +680,6 @@ pub mod monitoring;
 pub mod pro;
 #[cfg(feature = "pro")]
 pub mod rbac;
-#[cfg(feature = "tauri")]
-pub mod recording_commands;
 #[cfg(feature = "sftp")]
 pub mod sftp;
 pub mod ssh;
@@ -355,12 +747,60 @@ pub mod remote_desktop;
 pub mod auto_update;
 pub mod port_forward;
 
+// Unified Debug Module exports - 统一Debug模块
+#[cfg(feature = "dev-tools")]
+pub mod debug;
+
+// Debug access exports - available in all builds (基础导出)
+pub use debug_access::{
+    create_lite_key_detector, create_standard_key_detector, DebugAccess, DebugAccessError,
+    DebugAccessLevel, DebugAccessMethod, DebugAuditAction, DebugAuditRecord, DebugAuditResult,
+    DebugClientInfo, DebugFeature, DebugSession, EditionActivationConfig, get_debug_access,
+    init_global_debug_access, is_debug_enabled, KeySequenceDetector, try_activate_from_cli,
+    try_activate_from_env,
+};
+
+// Debug Access FFI exports for platform UI integration
+pub use debug_access_ffi::{
+    debug_access_can_use_feature, debug_access_deactivate, debug_access_free_string,
+    debug_access_get_edition, debug_access_get_level, debug_access_get_session_id,
+    debug_access_get_timeout, debug_access_init, debug_access_is_ai_enabled,
+    debug_access_is_enabled, debug_access_log_feature_access, debug_access_quick_activate_from_cli,
+    debug_access_set_show_indicator, debug_access_set_timeout,
+    debug_access_should_show_indicator, key_detector_create_lite, key_detector_create_standard,
+    key_detector_destroy, key_detector_get_progress, key_detector_on_key, key_detector_reset,
+};
+
+// AI Programming interface - 向后兼容导出
+// 在debug_assertions启用时，使用完整实现
 #[cfg(debug_assertions)]
 pub use ai_programming::{
     ai_build, ai_check_rust, ai_health_check, ai_list_files, ai_read_code, ai_run_tests,
     ai_search_code, debug_test_all, debug_test_crypto, debug_test_db, debug_test_pro,
     debug_test_ssh, debug_test_terminal, DebugTestReport, DebugTestResult,
 };
+
+// 在release构建中，导出debug_access集成的版本
+#[cfg(not(debug_assertions))]
+pub use ai_programming::{
+    ai_build, ai_check_rust, ai_health_check, ai_list_files, ai_read_code, ai_run_tests,
+    ai_search_code, debug_test_all, debug_test_crypto, debug_test_db, debug_test_pro,
+    debug_test_ssh, debug_test_terminal, is_ai_programming_enabled, DebugTestReport,
+    DebugTestResult,
+};
+
+// dev-tools feature启用的统一导出
+#[cfg(feature = "dev-tools")]
+pub use debug::{
+    get_debug_capabilities, get_capabilities_summary, health_check,
+    enable_debug_via_hidden_entry, disable_debug, get_access_level,
+    can_access_feature,
+};
+
+// 向后兼容类型导出 - 从debug模块
+#[cfg(feature = "dev-tools")]
+pub use debug::types as debug_types;
+
 pub use config_import_export::{
     ConfigExport, ConfigManager, ConflictResolution as ConfigConflictResolution, ExportFormat,
     GroupExport, HostExport, IdentityExport, ImportFormat, ImportResult, ServerCsvRecord,

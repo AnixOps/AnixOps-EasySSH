@@ -18,7 +18,24 @@ import {
   Upload,
 } from 'lucide-react';
 import { useApiTesterStore, Collection, CollectionFolder, ApiRequest, Environment } from '../stores/apiTesterStore';
-import * as tauriCommands from '../utils/tauriCommands';
+// TODO: Replace with native API calls
+// import * as tauriCommands from '../utils/tauriCommands';
+
+// Stubs for tauriCommands until native API is implemented
+const tauriCommands = {
+  exportPostmanCollection: async (_collection: Collection): Promise<string> => {
+    console.log('exportPostmanCollection not implemented');
+    return '';
+  },
+  importPostmanCollection: async (_data: string): Promise<Collection> => {
+    console.log('importPostmanCollection not implemented');
+    throw new Error('Not implemented');
+  },
+  exportCurlCommand: async (_request: ApiRequest): Promise<string> => {
+    console.log('exportCurlCommand not implemented');
+    return '';
+  },
+};
 
 interface SidebarProps {
   onSelectRequest: (request: ApiRequest) => void;

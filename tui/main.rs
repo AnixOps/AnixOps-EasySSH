@@ -26,7 +26,6 @@ fn run_cli(args: &[String]) -> Result<(), Box<dyn Error>> {
         "list" | "ls" => list_servers(&db),
         "import-ssh" | "import" => import_ssh_config(&db),
         "connect" => connect_server(&db, args),
-        "debug-server" => start_debug_server(args),
         "version" | "-v" | "--version" => {
             println!("EasySSH {} (Lite)", env!("CARGO_PKG_VERSION"));
             Ok(())
@@ -220,23 +219,6 @@ fn connect_server(db: &Database, args: &[String]) -> Result<(), Box<dyn Error>> 
     Ok(())
 }
 
-fn start_debug_server(args: &[String]) -> Result<(), Box<dyn Error>> {
-    if matches!(args.get(2).map(String::as_str), Some("-h" | "--help")) {
-        println!("Usage: easyssh debug-server [host] [port]");
-        println!("Defaults to 127.0.0.1:7878 and stays loopback-only.");
-        return Ok(());
-    }
-
-    let host = args
-        .get(2)
-        .cloned()
-        .unwrap_or_else(|| "127.0.0.1".to_string());
-    let port = args.get(3).and_then(|p| p.parse().ok()).unwrap_or(7878);
-    let runtime = tokio::runtime::Runtime::new()?;
-    runtime.block_on(async { easyssh_core::debug_ws::run_server(&host, port).await })?;
-    Ok(())
-}
-
 fn print_help() {
     println!("EasySSH Core CLI v{}", env!("CARGO_PKG_VERSION"));
     println!();
@@ -246,7 +228,6 @@ fn print_help() {
     println!("  easyssh list");
     println!("  easyssh import-ssh");
     println!("  easyssh connect <server-id-or-name>");
-    println!("  easyssh debug-server [host] [port]");
     println!("  easyssh version");
     println!();
     println!("Auth types: password, key, agent (default: agent)");

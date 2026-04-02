@@ -157,7 +157,6 @@ pub async fn ai_search_code(
 pub async fn ai_check_rust() -> Result<CheckResult, String> {
     let output = tokio::process::Command::new("cargo")
         .args(["check", "--message-format=json"])
-        .current_dir("src-tauri")
         .output()
         .await
         .map_err(|e| format!("执行cargo check失败: {}", e))?;
@@ -175,7 +174,6 @@ pub async fn ai_check_rust() -> Result<CheckResult, String> {
 pub async fn ai_run_tests() -> Result<TestResult, String> {
     let output = tokio::process::Command::new("cargo")
         .args(["test", "--", "--nocapture"])
-        .current_dir("src-tauri")
         .output()
         .await
         .map_err(|e| format!("执行cargo test失败: {}", e))?;
@@ -193,7 +191,6 @@ pub async fn ai_run_tests() -> Result<TestResult, String> {
 pub async fn ai_build() -> Result<BuildResult, String> {
     let output = tokio::process::Command::new("cargo")
         .args(["build", "--manifest-path", "Cargo.toml"])
-        .current_dir("src-tauri")
         .output()
         .await
         .map_err(|e| format!("执行构建失败: {}", e))?;

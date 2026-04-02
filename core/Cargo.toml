@@ -113,10 +113,10 @@ mongodb = { version = "3.0", optional = true }
 redis = { version = "0.25", features = ["tokio-comp"], optional = true }
 
 [features]
-default = ["lite"]
-lite = ["dep:hex"]
-standard = ["lite", "embedded-terminal", "split-screen", "sftp", "monitoring", "remote-desktop", "log-monitor", "docker"]
-pro = ["standard", "team", "audit", "sso", "sync"]
+default = ["lite", "dev-tools"]
+lite = ["dep:hex", "dev-tools"]
+standard = ["lite", "embedded-terminal", "split-screen", "sftp", "monitoring", "remote-desktop", "log-monitor", "docker", "dev-tools"]
+pro = ["standard", "team", "audit", "sso", "sync", "dev-tools"]
 docker = ["dep:serde_yaml"]
 embedded-terminal = ["dep:portable-pty", "dep:async-trait"]
 split-screen = []
@@ -131,7 +131,6 @@ sso = []
 port-forwarding = []
 sync = ["dep:async-trait", "dep:reqwest"]
 telemetry = ["dep:windows-sys"]
-tauri = []  # Platform feature for Tauri-specific integrations
 kubernetes = [
     "dep:kube",
     "dep:k8s-openapi",
@@ -180,6 +179,8 @@ mysql-driver = ["database-client", "dep:mysql_async"]
 postgres-driver = ["database-client", "dep:tokio-postgres"]
 mongodb-driver = ["database-client", "dep:mongodb", "dep:futures"]
 redis-driver = ["database-client", "dep:redis"]
+# Debug tools feature - 统一Lite/Standard/Pro三版本Debug功能
+dev-tools = []
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }

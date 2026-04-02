@@ -15,8 +15,7 @@
   },
   "dependencies": {
     "zustand": "^4.5.0",
-    "lucide-react": "^0.400.0",
-    "@tauri-apps/api": "^2.0.0"
+    "lucide-react": "^0.400.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

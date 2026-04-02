@@ -89,8 +89,10 @@ CLAUDE.md                          # 本文件 - 总览
 
 | 组件 | 技术选型 |
 |------|----------|
-| 框架 | Tauri 2.x |
-| 前端 | React 18 + TypeScript + Vite |
+| Windows UI | egui (纯Rust原生) |
+| Linux UI | GTK4 (纯原生) |
+| macOS UI | SwiftUI (纯原生) |
+| 前端 (API Tester) | React 18 + TypeScript |
 | 状态管理 | Zustand |
 | 终端 (Standard) | xterm.js + xterm-addon-webgl |
 | SSH | ssh2 crate / russh |
@@ -157,7 +159,8 @@ CLAUDE.md                          # 本文件 - 总览
 ```
 Phase 1: Lite版本
 ├── 项目脚手架 + Monorepo
-├── Tauri配置
+├── Windows egui原生UI
+├── Linux GTK4原生UI
 ├── 加密存储 (Argon2id + AES-256-GCM)
 ├── Keychain集成
 ├── 服务器CRUD + 分组
@@ -165,7 +168,7 @@ Phase 1: Lite版本
 └── 搜索过滤
 
 Phase 2: Standard版本
-├── 基于Lite代码添加xterm.js
+├── 基于Lite代码添加嵌入式终端
 ├── 分屏布局
 ├── SQLite数据库
 ├── 监控小组件
@@ -189,7 +192,7 @@ Phase 3: Pro版本
 | 2026-03-28 | Lite用原生终端 | 极简+安全，专注配置管理 |
 | 2026-03-28 | Monorepo结构 | 代码复用，版本协同 |
 | 2026-03-28 | Argon2id + AES-256-GCM | 业界标准安全加密 |
-| 2026-03-28 | Tauri 2.x | 轻量runtime，支持全平台 |
+| 2026-04-02 | 纯原生UI (egui/GTK4/SwiftUI) | 替代Tauri，追求原生性能和体验 |
 | 2026-03-28 | xterm-addon-webgl | 多会话高频输出时GPU加速 |
 | 2026-03-28 | golden-layout | 成熟的面板管理库 |
 | 2026-03-28 | /proc/监控数据 | 避免命令解析脆弱性 |

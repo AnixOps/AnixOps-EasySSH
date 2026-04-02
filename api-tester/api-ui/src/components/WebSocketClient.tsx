@@ -1,7 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Square, Send, Trash2, Download, Copy, Check } from 'lucide-react';
 import { useApiTesterStore, WebSocketMessage } from '../stores/apiTesterStore';
-import { wsConnect, wsSend, wsGetMessages, wsDisconnect, wsIsConnected } from '../utils/tauriCommands';
+// TODO: Replace with native API calls
+// import { wsConnect, wsSend, wsGetMessages, wsDisconnect, wsIsConnected } from '../utils/tauriCommands';
+
+// Stubs for WebSocket commands until native API is implemented
+const wsConnect = async (_id: string, _url: string, _headers?: any) => {
+  console.log('wsConnect not implemented');
+  return Promise.resolve();
+};
+const wsSend = async (_id: string, _message: string) => {
+  console.log('wsSend not implemented');
+  return Promise.resolve();
+};
+const wsGetMessages = async (_id: string): Promise<WebSocketMessage[]> => {
+  console.log('wsGetMessages not implemented');
+  return Promise.resolve([]);
+};
+const wsDisconnect = async (_id: string) => {
+  console.log('wsDisconnect not implemented');
+  return Promise.resolve();
+};
+const wsIsConnected = async (_id: string): Promise<boolean> => {
+  console.log('wsIsConnected not implemented');
+  return Promise.resolve(false);
+};
 
 export const WebSocketClient: React.FC = () => {
   const [url, setUrl] = useState('wss://echo.websocket.org');

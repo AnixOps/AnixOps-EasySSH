@@ -2,8 +2,7 @@
  * Git Client React Hooks
  *
  * These hooks provide React-friendly access to the Git client functionality.
- * They can be used with any UI framework (Tauri, web, etc.) by implementing
- * the appropriate GitApi interface.
+ * They can be used with any UI framework by implementing the appropriate GitApi interface.
  */
 
 import {

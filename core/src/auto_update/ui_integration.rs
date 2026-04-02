@@ -372,28 +372,6 @@ pub async fn init_auto_update() -> anyhow::Result<UpdateController> {
     UpdateController::with_config(config).await
 }
 
-/// Integration examples for different UI frameworks
-#[cfg(feature = "tauri")]
-pub mod tauri_integration {
-    use super::*;
-
-    /// Setup auto-update for Tauri app
-    pub async fn setup_tauri_updater(
-        app_handle: tauri::AppHandle,
-    ) -> anyhow::Result<UpdateController> {
-        let controller = init_auto_update().await?;
-
-        let app_handle_clone = app_handle.clone();
-        controller
-            .set_ui_callback(move |event| {
-                let _ = app_handle_clone.emit_all("update-event", event);
-            })
-            .await;
-
-        Ok(controller)
-    }
-}
-
 #[cfg(feature = "gtk")]
 pub mod gtk_integration {
     use super::*;

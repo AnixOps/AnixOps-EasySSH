@@ -7,7 +7,6 @@ members = [
     "platforms/linux/easyssh-gtk4",
     "pro-server",
     "api-tester/api-core",
-    "api-tester/api-tauri",
     "tools/foreground_monitor"
 ]
 
