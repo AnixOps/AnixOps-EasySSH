@@ -12,10 +12,7 @@ impl ServerCard {
     pub fn new(server: &Server) -> Self {
         let box_ = gtk4::Box::new(gtk4::Orientation::Vertical, 8);
         box_.add_css_class("server-card");
-        box_.set_margin_top(8);
-        box_.set_margin_bottom(8);
-        box_.set_margin_start(8);
-        box_.set_margin_end(8);
+        box_.set_margin(8);
 
         // Header with icon and name
         let header = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
@@ -42,7 +39,7 @@ impl ServerCard {
 
         // Details
         let details = gtk4::Box::new(gtk4::Orientation::Vertical, 4);
-        details.set_margin_start(40);
+        details.set_margin(40);
 
         let subtitle = gtk4::Label::new(Some(&format!(
             "{}@{}:{}",

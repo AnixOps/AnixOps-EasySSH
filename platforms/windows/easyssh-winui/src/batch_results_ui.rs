@@ -687,10 +687,12 @@ impl BatchExecutionResultsPanel {
                         });
                 }
 
-                if let Some(ref error) = step.error_message {
+                if step.status == StepStatus::Failed {
                     ui.separator();
                     ui.colored_label(Color32::RED, "Error:");
-                    ui.label(RichText::new(error).monospace().size(11.0));
+                    if let Some(ref output) = step.output_preview {
+                        ui.label(RichText::new(output).monospace().size(11.0));
+                    }
                 }
             });
 
@@ -1017,8 +1019,9 @@ impl BatchExecutionResultsPanel {
                         StepStatus::Skipped => "SKIP",
                         StepStatus::Pending => "PENDING",
                         StepStatus::Running => "RUNNING",
+                        StepStatus::Cancelled => "CANCELLED",
                     };
-                    logs.push_str(&format!("  [{}] {}: {}\n", step.step_id, step.step_name, status_str));
+                    logs.push_str(&format!("  [{}]: {}\n", step.step_name, status_str));
 
                     if let Some(ref output) = step.output_preview {
                         for line in output.lines() {
@@ -1026,8 +1029,10 @@ impl BatchExecutionResultsPanel {
                         }
                     }
 
-                    if let Some(ref error) = step.error_message {
-                        logs.push_str(&format!("    ! ERROR: {}\n", error));
+                    if step.status == StepStatus::Failed {
+                        if let Some(ref output) = step.output_preview {
+                            logs.push_str(&format!("    ! ERROR: {}\n", output));
+                        }
                     }
                 }
             }
@@ -1064,8 +1069,9 @@ impl BatchExecutionResultsPanel {
                     StepStatus::Skipped => "SKIP",
                     StepStatus::Pending => "PENDING",
                     StepStatus::Running => "RUNNING",
+                    StepStatus::Cancelled => "CANCELLED",
                 };
-                logs.push_str(&format!("\n[{}] {} - {}\n", step.step_id, step.step_name, status_str));
+                logs.push_str(&format!("\n[{}] - {}\n", step.step_name, status_str));
 
                 if let Some(ref output) = step.output_preview {
                     logs.push_str("Output:\n");
@@ -1074,8 +1080,10 @@ impl BatchExecutionResultsPanel {
                     }
                 }
 
-                if let Some(ref error) = step.error_message {
-                    logs.push_str(&format!("Error: {}\n", error));
+                if step.status == StepStatus::Failed {
+                    if let Some(ref output) = step.output_preview {
+                        logs.push_str(&format!("Error: {}\n", output));
+                    }
                 }
             }
         }

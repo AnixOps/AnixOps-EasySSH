@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use mysql_async::prelude::Queryable;
-use mysql_async::{Conn, Opts, OptsBuilder, QueryResult as MysqlQueryResult, Row as MysqlRow};
+use mysql_async::{params, Conn, OptsBuilder, Row as MysqlRow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -352,18 +352,18 @@ impl DatabaseDriver for MySqlDriver {
         let conn = self.get_conn()?;
         let mut c = conn.lock().await;
 
-        // Get columns
-        let query = format!(
-            "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT,
-                    EXTRA, COLUMN_COMMENT, CHARACTER_MAXIMUM_LENGTH,
-                    NUMERIC_PRECISION, NUMERIC_SCALE, ORDINAL_POSITION
-             FROM INFORMATION_SCHEMA.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{}'",
-            table_name
-        );
+        // Get columns - Use parameterized query to prevent SQL injection
+        let query = "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, \
+                    EXTRA, COLUMN_COMMENT, CHARACTER_MAXIMUM_LENGTH, \
+                    NUMERIC_PRECISION, NUMERIC_SCALE, ORDINAL_POSITION \
+             FROM INFORMATION_SCHEMA.COLUMNS \
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
 
         let result: Vec<MysqlRow> = c
-            .query(&query)
+            .exec_iter(query, params![table_name])
+            .await
+            .map_err(|e| DatabaseError::SchemaError(e.to_string()))?
+            .collect_and_drop()
             .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
@@ -398,16 +398,16 @@ impl DatabaseDriver for MySqlDriver {
             });
         }
 
-        // Get indexes
-        let query = format!(
-            "SELECT INDEX_NAME, COLUMN_NAME, NON_UNIQUE, SEQ_IN_INDEX
-             FROM INFORMATION_SCHEMA.STATISTICS
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{}'",
-            table_name
-        );
+        // Get indexes - Use parameterized query to prevent SQL injection
+        let query = "SELECT INDEX_NAME, COLUMN_NAME, NON_UNIQUE, SEQ_IN_INDEX \
+             FROM INFORMATION_SCHEMA.STATISTICS \
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
 
         let result: Vec<MysqlRow> = c
-            .query(&query)
+            .exec_iter(query, params![table_name])
+            .await
+            .map_err(|e| DatabaseError::SchemaError(e.to_string()))?
+            .collect_and_drop()
             .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 
@@ -439,21 +439,21 @@ impl DatabaseDriver for MySqlDriver {
             })
             .collect();
 
-        // Get foreign keys
-        let query = format!(
-            "SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME,
-                    REFERENCED_COLUMN_NAME, UPDATE_RULE, DELETE_RULE
-             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-             JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
-             ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
-             WHERE kcu.TABLE_SCHEMA = DATABASE()
-             AND kcu.TABLE_NAME = '{}'
-             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL",
-            table_name
-        );
+        // Get foreign keys - Use parameterized query to prevent SQL injection
+        let query = "SELECT kcu.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME, \
+                    kcu.REFERENCED_COLUMN_NAME, rc.UPDATE_RULE, rc.DELETE_RULE \
+             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu \
+             JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc \
+             ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND kcu.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA \
+             WHERE kcu.TABLE_SCHEMA = DATABASE() \
+             AND kcu.TABLE_NAME = ? \
+             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL";
 
         let result: Vec<MysqlRow> = c
-            .query(&query)
+            .exec_iter(query, params![table_name])
+            .await
+            .map_err(|e| DatabaseError::SchemaError(e.to_string()))?
+            .collect_and_drop()
             .await
             .map_err(|e| DatabaseError::SchemaError(e.to_string()))?;
 

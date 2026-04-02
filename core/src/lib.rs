@@ -89,7 +89,165 @@ pub mod kubernetes_ffi;
 #[cfg(all(feature = "kubernetes", feature = "tauri"))]
 pub mod kubernetes_tauri;
 
+#[cfg(debug_assertions)]
 pub mod ai_programming;
+#[cfg(not(debug_assertions))]
+pub mod ai_programming {
+    //! AI Programming interface - disabled in release builds
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct SearchResult {
+        pub file: String,
+        pub line_number: usize,
+        pub line_content: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct CheckResult {
+        pub success: bool,
+        pub errors: String,
+        pub warnings: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct TestResult {
+        pub success: bool,
+        pub output: String,
+        pub errors: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct BuildResult {
+        pub success: bool,
+        pub output: String,
+        pub errors: String,
+    }
+
+    #[derive(serde::Serialize)]
+    pub struct HealthStatus {
+        pub status: String,
+        pub version: String,
+        pub timestamp: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize)]
+    pub struct DebugTestReport {
+        pub total: usize,
+        pub passed: usize,
+        pub failed: usize,
+        pub results: Vec<DebugTestResult>,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize)]
+    pub struct DebugTestResult {
+        pub name: String,
+        pub category: String,
+        pub passed: bool,
+        pub message: String,
+        pub details: Option<String>,
+    }
+
+    fn disabled_error<T>(msg: &str) -> Result<T, String> {
+        Err(format!("AI programming interface is disabled in release builds: {}", msg))
+    }
+
+    // Sync functions
+    pub fn ai_health_check() -> Result<HealthStatus, String> {
+        disabled_error("health_check")
+    }
+
+    pub fn debug_test_db() -> Result<DebugTestReport, String> {
+        disabled_error("test_db")
+    }
+
+    pub fn debug_test_crypto() -> Result<DebugTestReport, String> {
+        disabled_error("test_crypto")
+    }
+
+    pub fn debug_test_ssh() -> Result<DebugTestReport, String> {
+        disabled_error("test_ssh")
+    }
+
+    pub fn debug_test_terminal() -> Result<DebugTestReport, String> {
+        disabled_error("test_terminal")
+    }
+
+    pub fn debug_test_pro() -> Result<DebugTestReport, String> {
+        disabled_error("test_pro")
+    }
+
+    pub fn debug_test_all() -> Result<DebugTestReport, String> {
+        disabled_error("test_all")
+    }
+
+    pub fn debug_quick_check() -> Result<DebugTestReport, String> {
+        disabled_error("quick_check")
+    }
+
+    // Async functions - stubs that return immediate errors
+    pub async fn ai_read_code(_path: String) -> Result<String, String> {
+        disabled_error("read_code")
+    }
+
+    pub async fn ai_list_files(_dir: String, _pattern: Option<String>) -> Result<Vec<String>, String> {
+        disabled_error("list_files")
+    }
+
+    pub async fn ai_search_code(_query: String, _path: Option<String>) -> Result<Vec<SearchResult>, String> {
+        disabled_error("search_code")
+    }
+
+    pub async fn ai_check_rust() -> Result<CheckResult, String> {
+        disabled_error("check_rust")
+    }
+
+    pub async fn ai_run_tests() -> Result<TestResult, String> {
+        disabled_error("run_tests")
+    }
+
+    pub async fn ai_build() -> Result<BuildResult, String> {
+        disabled_error("build")
+    }
+
+    // Async file functions
+    pub async fn write_file(_path: String, _content: String) -> Result<(), String> {
+        disabled_error("write_file")
+    }
+
+    pub async fn edit_file(_path: String, _old: String, _new: String) -> Result<(), String> {
+        disabled_error("edit_file")
+    }
+
+    // Async git functions
+    pub async fn git_status() -> Result<String, String> {
+        disabled_error("git_status")
+    }
+
+    pub async fn git_diff(_path: Option<String>) -> Result<String, String> {
+        disabled_error("git_diff")
+    }
+
+    pub async fn git_log(_count: usize) -> Result<String, String> {
+        disabled_error("git_log")
+    }
+
+    pub async fn git_branch() -> Result<Vec<String>, String> {
+        disabled_error("git_branch")
+    }
+
+    // Sync context functions
+    pub fn set_context(_key: String, _value: String) -> Result<(), String> {
+        disabled_error("set_context")
+    }
+
+    pub fn get_context(_key: String) -> Result<Option<String>, String> {
+        disabled_error("get_context")
+    }
+
+    pub fn clear_context() -> Result<(), String> {
+        disabled_error("clear_context")
+    }
+}
 #[cfg(feature = "database-client")]
 pub mod database_client;
 #[cfg(feature = "sync")]
@@ -197,6 +355,7 @@ pub mod remote_desktop;
 pub mod auto_update;
 pub mod port_forward;
 
+#[cfg(debug_assertions)]
 pub use ai_programming::{
     ai_build, ai_check_rust, ai_health_check, ai_list_files, ai_read_code, ai_run_tests,
     ai_search_code, debug_test_all, debug_test_crypto, debug_test_db, debug_test_pro,

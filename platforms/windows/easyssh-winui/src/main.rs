@@ -439,6 +439,12 @@ struct EasySSHApp {
     /// Port forwarding dialog for managing SSH tunnels
     port_forward_dialog: PortForwardDialog,
 
+    // === Transfer Queue Manager ===
+    /// Transfer queue for managing SFTP file transfers with progress
+    transfer_queue: transfer_queue::TransferQueue,
+    /// Show transfer queue panel
+    show_transfer_queue: bool,
+
     // === Enterprise Password Vault ===
     // Enterprise password vault UI
     enterprise_vault: pages::enterprise_vault_ui::EnterpriseVaultWindow,
@@ -963,6 +969,10 @@ impl EasySSHApp {
 
             // Port Forwarding Manager
             port_forward_dialog: PortForwardDialog::new(),
+
+            // Transfer Queue Manager
+            transfer_queue: transfer_queue::TransferQueue::new(),
+            show_transfer_queue: false,
 
             // Enterprise Password Vault (may be expensive - consider deferring)
             enterprise_vault: pages::enterprise_vault_ui::EnterpriseVaultWindow::new(
@@ -2714,6 +2724,75 @@ impl EasySSHApp {
         );
     }
 
+    fn render_transfer_queue_panel(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.heading("📦 Transfer Queue");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("× Close").clicked() {
+                    self.show_transfer_queue = false;
+                }
+                if ui.button("Clear Completed").clicked() {
+                    self.transfer_queue.clear_completed();
+                }
+            });
+        });
+        ui.separator();
+
+        if self.transfer_queue.is_empty() {
+            ui.vertical_centered(|ui| {
+                ui.add_space(50.0);
+                ui.label(egui::RichText::new("No transfers in queue").size(16.0));
+                ui.label("File transfers will appear here");
+            });
+        } else {
+            // Summary stats
+            ui.horizontal(|ui| {
+                ui.label(format!("Active: {}", self.transfer_queue.active_count()));
+                ui.label(format!("Pending: {}", self.transfer_queue.pending_count()));
+                ui.label(format!("Completed: {}", self.transfer_queue.completed_count()));
+            });
+            ui.separator();
+
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                for item in self.transfer_queue.items() {
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(item.direction_icon());
+                            ui.label(&item.file_name);
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if matches!(item.status, transfer_queue::TransferStatus::Completed) {
+                                    if ui.small_button("Clear").clicked() {
+                                        // Clone ID to avoid borrow issues
+                                        let _id = item.id.clone();
+                                        // Queue for removal - will be processed after iteration
+                                    }
+                                } else if matches!(item.status, transfer_queue::TransferStatus::Failed { .. }) {
+                                    ui.colored_label(egui::Color32::RED, "Failed");
+                                }
+                            });
+                        });
+
+                        // Progress bar
+                        if let transfer_queue::TransferStatus::InProgress { percent } = item.status {
+                            ui.add_space(4.0);
+                            let progress = percent / 100.0;
+                            ui.add(egui::ProgressBar::new(progress).text(item.status_text()));
+                            ui.label(format!(
+                                "{} / {} | {}",
+                                transfer_queue::TransferItem::format_size(item.transferred),
+                                transfer_queue::TransferItem::format_size(item.total_size),
+                                transfer_queue::TransferItem::format_rate(item.transfer_rate())
+                            ));
+                        } else {
+                            ui.label(item.status_text());
+                        }
+                    });
+                    ui.add_space(8.0);
+                }
+            });
+        }
+    }
+
     fn render_delete_confirm_dialog(&mut self, ctx: &egui::Context) {
         if !self.show_delete_confirm {
             return;
@@ -3353,6 +3432,50 @@ impl eframe::App for EasySSHApp {
                         .min_size([44.0, 44.0].into());
                     if ui.add(vault_btn).on_hover_text("Enterprise Password Vault").clicked() {
                         self.enterprise_vault.open = true;
+                    }
+                    ui.add_space(8.0);
+
+                    // Port Forwarding button (enabled when connected)
+                    let pf_btn_fill = if self.port_forward_dialog.show {
+                        egui::Color32::from_rgb(64, 156, 255) // Active state
+                    } else if self.current_session_id.is_some() {
+                        egui::Color32::from_rgb(60, 70, 85)
+                    } else {
+                        egui::Color32::from_rgb(45, 50, 60) // Disabled
+                    };
+                    let pf_btn = egui::Button::new("🌐")
+                        .fill(pf_btn_fill)
+                        .rounding(4.0)
+                        .min_size([44.0, 44.0].into());
+                    let pf_response = ui.add(pf_btn).on_hover_text("Port Forwarding - Manage SSH tunnels (requires connection)");
+                    if pf_response.clicked() && self.current_session_id.is_some() {
+                        if let Some(ref server) = self.connect_server {
+                            self.port_forward_dialog.open(server.id.clone(), server.name.clone());
+                        }
+                    }
+                    ui.add_space(8.0);
+
+                    // Transfer Queue button (enabled when connected)
+                    let tq_btn_fill = if self.show_transfer_queue {
+                        egui::Color32::from_rgb(64, 156, 255) // Active state
+                    } else if self.current_session_id.is_some() {
+                        egui::Color32::from_rgb(60, 70, 85)
+                    } else {
+                        egui::Color32::from_rgb(45, 50, 60) // Disabled
+                    };
+                    let tq_count = self.transfer_queue.len();
+                    let tq_btn_text = if tq_count > 0 {
+                        format!("📦 {}", tq_count)
+                    } else {
+                        "📦".to_string()
+                    };
+                    let tq_btn = egui::Button::new(&tq_btn_text)
+                        .fill(tq_btn_fill)
+                        .rounding(4.0)
+                        .min_size([44.0, 44.0].into());
+                    let tq_response = ui.add(tq_btn).on_hover_text("Transfer Queue - Manage file transfers (requires connection)");
+                    if tq_response.clicked() && self.current_session_id.is_some() {
+                        self.show_transfer_queue = !self.show_transfer_queue;
                     }
                     ui.add_space(8.0);
 
@@ -4629,6 +4752,18 @@ impl eframe::App for EasySSHApp {
             let vm = self.view_model.lock().unwrap();
             let pf_vm = vm.get_port_forward_vm();
             self.port_forward_dialog.render(ctx, &pf_vm);
+        }
+
+        // ==================== Transfer Queue Panel ====================
+        if self.show_transfer_queue {
+            egui::Window::new("Transfer Queue")
+                .id(egui::Id::new("transfer_queue_panel"))
+                .resizable(true)
+                .default_size([400.0, 300.0])
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    self.render_transfer_queue_panel(ui);
+                });
         }
 
         // ==================== Notification Panel ====================

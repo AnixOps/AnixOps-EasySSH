@@ -318,7 +318,6 @@ impl WorkflowExecutor {
         // Execute steps
         if let Some(ref start_step_id) = workflow.start_step {
             let mut current_step_id = Some(start_step_id.clone());
-            let mut loop_stack: Vec<LoopContext> = Vec::new();
 
             while let Some(step_id) = current_step_id {
                 // Check if execution was cancelled
@@ -411,15 +410,8 @@ impl WorkflowExecutor {
 
                 // Determine next step based on result
                 current_step_id = self
-                    .determine_next_step(&step, &step_result, &mut loop_stack, &mut resolver)
+                    .determine_next_step(&step, &step_result, &mut resolver)
                     .await;
-
-                // Handle loop context updates
-                if let Some(loop_ctx) = loop_stack.last_mut() {
-                    if loop_ctx.completed_iterations >= loop_ctx.max_iterations {
-                        loop_stack.pop();
-                    }
-                }
             }
         }
 
@@ -454,58 +446,11 @@ impl WorkflowExecutor {
         &self,
         step: &WorkflowStep,
         step_result: &StepResult,
-        loop_stack: &mut Vec<LoopContext>,
-        resolver: &mut VariableResolver,
+        _resolver: &mut VariableResolver,
     ) -> Option<String> {
         match step_result.status {
             StepStatus::Completed => {
-                // Handle special step types
-                match step.step_type {
-                    StepType::Break => {
-                        if let Some(loop_ctx) = loop_stack.pop() {
-                            return loop_ctx.after_loop_step;
-                        }
-                    }
-                    StepType::Continue => {
-                        if let Some(loop_ctx) = loop_stack.last_mut() {
-                            loop_ctx.completed_iterations += 1;
-                            return loop_ctx.loop_start_step.clone();
-                        }
-                    }
-                    StepType::Return => {
-                        if let StepConfig::Return { value_expression } = &step.config {
-                            if let Some(expr) = value_expression {
-                                let value = resolver.resolve(expr);
-                                resolver.add_variable("execution.return_value", value);
-                            }
-                        }
-                        return None;
-                    }
-                    StepType::Loop => {
-                        if let StepConfig::Loop {
-                            loop_type,
-                            iteration_var,
-                            items,
-                            max_iterations,
-                            body_start,
-                        } = &step.config
-                        {
-                            let loop_ctx = LoopContext::new(
-                                step.id.clone(),
-                                loop_type.clone(),
-                                iteration_var.clone(),
-                                items.clone(),
-                                max_iterations.unwrap_or(1000),
-                                body_start.clone(),
-                                step.next_step.clone(),
-                            );
-                            loop_stack.push(loop_ctx);
-                            return body_start.clone();
-                        }
-                    }
-                    _ => {}
-                }
-                // Normal flow
+                // Normal flow - just go to next step
                 step.next_step.clone()
             }
             StepStatus::Failed => {
@@ -618,8 +563,9 @@ impl WorkflowExecutor {
 
         let result = tokio::time::timeout(timeout, async {
             match &step.config {
-                StepConfig::SshCommand {
+                StepConfig::Command {
                     command,
+                    target,
                     working_dir,
                     env_vars,
                     capture_output,
@@ -627,62 +573,54 @@ impl WorkflowExecutor {
                 } => {
                     let resolved_command = resolver.resolve(command);
                     let resolved_working_dir = working_dir.as_ref().map(|w| resolver.resolve(w));
-                    self.execute_ssh_command(
-                        &resolved_command,
-                        resolved_working_dir.as_deref(),
-                        env_vars,
-                        *capture_output,
-                        server,
-                    )
-                    .await
-                }
-                StepConfig::SftpUpload {
-                    local_path,
-                    remote_path,
-                    create_dirs,
-                    permissions,
-                } => {
-                    let resolved_local = resolver.resolve(local_path);
-                    let resolved_remote = resolver.resolve(remote_path);
-                    self.execute_sftp_upload(
-                        &resolved_local,
-                        &resolved_remote,
-                        *create_dirs,
-                        permissions.as_deref(),
-                    )
-                    .await
-                }
-                StepConfig::SftpDownload {
-                    remote_path,
-                    local_path,
-                    create_dirs,
-                } => {
-                    let resolved_remote = resolver.resolve(remote_path);
-                    let resolved_local = resolver.resolve(local_path);
-                    self.execute_sftp_download(&resolved_remote, &resolved_local, *create_dirs)
+                    if target == "local" {
+                        self.execute_local_command(
+                            &resolved_command,
+                            resolved_working_dir.as_deref(),
+                            env_vars,
+                            *capture_output,
+                        )
                         .await
+                    } else {
+                        // Default to SSH/remote execution
+                        self.execute_ssh_command(
+                            &resolved_command,
+                            resolved_working_dir.as_deref(),
+                            env_vars,
+                            *capture_output,
+                            server,
+                        )
+                        .await
+                    }
                 }
-                StepConfig::LocalCommand {
-                    command,
-                    working_dir,
-                    env_vars,
-                    capture_output,
+                StepConfig::Transfer {
+                    direction,
+                    local_path,
+                    remote_path,
+                    permissions,
+                    create_dirs,
                 } => {
-                    let resolved_command = resolver.resolve(command);
-                    let resolved_working_dir = working_dir.as_ref().map(|w| resolver.resolve(w));
-                    self.execute_local_command(
-                        &resolved_command,
-                        resolved_working_dir.as_deref(),
-                        env_vars,
-                        *capture_output,
-                    )
-                    .await
+                    let resolved_local = resolver.resolve(local_path);
+                    let resolved_remote = resolver.resolve(remote_path);
+                    if direction == "download" {
+                        self.execute_sftp_download(&resolved_remote, &resolved_local, *create_dirs)
+                            .await
+                    } else {
+                        // Default to upload
+                        self.execute_sftp_upload(
+                            &resolved_local,
+                            &resolved_remote,
+                            *create_dirs,
+                            permissions.as_deref(),
+                        )
+                        .await
+                    }
                 }
                 StepConfig::Condition {
-                    expression: _,
                     operator,
                     left_operand,
                     right_operand,
+                    ..
                 } => {
                     let left = resolver.resolve(left_operand);
                     let right = resolver.resolve(right_operand);
@@ -696,108 +634,10 @@ impl WorkflowExecutor {
                         exit_code: if matched { 0 } else { 1 },
                     })
                 }
-                StepConfig::Loop {
-                    loop_type,
-                    iteration_var: _,
-                    items,
-                    ..
-                } => {
-                    // Loop step initialization
-                    let items_resolved = items
-                        .as_ref()
-                        .map(|i| resolver.resolve(i))
-                        .unwrap_or_default();
-                    Ok(StepExecutionOutcome {
-                        output: Some(format!(
-                            "Loop initialized: {:?} with items: {}",
-                            loop_type, items_resolved
-                        )),
-                        exit_code: 0,
-                    })
-                }
                 StepConfig::Wait { duration_secs } => {
                     tokio::time::sleep(Duration::from_secs(*duration_secs)).await;
                     Ok(StepExecutionOutcome {
                         output: Some(format!("Waited {} seconds", duration_secs)),
-                        exit_code: 0,
-                    })
-                }
-                StepConfig::SetVariable {
-                    variable_name,
-                    value_expression,
-                    evaluate,
-                } => {
-                    let value = if *evaluate {
-                        resolver.resolve(value_expression)
-                    } else {
-                        value_expression.clone()
-                    };
-                    // Note: Variable storage would need to be passed through context
-                    Ok(StepExecutionOutcome {
-                        output: Some(format!("Set {} = {}", variable_name, value)),
-                        exit_code: 0,
-                    })
-                }
-                StepConfig::Notification {
-                    notification_type,
-                    title,
-                    message,
-                    recipients,
-                } => {
-                    let resolved_title = resolver.resolve(title);
-                    let resolved_message = resolver.resolve(message);
-                    self.execute_notification(
-                        *notification_type,
-                        &resolved_title,
-                        &resolved_message,
-                        recipients.as_ref(),
-                    )
-                    .await
-                }
-                StepConfig::Parallel {
-                    parallel_steps,
-                    failure_mode,
-                } => {
-                    self.execute_parallel_steps(parallel_steps, *failure_mode, resolver, server)
-                        .await
-                }
-                StepConfig::SubWorkflow {
-                    script_id,
-                    input_vars,
-                    output_mapping,
-                } => {
-                    self.execute_subworkflow(
-                        script_id,
-                        input_vars,
-                        output_mapping,
-                        resolver,
-                        server,
-                    )
-                    .await
-                }
-                StepConfig::ErrorHandler {
-                    error_types,
-                    recovery_action,
-                    recovery_step: _,
-                } => Ok(StepExecutionOutcome {
-                    output: Some(format!(
-                        "Error handler configured for: {:?}, action: {}",
-                        error_types, recovery_action
-                    )),
-                    exit_code: 0,
-                }),
-                StepConfig::Break => Ok(StepExecutionOutcome {
-                    output: Some("Break loop".to_string()),
-                    exit_code: 0,
-                }),
-                StepConfig::Continue => Ok(StepExecutionOutcome {
-                    output: Some("Continue loop".to_string()),
-                    exit_code: 0,
-                }),
-                StepConfig::Return { value_expression } => {
-                    let value = value_expression.as_ref().map(|e| resolver.resolve(e));
-                    Ok(StepExecutionOutcome {
-                        output: value,
                         exit_code: 0,
                     })
                 }
@@ -1029,136 +869,6 @@ impl WorkflowExecutor {
         }
     }
 
-    /// Execute notification step
-    async fn execute_notification(
-        &self,
-        notification_type: NotificationType,
-        title: &str,
-        message: &str,
-        recipients: Option<&Vec<String>>,
-    ) -> Result<StepExecutionOutcome, WorkflowError> {
-        match notification_type {
-            NotificationType::Toast => {
-                info!("Toast notification: {} - {}", title, message);
-                // Platform-specific toast notifications would be implemented here
-            }
-            NotificationType::Email => {
-                info!(
-                    "Email notification to {:?}: {} - {}",
-                    recipients, title, message
-                );
-            }
-            NotificationType::Slack => {
-                info!("Slack notification: {} - {}", title, message);
-            }
-            NotificationType::Webhook => {
-                info!("Webhook notification: {} - {}", title, message);
-            }
-        }
-
-        Ok(StepExecutionOutcome {
-            output: Some(format!(
-                "Notification sent: {} ({:?})",
-                title, notification_type
-            )),
-            exit_code: 0,
-        })
-    }
-
-    /// Execute parallel steps
-    async fn execute_parallel_steps(
-        &self,
-        parallel_steps: &[String],
-        failure_mode: ParallelFailureMode,
-        resolver: &VariableResolver,
-        server: &ServerContext,
-    ) -> Result<StepExecutionOutcome, WorkflowError> {
-        info!("Executing {} steps in parallel", parallel_steps.len());
-
-        let mut tasks = JoinSet::new();
-
-        for step_id in parallel_steps {
-            let step_id = step_id.clone();
-            let _resolver = resolver.clone();
-            let _server = server.clone();
-            let _executor = WorkflowExecutor::new();
-
-            tasks.spawn(async move {
-                // Mock step execution - in real implementation, steps would be looked up and executed
-                tokio::time::sleep(Duration::from_millis(100)).await;
-                (step_id, true, None::<String>)
-            });
-        }
-
-        let mut all_succeeded = true;
-        let mut results = Vec::new();
-
-        while let Some(result) = tasks.join_next().await {
-            match result {
-                Ok((step_id, success, error)) => {
-                    results.push((step_id.clone(), success));
-                    if !success {
-                        all_succeeded = false;
-                        match failure_mode {
-                            ParallelFailureMode::FailFast => {
-                                return Ok(StepExecutionOutcome {
-                                    output: Some(format!(
-                                        "Parallel execution failed at step {}: {:?}",
-                                        step_id, error
-                                    )),
-                                    exit_code: 1,
-                                });
-                            }
-                            ParallelFailureMode::Continue => {
-                                // Continue with other tasks
-                            }
-                            ParallelFailureMode::WaitAll => {
-                                // Continue and collect all results
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    all_succeeded = false;
-                    error!("Task panicked: {}", e);
-                }
-            }
-        }
-
-        Ok(StepExecutionOutcome {
-            output: Some(format!(
-                "Parallel execution completed: {}/{}",
-                results.iter().filter(|(_, s)| *s).count(),
-                results.len()
-            )),
-            exit_code: if all_succeeded { 0 } else { 1 },
-        })
-    }
-
-    /// Execute subworkflow
-    async fn execute_subworkflow(
-        &self,
-        script_id: &str,
-        input_vars: &HashMap<String, String>,
-        output_mapping: &HashMap<String, String>,
-        resolver: &VariableResolver,
-        server: &ServerContext,
-    ) -> Result<StepExecutionOutcome, WorkflowError> {
-        info!("Executing subworkflow: {}", script_id);
-
-        // Resolve input variables
-        let _resolved_inputs: HashMap<String, String> = input_vars
-            .iter()
-            .map(|(k, v)| (k.clone(), resolver.resolve(v)))
-            .collect();
-
-        // In real implementation, this would load and execute the subworkflow
-        Ok(StepExecutionOutcome {
-            output: Some(format!("Subworkflow {} completed", script_id)),
-            exit_code: 0,
-        })
-    }
-
     /// Execute workflow on multiple servers in parallel with controlled concurrency
     pub async fn execute_parallel(
         &self,
@@ -1327,42 +1037,6 @@ impl WorkflowExecutor {
 impl Default for WorkflowExecutor {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// Loop execution context
-#[derive(Clone, Debug)]
-struct LoopContext {
-    loop_id: String,
-    loop_type: LoopType,
-    iteration_var: String,
-    items: Option<String>,
-    completed_iterations: usize,
-    max_iterations: usize,
-    loop_start_step: Option<String>,
-    after_loop_step: Option<String>,
-}
-
-impl LoopContext {
-    fn new(
-        loop_id: String,
-        loop_type: LoopType,
-        iteration_var: String,
-        items: Option<String>,
-        max_iterations: usize,
-        loop_start_step: Option<String>,
-        after_loop_step: Option<String>,
-    ) -> Self {
-        Self {
-            loop_id,
-            loop_type,
-            iteration_var,
-            items,
-            completed_iterations: 0,
-            max_iterations,
-            loop_start_step,
-            after_loop_step,
-        }
     }
 }
 

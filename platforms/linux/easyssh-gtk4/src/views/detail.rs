@@ -39,10 +39,7 @@ impl ServerDetailView {
 
         // Header area
         let header_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 16);
-        header_box.set_margin_top(24);
-        header_box.set_margin_bottom(16);
-        header_box.set_margin_start(24);
-        header_box.set_margin_end(24);
+        header_box.set_margin(24);
 
         let icon = gtk4::Image::from_icon_name("network-server-symbolic");
         icon.set_pixel_size(48);
@@ -71,9 +68,7 @@ impl ServerDetailView {
 
         // Action buttons
         let action_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        action_box.set_margin_start(24);
-        action_box.set_margin_end(24);
-        action_box.set_margin_bottom(16);
+        action_box.set_margin(24);
 
         let connect_btn = gtk4::Button::with_label("Connect (Terminal)");
         connect_btn.add_css_class("suggested-action");
@@ -103,9 +98,7 @@ impl ServerDetailView {
         // Info card
         let info_card = adw::PreferencesGroup::new();
         info_card.set_title("Connection Details");
-        info_card.set_margin_start(24);
-        info_card.set_margin_end(24);
-        info_card.set_margin_bottom(16);
+        info_card.set_margin(24);
 
         let host_row = adw::ActionRow::new();
         host_row.set_title("Host");
@@ -138,21 +131,17 @@ impl ServerDetailView {
         let tags_card = adw::PreferencesGroup::new();
         tags_card.set_title("Tags");
         tags_card.set_description(Some("Organize your server with tags"));
-        tags_card.set_margin_start(24);
-        tags_card.set_margin_end(24);
-        tags_card.set_margin_bottom(16);
+        tags_card.set_margin(24);
 
         let no_tags_label = gtk4::Label::new(Some("No tags added"));
         no_tags_label.add_css_class("dim-label");
-        no_tags_label.set_margin_top(8);
-        no_tags_label.set_margin_bottom(8);
+        no_tags_label.set_margin(8);
         tags_card.add(&no_tags_label);
 
         // Last used section
         let usage_card = adw::PreferencesGroup::new();
         usage_card.set_title("Usage");
-        usage_card.set_margin_start(24);
-        usage_card.set_margin_end(24);
+        usage_card.set_margin(24);
 
         let last_used_row = adw::ActionRow::new();
         last_used_row.set_title("Last Connected");

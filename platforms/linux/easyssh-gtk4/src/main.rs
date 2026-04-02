@@ -53,7 +53,10 @@ fn main() -> glib::ExitCode {
 
 fn load_css() {
     let provider = gtk4::CssProvider::new();
-    provider.load_from_string(include_str!("styles.css"));
+
+    // Load CSS from resources file or fallback to embedded CSS
+    let css_data = include_str!("styles.css");
+    provider.load_from_data(css_data);
 
     gtk4::style_context_add_provider_for_display(
         &gtk4::gdk::Display::default().expect("Could not get display"),

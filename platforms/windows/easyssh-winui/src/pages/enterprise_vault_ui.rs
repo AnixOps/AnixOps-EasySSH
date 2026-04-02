@@ -111,7 +111,17 @@ impl VaultEntry {
             username: username.to_string(),
             password: password.to_string(),
             category,
-            ..Default::default()
+            url: None,
+            notes: None,
+            tags: Vec::new(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            expires_at: None,
+            is_favorite: false,
+            access_count: 0,
+            last_accessed: None,
+            team_shared: false,
+            permissions: VaultPermissions::default(),
         }
     }
 
@@ -341,13 +351,23 @@ impl EnterpriseVaultWindow {
             return;
         }
 
-        let window_response = egui::Window::new("🔐 Enterprise Password Vault")
-            .open(&mut self.open)
+        let mut is_open = self.open;
+        egui::Window::new("🔐 Enterprise Password Vault")
+            .open(&mut is_open)
             .default_size([900.0, 650.0])
             .min_size([700.0, 500.0])
             .show(ctx, |ui| {
-                self.render_main_ui(ui);
+                // We'll render content directly here to avoid borrow issues
+                self.render_main_ui_direct(ui);
             });
+        self.open = is_open;
+
+        if !self.open {
+            self.show_add_dialog = false;
+            self.show_edit_dialog = false;
+            self.show_password_generator = false;
+            return;
+        }
 
         // Handle dialogs
         if self.show_add_dialog {
@@ -367,22 +387,82 @@ impl EnterpriseVaultWindow {
         }
     }
 
-    fn render_main_ui(&mut self, ui: &mut egui::Ui) {
-        // Toolbar
+    fn render_main_ui_direct(&mut self, ui: &mut egui::Ui) {
+        // Same as render_main_ui - just a wrapper to avoid borrow issues
         self.render_toolbar(ui);
         ui.separator();
 
-        // Main content area
-        egui::SidePanel::left("vault_categories")
-            .resizable(true)
-            .default_width(180.0)
-            .show_inside(ui, |ui| {
-                self.render_categories(ui);
+        // Main content area - use indexes to avoid borrow issues
+        let theme = self.theme.clone();
+        let toolbar_rendered = true;
+
+        if toolbar_rendered {
+            // Use a simpler approach - separate the mutable operations
+            let left_panel = egui::SidePanel::left("vault_categories")
+                .resizable(true)
+                .default_width(180.0);
+
+            left_panel.show_inside(ui, |ui| {
+                ui.heading("Categories");
+                ui.add_space(8.0);
+
+                // All entries
+                let all_count = self.entries.len();
+                let is_selected = self.selected_category.is_none();
+                let btn = if is_selected {
+                    egui::Button::new(format!("📁 All Entries ({})", all_count))
+                        .fill(theme.bg_secondary)
+                } else {
+                    egui::Button::new(format!("📁 All Entries ({})", all_count))
+                };
+                if ui.add(btn).clicked() {
+                    self.selected_category = None;
+                }
+
+                ui.add_space(4.0);
+
+                // Favorites
+                let fav_count = self.entries.iter().filter(|e| e.is_favorite).count();
+                let btn = egui::Button::new(format!("⭐ Favorites ({})", fav_count));
+                if ui.add(btn).clicked() {
+                    self.filter_favorites = !self.filter_favorites;
+                }
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
+
+                // Categories
+                for category in VaultCategory::all() {
+                    let count = self.entries.iter().filter(|e| e.category == category).count();
+                    let is_selected = self.selected_category.as_ref() == Some(&category);
+
+                    let btn = if is_selected {
+                        egui::Button::new(format!("{} {} ({})", category.icon(), category.display_name(), count))
+                            .fill(theme.bg_secondary)
+                    } else {
+                        egui::Button::new(format!("{} {} ({})", category.icon(), category.display_name(), count))
+                    };
+
+                    if ui.add(btn).clicked() {
+                        self.selected_category = Some(category.clone());
+                    }
+                }
+
+                ui.add_space(16.0);
+
+                // Quick stats
+                ui.separator();
+                ui.label(egui::RichText::new("Statistics").size(12.0).color(theme.text_secondary));
+                ui.label(format!("Total: {}", all_count));
+                ui.label(format!("Favorites: {}", fav_count));
+                ui.label(format!("Expired: {}", self.entries.iter().filter(|e| e.is_expired()).count()));
             });
 
-        egui::CentralPanel::show_inside(ui, |ui| {
-            self.render_entries_list(ui);
-        });
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                self.render_entries_list(ui);
+            });
+        }
     }
 
     fn render_toolbar(&mut self, ui: &mut egui::Ui) {
@@ -499,13 +579,20 @@ impl EnterpriseVaultWindow {
     }
 
     fn render_entries_list(&mut self, ui: &mut egui::Ui) {
-        // Get filtered and sorted entries
-        let mut entries: Vec<&VaultEntry> = self.entries.iter()
-            .filter(|e| self.matches_filters(e))
+        // Collect filtered entries with all necessary data
+        let sort_by = self.sort_by.clone();
+        let view_mode = self.view_mode.clone();
+        let theme = self.theme.clone();
+
+        // First pass: collect entry IDs that match filters
+        let mut entry_refs: Vec<(VaultEntry, usize)> = self.entries.iter()
+            .enumerate()
+            .filter(|(_, e)| self.matches_filters(e))
+            .map(|(i, e)| (e.clone(), i))
             .collect();
 
-        // Sort
-        entries.sort_by(|a, b| match self.sort_by {
+        // Sort entries
+        entry_refs.sort_by(|(a, _), (b, _)| match sort_by {
             SortOption::Name => a.title.cmp(&b.title),
             SortOption::Created => b.created_at.cmp(&a.created_at),
             SortOption::Updated => b.updated_at.cmp(&a.updated_at),
@@ -513,135 +600,216 @@ impl EnterpriseVaultWindow {
             SortOption::Category => format!("{:?}", a.category).cmp(&format!("{:?}", b.category)),
         });
 
-        if entries.is_empty() {
+        if entry_refs.is_empty() {
             ui.vertical_centered(|ui| {
                 ui.add_space(50.0);
                 ui.label(egui::RichText::new("🔐").size(48.0));
                 ui.label("No entries found");
                 ui.label(egui::RichText::new("Add your first password entry to get started")
                     .size(12.0)
-                    .color(self.theme.text_secondary));
+                    .color(theme.text_secondary));
             });
             return;
         }
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            match self.view_mode {
-                ViewMode::List => self.render_list_view(ui, &entries),
-                ViewMode::Grid => self.render_grid_view(ui, &entries),
-                ViewMode::Tree => self.render_tree_view(ui, &entries),
+        // Track actions to perform after rendering
+        let mut copy_actions: Vec<String> = Vec::new();
+        let mut select_actions: Vec<String> = Vec::new();
+        let mut edit_actions: Vec<usize> = Vec::new();
+        let mut favorite_toggles: Vec<usize> = Vec::new();
+
+        // Render based on view mode
+        match view_mode {
+            ViewMode::List => {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for (entry, idx) in &entry_refs {
+                        Self::render_list_view_entry(
+                            ui,
+                            entry,
+                            *idx,
+                            &theme,
+                            &self.selected_entry,
+                            &mut copy_actions,
+                            &mut select_actions,
+                            &mut edit_actions,
+                            &mut favorite_toggles,
+                        );
+                    }
+                });
+            },
+            ViewMode::Grid => {
+                let column_count = (ui.available_width() / 200.0).max(1.0) as usize;
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    egui::Grid::new("vault_grid").spacing([16.0, 16.0]).show(ui, |ui| {
+                        for (idx, (entry, original_idx)) in entry_refs.iter().enumerate() {
+                            if idx > 0 && idx % column_count == 0 {
+                                ui.end_row();
+                            }
+                            Self::render_grid_view_entry(
+                                ui,
+                                entry,
+                                *original_idx,
+                                &theme,
+                                &mut copy_actions,
+                                &mut edit_actions,
+                            );
+                        }
+                    });
+                });
+            },
+            ViewMode::Tree => {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    // Group by category
+                    let mut grouped: HashMap<String, Vec<(VaultEntry, usize)>> = HashMap::new();
+                    for (entry, idx) in entry_refs {
+                        grouped.entry(entry.category.display_name())
+                            .or_default()
+                            .push((entry, idx));
+                    }
+
+                    for (category, cat_entries) in grouped.iter() {
+                        let count = cat_entries.len();
+                        // Use a different approach - don't capture self in collapsing header
+                        ui.label(format!("📂 {} ({})", category, count));
+                        for (entry, idx) in cat_entries {
+                            Self::render_tree_view_entry(
+                                ui,
+                                entry,
+                                *idx,
+                                &mut copy_actions,
+                            );
+                        }
+                    }
+                });
+            },
+        }
+
+        // Handle actions after rendering
+        for password in copy_actions {
+            self.copy_to_clipboard(&password);
+        }
+        for id in select_actions {
+            self.selected_entry = Some(id);
+        }
+        for idx in edit_actions {
+            self.start_edit_by_idx(idx);
+        }
+        for idx in favorite_toggles {
+            if let Some(e) = self.entries.get_mut(idx) {
+                e.is_favorite = !e.is_favorite;
             }
-        });
+        }
     }
 
-    fn render_list_view(&mut self, ui: &mut egui::Ui, entries: &[&VaultEntry]) {
-        for entry in entries {
-            let is_selected = self.selected_entry.as_ref() == Some(&entry.id);
+    fn render_list_view_entry(
+        ui: &mut egui::Ui,
+        entry: &VaultEntry,
+        idx: usize,
+        theme: &DesignTheme,
+        selected_entry: &Option<String>,
+        copy_actions: &mut Vec<String>,
+        select_actions: &mut Vec<String>,
+        edit_actions: &mut Vec<usize>,
+        favorite_toggles: &mut Vec<usize>,
+    ) {
+        let is_selected = selected_entry.as_ref() == Some(&entry.id);
 
-            let response = egui::Frame::group(ui.style())
-                .fill(if is_selected { self.theme.bg_secondary } else { ui.visuals().panel_fill })
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        // Favorite toggle
-                        let fav_text = if entry.is_favorite { "⭐" } else { "☆" };
-                        if ui.small_button(fav_text).clicked() {
-                            if let Some(e) = self.entries.iter_mut().find(|e| e.id == entry.id) {
-                                e.is_favorite = !e.is_favorite;
-                            }
+        let response = egui::Frame::group(ui.style())
+            .fill(if is_selected { theme.bg_secondary } else { ui.visuals().panel_fill })
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    // Favorite toggle
+                    let fav_text = if entry.is_favorite { "⭐" } else { "☆" };
+                    if ui.small_button(fav_text).clicked() {
+                        favorite_toggles.push(idx);
+                    }
+
+                    ui.add_space(8.0);
+
+                    // Icon and title
+                    ui.label(entry.category.icon());
+                    ui.label(&entry.title);
+
+                    if entry.team_shared {
+                        ui.label("👥").on_hover_text("Team shared");
+                    }
+                    if entry.is_expired() {
+                        ui.colored_label(SemanticColors::DANGER, "⚠️ Expired");
+                    }
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Action buttons
+                        if ui.small_button("📋").on_hover_text("Copy password").clicked() {
+                            copy_actions.push(entry.password.clone());
                         }
-
-                        ui.add_space(8.0);
-
-                        // Icon and title
-                        ui.label(entry.category.icon());
-                        ui.label(&entry.title);
-
-                        if entry.team_shared {
-                            ui.label("👥").on_hover_text("Team shared");
+                        if ui.small_button("👁️").on_hover_text("View details").clicked() {
+                            select_actions.push(entry.id.clone());
                         }
-                        if entry.is_expired() {
-                            ui.colored_label(SemanticColors::DANGER, "⚠️ Expired");
+                        if ui.small_button("✏️").on_hover_text("Edit").clicked() {
+                            edit_actions.push(idx);
                         }
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            // Action buttons
-                            if ui.small_button("📋").on_hover_text("Copy password").clicked() {
-                                self.copy_to_clipboard(&entry.password);
-                            }
-                            if ui.small_button("👁️").on_hover_text("View details").clicked() {
-                                self.selected_entry = Some(entry.id.clone());
-                            }
-                            if ui.small_button("✏️").on_hover_text("Edit").clicked() {
-                                self.start_edit(entry);
-                            }
-                        });
                     });
                 })
-                .response;
+            })
+            .response;
 
-            if response.clicked() {
-                self.selected_entry = Some(entry.id.clone());
-            }
+        if response.clicked() {
+            select_actions.push(entry.id.clone());
         }
     }
 
-    fn render_grid_view(&mut self, ui: &mut egui::Ui, entries: &[&VaultEntry]) {
-        let column_count = (ui.available_width() / 200.0).max(1.0) as usize;
+    fn render_grid_view_entry(
+        ui: &mut egui::Ui,
+        entry: &VaultEntry,
+        idx: usize,
+        theme: &DesignTheme,
+        copy_actions: &mut Vec<String>,
+        edit_actions: &mut Vec<usize>,
+    ) {
+        egui::Frame::group(ui.style())
+            .fill(ui.visuals().panel_fill)
+            .show(ui, |ui| {
+                ui.set_min_width(180.0);
+                ui.vertical_centered(|ui| {
+                    ui.label(egui::RichText::new(entry.category.icon()).size(32.0));
+                    ui.label(&entry.title);
+                    ui.label(egui::RichText::new(&entry.username)
+                        .size(11.0)
+                        .color(theme.text_secondary));
 
-        egui::Grid::new("vault_grid").spacing([16.0, 16.0]).show(ui, |ui| {
-            for (idx, entry) in entries.iter().enumerate() {
-                if idx > 0 && idx % column_count == 0 {
-                    ui.end_row();
-                }
-
-                egui::Frame::group(ui.style())
-                    .fill(ui.visuals().panel_fill)
-                    .show(ui, |ui| {
-                        ui.set_min_width(180.0);
-                        ui.vertical_centered(|ui| {
-                            ui.label(egui::RichText::new(entry.category.icon()).size(32.0));
-                            ui.label(&entry.title);
-                            ui.label(egui::RichText::new(&entry.username)
-                                .size(11.0)
-                                .color(self.theme.text_secondary));
-
-                            ui.horizontal(|ui| {
-                                if ui.small_button("📋").clicked() {
-                                    self.copy_to_clipboard(&entry.password);
-                                }
-                                if ui.small_button("✏️").clicked() {
-                                    self.start_edit(entry);
-                                }
-                            });
-                        });
+                    ui.horizontal(|ui| {
+                        if ui.small_button("📋").clicked() {
+                            copy_actions.push(entry.password.clone());
+                        }
+                        if ui.small_button("✏️").clicked() {
+                            edit_actions.push(idx);
+                        }
                     });
-            }
+                });
+            });
+    }
+
+    fn render_tree_view_entry(
+        ui: &mut egui::Ui,
+        entry: &VaultEntry,
+        _idx: usize,
+        copy_actions: &mut Vec<String>,
+    ) {
+        ui.horizontal(|ui| {
+            ui.label(entry.category.icon());
+            ui.label(&entry.title);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.small_button("📋").clicked() {
+                    copy_actions.push(entry.password.clone());
+                }
+            });
         });
     }
 
-    fn render_tree_view(&mut self, ui: &mut egui::Ui, entries: &[&VaultEntry]) {
-        // Group by category
-        let mut grouped: HashMap<String, Vec<&VaultEntry>> = HashMap::new();
-        for entry in entries {
-            grouped.entry(entry.category.display_name())
-                .or_default()
-                .push(entry);
-        }
-
-        for (category, cat_entries) in grouped.iter() {
-            ui.collapsing(format!("{} {} ({})", "📂", category, cat_entries.len()), |ui| {
-                for entry in cat_entries {
-                    ui.horizontal(|ui| {
-                        ui.label(entry.category.icon());
-                        ui.label(&entry.title);
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.small_button("📋").clicked() {
-                                self.copy_to_clipboard(&entry.password);
-                            }
-                        });
-                    });
-                }
-            });
+    fn start_edit_by_idx(&mut self, idx: usize) {
+        if let Some(entry) = self.entries.get(idx) {
+            self.editing_entry = Some(entry.clone());
+            self.show_edit_dialog = true;
         }
     }
 
@@ -666,15 +834,30 @@ impl EnterpriseVaultWindow {
     }
 
     fn render_entry_form(&mut self, ui: &mut egui::Ui, is_new: bool) {
-        let entry = if is_new {
-            &mut self.new_entry
-        } else if let Some(ref mut e) = self.editing_entry {
-            e
+        // Collect form state before UI rendering
+        let _has_title_error = if is_new {
+            self.new_entry.title.is_empty()
+        } else if let Some(ref e) = self.editing_entry {
+            e.title.is_empty()
         } else {
-            return;
+            false
         };
 
+        // Clone the data we need for rendering
+        let _theme = self.theme.clone();
+        let _last_error = self.last_error.clone();
+        let _is_password_visible = self.show_password;
+
+        // Render the form
         egui::Grid::new("entry_form").spacing([10.0, 8.0]).show(ui, |ui| {
+            let entry = if is_new {
+                &mut self.new_entry
+            } else if let Some(ref mut e) = self.editing_entry {
+                e
+            } else {
+                return;
+            };
+
             ui.label("Title:");
             ui.add(egui::TextEdit::singleline(&mut entry.title).desired_width(280.0));
             ui.end_row();
@@ -748,6 +931,7 @@ impl EnterpriseVaultWindow {
             ui.add_space(8.0);
         }
 
+        // Handle save/cancel
         ui.horizontal(|ui| {
             if ui.button("Cancel").clicked() {
                 if is_new {
@@ -760,8 +944,16 @@ impl EnterpriseVaultWindow {
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let save_text = if is_new { "Add Entry" } else { "Save Changes" };
+                let entry_title = if is_new {
+                    self.new_entry.title.clone()
+                } else if let Some(ref e) = self.editing_entry {
+                    e.title.clone()
+                } else {
+                    String::new()
+                };
+
                 if ui.button(save_text).clicked() {
-                    if entry.title.is_empty() {
+                    if entry_title.is_empty() {
                         self.last_error = Some("Title is required".to_string());
                     } else {
                         if is_new {

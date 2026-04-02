@@ -221,9 +221,12 @@ impl CloudSyncUI {
 
     /// Start sync for a configuration
     pub fn start_sync(&mut self, config_id: &str) {
-        if let Some(config) = self.get_config_mut(config_id) {
-            config.last_sync_status = SyncStatus::InProgress;
-            self.log_info(format!("Starting sync for '{}'...", config.name));
+        let config_name = self.get_config(config_id).map(|c| c.name.clone());
+        if let Some(name) = config_name {
+            if let Some(config) = self.get_config_mut(config_id) {
+                config.last_sync_status = SyncStatus::InProgress;
+            }
+            self.log_info(format!("Starting sync for '{}'...", name));
         }
     }
 
@@ -234,23 +237,26 @@ impl CloudSyncUI {
             config.last_sync = Some(chrono::Local::now());
             config.sync_stats = stats.clone();
             config.sync_stats.total_syncs += 1;
-
-            self.log_success(format!(
-                "Sync completed: {} servers, {} groups, {} keys, {} snippets",
-                stats.servers_synced,
-                stats.groups_synced,
-                stats.keys_synced,
-                stats.snippets_synced
-            ));
         }
+        // Log success after releasing the mutable borrow
+        self.log_success(format!(
+            "Sync completed: {} servers, {} groups, {} keys, {} snippets",
+            stats.servers_synced,
+            stats.groups_synced,
+            stats.keys_synced,
+            stats.snippets_synced
+        ));
     }
 
     /// Fail sync with error
     pub fn fail_sync(&mut self, config_id: &str, error: String) {
-        if let Some(config) = self.get_config_mut(config_id) {
-            config.last_sync_status = SyncStatus::Failed(error.clone());
-            config.sync_stats.failed_syncs += 1;
-            self.log_error(format!("Sync failed for '{}': {}", config.name, error));
+        let config_name = self.get_config(config_id).map(|c| c.name.clone());
+        if let Some(name) = config_name {
+            if let Some(config) = self.get_config_mut(config_id) {
+                config.last_sync_status = SyncStatus::Failed(error.clone());
+                config.sync_stats.failed_syncs += 1;
+            }
+            self.log_error(format!("Sync failed for '{}': {}", name, error));
         }
     }
 
@@ -348,6 +354,8 @@ impl CloudSyncUI {
 
         self.clear_expired_message();
 
+        let action_msg = self.action_message.clone();
+
         egui::Window::new("Cloud Synchronization")
             .collapsible(false)
             .resizable(true)
@@ -358,7 +366,7 @@ impl CloudSyncUI {
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                self.render_content(ui);
+                self.render_content(ui, action_msg.as_ref());
             });
 
         // Render dialogs
@@ -370,23 +378,37 @@ impl CloudSyncUI {
         }
     }
 
-    fn render_content(&mut self, ui: &mut egui::Ui) {
+    fn render_content(&mut self, ui: &mut egui::Ui, action_message: Option<&(String, chrono::DateTime<chrono::Local>)>) {
         // Header
+        let mut should_close = false;
+        let mut show_sync_log = false;
+        let mut show_add_dialog = false;
         ui.horizontal(|ui| {
             ui.heading("Cloud Sync");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("✕ Close").clicked() {
-                    self.close();
+                    should_close = true;
                 }
                 if ui.button("📋 Sync Log").clicked() {
-                    self.show_sync_log = true;
+                    show_sync_log = true;
                 }
                 if ui.button("➕ Add Provider").clicked() {
-                    self.show_add_dialog = true;
-                    self.new_config_name.clear();
+                    show_add_dialog = true;
                 }
             });
         });
+
+        if should_close {
+            self.close();
+            return;
+        }
+        if show_sync_log {
+            self.show_sync_log = true;
+        }
+        if show_add_dialog {
+            self.show_add_dialog = true;
+            self.new_config_name.clear();
+        }
 
         ui.add_space(10.0);
 
@@ -404,11 +426,14 @@ impl CloudSyncUI {
         ui.add_space(10.0);
 
         // Two-column layout
+        let selected_id = self.selected_config_id.clone();
+        let configs_empty = self.configs.is_empty();
+        let show_add_dialog_flag = self.show_add_dialog;
         ui.horizontal(|ui| {
             // Left: Provider list
             ui.vertical(|ui| {
                 ui.set_width(300.0);
-                self.render_provider_list(ui);
+                self.render_provider_list(ui, configs_empty, show_add_dialog_flag, &selected_id);
             });
 
             ui.separator();
@@ -416,12 +441,12 @@ impl CloudSyncUI {
             // Right: Configuration details
             ui.vertical(|ui| {
                 ui.set_width(450.0);
-                self.render_provider_details(ui);
+                self.render_provider_details(ui, &selected_id);
             });
         });
 
         // Status message
-        if let Some((ref message, _)) = self.action_message {
+        if let Some((ref message, _)) = action_message {
             ui.add_space(10.0);
             ui.label(
                 egui::RichText::new(message)
@@ -431,28 +456,37 @@ impl CloudSyncUI {
         }
     }
 
-    fn render_provider_list(&mut self, ui: &mut egui::Ui) {
+    fn render_provider_list(&mut self, ui: &mut egui::Ui, configs_empty: bool, show_add_dialog_flag: bool, selected_config_id: &Option<String>) {
         ui.label(egui::RichText::new("Configured Providers").strong().size(14.0));
         ui.add_space(10.0);
 
-        if self.configs.is_empty() {
+        if configs_empty {
             ui.label("No cloud providers configured.");
             ui.add_space(10.0);
+            let mut show_add = false;
             if ui.button("➕ Add your first provider").clicked() {
+                show_add = true;
+            }
+            if show_add {
                 self.show_add_dialog = true;
             }
         } else {
+            // Collect configs before the closure
+            let configs: Vec<CloudSyncConfig> = self.configs.clone();
+            let mut selected_id: Option<String> = selected_config_id.clone();
             egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                for config in self.configs.clone() {
-                    self.render_provider_item(ui, &config);
+                for config in &configs {
+                    Self::render_provider_item(ui, config, &mut selected_id);
                 }
             });
+            if selected_id != *selected_config_id {
+                self.selected_config_id = selected_id;
+            }
         }
     }
 
-    fn render_provider_item(&mut self, ui: &mut egui::Ui, config: &CloudSyncConfig) {
-        let is_selected = self
-            .selected_config_id
+    fn render_provider_item(ui: &mut egui::Ui, config: &CloudSyncConfig, selected_config_id: &mut Option<String>) {
+        let is_selected = selected_config_id
             .as_ref()
             .map(|id| id == &config.id)
             .unwrap_or(false);
@@ -474,7 +508,7 @@ impl CloudSyncUI {
                 egui::Color32::TRANSPARENT
             });
 
-        frame.show(ui, |ui| {
+        let response = frame.show(ui, |ui| {
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
@@ -519,26 +553,33 @@ impl CloudSyncUI {
             });
         });
 
-        if ui.interact(ui.min_rect(), egui::Id::new(&config.id), egui::Sense::click()).clicked() {
-            self.selected_config_id = Some(config.id.clone());
+        if ui.interact(response.response.rect, egui::Id::new(&config.id), egui::Sense::click()).clicked() {
+            *selected_config_id = Some(config.id.clone());
         }
     }
 
-    fn render_provider_details(&mut self, ui: &mut egui::Ui) {
-        if let Some(ref config_id) = self.selected_config_id {
+    fn render_provider_details(&mut self, ui: &mut egui::Ui, selected_config_id: &Option<String>) {
+        if let Some(ref config_id) = selected_config_id {
             if let Some(config) = self.get_config(config_id).cloned() {
                 // Header
+                let mut enabled = config.enabled;
+                let config_id_clone = config_id.clone();
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(&config.name).strong().size(16.0));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let mut enabled = config.enabled;
-                        if ui.checkbox(&mut enabled, "Enabled").clicked() {
-                            if let Some(c) = self.get_config_mut(config_id) {
-                                c.enabled = enabled;
-                            }
+                        let mut new_enabled = enabled;
+                        if ui.checkbox(&mut new_enabled, "Enabled").changed() {
+                            enabled = new_enabled;
                         }
                     });
                 });
+
+                // Apply enabled change outside the closure
+                if enabled != config.enabled {
+                    if let Some(c) = self.get_config_mut(&config_id_clone) {
+                        c.enabled = enabled;
+                    }
+                }
 
                 ui.label(
                     egui::RichText::new(format!("Provider: {}", config.provider))
@@ -549,6 +590,9 @@ impl CloudSyncUI {
                 ui.add_space(15.0);
 
                 // Connection settings
+                let mut should_disconnect = false;
+                let mut new_token: Option<String> = None;
+                let mut new_path: Option<String> = None;
                 ui.group(|ui| {
                     ui.label(egui::RichText::new("Connection Settings").strong());
                     ui.add_space(10.0);
@@ -561,19 +605,14 @@ impl CloudSyncUI {
                                 ui.horizontal(|ui| {
                                     ui.label("Not connected");
                                     if ui.button("🔗 Connect").clicked() {
-                                        self.log_info(format!("Initiating OAuth flow for {:?}", config.provider));
-                                        // Would trigger OAuth flow
+                                        // Would trigger OAuth flow - log outside
                                     }
                                 });
                             } else {
                                 ui.horizontal(|ui| {
                                     ui.label("✓ Connected");
                                     if ui.button("🔌 Disconnect").clicked() {
-                                        if let Some(c) = self.get_config_mut(config_id) {
-                                            c.api_token.clear();
-                                            c.refresh_token.clear();
-                                        }
-                                        self.show_message("Disconnected".to_string());
+                                        should_disconnect = true;
                                     }
                                 });
                             }
@@ -591,9 +630,7 @@ impl CloudSyncUI {
                                     )
                                     .changed()
                                 {
-                                    if let Some(c) = self.get_config_mut(config_id) {
-                                        c.api_token = token;
-                                    }
+                                    new_token = Some(token);
                                 }
                             });
                         }
@@ -609,25 +646,42 @@ impl CloudSyncUI {
                             .add(egui::TextEdit::singleline(&mut path).desired_width(250.0))
                             .changed()
                         {
-                            if let Some(c) = self.get_config_mut(config_id) {
-                                c.folder_path = path;
-                            }
+                            new_path = Some(path);
                         }
                     });
                 });
 
+                // Apply changes outside the closure
+                if should_disconnect {
+                    if let Some(c) = self.get_config_mut(config_id) {
+                        c.api_token.clear();
+                        c.refresh_token.clear();
+                    }
+                    self.show_message("Disconnected".to_string());
+                }
+                if let Some(token) = new_token {
+                    if let Some(c) = self.get_config_mut(config_id) {
+                        c.api_token = token;
+                    }
+                }
+                if let Some(path) = new_path {
+                    if let Some(c) = self.get_config_mut(config_id) {
+                        c.folder_path = path;
+                    }
+                }
+
                 ui.add_space(15.0);
 
                 // Sync options
+                let mut new_auto_sync: Option<bool> = None;
+                let mut new_interval: Option<u32> = None;
                 ui.group(|ui| {
                     ui.label(egui::RichText::new("Sync Options").strong());
                     ui.add_space(10.0);
 
                     let mut auto_sync = config.auto_sync;
                     if ui.checkbox(&mut auto_sync, "Enable automatic sync").changed() {
-                        if let Some(c) = self.get_config_mut(config_id) {
-                            c.auto_sync = auto_sync;
-                        }
+                        new_auto_sync = Some(auto_sync);
                     }
 
                     if auto_sync {
@@ -643,9 +697,7 @@ impl CloudSyncUI {
                                 )
                                 .changed()
                             {
-                                if let Some(c) = self.get_config_mut(config_id) {
-                                    c.sync_interval_minutes = interval;
-                                }
+                                new_interval = Some(interval);
                             }
                         });
                     }
@@ -663,6 +715,18 @@ impl CloudSyncUI {
 
                     ui.checkbox(&mut self.encrypt_sync, "Encrypt cloud data with master password");
                 });
+
+                // Apply sync option changes
+                if let Some(auto) = new_auto_sync {
+                    if let Some(c) = self.get_config_mut(config_id) {
+                        c.auto_sync = auto;
+                    }
+                }
+                if let Some(interval) = new_interval {
+                    if let Some(c) = self.get_config_mut(config_id) {
+                        c.sync_interval_minutes = interval;
+                    }
+                }
 
                 ui.add_space(15.0);
 
@@ -683,11 +747,12 @@ impl CloudSyncUI {
                 ui.add_space(15.0);
 
                 // Action buttons
+                let mut should_delete = false;
+                let mut should_sync = false;
+                let mut should_save = false;
                 ui.horizontal(|ui| {
                     if ui.button("🗑 Delete").clicked() {
-                        if let Some(id) = self.selected_config_id.take() {
-                            self.remove_config(&id);
-                        }
+                        should_delete = true;
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -698,16 +763,27 @@ impl CloudSyncUI {
                             )
                             .clicked()
                         {
-                            self.start_sync(config_id);
-                            // Simulate completion after a delay (in real implementation, this would be async)
-                            // self.complete_sync(config_id, SyncStatistics::default());
+                            should_sync = true;
                         }
 
                         if ui.button("💾 Save Changes").clicked() {
-                            self.show_message("Configuration saved".to_string());
+                            should_save = true;
                         }
                     });
                 });
+
+                // Handle actions outside the closure
+                if should_delete {
+                    if let Some(id) = self.selected_config_id.take() {
+                        self.remove_config(&id);
+                    }
+                }
+                if should_sync {
+                    self.start_sync(config_id);
+                }
+                if should_save {
+                    self.show_message("Configuration saved".to_string());
+                }
             } else {
                 ui.label("Selected provider not found.");
             }
@@ -761,32 +837,46 @@ impl CloudSyncUI {
 
                 ui.add_space(20.0);
 
+                let mut should_cancel = false;
+                let mut should_add = false;
                 ui.horizontal(|ui| {
                     if ui.button("Cancel").clicked() {
-                        self.show_add_dialog = false;
+                        should_cancel = true;
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let can_create = !self.new_config_name.is_empty();
 
                         if ui.add_enabled(can_create, egui::Button::new("Add")).clicked() {
-                            let mut config = CloudSyncConfig::new(
-                                self.new_provider.clone(),
-                                self.new_config_name.clone(),
-                            );
-                            config.folder_path = Self::default_folder_for_provider(&self.new_provider);
-                            let id = self.add_config(config);
-                            self.selected_config_id = Some(id);
-                            self.show_add_dialog = false;
-                            self.new_config_name.clear();
-                            self.show_message("Provider added".to_string());
+                            should_add = true;
                         }
                     });
                 });
+
+                // Handle actions outside the closure
+                if should_cancel {
+                    self.show_add_dialog = false;
+                }
+                if should_add {
+                    let mut config = CloudSyncConfig::new(
+                        self.new_provider.clone(),
+                        self.new_config_name.clone(),
+                    );
+                    config.folder_path = Self::default_folder_for_provider(&self.new_provider);
+                    let id = self.add_config(config);
+                    self.selected_config_id = Some(id);
+                    self.show_add_dialog = false;
+                    self.new_config_name.clear();
+                    self.show_message("Provider added".to_string());
+                }
             });
     }
 
     fn render_sync_log(&mut self, ctx: &egui::Context) {
+        let sync_log: Vec<SyncLogEntry> = self.sync_log.clone();
+        let mut should_clear = false;
+        let mut should_close = false;
+
         egui::Window::new("Sync Log")
             .collapsible(false)
             .resizable(true)
@@ -796,21 +886,21 @@ impl CloudSyncUI {
                     ui.heading("Synchronization Log");
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Clear").clicked() {
-                            self.sync_log.clear();
+                            should_clear = true;
                         }
                         if ui.button("Close").clicked() {
-                            self.show_sync_log = false;
+                            should_close = true;
                         }
                     });
                 });
 
                 ui.add_space(10.0);
 
-                if self.sync_log.is_empty() {
+                if sync_log.is_empty() {
                     ui.label("No log entries yet.");
                 } else {
                     egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                        for entry in self.sync_log.iter().rev() {
+                        for entry in sync_log.iter().rev() {
                             let color = match entry.level {
                                 LogLevel::Info => egui::Color32::from_rgb(150, 150, 150),
                                 LogLevel::Warning => egui::Color32::from_rgb(255, 193, 7),
@@ -839,6 +929,14 @@ impl CloudSyncUI {
                     });
                 }
             });
+
+        // Handle actions outside the closure
+        if should_clear {
+            self.sync_log.clear();
+        }
+        if should_close {
+            self.show_sync_log = false;
+        }
     }
 }
 

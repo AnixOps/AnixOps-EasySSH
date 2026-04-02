@@ -7,7 +7,7 @@ use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use uuid::Uuid;
 
 /// Session information for UI display
@@ -19,10 +19,10 @@ pub struct SessionInfo {
     pub server_name: String,
     pub host: String,
     pub username: String,
-    #[serde(skip, default = "Instant::now")]
-    pub created_at: Instant,
-    #[serde(skip, default = "Instant::now")]
-    pub last_accessed: Instant,
+    #[serde(skip)]
+    pub created_at: chrono::DateTime<chrono::Local>,
+    #[serde(skip)]
+    pub last_accessed: chrono::DateTime<chrono::Local>,
     pub is_active: bool,
     pub tab_index: usize,
     pub output_buffer: String,
@@ -32,7 +32,7 @@ pub struct SessionInfo {
 
 impl SessionInfo {
     pub fn new(server_id: String, server_name: String, host: String, username: String) -> Self {
-        let now = Instant::now();
+        let now = chrono::Local::now();
         Self {
             id: Uuid::new_v4().to_string(),
             name: format!("{}@{} {}", username, host, chrono::Local::now().format("%H:%M")),
@@ -51,11 +51,15 @@ impl SessionInfo {
     }
 
     pub fn duration_since_created(&self) -> Duration {
-        self.created_at.elapsed()
+        let now = chrono::Local::now();
+        let diff = now.signed_duration_since(self.created_at);
+        Duration::from_secs(diff.num_seconds().max(0) as u64)
     }
 
     pub fn duration_since_accessed(&self) -> Duration {
-        self.last_accessed.elapsed()
+        let now = chrono::Local::now();
+        let diff = now.signed_duration_since(self.last_accessed);
+        Duration::from_secs(diff.num_seconds().max(0) as u64)
     }
 
     pub fn formatted_duration(&self) -> String {
@@ -83,11 +87,11 @@ pub struct SessionManagerUI {
     pub sort_by: SessionSortBy,
     pub auto_save_enabled: bool,
     pub auto_save_interval_minutes: u32,
-    pub last_auto_save: Option<Instant>,
+    pub last_auto_save: Option<chrono::DateTime<chrono::Local>>,
     pub show_session_details: bool,
     pub export_path: Option<std::path::PathBuf>,
     pub import_path: Option<std::path::PathBuf>,
-    pub action_message: Option<(String, Instant)>,
+    pub action_message: Option<(String, chrono::DateTime<chrono::Local>)>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -177,7 +181,7 @@ impl SessionManagerUI {
     /// Update session last accessed time
     pub fn touch_session(&mut self, session_id: &str) {
         if let Some(session) = self.get_session_mut(session_id) {
-            session.last_accessed = Instant::now();
+            session.last_accessed = chrono::Local::now();
         }
     }
 
@@ -186,7 +190,7 @@ impl SessionManagerUI {
         if let Some(session) = self.get_session_mut(session_id) {
             session.is_active = active;
             if active {
-                session.last_accessed = Instant::now();
+                session.last_accessed = chrono::Local::now();
             }
         }
     }
@@ -239,13 +243,17 @@ impl SessionManagerUI {
         }
         match self.last_auto_save {
             None => true,
-            Some(last) => last.elapsed().as_secs() >= (self.auto_save_interval_minutes as u64 * 60),
+            Some(last) => {
+                let now = chrono::Local::now();
+                let diff = now.signed_duration_since(last);
+                diff.num_seconds() >= (self.auto_save_interval_minutes as i64 * 60)
+            }
         }
     }
 
     /// Mark auto-save as completed
     pub fn mark_auto_saved(&mut self) {
-        self.last_auto_save = Some(Instant::now());
+        self.last_auto_save = Some(chrono::Local::now());
     }
 
     /// Export sessions to JSON
@@ -274,8 +282,8 @@ impl SessionManagerUI {
                     for session_data in imported {
                         let mut session: SessionInfo = session_data.into();
                         session.id = Uuid::new_v4().to_string(); // New ID
-                        session.created_at = Instant::now();
-                        session.last_accessed = Instant::now();
+                        session.created_at = chrono::Local::now();
+                        session.last_accessed = chrono::Local::now();
                         self.add_session(session);
                     }
                     Ok(count)
@@ -288,13 +296,15 @@ impl SessionManagerUI {
 
     /// Show action message
     pub fn show_message(&mut self, message: String) {
-        self.action_message = Some((message, Instant::now()));
+        self.action_message = Some((message, chrono::Local::now()));
     }
 
     /// Clear expired message
     pub fn clear_expired_message(&mut self) {
         if let Some((_, timestamp)) = self.action_message {
-            if timestamp.elapsed().as_secs() > 3 {
+            let now = chrono::Local::now();
+            let diff = now.signed_duration_since(timestamp);
+            if diff.num_seconds() > 3 {
                 self.action_message = None;
             }
         }
@@ -308,6 +318,8 @@ impl SessionManagerUI {
 
         self.clear_expired_message();
 
+        let action_msg = self.action_message.clone();
+
         egui::Window::new("Session Manager")
             .collapsible(false)
             .resizable(true)
@@ -318,7 +330,7 @@ impl SessionManagerUI {
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                self.render_content(ui);
+                self.render_content(ui, action_msg.as_ref());
             });
 
         // Render dialogs
@@ -330,43 +342,61 @@ impl SessionManagerUI {
         }
     }
 
-    fn render_content(&mut self, ui: &mut egui::Ui) {
+    fn render_content(&mut self, ui: &mut egui::Ui, action_message: Option<&(String, chrono::DateTime<chrono::Local>)>) {
         // Toolbar
+        let mut should_close = false;
+        let mut should_import = false;
+        let mut should_export = false;
         ui.horizontal(|ui| {
             ui.heading("Sessions");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("✕ Close").clicked() {
-                    self.close();
+                    should_close = true;
                 }
                 if ui.button("📥 Import").clicked() {
-                    self.import_path = rfd::FileDialog::new()
-                        .add_filter("JSON", &["json"])
-                        .pick_file();
-                    if let Some(ref path) = self.import_path {
-                        match self.import_sessions(path) {
-                            Ok(count) => self.show_message(format!("Imported {} sessions", count)),
-                            Err(e) => self.show_message(format!("Import failed: {}", e)),
-                        }
-                    }
+                    should_import = true;
                 }
                 if ui.button("📤 Export").clicked() {
-                    self.export_path = rfd::FileDialog::new()
-                        .add_filter("JSON", &["json"])
-                        .set_file_name("sessions.json")
-                        .save_file();
-                    if let Some(ref path) = self.export_path {
-                        match self.export_sessions(path) {
-                            Ok(_) => self.show_message("Sessions exported".to_string()),
-                            Err(e) => self.show_message(format!("Export failed: {}", e)),
-                        }
-                    }
+                    should_export = true;
                 }
             });
         });
 
+        if should_close {
+            self.close();
+            return;
+        }
+
+        if should_import {
+            self.import_path = rfd::FileDialog::new()
+                .add_filter("JSON", &["json"])
+                .pick_file();
+            if let Some(ref path) = self.import_path.clone() {
+                match self.import_sessions(path) {
+                    Ok(count) => self.show_message(format!("Imported {} sessions", count)),
+                    Err(e) => self.show_message(format!("Import failed: {}", e)),
+                }
+            }
+        }
+
+        if should_export {
+            self.export_path = rfd::FileDialog::new()
+                .add_filter("JSON", &["json"])
+                .set_file_name("sessions.json")
+                .save_file();
+            if let Some(ref path) = self.export_path.clone() {
+                match self.export_sessions(path) {
+                    Ok(_) => self.show_message("Sessions exported".to_string()),
+                    Err(e) => self.show_message(format!("Export failed: {}", e)),
+                }
+            }
+        }
+
         ui.add_space(10.0);
 
         // Filters and search
+        let current_sort = self.sort_by.clone();
+        let mut new_sort: Option<SessionSortBy> = None;
         ui.horizontal(|ui| {
             ui.add(
                 egui::TextEdit::singleline(&mut self.search_query)
@@ -378,7 +408,7 @@ impl SessionManagerUI {
 
             ui.label("Sort by:");
             egui::ComboBox::from_id_source("session_sort")
-                .selected_text(format!("{:?}", self.sort_by))
+                .selected_text(format!("{:?}", current_sort))
                 .width(120.0)
                 .show_ui(ui, |ui| {
                     let options = [
@@ -389,12 +419,11 @@ impl SessionManagerUI {
                     ];
                     for option in options {
                         if ui
-                            .selectable_label(self.sort_by == option, format!("{:?}", option))
+                            .selectable_label(current_sort == option, format!("{:?}", option))
                             .clicked()
-                            && self.sort_by != option
+                            && current_sort != option
                         {
-                            self.sort_by = option;
-                            self.sort_sessions();
+                            new_sort = Some(option);
                         }
                     }
                 });
@@ -404,12 +433,17 @@ impl SessionManagerUI {
             });
         });
 
+        if let Some(sort) = new_sort {
+            self.sort_by = sort;
+            self.sort_sessions();
+        }
+
         ui.add_space(10.0);
         ui.separator();
         ui.add_space(10.0);
 
         // Session list
-        let filtered = self.get_filtered_sessions();
+        let filtered: Vec<SessionInfo> = self.get_filtered_sessions().into_iter().cloned().collect();
         let total_count = self.sessions.len();
         let active_count = self.sessions.iter().filter(|s| s.is_active).count();
 
@@ -421,49 +455,79 @@ impl SessionManagerUI {
         ));
         ui.add_space(5.0);
 
+        let selected_id = self.selected_session_id.clone();
+        let mut new_selection: Option<String> = None;
         egui::ScrollArea::vertical()
             .max_height(400.0)
             .show(ui, |ui| {
                 for session in &filtered {
-                    self.render_session_item(ui, session);
+                    Self::render_session_item(ui, session, &selected_id, &mut new_selection);
                 }
             });
+
+        if let Some(id) = new_selection {
+            self.selected_session_id = Some(id);
+        }
 
         ui.add_space(10.0);
         ui.separator();
 
         // Action buttons for selected session
-        if let Some(ref selected_id) = self.selected_session_id {
-            if let Some(session) = self.get_session(selected_id.clone()).cloned() {
+        if let Some(ref selected_id) = self.selected_session_id.clone() {
+            if let Some(session) = self.get_session(selected_id).cloned() {
+                let session_id_clone = selected_id.clone();
+                let mut should_delete = false;
+                let mut should_save = false;
+                let mut should_show_details = false;
+                let mut should_disconnect = false;
+                let mut should_reconnect = false;
+
                 ui.horizontal(|ui| {
                     ui.label(format!("Selected: {}", session.name));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("🗑 Delete").clicked() {
-                            self.remove_session(selected_id);
-                            self.selected_session_id = None;
+                            should_delete = true;
                         }
                         if ui.button("💾 Save Snapshot").clicked() {
-                            self.show_save_dialog = true;
+                            should_save = true;
                         }
                         if ui.button("📋 Details").clicked() {
-                            self.show_session_details = true;
+                            should_show_details = true;
                         }
                         if session.is_active {
                             if ui.button("⏸ Disconnect").clicked() {
-                                self.set_session_active(&session.id, false);
+                                should_disconnect = true;
                             }
                         } else {
                             if ui.button("▶ Reconnect").clicked() {
-                                self.set_session_active(&session.id, true);
+                                should_reconnect = true;
                             }
                         }
                     });
                 });
+
+                // Handle actions outside the closure
+                if should_delete {
+                    self.remove_session(&session_id_clone);
+                    self.selected_session_id = None;
+                }
+                if should_save {
+                    self.show_save_dialog = true;
+                }
+                if should_show_details {
+                    self.show_session_details = true;
+                }
+                if should_disconnect {
+                    self.set_session_active(&session_id_clone, false);
+                }
+                if should_reconnect {
+                    self.set_session_active(&session_id_clone, true);
+                }
             }
         }
 
         // Status message
-        if let Some((ref message, _)) = self.action_message {
+        if let Some((ref message, _)) = action_message {
             ui.add_space(10.0);
             ui.label(
                 egui::RichText::new(message)
@@ -473,9 +537,13 @@ impl SessionManagerUI {
         }
     }
 
-    fn render_session_item(&mut self, ui: &mut egui::Ui, session: &SessionInfo) {
-        let is_selected = self
-            .selected_session_id
+    fn render_session_item(
+        ui: &mut egui::Ui,
+        session: &SessionInfo,
+        selected_session_id: &Option<String>,
+        new_selection: &mut Option<String>,
+    ) {
+        let is_selected = selected_session_id
             .as_ref()
             .map(|id| id == &session.id)
             .unwrap_or(false);
@@ -492,7 +560,7 @@ impl SessionManagerUI {
             egui::Color32::TRANSPARENT
         });
 
-        frame.show(ui, |ui| {
+        let response = frame.show(ui, |ui| {
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
@@ -540,12 +608,15 @@ impl SessionManagerUI {
         });
 
         // Click to select
-        if ui.interact(ui.min_rect(), egui::Id::new(&session.id), egui::Sense::click()).clicked() {
-            self.selected_session_id = Some(session.id.clone());
+        if ui.interact(response.response.rect, egui::Id::new(&session.id), egui::Sense::click()).clicked() {
+            *new_selection = Some(session.id.clone());
         }
     }
 
     fn render_save_dialog(&mut self, ctx: &egui::Context) {
+        let mut should_cancel = false;
+        let mut should_save = false;
+
         egui::Window::new("Save Session Snapshot")
             .collapsible(false)
             .resizable(false)
@@ -562,29 +633,52 @@ impl SessionManagerUI {
 
                 ui.add_space(20.0);
 
+                // Pre-collect the data we need
+                let can_save = !self.new_session_name.is_empty();
+
                 ui.horizontal(|ui| {
                     if ui.button("Cancel").clicked() {
-                        self.show_save_dialog = false;
-                        self.new_session_name.clear();
+                        should_cancel = true;
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("Save").clicked() && !self.new_session_name.is_empty() {
-                            if let Some(ref id) = self.selected_session_id {
-                                if let Some(session) = self.get_session_mut(id) {
-                                    session.name = self.new_session_name.clone();
-                                }
-                            }
-                            self.show_save_dialog = false;
-                            self.new_session_name.clear();
-                            self.show_message("Session saved".to_string());
+                        if ui.add_enabled(can_save, egui::Button::new("Save")).clicked() {
+                            should_save = true;
                         }
                     });
                 });
             });
+
+        // Handle actions outside the closure
+        if should_cancel {
+            self.show_save_dialog = false;
+            self.new_session_name.clear();
+        }
+        if should_save {
+            if let Some(ref id) = self.selected_session_id.clone() {
+                let new_name = self.new_session_name.clone();
+                if let Some(session) = self.get_session_mut(id) {
+                    session.name = new_name;
+                }
+            }
+            self.show_save_dialog = false;
+            self.new_session_name.clear();
+            self.show_message("Session saved".to_string());
+        }
     }
 
     fn render_restore_dialog(&mut self, ctx: &egui::Context) {
+        // Collect session IDs before rendering
+        let saved_session_ids: Vec<(String, String)> = self
+            .sessions
+            .iter()
+            .filter(|s| !s.is_active)
+            .map(|s| (s.id.clone(), s.name.clone()))
+            .collect();
+
+        let mut should_close = false;
+        let mut sessions_to_restore: Vec<(String, String)> = Vec::new();
+
         egui::Window::new("Restore Session")
             .collapsible(false)
             .resizable(false)
@@ -593,22 +687,13 @@ impl SessionManagerUI {
                 ui.label("Select a saved session to restore:");
                 ui.add_space(10.0);
 
-                // List of saved sessions (inactive ones)
-                let saved_sessions: Vec<&SessionInfo> = self
-                    .sessions
-                    .iter()
-                    .filter(|s| !s.is_active)
-                    .collect();
-
-                if saved_sessions.is_empty() {
+                if saved_session_ids.is_empty() {
                     ui.label("No saved sessions available.");
                 } else {
                     egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                        for session in saved_sessions {
-                            if ui.button(&session.name).clicked() {
-                                self.set_session_active(&session.id, true);
-                                self.show_restore_dialog = false;
-                                self.show_message(format!("Restored: {}", session.name));
+                        for (id, name) in &saved_session_ids {
+                            if ui.button(name).clicked() {
+                                sessions_to_restore.push((id.clone(), name.clone()));
                             }
                         }
                     });
@@ -617,9 +702,19 @@ impl SessionManagerUI {
                 ui.add_space(10.0);
 
                 if ui.button("Close").clicked() {
-                    self.show_restore_dialog = false;
+                    should_close = true;
                 }
             });
+
+        // Handle actions outside the closure
+        for (id, name) in sessions_to_restore {
+            self.set_session_active(&id, true);
+            self.show_restore_dialog = false;
+            self.show_message(format!("Restored: {}", name));
+        }
+        if should_close {
+            self.show_restore_dialog = false;
+        }
     }
 }
 

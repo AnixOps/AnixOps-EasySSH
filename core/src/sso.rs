@@ -1128,50 +1128,6 @@ impl SsoManager {
         })
     }
 
-    #[deprecated(since = "0.3.0", note = "Use exchange_oidc_code_secure with PKCE")]
-    async fn exchange_oidc_code(
-        &self,
-        _config: &OidcConfig,
-        _code: &str,
-        _pending: &PendingAuthRequest,
-    ) -> Result<OidcTokenResponse, LiteError> {
-        Ok(OidcTokenResponse {
-            access_token: generate_secure_random(48),
-            id_token: generate_secure_random(48),
-            refresh_token: Some(generate_secure_random(48)),
-            token_type: "Bearer".to_string(),
-            expires_in: 3600,
-        })
-    }
-
-    #[deprecated(
-        since = "0.3.0",
-        note = "Use validate_and_parse_id_token with nonce verification"
-    )]
-    fn parse_oidc_id_token(
-        &self,
-        id_token: &str,
-        config: &OidcConfig,
-    ) -> Result<SsoUserInfo, LiteError> {
-        let user_id = format!("oidc_user_{}", &id_token[..8.min(id_token.len())]);
-        let email = format!("{}@example.com", user_id);
-
-        Ok(SsoUserInfo {
-            user_id,
-            email,
-            username: config
-                .attribute_mapping
-                .username_claim
-                .clone()
-                .unwrap_or_else(|| "oidc_user".to_string()),
-            first_name: None,
-            last_name: None,
-            groups: vec![],
-            team_ids: vec![],
-            raw_attributes: HashMap::new(),
-        })
-    }
-
     /// 验证会话
     pub fn validate_session(&self, session_id: &str) -> Option<&SsoSession> {
         self.sessions.get(session_id).filter(|s| !s.is_expired())

@@ -323,6 +323,61 @@ impl BatchInserter {
         }
     }
 
+    /// Validate and escape SQL identifier to prevent SQL injection
+    /// Only allows alphanumeric characters, underscores, and dots (for schema.table)
+    fn validate_identifier(identifier: &str) -> Result<String, DatabaseError> {
+        if identifier.is_empty() {
+            return Err(DatabaseError::QueryError(
+                "Empty identifier not allowed".to_string(),
+            ));
+        }
+
+        // Check for dangerous characters and patterns
+        let dangerous_patterns = ["--", "/*", "*/", ";", "'", "\"", "\\", "\n", "\r"];
+        for pattern in &dangerous_patterns {
+            if identifier.contains(pattern) {
+                return Err(DatabaseError::QueryError(format!(
+                    "Invalid pattern '{}' in identifier",
+                    pattern
+                )));
+            }
+        }
+
+        // Each character must be alphanumeric, underscore, or dot
+        for c in identifier.chars() {
+            if !c.is_alphanumeric() && c != '_' && c != '.' {
+                return Err(DatabaseError::QueryError(format!(
+                    "Invalid character '{}' in identifier '{}'",
+                    c, identifier
+                )));
+            }
+        }
+
+        Ok(identifier.to_string())
+    }
+
+    /// Escape identifier for SQL by wrapping in backticks (MySQL) or double quotes (PostgreSQL/SQLite)
+    fn escape_identifier(&self, identifier: &str) -> String {
+        match self.db_type {
+            DatabaseType::MySQL => format!("`{}`", identifier.replace('`', "``")),
+            DatabaseType::PostgreSQL => format!("\"{}\"", identifier.replace('"', "\"\""),),
+            DatabaseType::SQLite => format!("\"{}\"", identifier.replace('"', "\"\""),),
+            _ => identifier.to_string(),
+        }
+    }
+
+    /// Validate and escape a list of identifiers
+    fn validate_identifiers(&self, identifiers: &[String]) -> Vec<String> {
+        identifiers
+            .iter()
+            .filter_map(|id| {
+                Self::validate_identifier(id)
+                    .ok()
+                    .map(|valid| self.escape_identifier(&valid))
+            })
+            .collect()
+    }
+
     /// Execute batch insert
     pub async fn insert(
         &self,
@@ -713,11 +768,23 @@ impl BatchInserter {
         conn.execute(&sql).await
     }
 
-    /// Build INSERT SQL statement
+    /// Build INSERT SQL statement with proper identifier escaping
     fn build_insert_sql(&self, table: &str, columns: &[String], row_count: usize) -> String {
+        // Validate and escape identifiers
+        let escaped_table = match Self::validate_identifier(table) {
+            Ok(valid) => self.escape_identifier(&valid),
+            Err(_) => "\"INVALID_TABLE\"".to_string(),
+        };
+        let escaped_columns = self.validate_identifiers(columns);
+
+        if escaped_columns.is_empty() {
+            return format!("-- ERROR: No valid columns provided for INSERT INTO {}", escaped_table);
+        }
+
+        let columns_str = escaped_columns.join(", ");
+
         match self.config.statement_strategy {
             StatementStrategy::MultiRow => {
-                let columns_str = columns.join(", ");
                 let placeholders: Vec<_> = (0..row_count)
                     .map(|_| {
                         format!(
@@ -733,14 +800,13 @@ impl BatchInserter {
 
                 format!(
                     "INSERT INTO {} ({}) VALUES {}",
-                    table,
+                    escaped_table,
                     columns_str,
                     placeholders.join(", ")
                 )
             }
             _ => {
                 // Single row insert with prepared statement
-                let columns_str = columns.join(", ");
                 let placeholders = columns
                     .iter()
                     .map(|_| "?".to_string())
@@ -748,13 +814,13 @@ impl BatchInserter {
                     .join(", ");
                 format!(
                     "INSERT INTO {} ({}) VALUES ({})",
-                    table, columns_str, placeholders
+                    escaped_table, columns_str, placeholders
                 )
             }
         }
     }
 
-    /// Build UPSERT SQL statement
+    /// Build UPSERT SQL statement with proper identifier escaping
     fn build_upsert_sql(
         &self,
         table: &str,
@@ -762,7 +828,21 @@ impl BatchInserter {
         key_columns: &[String],
         row_count: usize,
     ) -> String {
-        let columns_str = columns.join(", ");
+        // Validate and escape identifiers
+        let escaped_table = match Self::validate_identifier(table) {
+            Ok(valid) => self.escape_identifier(&valid),
+            Err(_) => "\"INVALID_TABLE\"".to_string(),
+        };
+        let escaped_columns = self.validate_identifiers(columns);
+        let escaped_key_columns = self.validate_identifiers(key_columns);
+
+        if escaped_columns.is_empty() || escaped_key_columns.is_empty() {
+            return format!("-- ERROR: Invalid columns for UPSERT on {}", escaped_table);
+        }
+
+        let columns_str = escaped_columns.join(", ");
+        let key_columns_str = escaped_key_columns.join(", ");
+
         let placeholders: Vec<_> = (0..row_count)
             .map(|_| {
                 format!(
@@ -776,10 +856,14 @@ impl BatchInserter {
             })
             .collect();
 
+        // Build update clause with escaped column names
         let update_clause = columns
             .iter()
             .filter(|c| !key_columns.contains(c))
-            .map(|c| format!("{} = VALUES({})", c, c))
+            .map(|c| {
+                let escaped_c = self.escape_identifier(c);
+                format!("{} = VALUES({})", escaped_c, escaped_c)
+            })
             .collect::<Vec<_>>()
             .join(", ");
 
@@ -787,7 +871,7 @@ impl BatchInserter {
             DatabaseType::MySQL => {
                 format!(
                     "INSERT INTO {} ({}) VALUES {} ON DUPLICATE KEY UPDATE {}",
-                    table,
+                    escaped_table,
                     columns_str,
                     placeholders.join(", "),
                     update_clause
@@ -796,12 +880,12 @@ impl BatchInserter {
             DatabaseType::PostgreSQL => {
                 let on_conflict = format!(
                     "ON CONFLICT ({}) DO UPDATE SET {}",
-                    key_columns.join(", "),
+                    key_columns_str,
                     update_clause.replace("VALUES", "EXCLUDED")
                 );
                 format!(
                     "INSERT INTO {} ({}) VALUES {} {}",
-                    table,
+                    escaped_table,
                     columns_str,
                     placeholders.join(", "),
                     on_conflict
@@ -810,12 +894,12 @@ impl BatchInserter {
             DatabaseType::SQLite => {
                 let on_conflict = format!(
                     "ON CONFLICT ({}) DO UPDATE SET {}",
-                    key_columns.join(", "),
+                    key_columns_str,
                     update_clause.replace("VALUES", "excluded")
                 );
                 format!(
                     "INSERT INTO {} ({}) VALUES {} {}",
-                    table,
+                    escaped_table,
                     columns_str,
                     placeholders.join(", "),
                     on_conflict
@@ -825,7 +909,7 @@ impl BatchInserter {
                 // Fallback to insert
                 format!(
                     "INSERT INTO {} ({}) VALUES {}",
-                    table,
+                    escaped_table,
                     columns_str,
                     placeholders.join(", ")
                 )
@@ -833,7 +917,7 @@ impl BatchInserter {
         }
     }
 
-    /// Build batch UPDATE SQL
+    /// Build batch UPDATE SQL with proper identifier escaping
     fn build_batch_update_sql(
         &self,
         table: &str,
@@ -841,21 +925,48 @@ impl BatchInserter {
         where_clause: &str,
         _conditions: &[Vec<Value>],
     ) -> String {
-        // Build CASE statement for batch update
+        // Validate table name
+        let escaped_table = match Self::validate_identifier(table) {
+            Ok(valid) => self.escape_identifier(&valid),
+            Err(_) => "\"INVALID_TABLE\"".to_string(),
+        };
+
+        // Validate WHERE clause doesn't contain dangerous patterns
+        let dangerous_patterns = ["--", "/*", "*/", ";", "\n", "\r"];
+        let safe_where = if dangerous_patterns.iter().any(|p| where_clause.contains(p)) {
+            "1=0 /* Invalid WHERE clause */".to_string()
+        } else {
+            where_clause.to_string()
+        };
+
         format!(
             "UPDATE {} SET {} WHERE {}",
-            table, "/* case statement */", where_clause
+            escaped_table, "/* case statement */", safe_where
         )
     }
 
-    /// Build batch DELETE SQL
+    /// Build batch DELETE SQL with proper identifier escaping
     fn build_batch_delete_sql(
         &self,
         table: &str,
         where_clause: &str,
         _conditions: &[Vec<Value>],
     ) -> String {
-        format!("DELETE FROM {} WHERE {}", table, where_clause)
+        // Validate table name
+        let escaped_table = match Self::validate_identifier(table) {
+            Ok(valid) => self.escape_identifier(&valid),
+            Err(_) => "\"INVALID_TABLE\"".to_string(),
+        };
+
+        // Validate WHERE clause doesn't contain dangerous patterns
+        let dangerous_patterns = ["--", "/*", "*/", ";", "\n", "\r"];
+        let safe_where = if dangerous_patterns.iter().any(|p| where_clause.contains(p)) {
+            "1=0 /* Invalid WHERE clause */".to_string()
+        } else {
+            where_clause.to_string()
+        };
+
+        format!("DELETE FROM {} WHERE {}", escaped_table, safe_where)
     }
 }
 

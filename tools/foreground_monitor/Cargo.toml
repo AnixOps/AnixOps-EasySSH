@@ -1,13 +1,11 @@
 [package]
 name = "easyssh-foreground-monitor"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 
 [[bin]]
 name = "foreground-monitor"
 path = "src/main.rs"
-
-[workspace]
 
 [dependencies]
 chrono = "0.4"

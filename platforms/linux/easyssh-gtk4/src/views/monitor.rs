@@ -107,7 +107,7 @@ impl MetricCard {
 
         let value_label = gtk4::Label::new(Some("-"));
         value_label.add_css_class("title-3");
-        value_label.set_margin_end(12);
+        value_label.set_margin(12);
 
         let bar = gtk4::LevelBar::new();
         bar.set_min_value(0.0);
@@ -172,10 +172,7 @@ impl MonitorPanel {
 
         // Header
         let header_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 16);
-        header_box.set_margin_top(16);
-        header_box.set_margin_bottom(8);
-        header_box.set_margin_start(16);
-        header_box.set_margin_end(16);
+        header_box.set_margin(16);
 
         let icon = gtk4::Image::from_icon_name("dashboard-symbolic");
         icon.set_pixel_size(32);
@@ -212,17 +209,13 @@ impl MonitorPanel {
         auto_refresh_switch.set_subtitle("Update every 5 seconds");
 
         let prefs_group = adw::PreferencesGroup::new();
-        prefs_group.set_margin_start(16);
-        prefs_group.set_margin_end(16);
-        prefs_group.set_margin_bottom(8);
+        prefs_group.set_margin(16);
         prefs_group.add(&auto_refresh_switch);
 
         // Metrics grid
         let metrics_grid = adw::PreferencesGroup::new();
         metrics_grid.set_title("Metrics");
-        metrics_grid.set_margin_start(16);
-        metrics_grid.set_margin_end(16);
-        metrics_grid.set_margin_bottom(16);
+        metrics_grid.set_margin(16);
 
         let cpu_card = MetricCard::new("CPU Usage", "cpu-symbolic");
         let memory_card = MetricCard::new("Memory", "memory-symbolic");
@@ -240,9 +233,7 @@ impl MonitorPanel {
         // Charts section
         let charts_group = adw::PreferencesGroup::new();
         charts_group.set_title("History");
-        charts_group.set_margin_start(16);
-        charts_group.set_margin_end(16);
-        charts_group.set_margin_bottom(16);
+        charts_group.set_margin(16);
 
         // CPU chart
         let cpu_chart = gtk4::DrawingArea::new();
@@ -250,11 +241,10 @@ impl MonitorPanel {
         cpu_chart.set_hexpand(true);
         cpu_chart.set_tooltip_text(Some("CPU Usage History"));
 
-        // Memory chart
         let memory_chart = gtk4::DrawingArea::new();
         memory_chart.set_content_height(100);
         memory_chart.set_hexpand(true);
-        memory_chart.set_margin_top(8);
+        memory_chart.set_margin(8);
         memory_chart.set_tooltip_text(Some("Memory Usage History"));
 
         let charts_box = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
@@ -265,16 +255,14 @@ impl MonitorPanel {
         // Network and uptime section
         let net_group = adw::PreferencesGroup::new();
         net_group.set_title("Network & Uptime");
-        net_group.set_margin_start(16);
-        net_group.set_margin_end(16);
-        net_group.set_margin_bottom(16);
+        net_group.set_margin(16);
 
         let net_in_row = adw::ActionRow::new();
         net_in_row.set_title("Network In");
         net_in_row.set_icon_name("network-receive-symbolic");
         let net_in_label = gtk4::Label::new(Some("-"));
         net_in_label.add_css_class("title-4");
-        net_in_label.set_margin_end(12);
+        net_in_label.set_margin(12);
         net_in_row.add_suffix(&net_in_label);
 
         let net_out_row = adw::ActionRow::new();
@@ -282,7 +270,7 @@ impl MonitorPanel {
         net_out_row.set_icon_name("network-transmit-symbolic");
         let net_out_label = gtk4::Label::new(Some("-"));
         net_out_label.add_css_class("title-4");
-        net_out_label.set_margin_end(12);
+        net_out_label.set_margin(12);
         net_out_row.add_suffix(&net_out_label);
 
         let uptime_row = adw::ActionRow::new();
@@ -290,7 +278,7 @@ impl MonitorPanel {
         uptime_row.set_icon_name("clock-symbolic");
         let uptime_label = gtk4::Label::new(Some("-"));
         uptime_label.add_css_class("title-4");
-        uptime_label.set_margin_end(12);
+        uptime_label.set_margin(12);
         uptime_row.add_suffix(&uptime_label);
 
         net_group.add(&net_in_row);

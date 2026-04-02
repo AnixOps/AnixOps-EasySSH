@@ -76,8 +76,7 @@ impl TabBar {
         let new_tab_button = gtk4::Button::from_icon_name("list-add-symbolic");
         new_tab_button.set_tooltip_text(Some("New Tab (Ctrl+T)"));
         new_tab_button.add_css_class("new-tab-button");
-        new_tab_button.set_margin_start(4);
-        new_tab_button.set_margin_end(4);
+        new_tab_button.set_margin(4);
 
         // Tab overflow menu button
         let overflow_button = gtk4::MenuButton::new();
@@ -198,6 +197,83 @@ impl TabBar {
         );
     }
 
+    pub fn load_css_once() {
+        use gtk4::prelude::*;
+        use std::sync::Once;
+
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            let provider = gtk4::CssProvider::new();
+            provider.load_from_data(TAB_BAR_CSS);
+            gtk4::style_context_add_provider_for_display(
+                &gtk4::gdk::Display::default().expect("Could not get display"),
+                &provider,
+                gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        });
+    }
+
+    const TAB_BAR_CSS: &str = r#"
+        .tab-bar {
+            background-color: @headerbar_bg_color;
+            border-bottom: 1px solid @borders;
+        }
+
+        .tab-box {
+            padding: 4px;
+        }
+
+        .tab-button {
+            min-width: 140px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background-color: transparent;
+            border: none;
+        }
+
+        .tab-button:hover {
+            background-color: alpha(@accent_color, 0.1);
+        }
+
+        .tab-button.active {
+            background-color: @view_bg_color;
+            box-shadow: 0 2px 4px alpha(black, 0.1);
+        }
+
+        .tab-close-button {
+            min-width: 24px;
+            min-height: 24px;
+            padding: 0;
+            border-radius: 4px;
+            opacity: 0.6;
+        }
+
+        .tab-close-button:hover {
+            opacity: 1;
+            background-color: alpha(@error_color, 0.15);
+        }
+
+        .new-tab-button {
+            min-width: 32px;
+            min-height: 32px;
+            border-radius: 6px;
+            padding: 0;
+        }
+
+        .tab-indicator {
+            font-size: 8px;
+            margin-right: 4px;
+        }
+
+        .tab-indicator.connected {
+            color: @success_color;
+        }
+
+        .tab-indicator.disconnected {
+            color: @error_color;
+        }
+    "#;
+
     fn setup_signals(&self) {
         // New tab button
         self.new_tab_button
@@ -257,7 +333,7 @@ impl TabBar {
         close_btn.add_css_class("tab-close-button");
         close_btn.add_css_class("flat");
         close_btn.set_tooltip_text(Some("Close tab (Middle-click)"));
-        close_btn.set_has_frame(false);
+        // Note: .flat CSS class handles frameless appearance in GTK4
 
         hbox.append(&indicator);
         hbox.append(&title_label);
@@ -605,10 +681,7 @@ impl TerminalSession {
 
         // Toolbar
         let toolbar = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        toolbar.set_margin_start(8);
-        toolbar.set_margin_end(8);
-        toolbar.set_margin_top(8);
-        toolbar.set_margin_bottom(8);
+        toolbar.set_margin(8);
 
         let status_label = gtk4::Label::new(Some("● Connected"));
         status_label.add_css_class("status-connected");
@@ -643,9 +716,7 @@ impl TerminalSession {
 
         // Command input
         let input_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        input_box.set_margin_start(8);
-        input_box.set_margin_end(8);
-        input_box.set_margin_bottom(8);
+        input_box.set_margin(8);
 
         let prompt_label = gtk4::Label::new(Some("❯"));
         prompt_label.set_markup("<span foreground='#4ade80'>❯</span>");

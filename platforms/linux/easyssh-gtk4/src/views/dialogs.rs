@@ -37,10 +37,7 @@ impl AddServerDialog {
 
         // Content
         let content = gtk4::Box::new(gtk4::Orientation::Vertical, 16);
-        content.set_margin_top(16);
-        content.set_margin_bottom(16);
-        content.set_margin_start(16);
-        content.set_margin_end(16);
+        content.set_margin(16);
 
         // Form
         let form = adw::PreferencesGroup::new();
@@ -97,7 +94,7 @@ impl AddServerDialog {
         // Buttons
         let button_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
         button_box.set_halign(gtk4::Align::End);
-        button_box.set_margin_top(16);
+        button_box.set_margin(16);
 
         let cancel_btn = gtk4::Button::with_label("Cancel");
         cancel_btn.add_css_class("pill");
@@ -249,10 +246,7 @@ impl ConnectDialog {
 
         // Content
         let content = gtk4::Box::new(gtk4::Orientation::Vertical, 16);
-        content.set_margin_top(16);
-        content.set_margin_bottom(16);
-        content.set_margin_start(16);
-        content.set_margin_end(16);
+        content.set_margin(16);
 
         // Server info card
         let info_card = adw::PreferencesGroup::new();
@@ -290,7 +284,7 @@ impl ConnectDialog {
         // Buttons
         let button_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
         button_box.set_halign(gtk4::Align::End);
-        button_box.set_margin_top(16);
+        button_box.set_margin(16);
 
         let cancel_btn = gtk4::Button::with_label("Cancel");
         cancel_btn.add_css_class("pill");

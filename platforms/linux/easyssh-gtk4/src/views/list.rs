@@ -28,7 +28,6 @@ impl ServerListView {
         placeholder.set_halign(gtk4::Align::Center);
 
         let icon = gtk4::Image::from_icon_name("network-server-symbolic");
-        icon.set_icon_size(gtk4::IconSize::Large);
         icon.set_pixel_size(64);
         icon.set_opacity(0.3);
         icon.add_css_class("empty-state-icon");
@@ -211,9 +210,7 @@ impl ServerListView {
         row.add_css_class("group-header");
 
         let box_ = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        box_.set_margin_start(12);
-        box_.set_margin_top(8);
-        box_.set_margin_bottom(4);
+        box_.set_margin(12);
 
         let icon = gtk4::Image::from_icon_name("folder-symbolic");
         icon.set_pixel_size(16);
@@ -248,9 +245,7 @@ impl ServerListView {
         row.set_selectable(false);
 
         let box_ = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        box_.set_margin_start(12);
-        box_.set_margin_top(8);
-        box_.set_margin_bottom(4);
+        box_.set_margin(12);
 
         let label = gtk4::Label::new(Some(name));
         label.add_css_class("caption");
@@ -282,10 +277,7 @@ impl ServerListView {
         row.add_css_class("server-row");
 
         let box_ = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
-        box_.set_margin_start(12);
-        box_.set_margin_end(12);
-        box_.set_margin_top(8);
-        box_.set_margin_bottom(8);
+        box_.set_margin(12);
 
         // Status indicator
         let status_icon = match server.status {

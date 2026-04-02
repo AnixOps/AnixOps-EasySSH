@@ -39,7 +39,7 @@ use zeroize::Zeroize;
 const SERVICE_NAME: &str = "com.easyssh.lite";
 
 /// Encrypted fallback store entry
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 struct EncryptedEntry {
     encrypted_data: String, // base64 encoded encrypted data
     nonce: String,          // base64 encoded nonce
@@ -549,17 +549,255 @@ mod tests {
     }
 
     #[test]
-    fn test_load_legacy_fallback_no_file() {
-        // When legacy file doesn't exist, should return empty map
-        // This just verifies the path logic
-        let path_result = dirs::data_local_dir().map(|mut p| {
-            p.push("EasySSH");
-            p.push("keychain_fallback.json");
-            p
-        });
+    fn test_base64_decode_invalid() {
+        // Test decoding invalid base64
+        let result = BASE64.decode("not-valid-base64!!!");
+        assert!(result.is_err());
+    }
 
-        if let Some(path) = path_result {
-            assert!(!path.exists() || path.exists()); // Just checking it compiles
+    #[test]
+    fn test_encrypted_entry_zeroize() {
+        let mut entry = EncryptedEntry {
+            encrypted_data: "sensitive-data".to_string(),
+            nonce: "sensitive-nonce".to_string(),
+        };
+        entry.zeroize();
+        assert!(entry.encrypted_data.is_empty());
+        assert!(entry.nonce.is_empty());
+    }
+
+    #[test]
+    fn test_fallback_store_path_components() {
+        let path = fallback_store_path().unwrap();
+        let path_str = path.to_string_lossy();
+        assert!(path_str.contains("EasySSH"));
+        assert!(path_str.contains("keychain_encrypted.bin"));
+    }
+
+    #[test]
+    fn test_service_name_format() {
+        // Verify service name follows reverse domain convention
+        assert!(SERVICE_NAME.starts_with("com."));
+        assert!(SERVICE_NAME.contains("easyssh"));
+    }
+
+    #[test]
+    fn test_base64_special_chars() {
+        // Test encoding/decoding passwords with special characters
+        let passwords = vec![
+            "pass\nword",      // newline
+            "pass\tword",      // tab
+            "pass\x00word",   // null byte
+            "日本語パスワード",  // Japanese
+            "🔐🎉🚀",          // Emojis
+        ];
+
+        for pwd in &passwords {
+            let encoded = BASE64.encode(pwd.as_bytes());
+            let decoded = BASE64.decode(&encoded).expect("Failed to decode");
+            let result = String::from_utf8(decoded).expect("Invalid UTF-8");
+            assert_eq!(*pwd, result, "Failed for password: {:?}", pwd);
+        }
+    }
+
+    #[test]
+    fn test_encrypted_entry_empty() {
+        let entry = EncryptedEntry {
+            encrypted_data: String::new(),
+            nonce: String::new(),
+        };
+
+        assert!(entry.encrypted_data.is_empty());
+        assert!(entry.nonce.is_empty());
+    }
+
+    #[test]
+    fn test_encrypted_entry_json_roundtrip() {
+        let entry = EncryptedEntry {
+            encrypted_data: "dGVzdA==".to_string(),
+            nonce: "bm9uY2U=".to_string(),
+        };
+
+        let json = serde_json::to_string(&entry).expect("Failed to serialize");
+        let deserialized: EncryptedEntry = serde_json::from_str(&json).expect("Failed to deserialize");
+
+        assert_eq!(entry.encrypted_data, deserialized.encrypted_data);
+        assert_eq!(entry.nonce, deserialized.nonce);
+    }
+
+    #[test]
+    fn test_base64_empty() {
+        let empty = "";
+        let encoded = BASE64.encode(empty.as_bytes());
+        // Empty string encodes to empty string in base64
+        assert_eq!(encoded, "");
+
+        let decoded = BASE64.decode(&encoded).expect("Failed to decode empty");
+        assert!(decoded.is_empty());
+    }
+
+    #[test]
+    fn test_base64_large_data() {
+        // Test with larger data
+        let data = vec![0u8; 10000];
+        let encoded = BASE64.encode(&data);
+        let decoded = BASE64.decode(&encoded).expect("Failed to decode large data");
+        assert_eq!(data, decoded);
+    }
+
+    #[test]
+    fn test_base64_binary_data() {
+        // Test with binary data containing all byte values
+        let data: Vec<u8> = (0..=255).collect();
+        let encoded = BASE64.encode(&data);
+        let decoded = BASE64.decode(&encoded).expect("Failed to decode binary");
+        assert_eq!(data, decoded);
+    }
+
+    #[test]
+    #[ignore = "Requires system keyring access, may hang in CI"]
+    fn test_get_password_not_found() {
+        let result = get_password("definitely-non-existent-server-12345");
+        // Should return Ok(None) for non-existent password
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_password_idempotent() {
+        // Deleting a password twice should not error
+        let server_id = "test-delete-twice-server";
+
+        // First delete (may or may not exist)
+        let _ = delete_password(server_id);
+
+        // Second delete should also not panic
+        let result = delete_password(server_id);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[ignore = "Requires system keyring access, may hang in CI"]
+    fn test_store_and_get_password_roundtrip() {
+        let server_id = "test-roundtrip-server";
+        let password = "my-secret-password-123!@#";
+
+        // Store
+        let store_result = store_password(server_id, password);
+        assert!(store_result.is_ok());
+
+        // Get
+        let get_result = get_password(server_id);
+        assert!(get_result.is_ok());
+
+        // Verify
+        if let Ok(Some(retrieved)) = get_result {
+            assert_eq!(password, retrieved);
+        }
+
+        // Cleanup
+        let _ = delete_password(server_id);
+    }
+
+    #[test]
+    fn test_encrypted_entry_debug_format() {
+        let entry = EncryptedEntry {
+            encrypted_data: "test-data".to_string(),
+            nonce: "test-nonce".to_string(),
+        };
+
+        let debug = format!("{:?}", entry);
+        assert!(debug.contains("EncryptedEntry"));
+        assert!(debug.contains("test-data"));
+    }
+
+    #[test]
+    fn test_encrypted_entry_partial_eq() {
+        let entry1 = EncryptedEntry {
+            encrypted_data: "data".to_string(),
+            nonce: "nonce".to_string(),
+        };
+        let entry2 = EncryptedEntry {
+            encrypted_data: "data".to_string(),
+            nonce: "nonce".to_string(),
+        };
+        let entry3 = EncryptedEntry {
+            encrypted_data: "different".to_string(),
+            nonce: "nonce".to_string(),
+        };
+
+        assert_eq!(entry1, entry2);
+        assert_ne!(entry1, entry3);
+    }
+
+    #[test]
+    fn test_base64_url_safe_chars() {
+        // Test that base64 uses correct alphabet
+        let data = b"\x00\x01\x02\x03\xFB\xFC\xFD\xFE\xFF";
+        let encoded = BASE64.encode(data);
+
+        // Base64 alphabet: A-Z, a-z, 0-9, +, /, =
+        for c in encoded.chars() {
+            assert!(
+                c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=',
+                "Invalid base64 character: {}",
+                c
+            );
+        }
+    }
+
+    #[test]
+    fn test_clear_all_passwords_idempotent() {
+        // Calling clear multiple times should not error
+        let result1 = clear_all_passwords();
+        assert!(result1.is_ok());
+
+        let result2 = clear_all_passwords();
+        assert!(result2.is_ok());
+    }
+
+    #[test]
+    fn test_encrypted_entry_with_real_base64() {
+        // Create an entry with valid base64 data
+        let original_data = b"test password data";
+        let encrypted = BASE64.encode(original_data);
+        let nonce = BASE64.encode(b"123456789012"); // 12 bytes for AES-GCM nonce
+
+        let entry = EncryptedEntry {
+            encrypted_data: encrypted,
+            nonce,
+        };
+
+        // Verify we can decode
+        let decoded_data = BASE64.decode(&entry.encrypted_data).expect("Failed to decode data");
+        let decoded_nonce = BASE64.decode(&entry.nonce).expect("Failed to decode nonce");
+
+        assert_eq!(original_data.to_vec(), decoded_data);
+        assert_eq!(b"123456789012".to_vec(), decoded_nonce);
+    }
+
+    #[test]
+    fn test_password_edge_cases() {
+        // Test various edge case passwords
+        let long_password = "a".repeat(1000);
+        let edge_cases: Vec<&str> = vec![
+            "",                                      // Empty
+            "a",                                     // Single char
+            " ",                                     // Space
+            "  ",                                    // Multiple spaces
+            &long_password,                          // Long password
+            "!@#$%^&*()_+-=[]{}|;':\",./<>?",       // Special chars
+            "\n\r\t",                                // Whitespace chars
+            "'quoted'",                             // Quotes
+            "\"double\"",                            // Double quotes
+            "`backtick`",                           // Backticks
+        ];
+
+        for pwd in edge_cases {
+            let encoded = BASE64.encode(pwd.as_bytes());
+            let decoded = BASE64.decode(&encoded).expect("Failed to decode");
+            let result = String::from_utf8(decoded).expect("Invalid UTF-8");
+            assert_eq!(pwd, result, "Roundtrip failed for: {:?}", pwd);
         }
     }
 }

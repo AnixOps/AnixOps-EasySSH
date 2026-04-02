@@ -23,11 +23,11 @@
 //!     .with_description("Deploy to production servers");
 //!
 //! // Add a command step
-//! let step1 = WorkflowStep::new(StepType::SshCommand, "Check Disk Space");
+//! let step1 = WorkflowStep::new(StepType::Command, "Check Disk Space");
 //! let id1 = workflow.add_step(step1);
 //!
 //! // Add another step
-//! let step2 = WorkflowStep::new(StepType::SshCommand, "Deploy");
+//! let step2 = WorkflowStep::new(StepType::Command, "Deploy");
 //! let id2 = workflow.add_step(step2);
 //!
 //! // Connect steps
@@ -39,52 +39,21 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-/// Types of workflow steps/actions.
+/// Types of workflow steps/actions - Simplified to 4 core types.
 ///
 /// Each variant represents a different type of action that can be
 /// performed within a workflow. Steps are connected to form a
 /// directed graph of operations.
-///
-/// # Example
-///
-/// ```
-/// use easyssh_core::workflow_engine::StepType;
-///
-/// let step_type = StepType::SshCommand;
-/// println!("Step type: {:?}", step_type);
-/// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum StepType {
-    /// Execute SSH command on remote server
-    SshCommand,
-    /// Upload file via SFTP to remote server
-    SftpUpload,
-    /// Download file via SFTP from remote server
-    SftpDownload,
-    /// Execute local command on the client machine
-    LocalCommand,
+    /// Execute command (SSH on remote server or local)
+    Command,
+    /// File transfer (upload or download via SFTP)
+    Transfer,
     /// Conditional branch for decision making
     Condition,
-    /// Loop construct for iteration
-    Loop,
     /// Wait/pause for a specified duration
     Wait,
-    /// Set a workflow variable
-    SetVariable,
-    /// Send notification (toast, email, slack, webhook)
-    Notification,
-    /// Parallel execution block for concurrent operations
-    Parallel,
-    /// Sub-workflow/script call for code reuse
-    SubWorkflow,
-    /// Error handler for exception handling
-    ErrorHandler,
-    /// Break out of a loop
-    Break,
-    /// Continue to next loop iteration
-    Continue,
-    /// Return from script/workflow with optional value
-    Return,
 }
 
 /// Single workflow step definition.
@@ -98,7 +67,7 @@ pub enum StepType {
 /// ```
 /// use easyssh_core::workflow_engine::{WorkflowStep, StepType};
 ///
-/// let step = WorkflowStep::new(StepType::SshCommand, "Check Status")
+/// let step = WorkflowStep::new(StepType::Command, "Check Status")
 ///     .with_description("Check server status")
 ///     .with_timeout(30);
 ///
@@ -199,36 +168,32 @@ impl WorkflowStep {
     }
 }
 
-/// Step-specific configuration
+/// Step-specific configuration - Simplified for 4 core action types
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum StepConfig {
-    SshCommand {
+    /// Execute command (SSH or local)
+    Command {
         command: String,
+        /// Execution target: "ssh" for remote, "local" for local machine
+        target: String,
         working_dir: Option<String>,
         env_vars: HashMap<String, String>,
         capture_output: bool,
         /// Whether to fail on non-zero exit code
         fail_on_error: bool,
     },
-    SftpUpload {
+    /// File transfer (upload or download)
+    Transfer {
+        /// Transfer direction: "upload" or "download"
+        direction: String,
         local_path: String,
         remote_path: String,
         /// File permissions in octal (e.g., "644")
         permissions: Option<String>,
         create_dirs: bool,
     },
-    SftpDownload {
-        remote_path: String,
-        local_path: String,
-        create_dirs: bool,
-    },
-    LocalCommand {
-        command: String,
-        working_dir: Option<String>,
-        env_vars: HashMap<String, String>,
-        capture_output: bool,
-    },
+    /// Conditional branch
     Condition {
         expression: String,
         /// Comparison operator: eq, ne, gt, lt, contains, starts_with, ends_with
@@ -236,113 +201,29 @@ pub enum StepConfig {
         left_operand: String,
         right_operand: String,
     },
-    Loop {
-        loop_type: LoopType,
-        /// For loop: variable name; While loop: condition expression
-        iteration_var: String,
-        /// For loop: items expression or range
-        items: Option<String>,
-        /// Maximum iterations (safety limit)
-        max_iterations: Option<usize>,
-        /// First step ID in loop body
-        body_start: Option<String>,
-    },
+    /// Wait/pause
     Wait {
         duration_secs: u64,
     },
-    SetVariable {
-        variable_name: String,
-        value_expression: String,
-        /// Whether to evaluate as expression or literal
-        evaluate: bool,
-    },
-    Notification {
-        notification_type: NotificationType,
-        title: String,
-        message: String,
-        /// For email notifications
-        recipients: Option<Vec<String>>,
-    },
-    Parallel {
-        /// Step IDs to execute in parallel
-        parallel_steps: Vec<String>,
-        /// How to handle failures: fail_fast, continue, wait_all
-        failure_mode: ParallelFailureMode,
-    },
-    SubWorkflow {
-        script_id: String,
-        /// Pass variables to sub-workflow
-        input_vars: HashMap<String, String>,
-        /// Map output variables
-        output_mapping: HashMap<String, String>,
-    },
-    ErrorHandler {
-        /// Error types to handle: all, connection, command, timeout
-        error_types: Vec<String>,
-        /// Recovery action: retry, skip, abort, continue
-        recovery_action: String,
-        /// Step ID for recovery workflow
-        recovery_step: Option<String>,
-    },
-    Break,
-    Continue,
-    Return {
-        value_expression: Option<String>,
-    },
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum LoopType {
-    ForEach,
-    While,
-    ForRange,
-    Repeat,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub enum NotificationType {
-    Toast,
-    Email,
-    Slack,
-    Webhook,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub enum ParallelFailureMode {
-    /// Fail immediately when any parallel task fails
-    FailFast,
-    /// Continue other tasks when one fails
-    Continue,
-    /// Wait for all to complete regardless of failures
-    WaitAll,
 }
 
 impl StepConfig {
     pub fn default_for(step_type: &StepType) -> Self {
         match step_type {
-            StepType::SshCommand => StepConfig::SshCommand {
+            StepType::Command => StepConfig::Command {
                 command: String::new(),
+                target: "ssh".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
                 fail_on_error: true,
             },
-            StepType::SftpUpload => StepConfig::SftpUpload {
+            StepType::Transfer => StepConfig::Transfer {
+                direction: "upload".to_string(),
                 local_path: String::new(),
                 remote_path: String::new(),
                 permissions: None,
                 create_dirs: true,
-            },
-            StepType::SftpDownload => StepConfig::SftpDownload {
-                remote_path: String::new(),
-                local_path: String::new(),
-                create_dirs: true,
-            },
-            StepType::LocalCommand => StepConfig::LocalCommand {
-                command: String::new(),
-                working_dir: None,
-                env_vars: HashMap::new(),
-                capture_output: true,
             },
             StepType::Condition => StepConfig::Condition {
                 expression: String::new(),
@@ -350,43 +231,8 @@ impl StepConfig {
                 left_operand: String::new(),
                 right_operand: String::new(),
             },
-            StepType::Loop => StepConfig::Loop {
-                loop_type: LoopType::ForEach,
-                iteration_var: "item".to_string(),
-                items: None,
-                max_iterations: Some(1000),
-                body_start: None,
-            },
-            StepType::Wait => StepConfig::Wait { duration_secs: 1 },
-            StepType::SetVariable => StepConfig::SetVariable {
-                variable_name: String::new(),
-                value_expression: String::new(),
-                evaluate: false,
-            },
-            StepType::Notification => StepConfig::Notification {
-                notification_type: NotificationType::Toast,
-                title: String::new(),
-                message: String::new(),
-                recipients: None,
-            },
-            StepType::Parallel => StepConfig::Parallel {
-                parallel_steps: Vec::new(),
-                failure_mode: ParallelFailureMode::FailFast,
-            },
-            StepType::SubWorkflow => StepConfig::SubWorkflow {
-                script_id: String::new(),
-                input_vars: HashMap::new(),
-                output_mapping: HashMap::new(),
-            },
-            StepType::ErrorHandler => StepConfig::ErrorHandler {
-                error_types: vec!["all".to_string()],
-                recovery_action: "retry".to_string(),
-                recovery_step: None,
-            },
-            StepType::Break => StepConfig::Break,
-            StepType::Continue => StepConfig::Continue,
-            StepType::Return => StepConfig::Return {
-                value_expression: None,
+            StepType::Wait => StepConfig::Wait {
+                duration_secs: 1,
             },
         }
     }
@@ -804,9 +650,10 @@ impl WorkflowTemplates {
             .with_category("deployment");
 
         // Step 1: Pre-deployment check
-        let check_step = WorkflowStep::new(StepType::SshCommand, "Pre-deployment Check")
-            .with_config(StepConfig::SshCommand {
+        let check_step = WorkflowStep::new(StepType::Command, "Pre-deployment Check")
+            .with_config(StepConfig::Command {
                 command: "df -h / && free -h".to_string(),
+                target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
@@ -815,8 +662,9 @@ impl WorkflowTemplates {
         let check_id = workflow.add_step(check_step);
 
         // Step 2: Upload files
-        let upload_step = WorkflowStep::new(StepType::SftpUpload, "Upload Application")
-            .with_config(StepConfig::SftpUpload {
+        let upload_step = WorkflowStep::new(StepType::Transfer, "Upload Application")
+            .with_config(StepConfig::Transfer {
+                direction: "upload".to_string(),
                 local_path: "{{deployment.package_path}}".to_string(),
                 remote_path: "/tmp/deploy-package.tar.gz".to_string(),
                 permissions: Some("644".to_string()),
@@ -825,10 +673,11 @@ impl WorkflowTemplates {
         let upload_id = workflow.add_step(upload_step);
 
         // Step 3: Extract and install
-        let install_step = WorkflowStep::new(StepType::SshCommand, "Install Application")
-            .with_config(StepConfig::SshCommand {
+        let install_step = WorkflowStep::new(StepType::Command, "Install Application")
+            .with_config(StepConfig::Command {
                 command: "cd /opt/app && tar -xzf /tmp/deploy-package.tar.gz && ./install.sh"
                     .to_string(),
+                target: "remote".to_string(),
                 working_dir: Some("/opt/app".to_string()),
                 env_vars: HashMap::new(),
                 capture_output: true,
@@ -837,9 +686,10 @@ impl WorkflowTemplates {
         let install_id = workflow.add_step(install_step);
 
         // Step 4: Health check
-        let health_step = WorkflowStep::new(StepType::SshCommand, "Health Check").with_config(
-            StepConfig::SshCommand {
+        let health_step = WorkflowStep::new(StepType::Command, "Health Check").with_config(
+            StepConfig::Command {
                 command: "curl -f http://localhost:8080/health || exit 1".to_string(),
+                target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
@@ -848,22 +698,17 @@ impl WorkflowTemplates {
         );
         let health_id = workflow.add_step(health_step);
 
-        // Step 5: Notify success
-        let notify_step = WorkflowStep::new(StepType::Notification, "Notify Success").with_config(
-            StepConfig::Notification {
-                notification_type: NotificationType::Toast,
-                title: "Deployment Complete".to_string(),
-                message: "Application deployed successfully to {{server.name}}".to_string(),
-                recipients: None,
-            },
+        // Step 5: Wait (success indicator)
+        let complete_step = WorkflowStep::new(StepType::Wait, "Complete").with_config(
+            StepConfig::Wait { duration_secs: 1 },
         );
-        let notify_id = workflow.add_step(notify_step);
+        let complete_id = workflow.add_step(complete_step);
 
         // Connect steps
         workflow.connect(&check_id, &upload_id).unwrap();
         workflow.connect(&upload_id, &install_id).unwrap();
         workflow.connect(&install_id, &health_id).unwrap();
-        workflow.connect(&health_id, &notify_id).unwrap();
+        workflow.connect(&health_id, &complete_id).unwrap();
 
         workflow
     }
@@ -875,9 +720,10 @@ impl WorkflowTemplates {
             .with_category("maintenance");
 
         // Create backup
-        let backup_step = WorkflowStep::new(StepType::SshCommand, "Create Backup").with_config(
-            StepConfig::SshCommand {
+        let backup_step = WorkflowStep::new(StepType::Command, "Create Backup").with_config(
+            StepConfig::Command {
                 command: "pg_dump -Fc mydb > /tmp/backup-$(date +%Y%m%d).dump".to_string(),
+                target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
@@ -887,19 +733,22 @@ impl WorkflowTemplates {
         let backup_id = workflow.add_step(backup_step);
 
         // Download backup
-        let download_step = WorkflowStep::new(StepType::SftpDownload, "Download Backup")
-            .with_config(StepConfig::SftpDownload {
-                remote_path: "/tmp/backup-$(date +%Y%m%d).dump".to_string(),
+        let download_step = WorkflowStep::new(StepType::Transfer, "Download Backup")
+            .with_config(StepConfig::Transfer {
+                direction: "download".to_string(),
                 local_path: "{{backup.local_path}}/backup-{{server.name}}-$(date +%Y%m%d).dump"
                     .to_string(),
+                remote_path: "/tmp/backup-$(date +%Y%m%d).dump".to_string(),
+                permissions: None,
                 create_dirs: true,
             });
         let download_id = workflow.add_step(download_step);
 
         // Clean old backups
-        let cleanup_step = WorkflowStep::new(StepType::SshCommand, "Clean Old Backups")
-            .with_config(StepConfig::SshCommand {
+        let cleanup_step = WorkflowStep::new(StepType::Command, "Clean Old Backups")
+            .with_config(StepConfig::Command {
                 command: "find /tmp -name 'backup-*.dump' -mtime +7 -delete".to_string(),
+                target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: false,
@@ -920,9 +769,10 @@ impl WorkflowTemplates {
             .with_category("maintenance");
 
         // Update packages
-        let update_step = WorkflowStep::new(StepType::SshCommand, "Update Packages").with_config(
-            StepConfig::SshCommand {
+        let update_step = WorkflowStep::new(StepType::Command, "Update Packages").with_config(
+            StepConfig::Command {
                 command: "sudo apt update && sudo apt upgrade -y".to_string(),
+                target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
@@ -942,9 +792,10 @@ impl WorkflowTemplates {
         let check_id = workflow.add_step(check_reboot_step);
 
         // Reboot step
-        let reboot_step = WorkflowStep::new(StepType::SshCommand, "Reboot System").with_config(
-            StepConfig::SshCommand {
+        let reboot_step = WorkflowStep::new(StepType::Command, "Reboot System").with_config(
+            StepConfig::Command {
                 command: "sudo reboot".to_string(),
+                target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: false,
@@ -959,9 +810,10 @@ impl WorkflowTemplates {
         let wait_id = workflow.add_step(wait_step);
 
         // Verify system back online
-        let verify_step = WorkflowStep::new(StepType::SshCommand, "Verify Online")
-            .with_config(StepConfig::SshCommand {
+        let verify_step = WorkflowStep::new(StepType::Command, "Verify Online")
+            .with_config(StepConfig::Command {
                 command: "uptime".to_string(),
+                target: "remote".to_string(),
                 working_dir: None,
                 env_vars: HashMap::new(),
                 capture_output: true,
@@ -970,14 +822,9 @@ impl WorkflowTemplates {
             .with_retry(3, 10);
         let verify_id = workflow.add_step(verify_step);
 
-        // No reboot needed notification
-        let no_reboot_step = WorkflowStep::new(StepType::Notification, "No Reboot Needed")
-            .with_config(StepConfig::Notification {
-                notification_type: NotificationType::Toast,
-                title: "Update Complete".to_string(),
-                message: "System updated, no reboot required".to_string(),
-                recipients: None,
-            });
+        // No reboot needed - complete
+        let no_reboot_step = WorkflowStep::new(StepType::Wait, "Complete")
+            .with_config(StepConfig::Wait { duration_secs: 1 });
         let no_reboot_id = workflow.add_step(no_reboot_step);
 
         // Connect steps
@@ -1006,7 +853,7 @@ mod tests {
 
     #[test]
     fn test_step_creation() {
-        let step = WorkflowStep::new(StepType::SshCommand, "Test Command")
+        let step = WorkflowStep::new(StepType::Command, "Test Command")
             .with_description("Run a test command")
             .with_timeout(30);
 
@@ -1023,7 +870,7 @@ mod tests {
         assert!(result.is_err(), "Empty workflow should fail validation");
 
         // Add a step - it becomes the start step
-        let step = WorkflowStep::new(StepType::SshCommand, "Step 1");
+        let step = WorkflowStep::new(StepType::Command, "Step 1");
         workflow.add_step(step);
 
         // Single step workflow should pass validation (step is start and there's nothing to validate yet)
@@ -1051,8 +898,8 @@ mod tests {
     #[test]
     fn test_workflow_connect_steps() {
         let mut workflow = Workflow::new("Connected Workflow");
-        let step1 = WorkflowStep::new(StepType::SshCommand, "Step 1");
-        let step2 = WorkflowStep::new(StepType::SshCommand, "Step 2");
+        let step1 = WorkflowStep::new(StepType::Command, "Step 1");
+        let step2 = WorkflowStep::new(StepType::Command, "Step 2");
 
         let id1 = workflow.add_step(step1);
         let id2 = workflow.add_step(step2);
@@ -1068,7 +915,7 @@ mod tests {
     #[test]
     fn test_workflow_connect_nonexistent_step() {
         let mut workflow = Workflow::new("Test");
-        let step = WorkflowStep::new(StepType::SshCommand, "Step 1");
+        let step = WorkflowStep::new(StepType::Command, "Step 1");
         let id = workflow.add_step(step);
 
         // Try to connect to non-existent step
@@ -1079,8 +926,8 @@ mod tests {
     fn test_workflow_connect_condition() {
         let mut workflow = Workflow::new("Conditional Workflow");
         let check_step = WorkflowStep::new(StepType::Condition, "Check Condition");
-        let true_step = WorkflowStep::new(StepType::SshCommand, "True Branch");
-        let false_step = WorkflowStep::new(StepType::SshCommand, "False Branch");
+        let true_step = WorkflowStep::new(StepType::Command, "True Branch");
+        let false_step = WorkflowStep::new(StepType::Command, "False Branch");
 
         let check_id = workflow.add_step(check_step);
         let true_id = workflow.add_step(true_step);
@@ -1100,8 +947,8 @@ mod tests {
     #[test]
     fn test_workflow_remove_step() {
         let mut workflow = Workflow::new("Test");
-        let step1 = WorkflowStep::new(StepType::SshCommand, "Step 1");
-        let step2 = WorkflowStep::new(StepType::SshCommand, "Step 2");
+        let step1 = WorkflowStep::new(StepType::Command, "Step 1");
+        let step2 = WorkflowStep::new(StepType::Command, "Step 2");
 
         let id1 = workflow.add_step(step1);
         let id2 = workflow.add_step(step2);
@@ -1122,8 +969,8 @@ mod tests {
     #[test]
     fn test_workflow_remove_start_step() {
         let mut workflow = Workflow::new("Test");
-        let step1 = WorkflowStep::new(StepType::SshCommand, "Step 1");
-        let step2 = WorkflowStep::new(StepType::SshCommand, "Step 2");
+        let step1 = WorkflowStep::new(StepType::Command, "Step 1");
+        let step2 = WorkflowStep::new(StepType::Command, "Step 2");
 
         let id1 = workflow.add_step(step1);
         let id2 = workflow.add_step(step2);
@@ -1138,9 +985,9 @@ mod tests {
     #[test]
     fn test_workflow_cycle_detection() {
         let mut workflow = Workflow::new("Cyclic Workflow");
-        let step1 = WorkflowStep::new(StepType::SshCommand, "Step 1");
-        let step2 = WorkflowStep::new(StepType::SshCommand, "Step 2");
-        let step3 = WorkflowStep::new(StepType::SshCommand, "Step 3");
+        let step1 = WorkflowStep::new(StepType::Command, "Step 1");
+        let step2 = WorkflowStep::new(StepType::Command, "Step 2");
+        let step3 = WorkflowStep::new(StepType::Command, "Step 3");
 
         let id1 = workflow.add_step(step1);
         let id2 = workflow.add_step(step2);
@@ -1161,9 +1008,9 @@ mod tests {
     #[test]
     fn test_workflow_unreachable_step_detection() {
         let mut workflow = Workflow::new("Test");
-        let step1 = WorkflowStep::new(StepType::SshCommand, "Step 1");
-        let step2 = WorkflowStep::new(StepType::SshCommand, "Step 2");
-        let step3 = WorkflowStep::new(StepType::SshCommand, "Orphan Step");
+        let step1 = WorkflowStep::new(StepType::Command, "Step 1");
+        let step2 = WorkflowStep::new(StepType::Command, "Step 2");
+        let step3 = WorkflowStep::new(StepType::Command, "Orphan Step");
 
         let id1 = workflow.add_step(step1);
         let id2 = workflow.add_step(step2);
@@ -1184,21 +1031,10 @@ mod tests {
     fn test_step_type_variants() {
         // Test that all step types can be created
         let types = vec![
-            StepType::SshCommand,
-            StepType::SftpUpload,
-            StepType::SftpDownload,
-            StepType::LocalCommand,
+            StepType::Command,
+            StepType::Transfer,
             StepType::Condition,
-            StepType::Loop,
             StepType::Wait,
-            StepType::SetVariable,
-            StepType::Notification,
-            StepType::Parallel,
-            StepType::SubWorkflow,
-            StepType::ErrorHandler,
-            StepType::Break,
-            StepType::Continue,
-            StepType::Return,
         ];
 
         for (i, step_type) in types.iter().enumerate() {
@@ -1209,29 +1045,32 @@ mod tests {
 
     #[test]
     fn test_step_config_defaults() {
-        // Test SSH command default
-        let ssh_config = StepConfig::default_for(&StepType::SshCommand);
-        match ssh_config {
-            StepConfig::SshCommand {
+        // Test Command default
+        let cmd_config = StepConfig::default_for(&StepType::Command);
+        match cmd_config {
+            StepConfig::Command {
                 command,
+                target,
                 capture_output,
                 fail_on_error,
                 ..
             } => {
                 assert!(command.is_empty());
+                assert_eq!(target, "ssh");
                 assert!(capture_output);
                 assert!(fail_on_error);
             }
-            _ => panic!("Expected SshCommand config"),
+            _ => panic!("Expected Command config"),
         }
 
-        // Test SFTP upload default
-        let upload_config = StepConfig::default_for(&StepType::SftpUpload);
-        match upload_config {
-            StepConfig::SftpUpload { create_dirs, .. } => {
+        // Test Transfer default
+        let transfer_config = StepConfig::default_for(&StepType::Transfer);
+        match transfer_config {
+            StepConfig::Transfer { direction, create_dirs, .. } => {
+                assert_eq!(direction, "upload");
                 assert!(create_dirs);
             }
-            _ => panic!("Expected SftpUpload config"),
+            _ => panic!("Expected Transfer config"),
         }
 
         // Test wait default
@@ -1246,7 +1085,7 @@ mod tests {
 
     #[test]
     fn test_step_builder_methods() {
-        let step = WorkflowStep::new(StepType::SshCommand, "Test")
+        let step = WorkflowStep::new(StepType::Command, "Test")
             .with_description("Description")
             .with_condition("{{status}} == 'success'")
             .with_position(100.0, 200.0)
@@ -1304,50 +1143,6 @@ mod tests {
         assert_eq!(config.max_attempts, cloned.max_attempts);
         assert_eq!(config.delay_secs, cloned.delay_secs);
         assert_eq!(config.backoff_multiplier, cloned.backoff_multiplier);
-    }
-
-    #[test]
-    fn test_loop_type_variants() {
-        let types = vec![
-            LoopType::ForEach,
-            LoopType::While,
-            LoopType::ForRange,
-            LoopType::Repeat,
-        ];
-
-        for loop_type in types {
-            let cloned = loop_type.clone();
-            assert_eq!(loop_type, cloned);
-        }
-    }
-
-    #[test]
-    fn test_notification_type_variants() {
-        let types = vec![
-            NotificationType::Toast,
-            NotificationType::Email,
-            NotificationType::Slack,
-            NotificationType::Webhook,
-        ];
-
-        for notif_type in types {
-            let cloned = notif_type.clone();
-            assert_eq!(notif_type, cloned);
-        }
-    }
-
-    #[test]
-    fn test_parallel_failure_mode_variants() {
-        let modes = vec![
-            ParallelFailureMode::FailFast,
-            ParallelFailureMode::Continue,
-            ParallelFailureMode::WaitAll,
-        ];
-
-        for mode in modes {
-            let cloned = mode.clone();
-            assert_eq!(mode, cloned);
-        }
     }
 
     #[test]
@@ -1430,7 +1225,7 @@ mod tests {
     #[test]
     fn test_workflow_get_step_mut() {
         let mut workflow = Workflow::new("Test");
-        let step = WorkflowStep::new(StepType::SshCommand, "Step 1");
+        let step = WorkflowStep::new(StepType::Command, "Step 1");
         let id = workflow.add_step(step);
 
         // Get mutable reference and modify

@@ -22,9 +22,10 @@ async fn main() {
         .with_category("deployment");
 
     // Add steps
-    let check_step = WorkflowStep::new(StepType::SshCommand, "Health Check")
-        .with_config(StepConfig::SshCommand {
+    let check_step = WorkflowStep::new(StepType::Command, "Health Check")
+        .with_config(StepConfig::Command {
             command: "df -h / && free -h".to_string(),
+            target: "remote".to_string(),
             working_dir: None,
             env_vars: std::collections::HashMap::new(),
             capture_output: true,
@@ -33,8 +34,9 @@ async fn main() {
         .with_position(100.0, 100.0);
     let check_id = workflow.add_step(check_step);
 
-    let upload_step = WorkflowStep::new(StepType::SftpUpload, "Upload Package")
-        .with_config(StepConfig::SftpUpload {
+    let upload_step = WorkflowStep::new(StepType::Transfer, "Upload Package")
+        .with_config(StepConfig::Transfer {
+            direction: "upload".to_string(),
             local_path: "{{deployment.package_path}}".to_string(),
             remote_path: "/tmp/deploy.tar.gz".to_string(),
             permissions: Some("644".to_string()),
@@ -43,9 +45,10 @@ async fn main() {
         .with_position(300.0, 100.0);
     let upload_id = workflow.add_step(upload_step);
 
-    let install_step = WorkflowStep::new(StepType::SshCommand, "Install")
-        .with_config(StepConfig::SshCommand {
+    let install_step = WorkflowStep::new(StepType::Command, "Install")
+        .with_config(StepConfig::Command {
             command: "tar -xzf /tmp/deploy.tar.gz && ./install.sh".to_string(),
+            target: "remote".to_string(),
             working_dir: Some("/opt/app".to_string()),
             env_vars: std::collections::HashMap::new(),
             capture_output: true,
@@ -183,7 +186,7 @@ async fn main() {
     println!("\n=== Demo Complete ===");
     println!("\nWorkflow System Features:");
     println!("- Visual workflow editor with drag-and-drop");
-    println!("- 15+ step types (SSH, SFTP, conditions, loops, etc.)");
+    println!("- 4 core step types: Command, Transfer, Condition, Wait");
     println!("- Variable system with templates ({{server.ip}}, {{server.username}})");
     println!("- Macro recorder for automatic script generation");
     println!("- Script library with search and categories");

@@ -493,101 +493,35 @@ impl WorkflowEditor {
         }
 
         match step.step_type {
-            StepType::SshCommand => (
+            StepType::Command => (
                 Color32::from_rgb(45, 55, 72),
                 Color32::from_rgb(100, 150, 255),
                 "$",
             ),
-            StepType::SftpUpload => (
+            StepType::Transfer => (
                 Color32::from_rgb(45, 72, 55),
                 Color32::from_rgb(100, 255, 150),
-                "↑",
-            ),
-            StepType::SftpDownload => (
-                Color32::from_rgb(55, 45, 72),
-                Color32::from_rgb(150, 100, 255),
-                "↓",
-            ),
-            StepType::LocalCommand => (
-                Color32::from_rgb(72, 55, 45),
-                Color32::from_rgb(255, 150, 100),
-                "⌘",
+                "⇅",
             ),
             StepType::Condition => (
                 Color32::from_rgb(72, 72, 45),
                 Color32::from_rgb(255, 255, 100),
                 "?",
             ),
-            StepType::Loop => (
-                Color32::from_rgb(55, 72, 72),
-                Color32::from_rgb(100, 255, 255),
-                "↻",
-            ),
             StepType::Wait => (
                 Color32::from_rgb(72, 72, 72),
                 Color32::from_rgb(200, 200, 200),
                 "◷",
-            ),
-            StepType::SetVariable => (
-                Color32::from_rgb(55, 55, 72),
-                Color32::from_rgb(150, 150, 255),
-                "=",
-            ),
-            StepType::Notification => (
-                Color32::from_rgb(72, 72, 55),
-                Color32::from_rgb(255, 255, 150),
-                "🔔",
-            ),
-            StepType::Parallel => (
-                Color32::from_rgb(45, 72, 72),
-                Color32::from_rgb(100, 255, 255),
-                "∥",
-            ),
-            StepType::SubWorkflow => (
-                Color32::from_rgb(55, 55, 55),
-                Color32::from_rgb(200, 200, 200),
-                "⊃",
-            ),
-            StepType::ErrorHandler => (
-                Color32::from_rgb(72, 45, 45),
-                Color32::from_rgb(255, 100, 100),
-                "⚠",
-            ),
-            StepType::Break => (
-                Color32::from_rgb(72, 55, 72),
-                Color32::from_rgb(255, 150, 255),
-                "■",
-            ),
-            StepType::Continue => (
-                Color32::from_rgb(55, 72, 55),
-                Color32::from_rgb(150, 255, 150),
-                "→",
-            ),
-            StepType::Return => (
-                Color32::from_rgb(72, 72, 72),
-                Color32::from_rgb(255, 255, 255),
-                "↩",
             ),
         }
     }
 
     fn get_step_type_color(&self, step_type: &StepType) -> Color32 {
         match step_type {
-            StepType::SshCommand => Color32::BLUE,
-            StepType::SftpUpload => Color32::GREEN,
-            StepType::SftpDownload => Color32::from_rgb(128, 0, 128),
-            StepType::LocalCommand => Color32::from_rgb(255, 165, 0),
+            StepType::Command => Color32::BLUE,
+            StepType::Transfer => Color32::GREEN,
             StepType::Condition => Color32::YELLOW,
-            StepType::Loop => Color32::from_rgb(0, 255, 255),
             StepType::Wait => Color32::GRAY,
-            StepType::SetVariable => Color32::LIGHT_BLUE,
-            StepType::Notification => Color32::GOLD,
-            StepType::Parallel => Color32::LIGHT_GREEN,
-            StepType::SubWorkflow => Color32::WHITE,
-            StepType::ErrorHandler => Color32::RED,
-            StepType::Break => Color32::DARK_RED,
-            StepType::Continue => Color32::DARK_GREEN,
-            StepType::Return => Color32::WHITE,
         }
     }
 
@@ -651,8 +585,9 @@ impl WorkflowEditor {
         // Step-specific configuration
         let step_id = step.id.clone();
         match &step.config {
-            StepConfig::SshCommand {
+            StepConfig::Command {
                 command,
+                target,
                 fail_on_error,
                 ..
             } => {
@@ -660,17 +595,66 @@ impl WorkflowEditor {
                 let mut cmd = command.clone();
                 if ui.text_edit_multiline(&mut cmd).changed() {
                     if let Some(s) = self.workflow.get_step_mut(&step_id) {
-                        if let StepConfig::SshCommand { command, .. } = &mut s.config {
+                        if let StepConfig::Command { command, .. } = &mut s.config {
                             *command = cmd;
                         }
+                    }
+                }
+
+                ui.label("Target:");
+                let mut tgt = target.clone();
+                egui::ComboBox::from_id_source("command_target")
+                    .selected_text(&tgt)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut tgt, "remote".to_string(), "Remote (SSH)");
+                        ui.selectable_value(&mut tgt, "local".to_string(), "Local");
+                    });
+                if let Some(s) = self.workflow.get_step_mut(&step_id) {
+                    if let StepConfig::Command { target, .. } = &mut s.config {
+                        *target = tgt;
                     }
                 }
 
                 let mut fail = *fail_on_error;
                 if ui.checkbox(&mut fail, "Fail on error").changed() {
                     if let Some(s) = self.workflow.get_step_mut(&step_id) {
-                        if let StepConfig::SshCommand { fail_on_error, .. } = &mut s.config {
+                        if let StepConfig::Command { fail_on_error, .. } = &mut s.config {
                             *fail_on_error = fail;
+                        }
+                    }
+                }
+            }
+            StepConfig::Transfer {
+                direction,
+                local_path,
+                remote_path,
+                ..
+            } => {
+                ui.label("Direction:");
+                let mut dir = direction.clone();
+                egui::ComboBox::from_id_source("transfer_direction")
+                    .selected_text(&dir)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut dir, "upload".to_string(), "Upload ↑");
+                        ui.selectable_value(&mut dir, "download".to_string(), "Download ↓");
+                    });
+
+                ui.label("Local path:");
+                let mut local = local_path.clone();
+                if ui.text_edit_singleline(&mut local).changed() {
+                    if let Some(s) = self.workflow.get_step_mut(&step_id) {
+                        if let StepConfig::Transfer { local_path, .. } = &mut s.config {
+                            *local_path = local;
+                        }
+                    }
+                }
+
+                ui.label("Remote path:");
+                let mut remote = remote_path.clone();
+                if ui.text_edit_singleline(&mut remote).changed() {
+                    if let Some(s) = self.workflow.get_step_mut(&step_id) {
+                        if let StepConfig::Transfer { remote_path, .. } = &mut s.config {
+                            *remote_path = remote;
                         }
                     }
                 }
@@ -702,8 +686,20 @@ impl WorkflowEditor {
                 let mut right = right_operand.clone();
                 ui.text_edit_singleline(&mut right);
             }
-            _ => {
-                ui.label("Configuration options for this step type coming soon...");
+            StepConfig::Wait { duration_secs } => {
+                ui.label("Wait duration:");
+                let mut duration = *duration_secs;
+                ui.add(
+                    DragValue::new(&mut duration)
+                        .speed(1.0)
+                        .range(0..=3600)
+                        .suffix(" seconds"),
+                );
+                if let Some(s) = self.workflow.get_step_mut(&step_id) {
+                    if let StepConfig::Wait { duration_secs, .. } = &mut s.config {
+                        *duration_secs = duration;
+                    }
+                }
             }
         }
 
@@ -821,35 +817,17 @@ impl WorkflowEditor {
 
                 let step_types = vec![
                     (
-                        StepType::SshCommand,
-                        "$ SSH Command",
-                        "Execute command on remote server",
+                        StepType::Command,
+                        "$ Command",
+                        "Execute SSH or local command",
                     ),
                     (
-                        StepType::SftpUpload,
-                        "↑ Upload File",
-                        "Upload file via SFTP",
-                    ),
-                    (
-                        StepType::SftpDownload,
-                        "↓ Download File",
-                        "Download file via SFTP",
+                        StepType::Transfer,
+                        "⇅ Transfer",
+                        "Upload or download files via SFTP",
                     ),
                     (StepType::Condition, "? Condition", "If/then/else branching"),
-                    (StepType::Loop, "↻ Loop", "Repeat actions"),
                     (StepType::Wait, "◷ Wait", "Pause execution"),
-                    (
-                        StepType::SetVariable,
-                        "= Set Variable",
-                        "Create or update variable",
-                    ),
-                    (StepType::Notification, "🔔 Notify", "Send notification"),
-                    (StepType::Parallel, "∥ Parallel", "Run steps in parallel"),
-                    (
-                        StepType::SubWorkflow,
-                        "⊃ Sub-workflow",
-                        "Call another workflow",
-                    ),
                 ];
 
                 for (step_type, label, desc) in step_types {

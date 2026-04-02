@@ -2096,12 +2096,366 @@ mod tests {
         assert_eq!(retrieved.progress.status, TransferStatus::Cancelled);
     }
 
+    #[test]
+    fn test_transfer_queue_stats_serialize() {
+        let stats = TransferQueueStats {
+            total: 10,
+            pending: 3,
+            transferring: 2,
+            completed: 4,
+            failed: 1,
+        };
+
+        let json = serde_json::to_string(&stats).expect("Failed to serialize");
+        assert!(json.contains("total"));
+        assert!(json.contains("pending"));
+        assert!(json.contains("10"));
+    }
+
+    #[test]
+    fn test_transfer_queue_stats_deserialize() {
+        let json = r#"{"total":5,"pending":2,"transferring":1,"completed":1,"failed":1}"#;
+        let stats: TransferQueueStats = serde_json::from_str(json).expect("Failed to deserialize");
+
+        assert_eq!(stats.total, 5);
+        assert_eq!(stats.pending, 2);
+        assert_eq!(stats.transferring, 1);
+        assert_eq!(stats.completed, 1);
+        assert_eq!(stats.failed, 1);
+    }
+
+    #[test]
+    fn test_transfer_progress_update_zero_bytes() {
+        let mut progress = TransferProgress::new("test.txt", Some(1000), false);
+        progress.update(0);
+
+        assert_eq!(progress.transferred, 0);
+        assert!(progress.speed_bps >= 0.0);
+    }
+
+    #[test]
+    fn test_transfer_progress_update_full() {
+        let mut progress = TransferProgress::new("test.txt", Some(1000), false);
+        progress.update(1000);
+
+        assert_eq!(progress.transferred, 1000);
+        assert_eq!(progress.percentage(), 100.0);
+    }
+
+    #[test]
+    fn test_transfer_progress_percentage_over_100() {
+        let mut progress = TransferProgress::new("test.txt", Some(100), false);
+        progress.transferred = 150;
+
+        // Should be capped at 100%
+        assert_eq!(progress.percentage(), 100.0);
+    }
+
+    #[test]
+    fn test_transfer_progress_eta_calculation() {
+        let mut progress = TransferProgress::new("test.txt", Some(1000), false);
+        progress.transferred = 500;
+        progress.speed_bps = 100.0; // 100 bytes per second
+
+        // Should calculate ETA based on remaining bytes / speed
+        let expected_eta = Some(5.0); // 500 bytes remaining at 100 bytes/s = 5 seconds
+        progress.eta_secs = expected_eta;
+
+        let eta_display = progress.eta_display();
+        assert!(eta_display.contains("5") || eta_display.contains("s"));
+    }
+
+    #[test]
+    fn test_transfer_progress_eta_display_hours() {
+        let mut progress = TransferProgress::new("test.txt", Some(10000), false);
+        progress.eta_secs = Some(7200.0); // 2 hours
+
+        let eta = progress.eta_display();
+        assert!(eta.contains("h") || eta.contains("2"));
+    }
+
+    #[test]
+    fn test_transfer_progress_eta_display_minutes() {
+        let mut progress = TransferProgress::new("test.txt", Some(1000), false);
+        progress.eta_secs = Some(150.0); // 2.5 minutes
+
+        let eta = progress.eta_display();
+        assert!(eta.contains("m") || eta.contains("2"));
+    }
+
+    #[test]
+    fn test_transfer_status_variants() {
+        let statuses = vec![
+            TransferStatus::Pending,
+            TransferStatus::Transferring,
+            TransferStatus::Paused,
+            TransferStatus::Completed,
+            TransferStatus::Failed,
+            TransferStatus::Cancelled,
+        ];
+
+        for (i, status) in statuses.iter().enumerate() {
+            let json = serde_json::to_string(status).expect("Failed to serialize");
+            assert!(!json.is_empty());
+
+            // Verify all variants are different
+            for (j, other) in statuses.iter().enumerate() {
+                if i != j {
+                    assert_ne!(*status, *other, "Status at {} should differ from {}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_transfer_options_with_zero_chunk_size() {
+        let options = TransferOptions::default().with_chunk_size(0);
+        assert_eq!(options.chunk_size, 0);
+    }
+
+    #[test]
+    fn test_transfer_options_with_zero_speed_limit() {
+        let options = TransferOptions::default().with_speed_limit(0);
+        assert_eq!(options.speed_limit, 0);
+    }
+
+    #[test]
+    fn test_transfer_options_with_max_values() {
+        let options = TransferOptions::default()
+            .with_chunk_size(usize::MAX)
+            .with_speed_limit(u64::MAX)
+            .with_max_concurrent(usize::MAX);
+
+        assert_eq!(options.chunk_size, usize::MAX);
+        assert_eq!(options.speed_limit, u64::MAX);
+        assert_eq!(options.max_concurrent, usize::MAX);
+    }
+
+    #[test]
+    fn test_sftp_entry_permissions_none() {
+        let entry = SftpEntry {
+            name: "test.txt".to_string(),
+            path: "/home/test.txt".to_string(),
+            file_type: "file".to_string(),
+            size: 1024,
+            mtime: 1234567890,
+            permissions: None,
+        };
+
+        assert!(entry.permissions.is_none());
+        assert!(entry.is_file());
+    }
+
+    #[test]
+    fn test_sftp_entry_symlink() {
+        let entry = SftpEntry {
+            name: "link".to_string(),
+            path: "/home/link".to_string(),
+            file_type: "symlink".to_string(),
+            size: 0,
+            mtime: 0,
+            permissions: Some(0o777),
+        };
+
+        assert!(entry.is_symlink());
+        assert!(!entry.is_file());
+        assert!(!entry.is_dir());
+    }
+
+    #[test]
+    fn test_format_speed_bytes() {
+        assert_eq!(format_speed(0), "0 B/s");
+        assert_eq!(format_speed(512), "512 B/s");
+    }
+
+    #[test]
+    fn test_format_speed_kilobytes() {
+        assert_eq!(format_speed(1024), "1.00 KB/s");
+        assert_eq!(format_speed(1536), "1.50 KB/s");
+        assert_eq!(format_speed(10240), "10.00 KB/s");
+    }
+
+    #[test]
+    fn test_format_speed_megabytes() {
+        assert_eq!(format_speed(1024 * 1024), "1.00 MB/s");
+        assert_eq!(format_speed(1024 * 1024 * 5), "5.00 MB/s");
+    }
+
+    #[test]
+    fn test_format_speed_gigabytes() {
+        assert_eq!(format_speed(1024 * 1024 * 1024), "1.00 GB/s");
+        assert_eq!(format_speed(1024 * 1024 * 1024 * 5), "5.00 GB/s");
+    }
+
+    #[test]
+    fn test_transfer_result_with_zero_duration() {
+        let result = TransferResult {
+            bytes_transferred: 0,
+            duration: Duration::ZERO,
+            average_speed: 0.0,
+            was_resumed: false,
+        };
+
+        assert_eq!(result.average_speed, 0.0);
+    }
+
+    #[test]
+    fn test_transfer_item_with_complex_path() {
+        let item = TransferItem::new(
+            "session-1",
+            "/path/to/nested/directory/file.txt",
+            "/local/path/",
+            TransferDirection::Download,
+            TransferOptions::default(),
+            Some(2048),
+        );
+
+        assert_eq!(item.progress.filename, "file.txt");
+        assert_eq!(item.source_path, "/path/to/nested/directory/file.txt");
+    }
+
+    #[test]
+    fn test_transfer_item_with_special_chars_in_path() {
+        let item = TransferItem::new(
+            "session-1",
+            "/path/file with spaces.txt",
+            "/local/",
+            TransferDirection::Download,
+            TransferOptions::default(),
+            None,
+        );
+
+        assert_eq!(item.progress.filename, "file with spaces.txt");
+    }
+
+    #[test]
+    fn test_transfer_direction_equality() {
+        assert_eq!(TransferDirection::Upload, TransferDirection::Upload);
+        assert_eq!(TransferDirection::Download, TransferDirection::Download);
+        assert_ne!(TransferDirection::Upload, TransferDirection::Download);
+    }
+
+    #[test]
+    fn test_transfer_direction_clone() {
+        let upload = TransferDirection::Upload;
+        let cloned = upload.clone();
+        assert_eq!(upload, cloned);
+    }
+
+    #[test]
+    fn test_transfer_direction_copy() {
+        let download = TransferDirection::Download;
+        let copied = download;
+        assert_eq!(download, copied);
+    }
+
     #[tokio::test]
-    async fn test_transfer_queue_cleanup() {
+    async fn test_transfer_queue_cancel_nonexistent() {
         let queue = TransferQueue::new();
 
-        // 添加已完成的项目
-        let completed_item = TransferItem::new(
+        // Canceling non-existent item should not panic
+        let result = queue.cancel("non-existent-id").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_transfer_queue_pause_nonexistent() {
+        let queue = TransferQueue::new();
+
+        // Pausing non-existent item should not panic
+        let result = queue.pause("non-existent-id").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_transfer_queue_resume_nonexistent() {
+        let queue = TransferQueue::new();
+
+        // Resuming non-existent item should not panic
+        let result = queue.resume("non-existent-id").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_transfer_queue_get_nonexistent() {
+        let queue = TransferQueue::new();
+
+        let retrieved = queue.get("non-existent-id").await;
+        assert!(retrieved.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_transfer_queue_empty_cleanup() {
+        let queue = TransferQueue::new();
+
+        let cleaned = queue.cleanup_completed().await;
+        assert_eq!(cleaned, 0);
+    }
+
+    #[tokio::test]
+    async fn test_transfer_queue_multiple_operations() {
+        let queue = TransferQueue::new();
+
+        // Add multiple items
+        let mut ids = Vec::new();
+        for i in 0..5 {
+            let item = TransferItem::new(
+                "session-1",
+                format!("/remote/file{}.txt", i),
+                format!("/local/file{}.txt", i),
+                TransferDirection::Download,
+                TransferOptions::default(),
+                Some(1024),
+            );
+            ids.push(queue.add(item).await);
+        }
+
+        // Verify all added
+        let stats = queue.stats().await;
+        assert_eq!(stats.total, 5);
+
+        // Cancel some
+        queue.cancel(&ids[0]).await.unwrap();
+        queue.cancel(&ids[2]).await.unwrap();
+
+        // Pause one
+        queue.pause(&ids[1]).await.unwrap();
+
+        // Get updated stats
+        let stats = queue.stats().await;
+        assert_eq!(stats.total, 5);
+        assert_eq!(stats.completed, 2); // Cancelled items count as completed
+        assert_eq!(stats.pending, 3);   // 1 paused + 2 pending
+
+        // Cleanup completed
+        let cleaned = queue.cleanup_completed().await;
+        assert_eq!(cleaned, 2);
+
+        // Verify remaining
+        let stats = queue.stats().await;
+        assert_eq!(stats.total, 3);
+    }
+
+    #[test]
+    fn test_sftp_entry_mtime_display_invalid() {
+        let entry = SftpEntry {
+            name: "test.txt".to_string(),
+            path: "/home/test.txt".to_string(),
+            file_type: "file".to_string(),
+            size: 100,
+            mtime: -1, // Invalid timestamp
+            permissions: Some(0o644),
+        };
+
+        // Should handle negative timestamp gracefully
+        let display = entry.mtime_display();
+        // DateTime::from_timestamp returns None for negative, so Utc::now() is used
+        assert!(!display.is_empty());
+    }
+
+    #[test]
+    fn test_transfer_item_id_unique() {
+        let item1 = TransferItem::new(
             "session-1",
             "/remote/file1.txt",
             "/local/file1.txt",
@@ -2109,11 +2463,8 @@ mod tests {
             TransferOptions::default(),
             Some(1024),
         );
-        let id1 = queue.add(completed_item).await;
-        queue.cancel(&id1).await.unwrap(); // 标记为取消/完成
 
-        // 添加未完成的项目
-        let pending_item = TransferItem::new(
+        let item2 = TransferItem::new(
             "session-1",
             "/remote/file2.txt",
             "/local/file2.txt",
@@ -2121,10 +2472,169 @@ mod tests {
             TransferOptions::default(),
             Some(1024),
         );
-        queue.add(pending_item).await;
 
-        let cleaned = queue.cleanup_completed().await;
-        assert_eq!(cleaned, 1);
-        assert_eq!(queue.stats().await.total, 1);
+        // Each item should have a unique ID
+        assert_ne!(item1.id, item2.id);
+    }
+
+    #[test]
+    fn test_transfer_progress_filename_extraction() {
+        let paths = vec![
+            ("/home/user/file.txt", "file.txt"),
+            ("file.txt", "file.txt"),
+            ("/path/to/file", "file"),
+            ("", "unknown"),
+        ];
+
+        for (path, expected) in paths {
+            let item = TransferItem::new(
+                "session-1",
+                path,
+                "/local/",
+                TransferDirection::Download,
+                TransferOptions::default(),
+                None,
+            );
+            assert_eq!(item.progress.filename, expected, "Failed for path: {}", path);
+        }
+    }
+
+    #[test]
+    fn test_sftp_manager_list_sessions_empty() {
+        let manager = SftpSessionManager::new();
+        let sessions = manager.list_sessions();
+        assert!(sessions.is_empty());
+    }
+
+    #[test]
+    fn test_compressed_session_data_serialize() {
+        let data = CompressedSessionData {
+            session_id: "sess-1".to_string(),
+            server_key: "server-1".to_string(),
+            compressed_content: vec![1, 2, 3, 4, 5],
+            original_size: 1000,
+            compressed_at: 1234567890,
+        };
+
+        let json = serde_json::to_string(&data).expect("Failed to serialize");
+        assert!(json.contains("sess-1"));
+        assert!(json.contains("server-1"));
+        assert!(json.contains("1000"));
+    }
+
+    #[test]
+    fn test_session_store_stats_default() {
+        let stats = SessionStoreStats {
+            total_sessions: 0,
+            total_compressed_bytes: 0,
+            total_original_bytes: 0,
+            compression_ratio: 0.0,
+        };
+
+        assert_eq!(stats.total_sessions, 0);
+        assert_eq!(stats.compression_ratio, 0.0);
+    }
+
+    #[test]
+    fn test_session_store_stats_with_compression() {
+        let stats = SessionStoreStats {
+            total_sessions: 5,
+            total_compressed_bytes: 500,
+            total_original_bytes: 1000,
+            compression_ratio: 50.0,
+        };
+
+        assert_eq!(stats.compression_ratio, 50.0);
+        // 50% ratio means compressed is half of original
+        assert_eq!(stats.total_compressed_bytes * 2, stats.total_original_bytes);
+    }
+
+    #[test]
+    fn test_enhanced_pool_stats_default() {
+        let stats = EnhancedPoolStats {
+            base_stats: crate::ssh::PoolStats {
+                total_pools: 0,
+                total_sessions: 0,
+                pools: vec![],
+            },
+            session_store: SessionStoreStats {
+                total_sessions: 0,
+                total_compressed_bytes: 0,
+                total_original_bytes: 0,
+                compression_ratio: 0.0,
+            },
+            rate_limited_connections: 0,
+            global_connections: 0,
+            max_global_connections: 100,
+        };
+
+        assert_eq!(stats.global_connections, 0);
+        assert_eq!(stats.max_global_connections, 100);
+    }
+
+    #[test]
+    fn test_health_check_config_default() {
+        let config = HealthCheckConfig::default();
+        assert_eq!(config.interval_secs, 30);
+        assert_eq!(config.timeout_secs, 10);
+        assert_eq!(config.failure_threshold, 3);
+        assert_eq!(config.recovery_threshold, 2);
+    }
+
+    #[test]
+    fn test_reconnect_config_default() {
+        let config = ReconnectConfig::default();
+        assert_eq!(config.max_attempts, 5);
+        assert_eq!(config.initial_delay_ms, 1000);
+        assert_eq!(config.max_delay_ms, 30000);
+        assert_eq!(config.backoff_multiplier, 2.0);
+    }
+
+    #[test]
+    fn test_reconnect_config_clone() {
+        let config = ReconnectConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.max_attempts, cloned.max_attempts);
+        assert_eq!(config.backoff_multiplier, cloned.backoff_multiplier);
+    }
+
+    #[test]
+    fn test_enhanced_connection_state_variants() {
+        let states = vec![
+            EnhancedConnectionState::Connected,
+            EnhancedConnectionState::Connecting,
+            EnhancedConnectionState::Reconnecting { attempt: 1 },
+            EnhancedConnectionState::Disconnected,
+            EnhancedConnectionState::Failed { reason: "test" },
+        ];
+
+        for (i, state) in states.iter().enumerate() {
+            for (j, other) in states.iter().enumerate() {
+                if i != j {
+                    assert_ne!(*state, *other, "States at {} and {} should differ", i, j);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_enhanced_connection_state_clone() {
+        let state = EnhancedConnectionState::Reconnecting { attempt: 3 };
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn test_enhanced_connection_state_copy() {
+        let state = EnhancedConnectionState::Connected;
+        let copied = state;
+        assert_eq!(state, copied);
+    }
+
+    #[test]
+    fn test_enhanced_connection_state_debug() {
+        let state = EnhancedConnectionState::Failed { reason: "connection refused" };
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("Failed") || debug.contains("connection"));
     }
 }

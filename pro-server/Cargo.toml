@@ -80,13 +80,14 @@ anyhow = "1"
 # HTTP Client for SSO
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 
-# SAML SSO
-samael = { version = "0.0.16", features = ["xmlsec"] }
+# SAML SSO (optional, requires xmlsec)
+samael = { version = "0.0.20", features = ["xmlsec"], optional = true }
 xml-rs = "0.8"
 
 # OIDC SSO
-openidconnect = { version = "3", features = ["reqwest"] }
-url = "2"
+openidconnect = { version = "4.0", features = ["reqwest"] }
+url = "2.5.4"
+urlencoding = "2.1"
 
 # Rate limiting
 governor = "0.6"
@@ -113,3 +114,4 @@ reqwest = { version = "0.12", features = ["json"] }
 default = []
 update-server = ["dep:actix-web"]
 admin-cli = ["dep:clap"]
+saml-sso = ["dep:samael"]

@@ -100,10 +100,7 @@ impl SftpBrowserView {
 
         // Toolbar
         let toolbar = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        toolbar.set_margin_top(8);
-        toolbar.set_margin_bottom(8);
-        toolbar.set_margin_start(12);
-        toolbar.set_margin_end(12);
+        toolbar.set_margin(12);
 
         let back_btn = gtk4::Button::from_icon_name("go-previous-symbolic");
         back_btn.set_tooltip_text(Some("Go Back"));
@@ -146,9 +143,7 @@ impl SftpBrowserView {
         // Breadcrumb navigation
         let breadcrumb_scroll = gtk4::ScrolledWindow::new();
         breadcrumb_scroll.set_policy(gtk4::PolicyType::Automatic, gtk4::PolicyType::Never);
-        breadcrumb_scroll.set_margin_start(12);
-        breadcrumb_scroll.set_margin_end(12);
-        breadcrumb_scroll.set_margin_bottom(4);
+        breadcrumb_scroll.set_margin(12);
 
         let breadcrumb_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 4);
         breadcrumb_box.add_css_class("breadcrumb-bar");
@@ -170,10 +165,7 @@ impl SftpBrowserView {
 
         // Status bar
         let status_bar = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        status_bar.set_margin_top(4);
-        status_bar.set_margin_bottom(4);
-        status_bar.set_margin_start(12);
-        status_bar.set_margin_end(12);
+        status_bar.set_margin(12);
 
         let status_label = gtk4::Label::new(Some("Ready"));
         status_label.set_halign(gtk4::Align::Start);
@@ -423,10 +415,7 @@ impl SftpBrowserView {
             .build();
 
         let content = gtk4::Box::new(gtk4::Orientation::Vertical, 16);
-        content.set_margin_top(16);
-        content.set_margin_bottom(16);
-        content.set_margin_start(16);
-        content.set_margin_end(16);
+        content.set_margin(16);
 
         let entry = adw::EntryRow::new();
         entry.set_title("Folder Name");
@@ -435,7 +424,7 @@ impl SftpBrowserView {
 
         let button_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
         button_box.set_halign(gtk4::Align::End);
-        button_box.set_margin_top(8);
+        button_box.set_margin(8);
 
         let cancel_btn = gtk4::Button::with_label("Cancel");
         cancel_btn.add_css_class("pill");

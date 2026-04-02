@@ -430,25 +430,83 @@ impl QueryBuilder {
         }
     }
 
+    /// Validate SQL identifier to prevent injection
+    /// Only allows alphanumeric characters and underscores
+    fn validate_identifier(identifier: &str) -> Result<String, DatabaseError> {
+        if identifier.is_empty() {
+            return Err(DatabaseError::QueryError(
+                "Empty identifier not allowed".to_string(),
+            ));
+        }
+
+        // Check each character
+        for c in identifier.chars() {
+            if !c.is_alphanumeric() && c != '_' && c != '.' {
+                return Err(DatabaseError::QueryError(format!(
+                    "Invalid character '{}' in identifier '{}'",
+                    c, identifier
+                )));
+            }
+        }
+
+        Ok(identifier.to_string())
+    }
+
     pub fn select(mut self, columns: &[&str]) -> Self {
-        self.sql = format!("SELECT {}", columns.join(", "));
+        // Validate each column name
+        let valid_columns: Vec<String> = columns
+            .iter()
+            .filter_map(|&col| Self::validate_identifier(col).ok())
+            .collect();
+
+        if valid_columns.is_empty() {
+            self.sql = "SELECT *".to_string();
+        } else {
+            self.sql = format!("SELECT {}", valid_columns.join(", "));
+        }
         self
     }
 
     pub fn from(mut self, table: &str) -> Self {
-        self.sql.push_str(&format!(" FROM {}", table));
+        // Validate table name
+        match Self::validate_identifier(table) {
+            Ok(valid_table) => {
+                self.sql.push_str(&format!(" FROM {}", valid_table));
+            }
+            Err(_) => {
+                // Invalid table name - use placeholder that will cause error
+                self.sql.push_str(" FROM \"INVALID_TABLE_NAME\"");
+            }
+        }
         self
     }
 
     pub fn where_clause(mut self, condition: &str) -> Self {
-        self.sql.push_str(&format!(" WHERE {}", condition));
+        // Validate WHERE condition to prevent SQL injection
+        // WHERE conditions are complex expressions, but we can still validate for dangerous patterns
+        let dangerous_patterns = ["--", "/*", "*/", ";", "'", "\"", "\n", "\r"];
+        let safe_condition = if dangerous_patterns.iter().any(|p| condition.contains(p)) {
+            // If dangerous pattern found, use a safe placeholder that won't match anything
+            "1=0 /* Invalid WHERE condition */".to_string()
+        } else {
+            condition.to_string()
+        };
+        self.sql.push_str(&format!(" WHERE {}", safe_condition));
         self
     }
 
     pub fn order_by(mut self, column: &str, asc: bool) -> Self {
         let direction = if asc { "ASC" } else { "DESC" };
-        self.sql
-            .push_str(&format!(" ORDER BY {} {}", column, direction));
+        // Validate column name
+        match Self::validate_identifier(column) {
+            Ok(valid_col) => {
+                self.sql
+                    .push_str(&format!(" ORDER BY {} {}", valid_col, direction));
+            }
+            Err(_) => {
+                self.sql.push_str(" ORDER BY \"INVALID_COLUMN\" ASC");
+            }
+        }
         self
     }
 

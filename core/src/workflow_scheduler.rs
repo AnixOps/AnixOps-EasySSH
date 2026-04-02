@@ -417,6 +417,15 @@ pub struct TaskExecutionHandle {
     pub started_at: DateTime<Utc>,
 }
 
+impl TaskExecutionHandle {
+    /// Get elapsed seconds since task started
+    pub fn elapsed_seconds(&self) -> i64 {
+        let now = Utc::now();
+        let diff = now.signed_duration_since(self.started_at);
+        diff.num_seconds()
+    }
+}
+
 impl TaskScheduler {
     pub fn new() -> Self {
         Self {

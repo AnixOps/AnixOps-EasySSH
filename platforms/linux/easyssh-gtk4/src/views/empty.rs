@@ -12,7 +12,6 @@ impl EmptyView {
         box_.add_css_class("empty-state");
 
         let icon = gtk4::Image::from_icon_name("utilities-terminal-symbolic");
-        icon.set_icon_size(gtk4::IconSize::Large);
         icon.set_pixel_size(96);
         icon.set_opacity(0.3);
         icon.add_css_class("empty-state-icon");
@@ -28,7 +27,7 @@ impl EmptyView {
         let hint = gtk4::Label::new(Some("Press + to add a server"));
         hint.add_css_class("dim-label");
         hint.add_css_class("caption");
-        hint.set_margin_top(8);
+        hint.set_margin(8);
 
         box_.append(&icon);
         box_.append(&title);

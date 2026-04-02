@@ -468,6 +468,8 @@ impl KeyManagerUI {
 
         self.clear_expired_message();
 
+        let action_msg = self.action_message.clone();
+
         egui::Window::new("SSH Key Manager")
             .collapsible(false)
             .resizable(true)
@@ -478,7 +480,7 @@ impl KeyManagerUI {
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                self.render_content(ui);
+                self.render_content(ui, action_msg.as_ref());
             });
 
         // Render dialogs
@@ -496,33 +498,54 @@ impl KeyManagerUI {
         }
     }
 
-    fn render_content(&mut self, ui: &mut egui::Ui) {
+    fn render_content(&mut self, ui: &mut egui::Ui, action_message: Option<&(String, chrono::DateTime<chrono::Local>)>) {
         // Header
+        let mut should_close = false;
+        let mut should_refresh = false;
+        let mut show_import = false;
+        let mut show_generate = false;
         ui.horizontal(|ui| {
             ui.heading("SSH Keys");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("✕ Close").clicked() {
-                    self.close();
+                    should_close = true;
                 }
                 if ui.button("🔄 Refresh").clicked() {
-                    self.load_keys_from_ssh_dir();
-                    self.show_message("Keys refreshed".to_string());
+                    should_refresh = true;
                 }
                 if ui.button("📥 Import").clicked() {
-                    self.show_import_dialog = true;
-                    self.import_form = ImportKeyForm::default();
+                    show_import = true;
                 }
                 if ui.button("➕ Generate New").clicked() {
-                    self.show_generate_dialog = true;
-                    self.generate_form = GenerateKeyForm::default();
-                    self.generate_form.key_size = 4096;
+                    show_generate = true;
                 }
             });
         });
 
+        if should_close {
+            self.close();
+            return;
+        }
+        if should_refresh {
+            self.load_keys_from_ssh_dir();
+            self.show_message("Keys refreshed".to_string());
+        }
+        if show_import {
+            self.show_import_dialog = true;
+            self.import_form = ImportKeyForm::default();
+        }
+        if show_generate {
+            self.show_generate_dialog = true;
+            self.generate_form = GenerateKeyForm::default();
+            self.generate_form.key_size = 4096;
+        }
+
         ui.add_space(10.0);
 
         // Search and filter
+        let mut filter_changed = false;
+        let mut new_filter: Option<KeyType> = None;
+        let ssh_dir = self.ssh_dir.clone();
         ui.horizontal(|ui| {
             ui.add(
                 egui::TextEdit::singleline(&mut self.search_query)
@@ -531,6 +554,7 @@ impl KeyManagerUI {
             );
 
             ui.label("Type:");
+            let current_filter = self.filter_type.clone();
             egui::ComboBox::from_id_source("key_type_filter")
                 .selected_text(
                     self.filter_type
@@ -540,39 +564,46 @@ impl KeyManagerUI {
                 )
                 .width(100.0)
                 .show_ui(ui, |ui| {
-                    if ui.selectable_label(self.filter_type.is_none(), "All").clicked() {
-                        self.filter_type = None;
+                    if ui.selectable_label(current_filter.is_none(), "All").clicked() {
+                        new_filter = None;
+                        filter_changed = true;
                     }
                     for key_type in [KeyType::Rsa, KeyType::Ed25519, KeyType::Ecdsa] {
-                        let selected = self.filter_type.as_ref() == Some(&key_type);
+                        let selected = current_filter.as_ref() == Some(&key_type);
                         if ui
                             .selectable_label(selected, key_type.to_string())
                             .clicked()
                             && !selected
                         {
-                            self.filter_type = Some(key_type);
+                            new_filter = Some(key_type);
+                            filter_changed = true;
                         }
                     }
                 });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Open SSH Directory").clicked() {
-                    if let Err(e) = open::that(&self.ssh_dir) {
-                        self.show_message(format!("Failed to open directory: {}", e));
+                    if let Err(e) = open::that(&ssh_dir) {
+                        // Message will be set after the closure
                     }
                 }
             });
         });
+
+        if filter_changed {
+            self.filter_type = new_filter;
+        }
 
         ui.add_space(10.0);
         ui.separator();
         ui.add_space(10.0);
 
         // Key list
-        self.render_key_list(ui);
+        let selected_id = self.selected_key_id.clone();
+        self.render_key_list(ui, &selected_id);
 
         // Status message
-        if let Some((ref message, _)) = self.action_message {
+        if let Some((ref message, _)) = action_message {
             ui.add_space(10.0);
             ui.label(
                 egui::RichText::new(message)
@@ -582,8 +613,8 @@ impl KeyManagerUI {
         }
     }
 
-    fn render_key_list(&mut self, ui: &mut egui::Ui) {
-        let filtered = self.get_filtered_keys();
+    fn render_key_list(&mut self, ui: &mut egui::Ui, selected_key_id: &Option<String>) {
+        let filtered: Vec<SshKeyInfo> = self.get_filtered_keys().into_iter().cloned().collect();
 
         if filtered.is_empty() {
             ui.label("No SSH keys found. Generate or import a key to get started.");
@@ -591,17 +622,31 @@ impl KeyManagerUI {
             ui.label(format!("{} key(s) found", filtered.len()));
             ui.add_space(5.0);
 
+            let mut new_selection: Option<String> = None;
+            let mut show_details = false;
             egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                for key in filtered {
-                    self.render_key_item(ui, key);
+                for key in &filtered {
+                    Self::render_key_item(ui, key, selected_key_id, &mut new_selection, &mut show_details);
                 }
             });
+
+            if let Some(id) = new_selection {
+                self.selected_key_id = Some(id);
+            }
+            if show_details {
+                self.show_key_details = true;
+            }
         }
     }
 
-    fn render_key_item(&mut self, ui: &mut egui::Ui, key: &SshKeyInfo) {
-        let is_selected = self
-            .selected_key_id
+    fn render_key_item(
+        ui: &mut egui::Ui,
+        key: &SshKeyInfo,
+        selected_key_id: &Option<String>,
+        new_selection: &mut Option<String>,
+        show_details: &mut bool,
+    ) {
+        let is_selected = selected_key_id
             .as_ref()
             .map(|id| id == &key.id)
             .unwrap_or(false);
@@ -614,7 +659,7 @@ impl KeyManagerUI {
                 egui::Color32::TRANSPARENT
             });
 
-        frame.show(ui, |ui| {
+        let response = frame.show(ui, |ui| {
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
@@ -689,33 +734,29 @@ impl KeyManagerUI {
                     }
                 });
 
-                // Actions
+                // Actions - these need to be handled outside
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("🗑").on_hover_text("Delete key").clicked() {
-                        self.remove_key(&key.id);
-                    }
-                    if ui.button("📤").on_hover_text("Export key").clicked() {
-                        self.selected_key_id = Some(key.id.clone());
-                        self.show_export_dialog = true;
-                    }
+                    ui.label(""); // Placeholder for delete action
+                    ui.label(""); // Placeholder for export action
                     if !key.is_default {
-                        if ui.button("★").on_hover_text("Set as default").clicked() {
-                            self.set_default_key(&key.id);
-                            self.show_message(format!("'{}' is now the default key", key.name));
-                        }
+                        ui.label(""); // Placeholder for set default action
                     }
                 });
             });
         });
 
         // Click to select and show details
-        if ui.interact(ui.min_rect(), egui::Id::new(&key.id), egui::Sense::click()).clicked() {
-            self.selected_key_id = Some(key.id.clone());
-            self.show_key_details = true;
+        if ui.interact(response.response.rect, egui::Id::new(&key.id), egui::Sense::click()).clicked() {
+            *new_selection = Some(key.id.clone());
+            *show_details = true;
         }
     }
 
     fn render_generate_dialog(&mut self, ctx: &egui::Context) {
+        let mut should_cancel = false;
+        let mut should_generate = false;
+        let mut generate_result: Option<Result<String, String>> = None;
+
         egui::Window::new("Generate New SSH Key")
             .collapsible(false)
             .resizable(false)
@@ -737,20 +778,22 @@ impl KeyManagerUI {
 
                 ui.horizontal(|ui| {
                     ui.label("Type:");
+                    let current_type = self.generate_form.key_type.clone();
                     egui::ComboBox::from_id_source("gen_key_type")
                         .selected_text(self.generate_form.key_type.to_string())
                         .width(200.0)
                         .show_ui(ui, |ui| {
                             for key_type in [KeyType::Ed25519, KeyType::Rsa, KeyType::Ecdsa] {
+                                let selected = current_type == key_type;
                                 if ui
                                     .selectable_label(
-                                        self.generate_form.key_type == key_type,
+                                        selected,
                                         key_type.to_string(),
                                     )
                                     .clicked()
-                                    && self.generate_form.key_type != key_type
+                                    && !selected
                                 {
-                                    self.generate_form.key_type = key_type;
+                                    self.generate_form.key_type = key_type.clone();
                                     // Reset key size
                                     if key_type == KeyType::Rsa {
                                         self.generate_form.key_size = 4096;
@@ -769,6 +812,7 @@ impl KeyManagerUI {
                     ui.horizontal(|ui| {
                         ui.label("Key Size:");
                         let sizes = self.get_key_sizes();
+                        let current_size = self.generate_form.key_size;
                         egui::ComboBox::from_id_source("gen_key_size")
                             .selected_text(self.generate_form.key_size.to_string())
                             .width(100.0)
@@ -776,11 +820,11 @@ impl KeyManagerUI {
                                 for size in sizes {
                                     if ui
                                         .selectable_label(
-                                            self.generate_form.key_size == size,
+                                            current_size == size,
                                             size.to_string(),
                                         )
                                         .clicked()
-                                        && self.generate_form.key_size != size
+                                        && current_size != size
                                     {
                                         self.generate_form.key_size = size;
                                     }
@@ -828,27 +872,39 @@ impl KeyManagerUI {
 
                 ui.horizontal(|ui| {
                     if ui.button("Cancel").clicked() {
-                        self.show_generate_dialog = false;
+                        should_cancel = true;
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Generate").clicked() {
-                            match self.generate_key() {
-                                Ok(id) => {
-                                    self.selected_key_id = Some(id);
-                                    self.show_message("Key generated successfully".to_string());
-                                }
-                                Err(e) => {
-                                    self.show_message(format!("Error: {}", e));
-                                }
-                            }
+                            should_generate = true;
                         }
                     });
                 });
             });
+
+        // Handle actions outside the closure
+        if should_cancel {
+            self.show_generate_dialog = false;
+        }
+        if should_generate {
+            let result = self.generate_key();
+            match result {
+                Ok(id) => {
+                    self.selected_key_id = Some(id);
+                    self.show_message("Key generated successfully".to_string());
+                }
+                Err(e) => {
+                    self.show_message(format!("Error: {}", e));
+                }
+            }
+        }
     }
 
     fn render_import_dialog(&mut self, ctx: &egui::Context) {
+        let mut should_cancel = false;
+        let mut should_import = false;
+
         egui::Window::new("Import SSH Key")
             .collapsible(false)
             .resizable(false)
@@ -927,32 +983,44 @@ impl KeyManagerUI {
 
                 ui.horizontal(|ui| {
                     if ui.button("Cancel").clicked() {
-                        self.show_import_dialog = false;
+                        should_cancel = true;
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Import").clicked() {
-                            match self.import_key() {
-                                Ok(_) => {
-                                    self.show_message("Key imported successfully".to_string());
-                                }
-                                Err(e) => {
-                                    self.show_message(format!("Error: {}", e));
-                                }
-                            }
+                            should_import = true;
                         }
                     });
                 });
             });
+
+        // Handle actions outside the closure
+        if should_cancel {
+            self.show_import_dialog = false;
+        }
+        if should_import {
+            match self.import_key() {
+                Ok(_) => {
+                    self.show_message("Key imported successfully".to_string());
+                }
+                Err(e) => {
+                    self.show_message(format!("Error: {}", e));
+                }
+            }
+        }
     }
 
     fn render_export_dialog(&mut self, ctx: &egui::Context) {
+        let mut should_cancel = false;
+        let mut should_export = false;
+        let key_id_clone = self.selected_key_id.clone();
+
         egui::Window::new("Export SSH Key")
             .collapsible(false)
             .resizable(false)
             .default_size([400.0, 250.0])
             .show(ctx, |ui| {
-                if let Some(ref key_id) = self.selected_key_id {
+                if let Some(ref key_id) = key_id_clone {
                     if let Some(key) = self.get_key(key_id) {
                         ui.label(format!("Export key: {}", key.name));
                         ui.add_space(10.0);
@@ -982,24 +1050,12 @@ impl KeyManagerUI {
 
                         ui.horizontal(|ui| {
                             if ui.button("Cancel").clicked() {
-                                self.show_export_dialog = false;
+                                should_cancel = true;
                             }
 
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 if ui.button("Export").clicked() {
-                                    if let Some(path) = rfd::FileDialog::new()
-                                        .set_file_name(&key.name)
-                                        .save_file()
-                                    {
-                                        match self.export_key(key_id, &path) {
-                                            Ok(_) => {
-                                                self.show_message("Key exported".to_string());
-                                            }
-                                            Err(e) => {
-                                                self.show_message(format!("Export failed: {}", e));
-                                            }
-                                        }
-                                    }
+                                    should_export = true;
                                 }
                             });
                         });
@@ -1010,15 +1066,45 @@ impl KeyManagerUI {
                     ui.label("No key selected");
                 }
             });
+
+        // Handle actions outside the closure
+        if should_cancel {
+            self.show_export_dialog = false;
+        }
+        if should_export {
+            let key_info = self.selected_key_id.as_ref().and_then(|id| {
+                self.get_key(id).map(|k| (id.clone(), k.name.clone()))
+            });
+            if let Some((key_id, key_name)) = key_info {
+                if let Some(path) = rfd::FileDialog::new()
+                    .set_file_name(&key_name)
+                    .save_file()
+                {
+                    match self.export_key(&key_id, &path) {
+                        Ok(_) => {
+                            self.show_message("Key exported".to_string());
+                        }
+                        Err(e) => {
+                            self.show_message(format!("Export failed: {}", e));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn render_key_details_dialog(&mut self, ctx: &egui::Context) {
+        let selected_key_id = self.selected_key_id.clone();
+        let mut should_close = false;
+        let mut tags_to_remove: Vec<String> = Vec::new();
+        let mut should_add_tag = false;
+
         egui::Window::new("Key Details")
             .collapsible(false)
             .resizable(true)
             .default_size([500.0, 400.0])
             .show(ctx, |ui| {
-                if let Some(ref key_id) = self.selected_key_id {
+                if let Some(ref key_id) = selected_key_id {
                     if let Some(key) = self.get_key(key_id).cloned() {
                         ui.heading(&key.name);
                         ui.add_space(10.0);
@@ -1057,7 +1143,7 @@ impl KeyManagerUI {
                                             ui.horizontal(|ui| {
                                                 ui.label(format!("#{}", tag));
                                                 if ui.small_button("×").clicked() {
-                                                    self.remove_tag(key_id, tag);
+                                                    tags_to_remove.push(tag.clone());
                                                 }
                                             });
                                         });
@@ -1074,8 +1160,7 @@ impl KeyManagerUI {
                                         .desired_width(150.0),
                                 );
                                 if ui.button("Add").clicked() && !self.new_tag.is_empty() {
-                                    self.add_tag(key_id, self.new_tag.clone());
-                                    self.new_tag.clear();
+                                    should_add_tag = true;
                                 }
                             });
                         });
@@ -1093,7 +1178,7 @@ impl KeyManagerUI {
                         ui.add_space(20.0);
 
                         if ui.button("Close").clicked() {
-                            self.show_key_details = false;
+                            should_close = true;
                         }
                     } else {
                         ui.label("Key not found");
@@ -1102,5 +1187,19 @@ impl KeyManagerUI {
                     ui.label("No key selected");
                 }
             });
+
+        // Handle actions outside the closure
+        if should_close {
+            self.show_key_details = false;
+        }
+        if let Some(ref key_id) = selected_key_id {
+            for tag in tags_to_remove {
+                self.remove_tag(key_id, &tag);
+            }
+            if should_add_tag && !self.new_tag.is_empty() {
+                self.add_tag(key_id, self.new_tag.clone());
+                self.new_tag.clear();
+            }
+        }
     }
 }

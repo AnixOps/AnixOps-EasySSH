@@ -295,12 +295,10 @@ impl MacroAction {
         use crate::workflow_engine::*;
 
         let step_type = match self.action_type {
-            MacroActionType::SshCommand => StepType::SshCommand,
-            MacroActionType::FileUpload => StepType::SftpUpload,
-            MacroActionType::FileDownload => StepType::SftpDownload,
+            MacroActionType::SshCommand | MacroActionType::LocalCommand => StepType::Command,
+            MacroActionType::FileUpload | MacroActionType::FileDownload => StepType::Transfer,
             MacroActionType::Wait => StepType::Wait,
-            MacroActionType::LocalCommand => StepType::LocalCommand,
-            _ => StepType::SshCommand, // Default fallback
+            _ => StepType::Command, // Default fallback
         };
 
         let config = match &self.data {
@@ -308,8 +306,9 @@ impl MacroAction {
                 command,
                 working_dir,
                 ..
-            } => StepConfig::SshCommand {
+            } => StepConfig::Command {
                 command: command.clone(),
+                target: "remote".to_string(),
                 working_dir: working_dir.clone(),
                 env_vars: std::collections::HashMap::new(),
                 capture_output: true,
@@ -319,7 +318,8 @@ impl MacroAction {
                 local_path,
                 remote_path,
                 create_dirs,
-            } => StepConfig::SftpUpload {
+            } => StepConfig::Transfer {
+                direction: "upload".to_string(),
                 local_path: local_path.clone(),
                 remote_path: remote_path.clone(),
                 permissions: None,
@@ -329,9 +329,11 @@ impl MacroAction {
                 remote_path,
                 local_path,
                 create_dirs,
-            } => StepConfig::SftpDownload {
-                remote_path: remote_path.clone(),
+            } => StepConfig::Transfer {
+                direction: "download".to_string(),
                 local_path: local_path.clone(),
+                remote_path: remote_path.clone(),
+                permissions: None,
                 create_dirs: *create_dirs,
             },
             MacroActionData::Wait { duration_secs, .. } => StepConfig::Wait {
@@ -340,19 +342,28 @@ impl MacroAction {
             MacroActionData::LocalCommand {
                 command,
                 working_dir,
-            } => StepConfig::LocalCommand {
+                ..
+            } => StepConfig::Command {
                 command: command.clone(),
+                target: "local".to_string(),
                 working_dir: working_dir.clone(),
                 env_vars: std::collections::HashMap::new(),
                 capture_output: true,
+                fail_on_error: true,
             },
-            _ => StepConfig::default_for(&step_type),
+            _ => StepConfig::Command {
+                command: String::new(),
+                target: "remote".to_string(),
+                working_dir: None,
+                env_vars: std::collections::HashMap::new(),
+                capture_output: true,
+                fail_on_error: true,
+            },
         };
 
-        let mut step = WorkflowStep::new(step_type, &format!("Action: {:?}", self.action_type));
-        step.config = config;
-        step.description = self.description.clone();
-        step
+        WorkflowStep::new(step_type, self.description.as_deref().unwrap_or("Recorded Action"))
+            .with_description(&format!("Recorded: {:?}", self.action_type))
+            .with_config(config)
     }
 }
 

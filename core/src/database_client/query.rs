@@ -122,6 +122,22 @@ impl QueryResult {
         self.rows.is_empty()
     }
 
+    /// Escape SQL identifier (table name, column name) to prevent SQL injection
+    fn escape_identifier(identifier: &str) -> String {
+        // Remove any potentially dangerous characters
+        let sanitized: String = identifier
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '_' || *c == '.')
+            .collect();
+        // Wrap in double quotes for safety
+        format!("\"{}\"", sanitized.replace('"', "\"\""))
+    }
+
+    /// Escape string value for SQL to prevent SQL injection
+    fn escape_sql_string(value: &str) -> String {
+        value.replace('\'', "''")
+    }
+
     /// Convert to CSV format
     pub fn to_csv(&self) -> Result<String, DatabaseError> {
         let mut wtr = csv::WriterBuilder::new()
@@ -191,18 +207,29 @@ impl QueryResult {
             .map_err(|e| DatabaseError::ImportExportError(e.to_string()))
     }
 
-    /// Convert to SQL INSERT statements
-    pub fn to_sql_inserts(&self, table_name: &str, db_type: &str) -> Result<String, DatabaseError> {
+    /// Convert to SQL INSERT statements with proper escaping to prevent SQL injection
+    pub fn to_sql_inserts(&self, table_name: &str, _db_type: &str) -> Result<String, DatabaseError> {
         let mut statements = Vec::new();
 
+        // Escape table name to prevent SQL injection
+        let escaped_table = Self::escape_identifier(table_name);
+
         for row in &self.rows {
-            let columns = self.columns.join(", ");
+            // Escape column names
+            let columns: Vec<String> = self
+                .columns
+                .iter()
+                .map(|col| Self::escape_identifier(col))
+                .collect();
+
             let values: Vec<String> = row
                 .cells
                 .iter()
                 .map(|cell| match cell {
                     QueryCell::Null => "NULL".to_string(),
-                    QueryCell::String(s) => format!("'{}'", s.replace('\'', "''")),
+                    QueryCell::String(s) => {
+                        format!("'{}'", Self::escape_sql_string(s))
+                    }
                     QueryCell::Integer(i) => i.to_string(),
                     QueryCell::Float(f) => f.to_string(),
                     QueryCell::Boolean(b) => {
@@ -212,14 +239,14 @@ impl QueryResult {
                             "FALSE".to_string()
                         }
                     }
-                    _ => format!("'{}'", cell.to_string()),
+                    _ => format!("'{}'", Self::escape_sql_string(&cell.to_string())),
                 })
                 .collect();
 
             let stmt = format!(
                 "INSERT INTO {} ({}) VALUES ({});",
-                table_name,
-                columns,
+                escaped_table,
+                columns.join(", "),
                 values.join(", ")
             );
             statements.push(stmt);
@@ -245,8 +272,11 @@ pub struct QueryBuilder {
 
 impl QueryBuilder {
     pub fn new(table: &str) -> Self {
+        // Validate table name
+        let validated_table = Self::validate_identifier(table).unwrap_or_else(|_| "invalid_table".to_string());
+
         Self {
-            table: table.to_string(),
+            table: validated_table,
             columns: vec!["*".to_string()],
             where_clauses: Vec::new(),
             order_by: Vec::new(),
@@ -259,28 +289,101 @@ impl QueryBuilder {
         }
     }
 
+    /// Validate SQL identifier to prevent injection
+    /// Only allows alphanumeric characters, underscores, and dots (for schema.table)
+    fn validate_identifier(identifier: &str) -> Result<String, DatabaseError> {
+        if identifier.is_empty() {
+            return Err(DatabaseError::QueryError(
+                "Empty identifier not allowed".to_string(),
+            ));
+        }
+
+        // Special case for wildcard
+        if identifier == "*" {
+            return Ok(identifier.to_string());
+        }
+
+        // Check for dangerous patterns
+        let dangerous_patterns = ["--", "/*", "*/", ";", "'", "\"", "\\", "\n", "\r"];
+        for pattern in &dangerous_patterns {
+            if identifier.contains(pattern) {
+                return Err(DatabaseError::QueryError(format!(
+                    "Invalid pattern '{}' in identifier",
+                    pattern
+                )));
+            }
+        }
+
+        // Check each character
+        for c in identifier.chars() {
+            if !c.is_alphanumeric() && c != '_' && c != '.' {
+                return Err(DatabaseError::QueryError(format!(
+                    "Invalid character '{}' in identifier '{}'",
+                    c, identifier
+                )));
+            }
+        }
+
+        Ok(identifier.to_string())
+    }
+
     pub fn select(mut self, columns: Vec<&str>) -> Self {
-        self.columns = columns.iter().map(|&s| s.to_string()).collect();
+        // Validate each column name
+        self.columns = columns
+            .iter()
+            .filter_map(|&col| Self::validate_identifier(col).ok())
+            .collect();
+
+        if self.columns.is_empty() {
+            self.columns = vec!["*".to_string()];
+        }
         self
     }
 
     pub fn where_eq(mut self, column: &str, value: QueryCell) -> Self {
-        let param_name = format!("p{}", self.parameters.len());
-        self.parameters.insert(param_name.clone(), value);
-        self.where_clauses
-            .push(format!("{} = :{}", column, param_name));
+        // Validate column name
+        match Self::validate_identifier(column) {
+            Ok(valid_col) => {
+                let param_name = format!("p{}", self.parameters.len());
+                self.parameters.insert(param_name.clone(), value);
+                self.where_clauses
+                    .push(format!("{} = :{}", valid_col, param_name));
+            }
+            Err(_) => {
+                // Invalid column - add a clause that will never match
+                self.where_clauses.push("1=0".to_string());
+            }
+        }
         self
     }
 
     pub fn where_like(mut self, column: &str, pattern: &str) -> Self {
-        self.where_clauses
-            .push(format!("{} LIKE '{}'", column, pattern));
+        // Validate column name
+        match Self::validate_identifier(column) {
+            Ok(valid_col) => {
+                let param_name = format!("p{}", self.parameters.len());
+                self.parameters
+                    .insert(param_name.clone(), QueryCell::String(pattern.to_string()));
+                self.where_clauses
+                    .push(format!("{} LIKE :{}", valid_col, param_name));
+            }
+            Err(_) => {
+                self.where_clauses.push("1=0".to_string());
+            }
+        }
         self
     }
 
     pub fn order_by(mut self, column: &str, ascending: bool) -> Self {
-        let dir = if ascending { "ASC" } else { "DESC" };
-        self.order_by.push(format!("{} {}", column, dir));
+        match Self::validate_identifier(column) {
+            Ok(valid_col) => {
+                let dir = if ascending { "ASC" } else { "DESC" };
+                self.order_by.push(format!("{} {}", valid_col, dir));
+            }
+            Err(_) => {
+                // Invalid column - ignore order by
+            }
+        }
         self
     }
 
@@ -295,13 +398,19 @@ impl QueryBuilder {
     }
 
     pub fn join(mut self, table: &str, on: &str, join_type: &str) -> Self {
+        // Validate all identifiers
+        let valid_table = Self::validate_identifier(table).unwrap_or_else(|_| "invalid_table".to_string());
+        let valid_on = Self::validate_identifier(on).unwrap_or_else(|_| "invalid_on".to_string());
+        let valid_join_type = Self::validate_identifier(join_type).unwrap_or_else(|_| "JOIN".to_string());
+
         self.joins
-            .push(format!("{} JOIN {} ON {}", join_type, table, on));
+            .push(format!("{} JOIN {} ON {}", valid_join_type, valid_table, valid_on));
         self
     }
 
     pub fn build(&self) -> String {
-        let mut sql = format!("SELECT {} FROM {}", self.columns.join(", "), self.table);
+        let columns_str = self.columns.join(", ");
+        let mut sql = format!("SELECT {} FROM {}", columns_str, self.table);
 
         for join in &self.joins {
             sql.push_str(&format!(" {}", join));
@@ -312,7 +421,12 @@ impl QueryBuilder {
         }
 
         if !self.group_by.is_empty() {
-            sql.push_str(&format!(" GROUP BY {}", self.group_by.join(", ")));
+            let valid_group: Vec<String> = self.group_by.iter()
+                .filter_map(|g| Self::validate_identifier(g).ok())
+                .collect();
+            if !valid_group.is_empty() {
+                sql.push_str(&format!(" GROUP BY {}", valid_group.join(", ")));
+            }
         }
 
         if !self.having.is_empty() {

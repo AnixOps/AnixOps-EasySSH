@@ -1,4 +1,0 @@
-This is a test file for SFTP upload testing.
-It contains sample content to verify file transfer functionality.
-
-Created for EasySSH test suite.

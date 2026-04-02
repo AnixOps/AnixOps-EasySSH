@@ -35,7 +35,6 @@ pub struct EndpointStats {
     pub avg_latency_ms: f64,
     pub total_requests: u64,
     pub failed_requests: u64,
-    #[serde(skip)]
     pub created_at: Instant,
 }
 
@@ -149,6 +148,13 @@ impl ConnectionPoolManagerUI {
             self.mark_refreshed();
         }
 
+        // Clone data needed for rendering
+        let show_advanced = self.show_advanced_settings;
+        let action_msg = self.action_message.clone();
+        let endpoint_stats_empty = self.endpoint_stats.is_empty();
+        let total_connections: usize = self.endpoint_stats.values().map(|s| s.connection_count).sum();
+        let auto_refresh = self.auto_refresh;
+
         egui::Window::new("Connection Pool Manager")
             .collapsible(false)
             .resizable(true)
@@ -159,7 +165,7 @@ impl ConnectionPoolManagerUI {
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                self.render_content(ui, pool);
+                self.render_content(ui, pool, show_advanced, action_msg.as_ref(), endpoint_stats_empty, total_connections, auto_refresh);
             });
     }
 
@@ -169,23 +175,43 @@ impl ConnectionPoolManagerUI {
         let _ = stats;
     }
 
-    fn render_content(&mut self, ui: &mut egui::Ui, pool: Option<&OptimizedConnectionPool>) {
+    fn render_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        pool: Option<&OptimizedConnectionPool>,
+        show_advanced_settings: bool,
+        action_message: Option<&(String, chrono::DateTime<chrono::Local>)>,
+        endpoint_stats_empty: bool,
+        total_connections: usize,
+        auto_refresh: bool,
+    ) {
         // Header
+        let mut should_close = false;
+        let mut should_refresh = false;
         ui.horizontal(|ui| {
             ui.heading("Connection Pool");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("✕ Close").clicked() {
-                    self.close();
+                    should_close = true;
                 }
                 if ui.button("🔄 Refresh").clicked() {
-                    if let Some(p) = pool {
-                        let stats = p.stats();
-                        self.update_stats_from_pool(stats);
-                    }
-                    self.mark_refreshed();
+                    should_refresh = true;
                 }
             });
         });
+
+        if should_close {
+            self.close();
+            return;
+        }
+
+        if should_refresh {
+            if let Some(p) = pool {
+                let stats = p.stats();
+                self.update_stats_from_pool(stats);
+            }
+            self.mark_refreshed();
+        }
 
         ui.add_space(10.0);
 
@@ -197,17 +223,17 @@ impl ConnectionPoolManagerUI {
         ui.add_space(10.0);
 
         // Configuration section
-        self.render_configuration(ui);
+        self.render_configuration(ui, show_advanced_settings, auto_refresh);
 
         ui.add_space(10.0);
         ui.separator();
         ui.add_space(10.0);
 
         // Endpoint list
-        self.render_endpoint_list(ui, pool);
+        self.render_endpoint_list(ui, pool, endpoint_stats_empty, total_connections);
 
         // Status message
-        if let Some((ref message, _)) = self.action_message {
+        if let Some((ref message, _)) = action_message {
             ui.add_space(10.0);
             ui.label(
                 egui::RichText::new(message)
@@ -264,15 +290,25 @@ impl ConnectionPoolManagerUI {
         });
     }
 
-    fn render_configuration(&mut self, ui: &mut egui::Ui) {
+    fn render_configuration(
+        &mut self,
+        ui: &mut egui::Ui,
+        show_advanced_settings: bool,
+        auto_refresh: bool,
+    ) {
+        let mut toggle_advanced = false;
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Pool Configuration").strong().size(14.0));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button(if self.show_advanced_settings { "△ Simple" } else { "▽ Advanced" }).clicked() {
-                    self.show_advanced_settings = !self.show_advanced_settings;
+                if ui.button(if show_advanced_settings { "△ Simple" } else { "▽ Advanced" }).clicked() {
+                    toggle_advanced = true;
                 }
             });
         });
+
+        if toggle_advanced {
+            self.show_advanced_settings = !self.show_advanced_settings;
+        }
 
         ui.add_space(10.0);
 
@@ -313,10 +349,12 @@ impl ConnectionPoolManagerUI {
             }
         });
 
-        ui.checkbox(&mut self.auto_refresh, "Auto-refresh statistics");
+        let mut new_auto_refresh = auto_refresh;
+        ui.checkbox(&mut new_auto_refresh, "Auto-refresh statistics");
+        self.auto_refresh = new_auto_refresh;
 
         // Advanced settings
-        if self.show_advanced_settings {
+        if show_advanced_settings {
             ui.add_space(10.0);
             ui.group(|ui| {
                 ui.label("Advanced Settings");
@@ -356,25 +394,43 @@ impl ConnectionPoolManagerUI {
         }
     }
 
-    fn render_endpoint_list(&mut self, ui: &mut egui::Ui, pool: Option<&OptimizedConnectionPool>) {
+    fn render_endpoint_list(
+        &mut self,
+        ui: &mut egui::Ui,
+        pool: Option<&OptimizedConnectionPool>,
+        endpoint_stats_empty: bool,
+        _total_connections: usize,
+    ) {
+        let mut flush_all = false;
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Endpoints").strong().size(14.0));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("🧹 Flush All").clicked() {
-                    self.endpoint_stats.clear();
-                    self.show_message("All connections flushed".to_string());
+                    flush_all = true;
                 }
             });
         });
 
+        if flush_all {
+            self.endpoint_stats.clear();
+            self.show_message("All connections flushed".to_string());
+        }
+
         ui.add_space(10.0);
 
-        if self.endpoint_stats.is_empty() {
+        if endpoint_stats_empty {
             ui.label("No active endpoints. Connections will appear here when established.");
         } else {
+            // Collect endpoint data before the closure
+            let endpoint_data: Vec<(String, EndpointStats)> = self
+                .endpoint_stats
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+
             egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                for (endpoint_id, stats) in &self.endpoint_stats {
-                    self.render_endpoint_item(ui, endpoint_id, stats, pool);
+                for (endpoint_id, stats) in endpoint_data {
+                    self.render_endpoint_item(ui, &endpoint_id, &stats, pool);
                 }
             });
         }
@@ -401,7 +457,11 @@ impl ConnectionPoolManagerUI {
                 egui::Color32::TRANSPARENT
             });
 
-        frame.show(ui, |ui| {
+        let mut should_flush = false;
+        let mut should_prewarm = false;
+        let mut should_select = false;
+
+        let response = frame.show(ui, |ui| {
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
@@ -442,20 +502,33 @@ impl ConnectionPoolManagerUI {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("🗑").on_hover_text("Flush connections").clicked() {
-                        self.flush_endpoint(endpoint_id);
+                        should_flush = true;
                     }
 
                     if ui.button("🔥").on_hover_text("Pre-warm connections").clicked() {
-                        if let Some(p) = pool {
-                            self.prewarm_endpoint(&stats.host, stats.port, p);
-                        }
+                        should_prewarm = true;
                     }
                 });
             });
         });
 
+        // Handle actions outside the closure
+        if should_flush {
+            self.flush_endpoint(endpoint_id);
+        }
+
+        if should_prewarm {
+            if let Some(p) = pool {
+                self.prewarm_endpoint(&stats.host, stats.port, p);
+            }
+        }
+
         // Click to select
-        if ui.interact(ui.min_rect(), egui::Id::new(endpoint_id), egui::Sense::click()).clicked() {
+        if ui.interact(response.response.rect, egui::Id::new(endpoint_id), egui::Sense::click()).clicked() {
+            should_select = true;
+        }
+
+        if should_select {
             self.selected_endpoint = Some(endpoint_id.to_string());
         }
     }

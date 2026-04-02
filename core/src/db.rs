@@ -2317,4 +2317,713 @@ mod tests {
         // 清理
         std::fs::remove_dir_all(&temp_dir).ok();
     }
+
+    #[test]
+    fn test_host_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_host_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // Create group first (for foreign key)
+            let group = NewGroup {
+                id: "grp-1".to_string(),
+                name: "Test Group".to_string(),
+            };
+            db.add_group(&group).unwrap();
+
+            // Create host
+            let host = NewHost {
+                id: "host-1".to_string(),
+                name: "Production Server".to_string(),
+                host: "192.168.1.100".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_type: "key".to_string(),
+                identity_file: Some("/path/to/key".to_string()),
+                identity_id: Some("id-1".to_string()),
+                group_id: Some("grp-1".to_string()),
+                notes: Some("Production server".to_string()),
+                color: Some("#FF0000".to_string()),
+                environment: Some("production".to_string()),
+                region: Some("us-east".to_string()),
+                purpose: Some("web".to_string()),
+                status: "online".to_string(),
+            };
+            db.add_host(&host).unwrap();
+
+            // Read and verify
+            let hosts = db.get_hosts().unwrap();
+            assert_eq!(hosts.len(), 1);
+            assert_eq!(hosts[0].name, "Production Server");
+            assert_eq!(hosts[0].host, "192.168.1.100");
+
+            // Get single host
+            let host = db.get_host("host-1").unwrap();
+            assert_eq!(host.name, "Production Server");
+
+            // Update host
+            let update = UpdateHost {
+                id: "host-1".to_string(),
+                name: "Updated Server".to_string(),
+                host: "192.168.1.200".to_string(),
+                port: 2222,
+                username: "root".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                identity_id: None,
+                group_id: None,
+                notes: Some("Updated notes".to_string()),
+                color: Some("#00FF00".to_string()),
+                environment: Some("staging".to_string()),
+                region: Some("eu-west".to_string()),
+                purpose: Some("database".to_string()),
+                status: "offline".to_string(),
+            };
+            db.update_host(&update).unwrap();
+
+            // Verify update
+            let host = db.get_host("host-1").unwrap();
+            assert_eq!(host.name, "Updated Server");
+            assert_eq!(host.port, 2222);
+            assert_eq!(host.status, "offline");
+
+            // Delete host
+            db.delete_host("host-1").unwrap();
+            let hosts = db.get_hosts().unwrap();
+            assert_eq!(hosts.len(), 0);
+        }
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_identity_crud_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_identity_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // Create identity
+            let identity = NewIdentity {
+                id: "id-1".to_string(),
+                name: "My Key".to_string(),
+                private_key_path: Some("/home/user/.ssh/id_rsa".to_string()),
+                passphrase_secret_id: Some("secret-1".to_string()),
+                auth_type: "key".to_string(),
+            };
+            db.add_identity(&identity).unwrap();
+
+            // Read and verify
+            let identities = db.get_identities().unwrap();
+            assert_eq!(identities.len(), 1);
+            assert_eq!(identities[0].name, "My Key");
+            assert_eq!(identities[0].auth_type, "key");
+
+            // Get single identity
+            let identity = db.get_identity("id-1").unwrap();
+            assert_eq!(identity.name, "My Key");
+
+            // Update identity
+            let update = UpdateIdentity {
+                id: "id-1".to_string(),
+                name: "Updated Key".to_string(),
+                private_key_path: Some("/home/user/.ssh/id_ed25519".to_string()),
+                passphrase_secret_id: Some("secret-2".to_string()),
+                auth_type: "agent".to_string(),
+            };
+            db.update_identity(&update).unwrap();
+
+            // Verify update
+            let identity = db.get_identity("id-1").unwrap();
+            assert_eq!(identity.name, "Updated Key");
+            assert_eq!(identity.auth_type, "agent");
+
+            // Delete identity
+            db.delete_identity("id-1").unwrap();
+            let identities = db.get_identities().unwrap();
+            assert_eq!(identities.len(), 0);
+        }
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_host_tags_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_host_tags_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // Create host
+            let host = NewHost {
+                id: "host-1".to_string(),
+                name: "Test Host".to_string(),
+                host: "192.168.1.100".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                identity_id: None,
+                group_id: None,
+                notes: None,
+                color: None,
+                environment: None,
+                region: None,
+                purpose: None,
+                status: "online".to_string(),
+            };
+            db.add_host(&host).unwrap();
+
+            // Create tags
+            let tag1 = NewTag {
+                id: "tag-1".to_string(),
+                name: "Production".to_string(),
+                color: Some("#FF0000".to_string()),
+                description: Some("Production servers".to_string()),
+            };
+            let tag2 = NewTag {
+                id: "tag-2".to_string(),
+                name: "Development".to_string(),
+                color: Some("#00FF00".to_string()),
+                description: Some("Dev servers".to_string()),
+            };
+            db.add_tag(&tag1).unwrap();
+            db.add_tag(&tag2).unwrap();
+
+            // Set host tags
+            db.set_host_tag("host-1", "tag-1").unwrap();
+            db.set_host_tag("host-1", "tag-2").unwrap();
+
+            // Get host tags
+            let host_tags = db.get_host_tags("host-1").unwrap();
+            assert_eq!(host_tags.len(), 2);
+            assert!(host_tags.iter().any(|t| t.name == "Production"));
+            assert!(host_tags.iter().any(|t| t.name == "Development"));
+
+            // Remove host tag
+            db.remove_host_tag("host-1", "tag-1").unwrap();
+            let host_tags = db.get_host_tags("host-1").unwrap();
+            assert_eq!(host_tags.len(), 1);
+            assert_eq!(host_tags[0].name, "Development");
+        }
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_remote_desktop_connection_crud() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_rdp_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // Create host first
+            let host = NewHost {
+                id: "host-1".to_string(),
+                name: "RDP Server".to_string(),
+                host: "192.168.1.100".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                identity_id: None,
+                group_id: None,
+                notes: None,
+                color: None,
+                environment: None,
+                region: None,
+                purpose: None,
+                status: "online".to_string(),
+            };
+            db.add_host(&host).unwrap();
+
+            // Create RDP connection
+            let conn = NewRemoteDesktopConnection {
+                id: "rdp-1".to_string(),
+                host_id: "host-1".to_string(),
+                name: "Windows Server".to_string(),
+                protocol: "rdp".to_string(),
+                host: "192.168.1.101".to_string(),
+                port: 3389,
+                username: "administrator".to_string(),
+                domain: Some("DOMAIN".to_string()),
+                password_encrypted: None,
+                use_ssh_tunnel: false,
+                ssh_host: None,
+                ssh_port: None,
+                ssh_username: None,
+                ssh_auth_type: None,
+                display_settings_json: Some(r#"{"resolution": "1920x1080"}"#.to_string()),
+                performance_settings_json: None,
+                local_resources_json: None,
+                experience_settings_json: None,
+                gateway_settings_json: None,
+                recording_settings_json: None,
+                group_id: None,
+            };
+            db.add_remote_desktop_connection(&conn).unwrap();
+
+            // Read and verify
+            let conns = db.get_remote_desktop_connections().unwrap();
+            assert_eq!(conns.len(), 1);
+            assert_eq!(conns[0].name, "Windows Server");
+            assert_eq!(conns[0].protocol, "rdp");
+
+            // Get single connection
+            let conn = db.get_remote_desktop_connection("rdp-1").unwrap();
+            assert_eq!(conn.host, "192.168.1.101");
+            assert!(conn.display_settings_json.is_some());
+
+            // Update connection
+            let update = UpdateRemoteDesktopConnection {
+                id: "rdp-1".to_string(),
+                host_id: "host-1".to_string(),
+                name: "Updated RDP".to_string(),
+                protocol: "rdp".to_string(),
+                host: "192.168.1.102".to_string(),
+                port: 3389,
+                username: "admin".to_string(),
+                domain: None,
+                password_encrypted: None,
+                use_ssh_tunnel: true,
+                ssh_host: Some("192.168.1.100".to_string()),
+                ssh_port: Some(22),
+                ssh_username: Some("tunnel".to_string()),
+                ssh_auth_type: Some("key".to_string()),
+                display_settings_json: None,
+                performance_settings_json: Some(r#"{"quality": "high"}"#.to_string()),
+                local_resources_json: None,
+                experience_settings_json: None,
+                gateway_settings_json: None,
+                recording_settings_json: None,
+                group_id: None, // No group to avoid FK constraint
+            };
+            db.update_remote_desktop_connection(&update).unwrap();
+
+            // Verify update
+            let conn = db.get_remote_desktop_connection("rdp-1").unwrap();
+            assert_eq!(conn.name, "Updated RDP");
+            assert!(conn.use_ssh_tunnel);
+
+            // Delete connection
+            db.delete_remote_desktop_connection("rdp-1").unwrap();
+            let conns = db.get_remote_desktop_connections().unwrap();
+            assert_eq!(conns.len(), 0);
+        }
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_remote_desktop_session_crud() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_rdp_session_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // Create host
+            let host = NewHost {
+                id: "host-1".to_string(),
+                name: "RDP Server".to_string(),
+                host: "192.168.1.100".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                identity_id: None,
+                group_id: None,
+                notes: None,
+                color: None,
+                environment: None,
+                region: None,
+                purpose: None,
+                status: "online".to_string(),
+            };
+            db.add_host(&host).unwrap();
+
+            // Create RDP connection
+            let conn = NewRemoteDesktopConnection {
+                id: "rdp-1".to_string(),
+                host_id: "host-1".to_string(),
+                name: "Windows Server".to_string(),
+                protocol: "rdp".to_string(),
+                host: "192.168.1.101".to_string(),
+                port: 3389,
+                username: "admin".to_string(),
+                domain: None,
+                password_encrypted: None,
+                use_ssh_tunnel: false,
+                ssh_host: None,
+                ssh_port: None,
+                ssh_username: None,
+                ssh_auth_type: None,
+                display_settings_json: None,
+                performance_settings_json: None,
+                local_resources_json: None,
+                experience_settings_json: None,
+                gateway_settings_json: None,
+                recording_settings_json: None,
+                group_id: None,
+            };
+            db.add_remote_desktop_connection(&conn).unwrap();
+
+            // Create session
+            let session = NewRemoteDesktopSession {
+                id: "rdp-sess-1".to_string(),
+                connection_id: "rdp-1".to_string(),
+                status: "connecting".to_string(),
+                started_at: chrono_now(),
+                ended_at: None,
+                recording_path: Some("/recordings/session.mp4".to_string()),
+                recording_active: true,
+            };
+            db.add_remote_desktop_session(&session).unwrap();
+
+            // Read and verify
+            let sessions = db.get_remote_desktop_sessions().unwrap();
+            assert_eq!(sessions.len(), 1);
+            assert_eq!(sessions[0].connection_id, "rdp-1");
+            assert!(sessions[0].recording_active);
+
+            // Get single session
+            let session = db.get_remote_desktop_session("rdp-sess-1").unwrap();
+            assert_eq!(session.status, "connecting");
+
+            // Update session
+            let update = UpdateRemoteDesktopSession {
+                id: "rdp-sess-1".to_string(),
+                connection_id: "rdp-1".to_string(),
+                status: "connected".to_string(),
+                started_at: chrono_now(),
+                ended_at: Some(chrono_now()),
+                recording_path: None,
+                recording_active: false,
+            };
+            db.update_remote_desktop_session(&update).unwrap();
+
+            // Verify update
+            let session = db.get_remote_desktop_session("rdp-sess-1").unwrap();
+            assert_eq!(session.status, "connected");
+            assert!(!session.recording_active);
+
+            // Delete session
+            db.delete_remote_desktop_session("rdp-sess-1").unwrap();
+            let sessions = db.get_remote_desktop_sessions().unwrap();
+            assert_eq!(sessions.len(), 0);
+        }
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_record_serialization() {
+        // Test all record types can be serialized
+        let server_record = ServerRecord {
+            id: "srv-1".to_string(),
+            name: "Test".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "admin".to_string(),
+            auth_type: "key".to_string(),
+            identity_file: Some("/path".to_string()),
+            group_id: Some("grp-1".to_string()),
+            status: "online".to_string(),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&server_record).unwrap();
+        assert!(json.contains("Test"));
+
+        let host_record = HostRecord {
+            id: "host-1".to_string(),
+            name: "Test Host".to_string(),
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "admin".to_string(),
+            auth_type: "password".to_string(),
+            identity_file: None,
+            identity_id: None,
+            group_id: None,
+            notes: Some("Notes".to_string()),
+            color: Some("#FF0000".to_string()),
+            environment: Some("prod".to_string()),
+            region: Some("us-east".to_string()),
+            purpose: Some("web".to_string()),
+            status: "online".to_string(),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&host_record).unwrap();
+        assert!(json.contains("Test Host"));
+
+        let tag_record = TagRecord {
+            id: "tag-1".to_string(),
+            name: "Production".to_string(),
+            color: Some("#FF0000".to_string()),
+            description: Some("Prod servers".to_string()),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&tag_record).unwrap();
+        assert!(json.contains("Production"));
+
+        let identity_record = IdentityRecord {
+            id: "id-1".to_string(),
+            name: "My Key".to_string(),
+            private_key_path: Some("/path".to_string()),
+            passphrase_secret_id: None,
+            auth_type: "key".to_string(),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&identity_record).unwrap();
+        assert!(json.contains("My Key"));
+
+        let snippet_record = SnippetRecord {
+            id: "snip-1".to_string(),
+            name: "List".to_string(),
+            command: "ls -la".to_string(),
+            description: Some("List files".to_string()),
+            folder_id: Some("folder-1".to_string()),
+            variables_json: Some("[]".to_string()),
+            scope: "personal".to_string(),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&snippet_record).unwrap();
+        assert!(json.contains("List"));
+
+        let session_record = SessionRecord {
+            id: "sess-1".to_string(),
+            host_id: "host-1".to_string(),
+            title: Some("Session".to_string()),
+            status: "active".to_string(),
+            last_command: Some("ls".to_string()),
+            started_at: chrono_now(),
+            ended_at: None,
+        };
+        let json = serde_json::to_string(&session_record).unwrap();
+        assert!(json.contains("Session"));
+
+        let layout_record = LayoutRecord {
+            id: "layout-1".to_string(),
+            name: "Default".to_string(),
+            workspace_mode: "standard".to_string(),
+            layout_json: r#"{}"#.to_string(),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&layout_record).unwrap();
+        assert!(json.contains("Default"));
+
+        let audit_record = AuditEventRecord {
+            id: "audit-1".to_string(),
+            actor: Some("user-1".to_string()),
+            action: "login".to_string(),
+            target_type: Some("server".to_string()),
+            target_id: Some("srv-1".to_string()),
+            payload_json: Some(r#"{}"#.to_string()),
+            level: "info".to_string(),
+            created_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&audit_record).unwrap();
+        assert!(json.contains("login"));
+
+        let sync_record = SyncStateRecord {
+            id: "sync-1".to_string(),
+            device_id: "device-1".to_string(),
+            scope: "full".to_string(),
+            checkpoint: Some("abc123".to_string()),
+            state_json: Some(r#"{}"#.to_string()),
+            last_sync_at: Some(chrono_now()),
+            created_at: chrono_now(),
+            updated_at: chrono_now(),
+        };
+        let json = serde_json::to_string(&sync_record).unwrap();
+        assert!(json.contains("device-1"));
+    }
+
+    #[test]
+    fn test_database_error_handling() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_error_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // Try to get non-existent server
+            let result = db.get_server("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent host
+            let result = db.get_host("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent group
+            let result = db.get_groups();
+            assert!(result.is_ok()); // Empty vec is ok
+            assert!(result.unwrap().is_empty());
+
+            // Try to get non-existent tag
+            let result = db.get_tag("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent snippet
+            let result = db.get_snippet("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent identity
+            let result = db.get_identity("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent session
+            let result = db.get_session("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent layout
+            let result = db.get_layout("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent sync state
+            let result = db.get_sync_state("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent RDP connection
+            let result = db.get_remote_desktop_connection("non-existent");
+            assert!(result.is_err());
+
+            // Try to get non-existent RDP session
+            let result = db.get_remote_desktop_session("non-existent");
+            assert!(result.is_err());
+        }
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_database_multiple_operations() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "easyssh_test_multi_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let db_path = temp_dir.join("test.db");
+
+        {
+            let db = Database::new(db_path).unwrap();
+            db.init().unwrap();
+
+            // Create multiple groups
+            for i in 0..10 {
+                let group = NewGroup {
+                    id: format!("grp-{}", i),
+                    name: format!("Group {}", i),
+                };
+                db.add_group(&group).unwrap();
+            }
+
+            let groups = db.get_groups().unwrap();
+            assert_eq!(groups.len(), 10);
+
+            // Create multiple servers
+            for i in 0..5 {
+                let server = NewServer {
+                    id: format!("srv-{}", i),
+                    name: format!("Server {}", i),
+                    host: format!("192.168.1.{}", i),
+                    port: 22,
+                    username: "admin".to_string(),
+                    auth_type: "password".to_string(),
+                    identity_file: None,
+                    group_id: Some(format!("grp-{}", i % 3)),
+                    status: "online".to_string(),
+                };
+                db.add_server(&server).unwrap();
+            }
+
+            let servers = db.get_servers().unwrap();
+            assert_eq!(servers.len(), 5);
+
+            // Delete all
+            for server in &servers {
+                db.delete_server(&server.id).unwrap();
+            }
+
+            let servers = db.get_servers().unwrap();
+            assert_eq!(servers.len(), 0);
+
+            for group in &groups {
+                db.delete_group(&group.id).unwrap();
+            }
+
+            let groups = db.get_groups().unwrap();
+            assert_eq!(groups.len(), 0);
+        }
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
 }

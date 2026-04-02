@@ -15,10 +15,7 @@ impl ServerListRow {
         row.set_name(&server.id);
 
         let box_ = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
-        box_.set_margin_start(12);
-        box_.set_margin_end(12);
-        box_.set_margin_top(8);
-        box_.set_margin_bottom(8);
+        box_.set_margin(12);
 
         // Status indicator
         let status_icon = match server.status {

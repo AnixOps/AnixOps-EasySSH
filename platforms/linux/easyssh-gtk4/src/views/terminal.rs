@@ -25,10 +25,7 @@ impl TerminalView {
 
         // Toolbar
         let toolbar = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        toolbar.set_margin_start(8);
-        toolbar.set_margin_end(8);
-        toolbar.set_margin_top(8);
-        toolbar.set_margin_bottom(8);
+        toolbar.set_margin(8);
 
         let title_label = gtk4::Label::new(Some("SSH Terminal"));
         title_label.add_css_class("title-3");
@@ -74,9 +71,7 @@ impl TerminalView {
 
         // Command input
         let input_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-        input_box.set_margin_start(8);
-        input_box.set_margin_end(8);
-        input_box.set_margin_bottom(8);
+        input_box.set_margin(8);
 
         let prompt_label = gtk4::Label::new(Some("$"));
         prompt_label.add_css_class("status-connected");

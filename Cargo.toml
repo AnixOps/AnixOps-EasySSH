@@ -4,11 +4,11 @@ members = [
     "core",
     "tui",
     "platforms/windows/easyssh-winui",
-    "platforms/windows/fake-winui-app-sdk",
     "platforms/linux/easyssh-gtk4",
     "pro-server",
     "api-tester/api-core",
-    "api-tester/api-tauri"
+    "api-tester/api-tauri",
+    "tools/foreground_monitor"
 ]
 
 [workspace.package]

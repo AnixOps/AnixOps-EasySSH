@@ -20,10 +20,7 @@ pub struct ConnectionPoolMonitor {
 impl ConnectionPoolMonitor {
     pub fn new() -> Self {
         let widget = gtk4::Box::new(gtk4::Orientation::Vertical, 12);
-        widget.set_margin_top(12);
-        widget.set_margin_bottom(12);
-        widget.set_margin_start(12);
-        widget.set_margin_end(12);
+        widget.set_margin(12);
 
         // Header
         let header = gtk4::Label::new(Some("Connection Pool Status"));
@@ -33,10 +30,7 @@ impl ConnectionPoolMonitor {
         // Stats grid
         let stats_frame = gtk4::Frame::new(Some("Statistics"));
         let stats_box = gtk4::Box::new(gtk4::Orientation::Vertical, 8);
-        stats_box.set_margin_top(12);
-        stats_box.set_margin_bottom(12);
-        stats_box.set_margin_start(12);
-        stats_box.set_margin_end(12);
+        stats_box.set_margin(12);
 
         let total_pools_label = Self::create_stat_row(&stats_box, "Active Pools:");
         let global_connections_label = Self::create_stat_row(&stats_box, "Global Connections:");
@@ -56,8 +50,7 @@ impl ConnectionPoolMonitor {
         // Placeholder row
         let placeholder = gtk4::Label::new(Some("No active sessions"));
         placeholder.set_opacity(0.5);
-        placeholder.set_margin_top(12);
-        placeholder.set_margin_bottom(12);
+        placeholder.set_margin(12);
         session_list.append(&placeholder);
 
         let sessions_scroll = gtk4::ScrolledWindow::new();
@@ -129,8 +122,7 @@ impl ConnectionPoolMonitor {
 
         let placeholder = gtk4::Label::new(Some("No active sessions"));
         placeholder.set_opacity(0.5);
-        placeholder.set_margin_top(12);
-        placeholder.set_margin_bottom(12);
+        placeholder.set_margin(12);
         self.session_list.append(&placeholder);
     }
 
@@ -147,10 +139,7 @@ impl ConnectionPoolMonitor {
 
         let row = gtk4::ListBoxRow::new();
         let hbox = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
-        hbox.set_margin_top(8);
-        hbox.set_margin_bottom(8);
-        hbox.set_margin_start(12);
-        hbox.set_margin_end(12);
+        hbox.set_margin(12);
 
         // Session ID (truncated)
         let id_text = if session_id.len() > 11 {

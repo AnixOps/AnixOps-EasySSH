@@ -7,7 +7,6 @@ use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use uuid::Uuid;
 
 /// Proxy jump configuration for a server
@@ -144,7 +143,7 @@ pub struct ProxyJumpUI {
     pub editing_hop_index: Option<usize>,
     pub new_config_form: NewConfigForm,
     pub hop_form: HopForm,
-    pub action_message: Option<(String, Instant)>,
+    pub action_message: Option<(String, chrono::DateTime<chrono::Local>)>,
 }
 
 #[derive(Clone, Debug)]
@@ -270,20 +269,27 @@ impl ProxyJumpUI {
     /// Start editing an existing hop
     pub fn start_edit_hop(&mut self, hop_index: usize) {
         if let Some(ref config_id) = self.selected_config_id {
-            if let Some(config) = self.get_config(config_id) {
-                if let Some(hop) = config.jump_chain.get(hop_index) {
-                    self.editing_hop_index = Some(hop_index);
-                    self.hop_form = HopForm {
-                        name: hop.name.clone(),
-                        host: hop.host.clone(),
-                        port: hop.port.to_string(),
-                        username: hop.username.clone(),
-                        auth_type: hop.auth_type.clone(),
-                        password: hop.password.clone().unwrap_or_default(),
-                        identity_file: hop.identity_file.clone().unwrap_or_default(),
-                    };
-                    self.show_edit_hop_dialog = true;
-                }
+            // First, collect the hop data we need
+            let hop_data = self.get_config(config_id).and_then(|config| {
+                config.jump_chain.get(hop_index).map(|hop| {
+                    (hop.name.clone(), hop.host.clone(), hop.port, hop.username.clone(),
+                     hop.auth_type.clone(), hop.password.clone(), hop.identity_file.clone())
+                })
+            });
+
+            // Now update self with the hop data
+            if let Some((name, host, port, username, auth_type, password, identity_file)) = hop_data {
+                self.editing_hop_index = Some(hop_index);
+                self.hop_form = HopForm {
+                    name,
+                    host,
+                    port: port.to_string(),
+                    username,
+                    auth_type,
+                    password: password.unwrap_or_default(),
+                    identity_file: identity_file.unwrap_or_default(),
+                };
+                self.show_edit_hop_dialog = true;
             }
         }
     }
@@ -315,34 +321,35 @@ impl ProxyJumpUI {
             },
         };
 
-        if let Some(ref config_id) = self.selected_config_id {
-            if let Some(config) = self.get_config_mut(config_id) {
-                match self.editing_hop_index {
-                    Some(index) => {
-                        if index < config.jump_chain.len() {
-                            config.jump_chain[index] = hop;
-                        }
-                    }
-                    None => {
-                        config.jump_chain.push(hop);
+        let editing_index = self.editing_hop_index;
+        let config_id = self.selected_config_id.clone()
+            .ok_or_else(|| "No configuration selected".to_string())?;
+
+        if let Some(config) = self.get_config_mut(&config_id) {
+            match editing_index {
+                Some(index) => {
+                    if index < config.jump_chain.len() {
+                        config.jump_chain[index] = hop;
                     }
                 }
-                config.update_timestamp();
-                self.show_message("Hop saved successfully".to_string());
-                self.show_edit_hop_dialog = false;
-                Ok(())
-            } else {
-                Err("Configuration not found".to_string())
+                None => {
+                    config.jump_chain.push(hop);
+                }
             }
+            config.update_timestamp();
+            self.show_message("Hop saved successfully".to_string());
+            self.show_edit_hop_dialog = false;
+            Ok(())
         } else {
-            Err("No configuration selected".to_string())
+            Err("Configuration not found".to_string())
         }
     }
 
     /// Remove a hop from the chain
     pub fn remove_hop(&mut self, hop_index: usize) {
-        if let Some(ref config_id) = self.selected_config_id {
-            if let Some(config) = self.get_config_mut(config_id) {
+        let config_id = self.selected_config_id.clone();
+        if let Some(id) = config_id {
+            if let Some(config) = self.get_config_mut(&id) {
                 if hop_index < config.jump_chain.len() {
                     config.jump_chain.remove(hop_index);
                     config.update_timestamp();
@@ -357,8 +364,9 @@ impl ProxyJumpUI {
         if hop_index == 0 {
             return;
         }
-        if let Some(ref config_id) = self.selected_config_id {
-            if let Some(config) = self.get_config_mut(config_id) {
+        let config_id = self.selected_config_id.clone();
+        if let Some(id) = config_id {
+            if let Some(config) = self.get_config_mut(&id) {
                 if hop_index < config.jump_chain.len() {
                     config.jump_chain.swap(hop_index, hop_index - 1);
                     config.update_timestamp();
@@ -369,8 +377,9 @@ impl ProxyJumpUI {
 
     /// Move hop down in the chain
     pub fn move_hop_down(&mut self, hop_index: usize) {
-        if let Some(ref config_id) = self.selected_config_id {
-            if let Some(config) = self.get_config_mut(config_id) {
+        let config_id = self.selected_config_id.clone();
+        if let Some(id) = config_id {
+            if let Some(config) = self.get_config_mut(&id) {
                 if hop_index + 1 < config.jump_chain.len() {
                     config.jump_chain.swap(hop_index, hop_index + 1);
                     config.update_timestamp();
@@ -381,13 +390,14 @@ impl ProxyJumpUI {
 
     /// Show action message
     pub fn show_message(&mut self, message: String) {
-        self.action_message = Some((message, Instant::now()));
+        self.action_message = Some((message, chrono::Local::now()));
     }
 
     /// Clear expired message
     pub fn clear_expired_message(&mut self) {
         if let Some((_, timestamp)) = self.action_message {
-            if timestamp.elapsed().as_secs() > 3 {
+            let elapsed = chrono::Local::now().signed_duration_since(timestamp);
+            if elapsed.num_seconds() > 3 {
                 self.action_message = None;
             }
         }
@@ -547,14 +557,33 @@ impl ProxyJumpUI {
 
         ui.add_space(10.0);
 
-        let configs = self.get_filtered_configs();
+        // Clone the IDs we need to render
+        let config_ids: Vec<String> = if self.search_query.is_empty() {
+            self.configs.iter().map(|c| c.id.clone()).collect()
+        } else {
+            let query = self.search_query.to_lowercase();
+            self.configs
+                .iter()
+                .filter(|c| {
+                    c.name.to_lowercase().contains(&query)
+                        || c.target_server_name.to_lowercase().contains(&query)
+                        || c.jump_chain.iter().any(|h| {
+                            h.name.to_lowercase().contains(&query)
+                                || h.host.to_lowercase().contains(&query)
+                        })
+                })
+                .map(|c| c.id.clone())
+                .collect()
+        };
 
-        if configs.is_empty() {
+        if config_ids.is_empty() {
             ui.label("No proxy jump configurations.");
         } else {
             egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                for config in configs {
-                    self.render_config_item(ui, config);
+                for id in config_ids {
+                    if let Some(config) = self.get_config(&id).cloned() {
+                        self.render_config_item(ui, &config);
+                    }
                 }
             });
         }
@@ -617,7 +646,9 @@ impl ProxyJumpUI {
     }
 
     fn render_config_details(&mut self, ui: &mut egui::Ui) {
-        if let Some(ref config_id) = self.selected_config_id {
+        let selected_config = self.selected_config_id.clone();
+
+        if let Some(ref config_id) = selected_config {
             if let Some(config) = self.get_config(config_id).cloned() {
                 // Config header
                 ui.horizontal(|ui| {
@@ -665,6 +696,9 @@ impl ProxyJumpUI {
                 ui.separator();
                 ui.add_space(10.0);
 
+                let target_server_name = config.target_server_name.clone();
+                let has_hops = !config.jump_chain.is_empty();
+
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new("Jump Chain").strong().size(14.0));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -681,13 +715,14 @@ impl ProxyJumpUI {
 
                 ui.add_space(10.0);
 
-                if config.jump_chain.is_empty() {
+                if !has_hops {
                     ui.label("No hops configured. Add at least one jump host.");
                 } else {
                     // Visual chain representation
+                    let chain_len = config.jump_chain.len();
                     ui.vertical(|ui| {
                         for (i, hop) in config.jump_chain.iter().enumerate() {
-                            self.render_hop_node(ui, i, hop, config.jump_chain.len());
+                            self.render_hop_node(ui, i, hop, chain_len);
                         }
                     });
                 }

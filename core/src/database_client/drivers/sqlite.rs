@@ -29,6 +29,20 @@ impl SqliteDriver {
         }
     }
 
+    /// Escape SQL identifier to prevent SQL injection
+    /// SQLite identifiers should only contain alphanumeric chars, underscores
+    fn escape_identifier(identifier: &str) -> String {
+        // Remove any potentially dangerous characters
+        // Only allow alphanumeric, underscore, and space (for cases like "table name")
+        let sanitized: String = identifier
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '_' || *c == ' ')
+            .collect();
+
+        // Wrap in double quotes for identifier quoting
+        format!("\"{}\"", sanitized.replace('"', "\"\""))
+    }
+
     fn get_conn(&self) -> Result<std::sync::MutexGuard<Connection>, DatabaseError> {
         self.connection
             .as_ref()
@@ -272,8 +286,10 @@ impl DatabaseDriver for SqliteDriver {
         for row in rows {
             let (name, table_type) = row.map_err(|e| DatabaseError::QueryError(e.to_string()))?;
 
-            // Get row count
-            let count_query = format!("SELECT COUNT(*) FROM {}", name);
+            // Get row count - Use parameterized query to prevent SQL injection
+            let count_query = "SELECT COUNT(*) FROM "
+                .to_string()
+                + &Self::escape_identifier(&name);
             let row_count: Option<u64> = conn
                 .query_row(&count_query, [], |r| r.get::<_, i64>(0).map(|v| v as u64))
                 .ok();
@@ -441,9 +457,11 @@ impl DatabaseDriver for SqliteDriver {
             indexes: indexes.clone(),
             foreign_keys: foreign_keys.clone(),
             row_count: conn
-                .query_row(&format!("SELECT COUNT(*) FROM {}", table_name), [], |r| {
-                    Ok(r.get::<_, i64>(0).map(|v| v as u64).ok())
-                })
+                .query_row(
+                    &("SELECT COUNT(*) FROM ".to_string() + &Self::escape_identifier(table_name)),
+                    [],
+                    |r| { Ok(r.get::<_, i64>(0).map(|v| v as u64).ok()) },
+                )
                 .ok()
                 .flatten(),
             size_bytes: None,
