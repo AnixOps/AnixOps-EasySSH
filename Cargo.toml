@@ -85,7 +85,7 @@ tempfile = "3"
 walkdir = "2"
 tar = "0.4"
 zip = "2.2"
-bzip2 = "0.4"
+bzip2 = "0.6"
 zstd = "0.13"
 xz2 = "0.1"
 
