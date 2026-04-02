@@ -23,6 +23,7 @@ mod models;
 mod rate_limit;
 mod redis_cache;
 mod services;
+mod sso;
 mod websocket;
 
 // 事件响应中心模块
@@ -31,16 +32,18 @@ mod incident_models;
 mod incident_service;
 mod post_mortem_service;
 mod runbook_service;
+mod rbac;
 
 use crate::api::{
     audit::audit_routes, collaboration::collaboration_routes, incident::incident_routes,
-    rbac::rbac_routes, resources::resource_routes, sso::sso_routes, teams::team_routes,
+    rbac::rbac_routes, resources::resource_routes, teams::team_routes,
 };
 use crate::auth::auth_routes;
 use crate::config::AppConfig;
 use crate::db::Database;
 use crate::docs::swagger::swagger_routes;
 use crate::middleware::{auth_middleware, rate_limit_middleware};
+use crate::sso::routes::sso_routes;
 use crate::websocket::ws_routes;
 
 #[derive(Clone)]
@@ -48,6 +51,8 @@ pub struct AppState {
     pub db: Arc<Database>,
     pub redis: Arc<redis_cache::RedisCache>,
     pub config: Arc<AppConfig>,
+    pub sso_handler: Arc<sso::handlers::SsoServiceHandler>,
+    pub audit_service: Arc<services::audit_service::AuditService>,
 }
 
 #[tokio::main]
@@ -74,10 +79,20 @@ async fn main() -> Result<()> {
     let redis = redis_cache::RedisCache::new(&config.redis_url).await?;
     info!("Redis connected");
 
+    // Initialize SSO handler
+    let sso_handler = sso::handlers::SsoServiceHandler::new((*redis).clone());
+    info!("SSO handler initialized");
+
+    // Initialize audit service
+    let audit_service = services::audit_service::AuditService::new(db.pool().clone());
+    info!("Audit service initialized");
+
     let state = AppState {
         db: Arc::new(db),
         redis: Arc::new(redis),
         config: Arc::new(config),
+        sso_handler: Arc::new(sso_handler),
+        audit_service: Arc::new(audit_service),
     };
 
     // Build application router

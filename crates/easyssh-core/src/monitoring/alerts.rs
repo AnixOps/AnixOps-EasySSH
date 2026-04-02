@@ -631,3 +631,19 @@ pub struct PredictiveAlert {
     pub recommended_action: String,
     pub related_metrics: Vec<MetricType>,
 }
+
+/// Get description for alert condition (public version)
+pub fn condition_description(condition: &AlertCondition) -> &'static str {
+    match condition {
+        AlertCondition::GreaterThan => "above threshold",
+        AlertCondition::GreaterThanOrEqual => "at or above threshold",
+        AlertCondition::LessThan => "below threshold",
+        AlertCondition::LessThanOrEqual => "at or below threshold",
+        AlertCondition::Equal => "equal to threshold",
+        AlertCondition::NotEqual => "not equal to threshold",
+        AlertCondition::Between { .. } => "within range",
+        AlertCondition::Outside { .. } => "outside range",
+        AlertCondition::Anomaly => "anomalous",
+        AlertCondition::NoData => "reporting no data",
+    }
+}

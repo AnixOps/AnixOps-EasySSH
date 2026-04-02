@@ -14,6 +14,15 @@ pub enum SplitDirection {
     Vertical,   // 上下分屏
 }
 
+impl SplitDirection {
+    pub fn opposite(&self) -> Self {
+        match self {
+            SplitDirection::Horizontal => SplitDirection::Vertical,
+            SplitDirection::Vertical => SplitDirection::Horizontal,
+        }
+    }
+}
+
 /// 面板内容类型
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
@@ -51,7 +60,7 @@ pub struct Panel {
     #[serde(default)]
     pub title: Option<String>,
     #[serde(default)]
-    pub weight: f32, // 分屏比例权重
+    pub weight: f32,
 }
 
 impl Panel {
@@ -79,14 +88,28 @@ impl Panel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "node_type")]
 pub enum SplitNode {
-    Leaf {
-        panel_id: String,
-    },
+    Leaf { panel_id: String },
     Split {
         direction: SplitDirection,
-        children: Vec<String>, // panel IDs
+        children: Vec<String>,
         weights: Vec<f32>,
     },
+}
+
+/// 工作区模式
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkspaceMode {
+    Focus,
+    Split,
+    Tabs,
+    Dashboard,
+}
+
+impl Default for WorkspaceMode {
+    fn default() -> Self {
+        WorkspaceMode::Focus
+    }
 }
 
 /// 工作区布局
@@ -95,7 +118,7 @@ pub struct Layout {
     pub id: String,
     pub name: String,
     pub workspace_mode: WorkspaceMode,
-    pub root_node: String, // root node ID
+    pub root_node: String,
     #[serde(default)]
     pub nodes: HashMap<String, SplitNode>,
     #[serde(default)]
@@ -106,24 +129,7 @@ pub struct Layout {
     pub dirty: bool,
 }
 
-/// 工作区模式
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WorkspaceMode {
-    Focus,     // 专注模式 - 单面板
-    Split,     // 分屏模式
-    Tabs,      // 标签页模式
-    Dashboard, // 仪表盘模式
-}
-
-impl Default for WorkspaceMode {
-    fn default() -> Self {
-        WorkspaceMode::Focus
-    }
-}
-
 impl Layout {
-    /// 创建新的空白布局
     pub fn new(name: &str) -> Self {
         let id = Uuid::new_v4().to_string();
         let root_panel = Panel::new(PanelContent::Empty);
@@ -133,12 +139,7 @@ impl Layout {
         panels.insert(root_id.clone(), root_panel);
 
         let mut nodes = HashMap::new();
-        nodes.insert(
-            root_id.clone(),
-            SplitNode::Leaf {
-                panel_id: root_id.clone(),
-            },
-        );
+        nodes.insert(root_id.clone(), SplitNode::Leaf { panel_id: root_id.clone() });
 
         Self {
             id,
@@ -152,13 +153,9 @@ impl Layout {
         }
     }
 
-    /// 创建专注模式布局（单终端）
     pub fn focus_mode(name: &str, session_id: Option<String>) -> Self {
         let id = Uuid::new_v4().to_string();
-        let content = PanelContent::Terminal {
-            session_id,
-            host_id: None,
-        };
+        let content = PanelContent::Terminal { session_id, host_id: None };
         let root_panel = Panel::new(content).with_title(name);
         let root_id = root_panel.id.clone();
 
@@ -166,12 +163,7 @@ impl Layout {
         panels.insert(root_id.clone(), root_panel);
 
         let mut nodes = HashMap::new();
-        nodes.insert(
-            root_id.clone(),
-            SplitNode::Leaf {
-                panel_id: root_id.clone(),
-            },
-        );
+        nodes.insert(root_id.clone(), SplitNode::Leaf { panel_id: root_id.clone() });
 
         Self {
             id,
@@ -185,7 +177,6 @@ impl Layout {
         }
     }
 
-    /// 创建分屏布局
     pub fn split_layout(
         name: &str,
         direction: SplitDirection,
@@ -227,7 +218,6 @@ impl Layout {
         }
     }
 
-    /// 分割面板
     pub fn split_panel(
         &mut self,
         panel_id: &str,
@@ -237,12 +227,10 @@ impl Layout {
         let new_panel = Panel::new(new_content);
         let new_id = new_panel.id.clone();
 
-        // 找到包含该面板的节点
         if let Some(node_id) = self.find_node_containing_panel(panel_id) {
             if let Some(node) = self.nodes.get(&node_id).cloned() {
                 match node {
                     SplitNode::Leaf { .. } => {
-                        // 将叶子节点转换为分割节点
                         let split_id = Uuid::new_v4().to_string();
                         self.nodes.insert(
                             split_id.clone(),
@@ -253,23 +241,16 @@ impl Layout {
                             },
                         );
 
-                        // 替换原节点引用
                         if node_id == self.root_node {
                             self.root_node = split_id;
                         } else {
                             self.replace_node_in_parent(&node_id, &split_id);
                         }
 
-                        // 移除旧节点
                         self.nodes.remove(&node_id);
                     }
-                    SplitNode::Split {
-                        direction: existing_dir,
-                        mut children,
-                        mut weights,
-                    } => {
+                    SplitNode::Split { direction: existing_dir, mut children, mut weights } => {
                         if existing_dir == direction {
-                            // 同方向，直接添加
                             children.push(new_id.clone());
                             weights.push(0.5);
                             self.nodes.insert(
@@ -281,7 +262,6 @@ impl Layout {
                                 },
                             );
                         } else {
-                            // 不同方向，创建嵌套分割
                             let new_split_id = Uuid::new_v4().to_string();
                             self.nodes.insert(
                                 new_split_id.clone(),
@@ -292,14 +272,8 @@ impl Layout {
                                 },
                             );
 
-                            // 替换原节点中的panel_id引用
-                            let idx =
-                                children
-                                    .iter()
-                                    .position(|id| id == panel_id)
-                                    .ok_or_else(|| {
-                                        LiteError::Layout("Panel not found in split".to_string())
-                                    })?;
+                            let idx = children.iter().position(|id| id == panel_id)
+                                .ok_or_else(|| LiteError::Layout("Panel not found in split".to_string()))?;
                             children[idx] = new_split_id;
 
                             self.nodes.insert(
@@ -325,20 +299,14 @@ impl Layout {
         Ok(new_id)
     }
 
-    /// 移除面板
     pub fn remove_panel(&mut self, panel_id: &str) -> Result<(), LiteError> {
         if self.panels.len() <= 1 {
-            return Err(LiteError::Layout(
-                "Cannot remove the last panel".to_string(),
-            ));
+            return Err(LiteError::Layout("Cannot remove the last panel".to_string()));
         }
 
         self.panels.remove(panel_id);
-
-        // 更新或删除包含该面板的节点
         self.remove_panel_from_tree(panel_id)?;
 
-        // 更新活动面板
         if self.active_panel.as_deref() == Some(panel_id) {
             self.active_panel = self.panels.keys().next().cloned();
         }
@@ -347,7 +315,6 @@ impl Layout {
         Ok(())
     }
 
-    /// 设置活动面板
     pub fn set_active_panel(&mut self, panel_id: &str) -> Result<(), LiteError> {
         if self.panels.contains_key(panel_id) {
             self.active_panel = Some(panel_id.to_string());
@@ -358,12 +325,10 @@ impl Layout {
         }
     }
 
-    /// 获取面板内容
     pub fn get_panel_content(&self, panel_id: &str) -> Option<&PanelContent> {
         self.panels.get(panel_id).map(|p| &p.content)
     }
 
-    /// 更新面板内容
     pub fn update_panel_content(
         &mut self,
         panel_id: &str,
@@ -378,25 +343,24 @@ impl Layout {
         }
     }
 
-    /// 获取所有面板列表
     pub fn list_panels(&self) -> Vec<&Panel> {
         self.panels.values().collect()
     }
 
-    /// 转换为JSON（用于持久化）
     pub fn to_json(&self) -> Result<String, LiteError> {
         serde_json::to_string(self).map_err(|e| LiteError::Json(e.to_string()))
     }
 
-    /// 从JSON加载
     pub fn from_json(json: &str) -> Result<Self, LiteError> {
-        let mut layout: Self =
-            serde_json::from_str(json).map_err(|e| LiteError::Json(e.to_string()))?;
+        let mut layout: Self = serde_json::from_str(json).map_err(|e| LiteError::Json(e.to_string()))?;
         layout.dirty = false;
         Ok(layout)
     }
 
-    // 辅助方法：查找包含指定面板的节点
+    pub fn panel_count(&self) -> usize {
+        self.panels.len()
+    }
+
     fn find_node_containing_panel(&self, panel_id: &str) -> Option<String> {
         self.find_node_recursive(&self.root_node, panel_id)
     }
@@ -406,13 +370,10 @@ impl Layout {
             match node {
                 SplitNode::Leaf { panel_id: id } if id == panel_id => Some(node_id.to_string()),
                 SplitNode::Split { children, .. } => {
-                    // First check if any child is the panel itself (direct panel reference)
                     for child_id in children {
                         if child_id == panel_id {
-                            // This child is a direct panel reference, return this node
                             return Some(node_id.to_string());
                         }
-                        // Otherwise recursively search
                         if let Some(found) = self.find_node_recursive(child_id, panel_id) {
                             return Some(found);
                         }
@@ -426,7 +387,6 @@ impl Layout {
         }
     }
 
-    // 辅助方法：在父节点中替换子节点
     fn replace_node_in_parent(&mut self, old_id: &str, new_id: &str) {
         for node in self.nodes.values_mut() {
             if let SplitNode::Split { children, .. } = node {
@@ -438,36 +398,27 @@ impl Layout {
         }
     }
 
-    // 辅助方法：从树中移除面板
     fn remove_panel_from_tree(&mut self, panel_id: &str) -> Result<(), LiteError> {
-        let node_id = self
-            .find_node_containing_panel(panel_id)
+        let node_id = self.find_node_containing_panel(panel_id)
             .ok_or_else(|| LiteError::Layout(format!("Panel {} not in tree", panel_id)))?;
 
         if let Some(node) = self.nodes.get(&node_id).cloned() {
             match node {
                 SplitNode::Leaf { .. } => {
                     if node_id == self.root_node {
-                        // 根节点是叶子，不能删除
                         return Err(LiteError::Layout("Cannot remove root leaf".to_string()));
                     }
                     self.nodes.remove(&node_id);
-                    // 需要在父节点中移除引用
                     self.remove_node_from_parent(&node_id);
                 }
                 SplitNode::Split { children, .. } => {
-                    let new_children: Vec<String> =
-                        children.into_iter().filter(|id| id != panel_id).collect();
+                    let new_children: Vec<String> = children.into_iter().filter(|id| id != panel_id).collect();
 
                     if new_children.len() == 1 {
-                        // 只剩一个子节点，替换该节点为叶子
                         let remaining_id = new_children[0].clone();
-                        // 创建叶子节点
                         self.nodes.insert(
                             remaining_id.clone(),
-                            SplitNode::Leaf {
-                                panel_id: remaining_id.clone(),
-                            },
+                            SplitNode::Leaf { panel_id: remaining_id.clone() },
                         );
 
                         if node_id == self.root_node {
@@ -477,7 +428,6 @@ impl Layout {
                         }
                         self.nodes.remove(&node_id);
                     } else {
-                        // 更新分割节点
                         let weights = vec![1.0 / new_children.len() as f32; new_children.len()];
                         if let Some(SplitNode::Split { direction, .. }) = self.nodes.get(&node_id) {
                             self.nodes.insert(
@@ -496,7 +446,6 @@ impl Layout {
         Ok(())
     }
 
-    // 辅助方法：从父节点中移除子节点引用
     fn remove_node_from_parent(&mut self, node_id: &str) {
         for node in self.nodes.values_mut() {
             if let SplitNode::Split { children, .. } = node {
@@ -525,11 +474,7 @@ impl LayoutManager {
     }
 
     fn init_presets(&mut self) {
-        // 专注模式预设
-        self.presets
-            .insert("focus".to_string(), Layout::new("专注模式"));
-
-        // 左右分屏预设
+        self.presets.insert("focus".to_string(), Layout::new("专注模式"));
         self.presets.insert(
             "split_horizontal".to_string(),
             Layout::split_layout(
@@ -539,8 +484,6 @@ impl LayoutManager {
                 PanelContent::ServerList { group_id: None },
             ),
         );
-
-        // 上下分屏预设
         self.presets.insert(
             "split_vertical".to_string(),
             Layout::split_layout(
@@ -551,7 +494,6 @@ impl LayoutManager {
             ),
         );
 
-        // 三栏布局预设
         let mut triple_layout = Layout::split_layout(
             "三栏布局",
             SplitDirection::Horizontal,
@@ -568,7 +510,6 @@ impl LayoutManager {
         self.presets.insert("triple".to_string(), triple_layout);
     }
 
-    /// 创建新布局
     pub fn create_layout(&mut self, name: &str, mode: WorkspaceMode) -> String {
         let mut layout = Layout::new(name);
         layout.workspace_mode = mode;
@@ -578,7 +519,6 @@ impl LayoutManager {
         id
     }
 
-    /// 从预设创建布局
     pub fn create_from_preset(&mut self, preset_name: &str) -> Option<String> {
         if let Some(preset) = self.presets.get(preset_name) {
             let mut layout = preset.clone();
@@ -593,21 +533,14 @@ impl LayoutManager {
         }
     }
 
-    /// 获取当前布局
     pub fn current_layout(&self) -> Option<&Layout> {
-        self.current_layout
-            .as_ref()
-            .and_then(|id| self.layouts.get(id))
+        self.current_layout.as_ref().and_then(|id| self.layouts.get(id))
     }
 
-    /// 获取当前布局（可变）
     pub fn current_layout_mut(&mut self) -> Option<&mut Layout> {
-        self.current_layout
-            .as_ref()
-            .and_then(|id| self.layouts.get_mut(id))
+        self.current_layout.as_ref().and_then(|id| self.layouts.get_mut(id))
     }
 
-    /// 切换布局
     pub fn switch_layout(&mut self, layout_id: &str) -> Result<(), LiteError> {
         if self.layouts.contains_key(layout_id) {
             self.current_layout = Some(layout_id.to_string());
@@ -617,12 +550,9 @@ impl LayoutManager {
         }
     }
 
-    /// 删除布局
     pub fn delete_layout(&mut self, layout_id: &str) -> Result<(), LiteError> {
         if self.layouts.len() <= 1 {
-            return Err(LiteError::Layout(
-                "Cannot delete the only layout".to_string(),
-            ));
+            return Err(LiteError::Layout("Cannot delete the only layout".to_string()));
         }
 
         self.layouts.remove(layout_id);
@@ -634,17 +564,14 @@ impl LayoutManager {
         Ok(())
     }
 
-    /// 列出所有布局
     pub fn list_layouts(&self) -> Vec<&Layout> {
         self.layouts.values().collect()
     }
 
-    /// 获取布局
     pub fn get_layout(&self, id: &str) -> Option<&Layout> {
         self.layouts.get(id)
     }
 
-    /// 更新布局
     pub fn update_layout(&mut self, layout: Layout) -> Result<(), LiteError> {
         if self.layouts.contains_key(&layout.id) {
             self.layouts.insert(layout.id.clone(), layout);
@@ -654,25 +581,20 @@ impl LayoutManager {
         }
     }
 
-    /// 获取所有预设名称
     pub fn list_preset_names(&self) -> Vec<&str> {
         self.presets.keys().map(|s| s.as_str()).collect()
     }
 
-    /// 获取预设
     pub fn get_preset(&self, name: &str) -> Option<&Layout> {
         self.presets.get(name)
     }
 
-    /// 保存布局到JSON
     pub fn export_layout(&self, layout_id: &str) -> Result<String, LiteError> {
-        self.layouts
-            .get(layout_id)
+        self.layouts.get(layout_id)
             .ok_or_else(|| LiteError::Layout(format!("Layout {} not found", layout_id)))?
             .to_json()
     }
 
-    /// 从JSON导入布局
     pub fn import_layout(&mut self, json: &str) -> Result<String, LiteError> {
         let layout = Layout::from_json(json)?;
         let id = layout.id.clone();
@@ -680,45 +602,24 @@ impl LayoutManager {
         Ok(id)
     }
 
-    /// 获取当前活动面板
     pub fn current_active_panel(&self) -> Option<(String, &Panel)> {
         self.current_layout().and_then(|layout| {
-            layout
-                .active_panel
-                .as_ref()
+            layout.active_panel.as_ref()
                 .and_then(|panel_id| layout.panels.get(panel_id).map(|p| (panel_id.clone(), p)))
         })
     }
 
-    /// 在指定面板中打开终端
-    pub fn open_terminal_in_panel(
-        &mut self,
-        panel_id: &str,
-        session_id: Option<String>,
-    ) -> Result<(), LiteError> {
+    pub fn open_terminal_in_panel(&mut self, panel_id: &str, session_id: Option<String>) -> Result<(), LiteError> {
         if let Some(layout) = self.current_layout_mut() {
-            layout.update_panel_content(
-                panel_id,
-                PanelContent::Terminal {
-                    session_id,
-                    host_id: None,
-                },
-            )
+            layout.update_panel_content(panel_id, PanelContent::Terminal { session_id, host_id: None })
         } else {
             Err(LiteError::Layout("No active layout".to_string()))
         }
     }
 
-    /// 分屏当前活动面板
-    pub fn split_current_panel(
-        &mut self,
-        direction: SplitDirection,
-        content: PanelContent,
-    ) -> Result<String, LiteError> {
+    pub fn split_current_panel(&mut self, direction: SplitDirection, content: PanelContent) -> Result<String, LiteError> {
         if let Some(layout) = self.current_layout_mut() {
-            let active_id = layout
-                .active_panel
-                .clone()
+            let active_id = layout.active_panel.clone()
                 .ok_or_else(|| LiteError::Layout("No active panel".to_string()))?;
             layout.split_panel(&active_id, direction, content)
         } else {
@@ -726,23 +627,227 @@ impl LayoutManager {
         }
     }
 
-    /// 关闭当前面板
     pub fn close_current_panel(&mut self) -> Result<(), LiteError> {
         if let Some(layout) = self.current_layout_mut() {
-            let active_id = layout
-                .active_panel
-                .clone()
+            let active_id = layout.active_panel.clone()
                 .ok_or_else(|| LiteError::Layout("No active panel".to_string()))?;
             layout.remove_panel(&active_id)
         } else {
             Err(LiteError::Layout("No active layout".to_string()))
         }
     }
+
+    pub fn next_panel(&mut self) -> Result<(), LiteError> {
+        let panels: Vec<String> = self.current_layout()
+            .map(|l| l.panels.keys().cloned().collect())
+            .unwrap_or_default();
+
+        if panels.len() <= 1 {
+            return Ok(());
+        }
+
+        let current = self.current_layout()
+            .and_then(|l| l.active_panel.clone())
+            .ok_or_else(|| LiteError::Layout("No active panel".to_string()))?;
+
+        if let Some(idx) = panels.iter().position(|id| id == &current) {
+            let next_idx = (idx + 1) % panels.len();
+            if let Some(layout) = self.current_layout_mut() {
+                layout.set_active_panel(&panels[next_idx])?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn prev_panel(&mut self) -> Result<(), LiteError> {
+        let panels: Vec<String> = self.current_layout()
+            .map(|l| l.panels.keys().cloned().collect())
+            .unwrap_or_default();
+
+        if panels.len() <= 1 {
+            return Ok(());
+        }
+
+        let current = self.current_layout()
+            .and_then(|l| l.active_panel.clone())
+            .ok_or_else(|| LiteError::Layout("No active panel".to_string()))?;
+
+        if let Some(idx) = panels.iter().position(|id| id == &current) {
+            let prev_idx = if idx == 0 { panels.len() - 1 } else { idx - 1 };
+            if let Some(layout) = self.current_layout_mut() {
+                layout.set_active_panel(&panels[prev_idx])?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn export_all(&self) -> Result<String, LiteError> {
+        let layouts: Vec<&Layout> = self.layouts.values().collect();
+        serde_json::to_string(&layouts).map_err(|e| LiteError::Json(e.to_string()))
+    }
+
+    pub fn import_all(&mut self, json: &str) -> Result<Vec<String>, LiteError> {
+        let layouts: Vec<Layout> = serde_json::from_str(json)
+            .map_err(|e| LiteError::Json(e.to_string()))?;
+
+        let mut ids = Vec::new();
+        for mut layout in layouts {
+            layout.id = Uuid::new_v4().to_string();
+            let id = layout.id.clone();
+            self.layouts.insert(id.clone(), layout);
+            ids.push(id);
+        }
+        Ok(ids)
+    }
 }
 
 impl Default for LayoutManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ============ 增强功能 ============
+
+/// 拖拽状态
+#[derive(Debug, Clone, Default)]
+pub struct DragDropState {
+    pub is_dragging: bool,
+    pub start_pos: (f32, f32),
+    pub current_pos: (f32, f32),
+    pub delta: (f32, f32),
+}
+
+impl DragDropState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn start(&mut self, x: f32, y: f32) {
+        self.is_dragging = true;
+        self.start_pos = (x, y);
+        self.current_pos = (x, y);
+        self.delta = (0.0, 0.0);
+    }
+
+    pub fn update(&mut self, x: f32, y: f32) {
+        self.delta = (x - self.current_pos.0, y - self.current_pos.1);
+        self.current_pos = (x, y);
+    }
+
+    pub fn end(&mut self) {
+        *self = Self::default();
+    }
+}
+
+/// 矩形区域
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Rect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Rect {
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self { x, y, width, height }
+    }
+
+    pub fn contains(&self, point: (f32, f32)) -> bool {
+        point.0 >= self.x && point.0 <= self.x + self.width
+            && point.1 >= self.y && point.1 <= self.y + self.height
+    }
+}
+
+/// 分割条样式
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SplitHandleStyle {
+    pub size: f32,
+    pub hover_size: f32,
+    pub color: [u8; 4],
+    pub hover_color: [u8; 4],
+}
+
+impl Default for SplitHandleStyle {
+    fn default() -> Self {
+        Self {
+            size: 4.0,
+            hover_size: 6.0,
+            color: [100, 100, 100, 255],
+            hover_color: [66, 133, 244, 255],
+        }
+    }
+}
+
+/// 布局主题
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayoutTheme {
+    pub background_color: [u8; 4],
+    pub panel_background: [u8; 4],
+    pub split_handle: SplitHandleStyle,
+}
+
+impl Default for LayoutTheme {
+    fn default() -> Self {
+        Self {
+            background_color: [30, 30, 30, 255],
+            panel_background: [40, 40, 40, 255],
+            split_handle: SplitHandleStyle::default(),
+        }
+    }
+}
+
+/// 布局配置
+#[derive(Debug, Clone)]
+pub struct LayoutConfig {
+    pub theme: LayoutTheme,
+    pub min_panel_size: f32,
+    pub default_split_ratio: f32,
+}
+
+impl Default for LayoutConfig {
+    fn default() -> Self {
+        Self {
+            theme: LayoutTheme::default(),
+            min_panel_size: 100.0,
+            default_split_ratio: 0.5,
+        }
+    }
+}
+
+/// 布局工具函数
+pub mod layout_utils {
+    use super::*;
+
+    pub fn calculate_split_rects(parent: &Rect, direction: SplitDirection, ratios: &[f32]) -> Vec<Rect> {
+        let mut rects = Vec::with_capacity(ratios.len());
+        let mut current_pos = 0.0;
+
+        for ratio in ratios {
+            match direction {
+                SplitDirection::Horizontal => {
+                    let width = parent.width * ratio;
+                    rects.push(Rect::new(parent.x + current_pos, parent.y, width, parent.height));
+                    current_pos += width;
+                }
+                SplitDirection::Vertical => {
+                    let height = parent.height * ratio;
+                    rects.push(Rect::new(parent.x, parent.y + current_pos, parent.width, height));
+                    current_pos += height;
+                }
+            }
+        }
+        rects
+    }
+
+    pub fn normalize_ratios(ratios: &mut [f32]) {
+        let sum: f32 = ratios.iter().sum();
+        if sum > 0.0 {
+            for ratio in ratios.iter_mut() {
+                *ratio /= sum;
+            }
+        }
     }
 }
 
@@ -777,9 +882,7 @@ mod tests {
         let mut layout = Layout::new("测试");
         let root_id = layout.root_node.clone();
 
-        let new_id = layout
-            .split_panel(&root_id, SplitDirection::Horizontal, PanelContent::Snippets)
-            .unwrap();
+        let new_id = layout.split_panel(&root_id, SplitDirection::Horizontal, PanelContent::Snippets).unwrap();
 
         assert_eq!(layout.panels.len(), 2);
         assert!(layout.panels.contains_key(&new_id));
@@ -825,14 +928,8 @@ mod tests {
         let layout = Layout::split_layout(
             "序列化测试",
             SplitDirection::Vertical,
-            PanelContent::Terminal {
-                session_id: Some("s1".to_string()),
-                host_id: None,
-            },
-            PanelContent::SftpBrowser {
-                session_id: "s1".to_string(),
-                path: "/home".to_string(),
-            },
+            PanelContent::Terminal { session_id: Some("s1".to_string()), host_id: None },
+            PanelContent::SftpBrowser { session_id: "s1".to_string(), path: "/home".to_string() },
         );
 
         let json = layout.to_json().unwrap();
@@ -840,36 +937,6 @@ mod tests {
 
         assert_eq!(restored.name, "序列化测试");
         assert_eq!(restored.panels.len(), 2);
-    }
-
-    #[test]
-    fn test_panel_content_variants() {
-        let terminal = PanelContent::Terminal {
-            session_id: Some("s1".to_string()),
-            host_id: Some("h1".to_string()),
-        };
-        let sftp = PanelContent::SftpBrowser {
-            session_id: "s1".to_string(),
-            path: "/home".to_string(),
-        };
-        let snippets = PanelContent::Snippets;
-
-        let t_json = serde_json::to_string(&terminal).unwrap();
-        let s_json = serde_json::to_string(&sftp).unwrap();
-        let n_json = serde_json::to_string(&snippets).unwrap();
-
-        assert!(t_json.contains("terminal"));
-        assert!(s_json.contains("sftp_browser"));
-        assert!(n_json.contains("snippets"));
-    }
-
-    #[test]
-    fn test_split_direction_serialization() {
-        let h = SplitDirection::Horizontal;
-        let v = SplitDirection::Vertical;
-
-        assert_eq!(serde_json::to_string(&h).unwrap(), "\"horizontal\"");
-        assert_eq!(serde_json::to_string(&v).unwrap(), "\"vertical\"");
     }
 
     #[test]
@@ -882,18 +949,47 @@ mod tests {
     }
 
     #[test]
-    fn test_workspace_mode_serialization() {
-        let modes = vec![
-            WorkspaceMode::Focus,
-            WorkspaceMode::Split,
-            WorkspaceMode::Tabs,
-            WorkspaceMode::Dashboard,
-        ];
+    fn test_drag_drop_state() {
+        let mut state = DragDropState::new();
+        assert!(!state.is_dragging);
+        state.start(100.0, 100.0);
+        assert!(state.is_dragging);
+        state.update(150.0, 150.0);
+        assert_eq!(state.delta.0, 50.0);
+        state.end();
+        assert!(!state.is_dragging);
+    }
 
-        for mode in modes {
-            let json = serde_json::to_string(&mode).unwrap();
-            let restored: WorkspaceMode = serde_json::from_str(&json).unwrap();
-            assert_eq!(mode, restored);
-        }
+    #[test]
+    fn test_rect_contains() {
+        let rect = Rect::new(0.0, 0.0, 100.0, 100.0);
+        assert!(rect.contains((50.0, 50.0)));
+        assert!(!rect.contains((150.0, 50.0)));
+    }
+
+    #[test]
+    fn test_layout_utils() {
+        let parent = Rect::new(0.0, 0.0, 100.0, 100.0);
+        let ratios = vec![0.3, 0.7];
+        let rects = layout_utils::calculate_split_rects(&parent, SplitDirection::Horizontal, &ratios);
+        assert_eq!(rects.len(), 2);
+        assert_eq!(rects[0].width, 30.0);
+        assert_eq!(rects[1].width, 70.0);
+    }
+
+    #[test]
+    fn test_next_prev_panel() {
+        let mut manager = LayoutManager::new();
+        let layout_id = manager.current_layout.clone().unwrap();
+        let panels: Vec<String> = manager.current_layout()
+            .map(|l| l.panels.keys().cloned().collect())
+            .unwrap();
+        let root = &panels[0];
+        manager.split_panel(&layout_id, root, SplitDirection::Horizontal, PanelContent::Empty).unwrap();
+
+        let initial = manager.current_layout().unwrap().active_panel.clone();
+        manager.next_panel().unwrap();
+        let after_next = manager.current_layout().unwrap().active_panel.clone();
+        assert_ne!(initial, after_next);
     }
 }

@@ -5,9 +5,9 @@ use std::sync::Mutex;
 
 use crate::viewmodels::port_forward::PortForwardViewModel;
 use easyssh_core::keychain::{delete_password, get_password, store_password};
-use easyssh_core::sftp::SftpEntry;
+use easyssh_core::sftp::{SftpEntry, SftpManager};
 use easyssh_core::{
-    AppState, GroupRecord, NewServer, ServerRecord, SftpSessionManager, SshSessionManager,
+    AppState, GroupRecord, NewServer, ServerRecord, SshSessionManager,
 };
 use easyssh_core::{
     ConfigConflictResolution as ConflictResolution, ConfigManager, ExportFormat, ImportFormat,
@@ -22,7 +22,7 @@ use tracing::{error, info};
 pub struct AppViewModel {
     core_state: Arc<Mutex<AppState>>,
     ssh_manager: Arc<Mutex<SshSessionManager>>,
-    sftp_manager: Arc<Mutex<SftpSessionManager>>,
+    sftp_manager: Arc<Mutex<SftpManager>>,
     runtime: Arc<Runtime>,
     port_forward_vm: Arc<Mutex<PortForwardViewModel>>,
 }
@@ -39,7 +39,7 @@ impl AppViewModel {
     pub fn new() -> anyhow::Result<Self> {
         let core_state = Arc::new(Mutex::new(AppState::new()));
         let ssh_manager = Arc::new(Mutex::new(SshSessionManager::new()));
-        let sftp_manager = Arc::new(Mutex::new(SftpSessionManager::new()));
+        let sftp_manager = Arc::new(Mutex::new(SftpManager::new()));
         let runtime = Arc::new(Runtime::new()?);
 
         Self::init_with_components(core_state, ssh_manager, sftp_manager, runtime)
@@ -49,7 +49,7 @@ impl AppViewModel {
     pub fn new_with_runtime(runtime: Arc<Runtime>) -> anyhow::Result<Self> {
         let core_state = Arc::new(Mutex::new(AppState::new()));
         let ssh_manager = Arc::new(Mutex::new(SshSessionManager::new()));
-        let sftp_manager = Arc::new(Mutex::new(SftpSessionManager::new()));
+        let sftp_manager = Arc::new(Mutex::new(SftpManager::new()));
 
         Self::init_with_components(core_state, ssh_manager, sftp_manager, runtime)
     }
@@ -58,7 +58,7 @@ impl AppViewModel {
     fn init_with_components(
         core_state: Arc<Mutex<AppState>>,
         ssh_manager: Arc<Mutex<SshSessionManager>>,
-        sftp_manager: Arc<Mutex<SftpSessionManager>>,
+        sftp_manager: Arc<Mutex<SftpManager>>,
         runtime: Arc<Runtime>,
     ) -> anyhow::Result<Self> {
         // Use fast path: check if DB is already initialized before full init

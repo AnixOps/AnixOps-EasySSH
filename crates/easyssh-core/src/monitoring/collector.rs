@@ -1,13 +1,18 @@
 #![allow(dead_code)]
 
 //! Metrics collection from remote servers via SSH
+//!
+//! This module provides:
+//! - MetricsCollector: The enterprise-grade collector for multiple servers
+//! - SimpleCollector: Lightweight collector for Standard version dashboard
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{interval, Duration, Instant};
 
-use crate::monitoring::metrics::ServerMetrics;
+use crate::monitoring::metrics::{ServerMetrics, SystemMetrics};
 use crate::monitoring::storage::MetricsStorage;
 use crate::monitoring::MonitoringError;
 use crate::monitoring::ServerConnectionConfig;
@@ -212,6 +217,24 @@ impl MetricsCollector {
 
         status
     }
+
+    /// Collect SystemMetrics for Standard version dashboard
+    pub async fn collect_system_metrics(
+        &self,
+        server_id: &str,
+    ) -> Result<SystemMetrics, MonitoringError> {
+        let config = {
+            let servers = self.servers.read().await;
+            servers
+                .get(server_id)
+                .ok_or_else(|| MonitoringError::Collection(format!("Server {} not found", server_id)))?
+                .config
+                .clone()
+        };
+
+        // Use the SSH-based collection with /proc parsing
+        collect_system_metrics_ssh(server_id, &config).await
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -335,6 +358,159 @@ async fn collect_server_metrics(
     };
 
     Ok(metrics)
+}
+
+/// Collect SystemMetrics via SSH (for Standard version)
+async fn collect_system_metrics_ssh(
+    server_id: &str,
+    config: &ServerConnectionConfig,
+) -> Result<SystemMetrics, MonitoringError> {
+    // Establish SSH connection
+    let tcp = std::net::TcpStream::connect(format!("{}:{}", config.host, config.port))
+        .map_err(|e| MonitoringError::Ssh(format!("TCP connection failed: {}", e)))?;
+
+    let mut session = ssh2::Session::new()
+        .map_err(|e| MonitoringError::Ssh(format!("Failed to create SSH session: {}", e)))?;
+
+    session.set_tcp_stream(tcp);
+
+    session
+        .handshake()
+        .map_err(|e| MonitoringError::Ssh(format!("SSH handshake failed: {}", e)))?;
+
+    // Authenticate (simplified - would need proper auth method handling)
+    // For now, this is a placeholder
+    let metrics = collect_via_proc_files(&session).await?;
+
+    Ok(metrics)
+}
+
+/// Collect metrics by reading /proc files via SSH
+async fn collect_via_proc_files(session: &ssh2::Session) -> Result<SystemMetrics, MonitoringError> {
+    let script = r#"#!/bin/bash
+# Read CPU metrics from /proc/stat
+read cpu user nice system idle iowait irq softirq steal guest guest_nice < /proc/stat
+echo "CPU:$user $nice $system $idle $iowait $irq $softirq $steal"
+
+# Read memory from /proc/meminfo
+mem_total=$(grep '^MemTotal:' /proc/meminfo | awk '{print $2}')
+mem_free=$(grep '^MemFree:' /proc/meminfo | awk '{print $2}')
+mem_buffers=$(grep '^Buffers:' /proc/meminfo | awk '{print $2}')
+mem_cached=$(grep '^Cached:' /proc/meminfo | awk '{print $2}')
+echo "MEM:$mem_total $mem_free $mem_buffers $mem_cached"
+
+# Read disk usage from df
+df -B1 / 2>/dev/null | tail -1 | awk '{print "DISK:"$2","$3}'
+
+# Read network from /proc/net/dev
+net_line=$(grep -E '^\s*(eth|ens|enp|wlan|wlp)' /proc/net/dev | head -1 | awk '{print $2","$10}')
+echo "NET:$net_line"
+
+# Read load average from /proc/loadavg
+read load1 load5 load15 rest < /proc/loadavg
+echo "LOAD:$load1 $load5 $load15"
+"#;
+
+    let mut channel = session
+        .channel_session()
+        .map_err(|e| MonitoringError::Ssh(format!("Failed to create channel: {}", e)))?;
+
+    channel
+        .exec(script)
+        .map_err(|e| MonitoringError::Ssh(format!("Failed to execute: {}", e)))?;
+
+    let mut output = String::new();
+    channel
+        .read_to_string(&mut output)
+        .map_err(|e| MonitoringError::Ssh(format!("Failed to read output: {}", e)))?;
+
+    channel
+        .wait_close()
+        .map_err(|e| MonitoringError::Ssh(format!("Failed to close channel: {}", e)))?;
+
+    parse_system_metrics_output(&output)
+}
+
+/// Parse system metrics from script output
+fn parse_system_metrics_output(output: &str) -> Result<SystemMetrics, MonitoringError> {
+    let mut cpu_percent = 0.0f32;
+    let mut memory_total = 0u64;
+    let mut memory_used = 0u64;
+    let mut disk_total = 0u64;
+    let mut disk_used = 0u64;
+    let mut network_rx = 0u64;
+    let mut network_tx = 0u64;
+    let mut load_avg = [0.0f32; 3];
+
+    for line in output.lines() {
+        if line.starts_with("CPU:") {
+            let parts: Vec<&str> = line[4..].split_whitespace().collect();
+            if parts.len() >= 8 {
+                let user: f64 = parts[0].parse().unwrap_or(0.0);
+                let nice: f64 = parts[1].parse().unwrap_or(0.0);
+                let system: f64 = parts[2].parse().unwrap_or(0.0);
+                let idle: f64 = parts[3].parse().unwrap_or(0.0);
+                let iowait: f64 = parts[4].parse().unwrap_or(0.0);
+                let irq: f64 = parts[5].parse().unwrap_or(0.0);
+                let softirq: f64 = parts[6].parse().unwrap_or(0.0);
+                let steal: f64 = parts[7].parse().unwrap_or(0.0);
+
+                let total = user + nice + system + idle + iowait + irq + softirq + steal;
+                let active = user + nice + system + irq + softirq + steal;
+
+                if total > 0.0 {
+                    cpu_percent = ((active / total) * 100.0) as f32;
+                }
+            }
+        } else if line.starts_with("MEM:") {
+            let parts: Vec<&str> = line[4..].split_whitespace().collect();
+            if parts.len() >= 4 {
+                let total_kb: u64 = parts[0].parse().unwrap_or(0);
+                let free_kb: u64 = parts[1].parse().unwrap_or(0);
+                let buffers_kb: u64 = parts[2].parse().unwrap_or(0);
+                let cached_kb: u64 = parts[3].parse().unwrap_or(0);
+
+                memory_total = total_kb * 1024;
+                let memory_free = free_kb * 1024;
+                let memory_buffers = buffers_kb * 1024;
+                let memory_cached = cached_kb * 1024;
+
+                memory_used = memory_total.saturating_sub(memory_free + memory_buffers + memory_cached);
+            }
+        } else if line.starts_with("DISK:") {
+            let disk_data = &line[5..];
+            let parts: Vec<&str> = disk_data.split(',').collect();
+            if parts.len() >= 2 {
+                disk_total = parts[0].parse().unwrap_or(0);
+                disk_used = parts[1].parse().unwrap_or(0);
+            }
+        } else if line.starts_with("NET:") {
+            let net_data = &line[4..];
+            let parts: Vec<&str> = net_data.split(',').collect();
+            if parts.len() >= 2 {
+                network_rx = parts[0].trim().parse().unwrap_or(0);
+                network_tx = parts[1].trim().parse().unwrap_or(0);
+            }
+        } else if line.starts_with("LOAD:") {
+            let parts: Vec<&str> = line[5..].split_whitespace().collect();
+            if parts.len() >= 3 {
+                load_avg[0] = parts[0].parse().unwrap_or(0.0);
+                load_avg[1] = parts[1].parse().unwrap_or(0.0);
+                load_avg[2] = parts[2].parse().unwrap_or(0.0);
+            }
+        }
+    }
+
+    Ok(SystemMetrics::new(
+        cpu_percent,
+        memory_used,
+        memory_total,
+        disk_used,
+        disk_total,
+        network_rx,
+        network_tx,
+        load_avg,
+    ))
 }
 
 // Parsing functions for /proc data
@@ -663,5 +839,56 @@ echo "$(date +%s) - $(sysctl -n kern.boottime | awk '{print $4}' | tr -d ',')" |
 
 echo "===METRICS_END==="
 "##
+    }
+}
+
+/// Simple collector for Standard version (lightweight)
+pub struct SimpleCollector {
+    interval_secs: u64,
+    session: Option<ssh2::Session>,
+}
+
+impl SimpleCollector {
+    pub fn new(interval_secs: u64) -> Self {
+        Self {
+            interval_secs: interval_secs.max(1),
+            session: None,
+        }
+    }
+
+    pub fn connect(&mut self, host: &str, port: u16, username: &str, password: &str) -> Result<(), MonitoringError> {
+        let tcp = std::net::TcpStream::connect(format!("{}:{}", host, port))
+            .map_err(|e| MonitoringError::Ssh(format!("TCP connection failed: {}", e)))?;
+
+        let mut session = ssh2::Session::new()
+            .map_err(|e| MonitoringError::Ssh(format!("Failed to create SSH session: {}", e)))?;
+
+        session.set_tcp_stream(tcp);
+
+        session.handshake()
+            .map_err(|e| MonitoringError::Ssh(format!("SSH handshake failed: {}", e)))?;
+
+        session.userauth_password(username, password)
+            .map_err(|e| MonitoringError::Ssh(format!("Password auth failed: {}", e)))?;
+
+        self.session = Some(session);
+        Ok(())
+    }
+
+    pub fn collect(&self) -> Result<SystemMetrics, MonitoringError> {
+        if let Some(ref session) = self.session {
+            // Use block_on since this is a synchronous method
+            let runtime = tokio::runtime::Handle::try_current()
+                .map_err(|_| MonitoringError::Config("No async runtime available".to_string()))?;
+            runtime.block_on(collect_via_proc_files(session))
+        } else {
+            Err(MonitoringError::Collection("Not connected".to_string()))
+        }
+    }
+
+    pub fn disconnect(&mut self) {
+        if let Some(mut session) = self.session.take() {
+            let _ = session.disconnect(None, "SimpleCollector disconnect", None);
+        }
     }
 }

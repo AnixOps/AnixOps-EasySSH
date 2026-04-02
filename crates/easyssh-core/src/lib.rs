@@ -720,11 +720,16 @@ pub mod telemetry;
 pub mod version;
 pub mod version_ffi;
 pub use ssh::{ConnectionHealth, PoolStats, SessionMetadata, SshSessionManager};
+// Export embedded terminal types
 #[cfg(feature = "embedded-terminal")]
 pub use terminal::{
-    ColorPalette, CursorStyle, EscapeSequence, PtyTerminal, RenderStats, TabInfo, TabManager,
-    TabState, TerminalEmulator, TerminalManager, TerminalOutput, TerminalSize, TerminalTheme,
-    ThemeManager, WebGlConfig, WebGlRenderer, XtermCompat, XtermMode,
+    BridgeConfig, BridgeStats, ClientInfo, ColorPalette, CursorStyle, EmbeddedTerminalServer,
+    PtyInstance, PtyManager, PtyManagerStats, PtyStatus, PtyType, RenderPerformance,
+    RendererConfig, RendererManager, RendererType, SessionInfo, TabInfo, TabManager, TabState,
+    TerminalCoordinator, TerminalEmulator, TerminalManager, TerminalOutput, TerminalServerConfig,
+    TerminalSession, TerminalSignal, TerminalSize, TerminalStats, TerminalTheme, TerminalWsMessage,
+    TerminalWsOutput, ThemeManager, WebGlConfig, WebGlRenderer, WebSocketBridge, XtermCompat,
+    XtermMode,
 };
 pub mod terminal;
 pub mod vault;
@@ -911,8 +916,17 @@ pub use logger::{
     global_logger, init_from_env, init_global_logger, LogContext, LogEntry, LogLevel, Logger,
     LoggerBuilder,
 };
+// Modular SFTP exports
 #[cfg(feature = "sftp")]
-pub use sftp::SftpSessionManager;
+pub use sftp::{
+    SftpClient, SftpClientConfig, SftpManager, ConnectionState,
+    FileTransfer, TransferHandle, TransferError, ChunkConfig,
+    RemoteFs, RemoteDir, RemoteFile, FileSystemWatcher, ContentType,
+    TransferQueue, QueueConfig, QueueStats, QueueEvent,
+    ProgressTracker, ProgressCallback, ProgressSnapshot, SpeedCalculator,
+    FileInfo, TransferTask, TransferDirection, TransferStatus,
+    TransferOptions, TransferResult, TransferStats, FileType, FilePermission,
+};
 #[cfg(feature = "sync")]
 pub use sync::{
     DeviceInfo, LocalSyncBeacon, LocalSyncHandler, RawConfigData, SyncBundle, SyncConfig,
@@ -945,12 +959,22 @@ pub use monitoring::{
     WidgetViewModel,
 };
 #[cfg(feature = "pro")]
-pub use rbac::{Permission, RbacManager, Resource, RoleDefinition};
+pub use rbac::{
+    CheckContext, CheckResult, Permission, PermissionChecker, PermissionConditions,
+    PermissionContext, Policy, PolicyCondition, PolicyDecision, PolicyEffect,
+    PolicyEngine, PolicyEngineStats, RbacAuditEntry, RbacAuditLogger, RbacConfig,
+    RbacError, RbacManager, Resource, ResourceResolver, ResourceScope, RoleChangeEvent,
+    RoleChangeListener, RoleDefinition, RoleFilter, RoleManager, RoleManagerStats,
+    UserRbacInfo, UserRoleAssignment, init_system_roles,
+    PermissionChecker as RbacPermissionChecker,
+    RoleManager as RbacRoleManager,
+    PolicyEngine as RbacPolicyEngine,
+};
 #[cfg(feature = "sso")]
 pub use sso::{
-    GroupToRoleMapping, LdapConfig, NameIdFormat, OidcAttributeMapping, OidcAuthRequest,
+    GroupToRoleMapping, LdapConfig, OidcAttributeMapping, OidcAuthRequest,
     OidcConfig, OidcTokenResponse, OidcUserInfo, SamlAttributeMapping, SamlAuthRequest,
-    SamlAuthResponse, SamlConfig, SignatureAlgorithm, SsoManager, SsoMetadata, SsoProvider,
+    SamlAuthResponse, SamlConfig, SsoManager, SsoMetadata, SsoProvider,
     SsoProviderConfig, SsoProviderType, SsoSession, SsoUserInfo, TeamSsoMapping,
 };
 #[cfg(feature = "team")]
@@ -1040,7 +1064,7 @@ pub struct AppState {
     pub db: StdMutex<Option<db::Database>>,
     pub ssh_manager: Arc<Mutex<SshSessionManager>>,
     #[cfg(feature = "sftp")]
-    pub sftp_manager: Arc<Mutex<SftpSessionManager>>,
+    pub sftp_manager: Arc<Mutex<SftpManager>>,
     #[cfg(feature = "split-screen")]
     pub layout_manager: Arc<Mutex<LayoutManager>>,
     #[cfg(feature = "team")]
@@ -1085,7 +1109,7 @@ impl AppState {
             db: StdMutex::new(None),
             ssh_manager: Arc::new(Mutex::new(SshSessionManager::new())),
             #[cfg(feature = "sftp")]
-            sftp_manager: Arc::new(Mutex::new(SftpSessionManager::new())),
+            sftp_manager: Arc::new(Mutex::new(SftpManager::new())),
             #[cfg(feature = "split-screen")]
             layout_manager: Arc::new(Mutex::new(LayoutManager::new())),
             #[cfg(feature = "team")]
@@ -1127,7 +1151,7 @@ impl AppState {
             db: StdMutex::new(None),
             ssh_manager: Arc::new(Mutex::new(ssh_manager)),
             #[cfg(feature = "sftp")]
-            sftp_manager: Arc::new(Mutex::new(SftpSessionManager::new())),
+            sftp_manager: Arc::new(Mutex::new(SftpManager::new())),
             #[cfg(feature = "split-screen")]
             layout_manager: Arc::new(Mutex::new(LayoutManager::new())),
             #[cfg(feature = "team")]

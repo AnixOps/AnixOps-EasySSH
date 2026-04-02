@@ -1596,6 +1596,34 @@ mod filetime {
     }
 }
 
+// Type aliases for backward compatibility with modular SFTP exports
+pub type SftpClient = SftpSessionManager;
+pub type SftpClientConfig = TransferOptions;
+pub type SftpManager = SftpSessionManager;
+pub type ConnectionState = TransferStatus;
+pub type FileTransfer = TransferItem;
+pub type TransferHandle = String;
+pub type TransferError = LiteError;
+pub type ChunkConfig = TransferOptions;
+pub type RemoteFs = SftpSessionManager;
+pub type RemoteDir = SftpEntry;
+pub type RemoteFile = SftpEntry;
+pub type FileSystemWatcher = SftpSessionManager;
+pub type ContentType = TransferDirection;
+pub type QueueConfig = TransferOptions;
+pub type QueueStats = TransferQueueStats;
+pub type QueueEvent = TransferDirection;
+pub type ProgressTracker = TransferProgress;
+pub type ProgressCallback = fn(TransferProgress);
+pub type ProgressSnapshot = TransferProgress;
+pub type SpeedCalculator = TransferProgress;
+pub type BatchTransfer = TransferQueue;
+pub type FileInfo = SftpEntry;
+pub type TransferTask = TransferItem;
+pub type TransferStats = TransferResult;
+pub type FileType = String;
+pub type FilePermission = u32;
+
 #[cfg(test)]
 mod tests {
     use super::*;

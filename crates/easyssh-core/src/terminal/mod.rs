@@ -26,7 +26,14 @@ pub use launcher::{
 
 // Export core types
 #[cfg(feature = "embedded-terminal")]
-pub use embedded::{PtyTerminal, TerminalEmulator, TerminalManager};
+pub use embedded::{
+    BridgeConfig, BridgeStats, ClientInfo, EmbeddedTerminalServer, PtyInstance, PtyManager,
+    PtyManagerStats, PtyStatus, PtyType, RenderPerformance, RendererConfig, RendererManager,
+    RendererType, SessionInfo, TerminalCoordinator, TerminalEmulator, TerminalServerConfig,
+    TerminalWsMessage, TerminalWsOutput, WebSocketBridge,
+};
+#[cfg(feature = "embedded-terminal")]
+pub use embedded::{PtyTerminal, TerminalManager};
 #[cfg(feature = "embedded-terminal")]
 pub use multitab::{TabInfo, TabManager, TabState};
 #[cfg(feature = "embedded-terminal")]

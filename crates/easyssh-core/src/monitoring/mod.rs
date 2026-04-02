@@ -23,6 +23,9 @@ pub mod topology;
 #[cfg(test)]
 pub mod tests;
 
+// Standard version monitoring session module
+pub mod session;
+
 pub use alerts::*;
 pub use collector::*;
 pub use dashboard::*;
@@ -31,6 +34,14 @@ pub use notifications::*;
 pub use sla::*;
 pub use storage::*;
 pub use topology::*;
+
+// Export session types for Standard version
+pub use session::{
+    AuthMethod, ChartData, MetricStats, MonitoringSession, ServerConnectionInfo,
+};
+
+// Export collector types
+pub use collector::{CollectionStatus, CollectionScript, MetricsCollector, SimpleCollector};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

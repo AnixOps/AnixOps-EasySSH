@@ -69,6 +69,9 @@ reqwest = { workspace = true }
 dotenvy = { workspace = true }
 config = { workspace = true }
 
+# EasySSH Core
+easyssh-core = { path = "../easyssh-core", features = ["pro"] }
+
 # Error handling
 anyhow = { workspace = true }
 

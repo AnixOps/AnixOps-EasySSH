@@ -397,6 +397,177 @@ impl ServerMetrics {
     }
 }
 
+/// Simplified system metrics for real-time monitoring widgets
+/// Used by Standard version monitoring dashboard
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemMetrics {
+    /// CPU usage percentage (0-100)
+    pub cpu_percent: f32,
+    /// Memory used in bytes
+    pub memory_used: u64,
+    /// Total memory in bytes
+    pub memory_total: u64,
+    /// Disk used in bytes
+    pub disk_used: u64,
+    /// Total disk in bytes
+    pub disk_total: u64,
+    /// Network received bytes (since last measurement)
+    pub network_rx: u64,
+    /// Network transmitted bytes (since last measurement)
+    pub network_tx: u64,
+    /// Load averages (1min, 5min, 15min)
+    pub load_avg: [f32; 3],
+    /// Timestamp when metrics were collected
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+impl SystemMetrics {
+    /// Create new SystemMetrics with current timestamp
+    pub fn new(
+        cpu_percent: f32,
+        memory_used: u64,
+        memory_total: u64,
+        disk_used: u64,
+        disk_total: u64,
+        network_rx: u64,
+        network_tx: u64,
+        load_avg: [f32; 3],
+    ) -> Self {
+        Self {
+            cpu_percent,
+            memory_used,
+            memory_total,
+            disk_used,
+            disk_total,
+            network_rx,
+            network_tx,
+            load_avg,
+            timestamp: chrono::Utc::now(),
+        }
+    }
+
+    /// Calculate memory usage percentage
+    pub fn memory_percent(&self) -> f32 {
+        if self.memory_total == 0 {
+            0.0
+        } else {
+            ((self.memory_used as f64 / self.memory_total as f64) * 100.0) as f32
+        }
+    }
+
+    /// Calculate disk usage percentage
+    pub fn disk_percent(&self) -> f32 {
+        if self.disk_total == 0 {
+            0.0
+        } else {
+            ((self.disk_used as f64 / self.disk_total as f64) * 100.0) as f32
+        }
+    }
+
+    /// Calculate network throughput in KB/s given interval in seconds
+    pub fn network_rx_kbps(&self, interval_secs: u64) -> f32 {
+        if interval_secs == 0 {
+            0.0
+        } else {
+            ((self.network_rx as f64 / interval_secs as f64) / 1024.0) as f32
+        }
+    }
+
+    /// Calculate network transmit throughput in KB/s given interval in seconds
+    pub fn network_tx_kbps(&self, interval_secs: u64) -> f32 {
+        if interval_secs == 0 {
+            0.0
+        } else {
+            ((self.network_tx as f64 / interval_secs as f64) / 1024.0) as f32
+        }
+    }
+
+    /// Get overall system health based on thresholds
+    pub fn overall_health(&self) -> crate::monitoring::ServerHealthStatus {
+        let memory_pct = self.memory_percent();
+        let disk_pct = self.disk_percent();
+
+        if self.cpu_percent > 90.0 || memory_pct > 90.0 || disk_pct > 90.0 {
+            crate::monitoring::ServerHealthStatus::Critical
+        } else if self.cpu_percent > 70.0 || memory_pct > 75.0 || disk_pct > 85.0 {
+            crate::monitoring::ServerHealthStatus::Warning
+        } else {
+            crate::monitoring::ServerHealthStatus::Healthy
+        }
+    }
+
+    /// Convert to full ServerMetrics format
+    pub fn to_server_metrics(&self, server_id: &str) -> ServerMetrics {
+        ServerMetrics {
+            server_id: server_id.to_string(),
+            timestamp: self.timestamp.timestamp() as u64,
+            collected_at: self.timestamp.timestamp() as u64,
+            cpu_usage: self.cpu_percent as f64,
+            cpu_user: 0.0,
+            cpu_system: 0.0,
+            cpu_iowait: 0.0,
+            cpu_steal: 0.0,
+            cpu_cores: 1,
+            cpu_load1: self.load_avg[0] as f64,
+            cpu_load5: self.load_avg[1] as f64,
+            cpu_load15: self.load_avg[2] as f64,
+            memory_used: self.memory_used,
+            memory_total: self.memory_total,
+            memory_free: self.memory_total.saturating_sub(self.memory_used),
+            memory_buffers: 0,
+            memory_cached: 0,
+            memory_available: self.memory_total.saturating_sub(self.memory_used),
+            swap_used: 0,
+            swap_total: 0,
+            disk_used: self.disk_used,
+            disk_total: self.disk_total,
+            disk_free: self.disk_total.saturating_sub(self.disk_used),
+            disk_read_bytes: 0,
+            disk_write_bytes: 0,
+            disk_read_iops: 0.0,
+            disk_write_iops: 0.0,
+            disk_io_util: 0.0,
+            network_rx_bytes: self.network_rx,
+            network_tx_bytes: self.network_tx,
+            network_rx_packets: 0,
+            network_tx_packets: 0,
+            network_rx_errors: 0,
+            network_tx_errors: 0,
+            network_rx_dropped: 0,
+            network_tx_dropped: 0,
+            process_count: 0,
+            process_running: 0,
+            process_sleeping: 0,
+            process_zombie: 0,
+            thread_count: 0,
+            open_files: 0,
+            uptime_seconds: 0,
+            boot_time: 0,
+            context_switches: 0,
+            interrupts: 0,
+            cpu_temp: None,
+            system_temp: None,
+            extra: HashMap::new(),
+        }
+    }
+}
+
+impl Default for SystemMetrics {
+    fn default() -> Self {
+        Self {
+            cpu_percent: 0.0,
+            memory_used: 0,
+            memory_total: 0,
+            disk_used: 0,
+            disk_total: 0,
+            network_rx: 0,
+            network_tx: 0,
+            load_avg: [0.0, 0.0, 0.0],
+            timestamp: chrono::Utc::now(),
+        }
+    }
+}
+
 /// Disk partition metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiskPartitionMetrics {
