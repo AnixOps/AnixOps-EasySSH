@@ -3,15 +3,14 @@
 //! 提供SSO会话验证和安全的中间件
 
 use axum::{
-    body::Body,
     extract::{ConnectInfo, Request, State},
     http::{HeaderMap, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::net::SocketAddr;
 
-use crate::{auth::Claims, AppState};
+use crate::AppState;
 
 /// SSO会话验证中间件
 pub async fn sso_session_middleware(

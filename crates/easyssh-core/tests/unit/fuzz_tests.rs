@@ -52,7 +52,7 @@ fn test_malformed_config_parsing() {
     for config in &malformed_configs {
         // Should not panic when parsing malformed SSH config
         // The ImportFormat::SshConfig enum exists, but parsing may fail
-        let _ = ImportFormat::SshConfig;
+        let _ = (ImportFormat::SshConfig, config);
     }
 }
 
@@ -61,10 +61,10 @@ fn test_malformed_config_parsing() {
 fn test_extreme_integer_values() {
     use easyssh_core::models::{AuthMethod, Server};
 
-    let valid_ports = vec![0, 1, 22, 443, 8080, 65535];
+    let valid_ports = [0, 1, 22, 443, 8080, 65535];
 
     for port in &valid_ports {
-        let server = Server::new(
+        let _server = Server::new(
             "test".to_string(),
             "192.168.1.1".to_string(),
             *port,
@@ -74,7 +74,7 @@ fn test_extreme_integer_values() {
         );
 
         // Port should be stored correctly
-        assert!(server.port <= 65535, "Port should not exceed u16 max");
+        // Note: server.port is u16, so it's always <= 65535 by type definition
     }
 }
 
@@ -183,11 +183,10 @@ fn test_concurrent_stress() {
                             username: "admin".to_string(),
                             auth_type: "agent".to_string(),
                             identity_file: None,
-                            password_encrypted: None,
                             group_id: None,
                             status: "unknown".to_string(),
                         };
-                        let _ = db_clone.lock().unwrap().create_server(&server);
+                        let _ = db_clone.lock().unwrap().add_server(&server);
                     }
                     1 => {
                         // Get all servers

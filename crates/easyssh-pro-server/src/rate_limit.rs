@@ -4,7 +4,6 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use std::time::Duration;
 
 use crate::{models::ErrorResponse, AppState};
 

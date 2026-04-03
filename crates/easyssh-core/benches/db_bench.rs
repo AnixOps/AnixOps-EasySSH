@@ -19,7 +19,7 @@
 //! ```
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use easyssh_core::db::{Database, NewGroup, NewServer, UpdateGroup, UpdateServer};
+use easyssh_core::db::{Database, NewGroup, NewServer, UpdateServer};
 use tempfile::TempDir;
 
 /// Create a temporary database for benchmarking

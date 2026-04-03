@@ -631,15 +631,23 @@ impl SearchService {
 
     /// Load all hosts from database
     fn load_all_hosts(&self) -> Result<Vec<HostRecord>, LiteError> {
-        // This would typically call the Database API
-        // For now, we return an empty vec - implement based on your db module
-        Ok(Vec::new())
+        self.db.get_hosts()
     }
 
     /// Load all host-tag relationships
     fn load_all_host_tags(&self) -> Result<HashMap<String, Vec<String>>, LiteError> {
-        // This would typically call the Database API
-        Ok(HashMap::new())
+        // Get all hosts and load their tags
+        let hosts = self.db.get_hosts()?;
+        let mut host_tags: HashMap<String, Vec<String>> = HashMap::new();
+
+        for host in hosts {
+            let tags = self.db.get_host_tags(&host.id)?;
+            if !tags.is_empty() {
+                host_tags.insert(host.id, tags.into_iter().map(|t| t.name).collect());
+            }
+        }
+
+        Ok(host_tags)
     }
 
     /// Check if index needs refresh (debounced)
@@ -1649,32 +1657,11 @@ impl SearchService {
 
     // Placeholder methods - these should be implemented based on actual database API
     fn load_host_by_id(&self, host_id: &str) -> Result<HostRecord, LiteError> {
-        // This should call the actual database API
-        // For now, return a dummy record
-        Ok(HostRecord {
-            id: host_id.to_string(),
-            name: "Unknown".to_string(),
-            host: "unknown".to_string(),
-            port: 22,
-            username: "user".to_string(),
-            auth_type: "agent".to_string(),
-            identity_file: None,
-            identity_id: None,
-            group_id: None,
-            notes: None,
-            color: None,
-            environment: None,
-            region: None,
-            purpose: None,
-            status: "unknown".to_string(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-            updated_at: chrono::Utc::now().to_rfc3339(),
-        })
+        self.db.get_host(host_id)
     }
 
-    fn load_tags_for_host(&self, _host_id: &str) -> Result<Vec<TagRecord>, LiteError> {
-        // This should call the actual database API
-        Ok(Vec::new())
+    fn load_tags_for_host(&self, host_id: &str) -> Result<Vec<TagRecord>, LiteError> {
+        self.db.get_host_tags(host_id)
     }
 }
 
@@ -1896,7 +1883,7 @@ mod tests {
 
     #[test]
     fn test_sort_by_variants() {
-        let variants = vec![
+        let variants = [
             SortBy::Name,
             SortBy::CreatedAt,
             SortBy::LastConnected,
@@ -1956,9 +1943,11 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::arc_with_non_send_sync)]
     fn test_levenshtein_distance() {
         // Simple tests using the SearchService implementation
-        let db = Arc::new(Database::new_in_memory().unwrap());
+        let db = std::sync::Arc::new(Database::new_in_memory().unwrap());
+        db.init().unwrap();
         let _service = SearchService::new(db).unwrap();
 
         // Test with direct string comparison
@@ -1976,8 +1965,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::arc_with_non_send_sync)]
     fn test_fuzzy_scoring() {
-        let db = Arc::new(Database::new_in_memory().unwrap());
+        let db = std::sync::Arc::new(Database::new_in_memory().unwrap());
+        db.init().unwrap();
         let service = SearchService::new(db).unwrap();
 
         // Exact match should score highest
@@ -2000,8 +1991,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::arc_with_non_send_sync)]
     fn test_highlight_fuzzy_matches() {
-        let db = Arc::new(Database::new_in_memory().unwrap());
+        let db = std::sync::Arc::new(Database::new_in_memory().unwrap());
+        db.init().unwrap();
         let service = SearchService::new(db).unwrap();
 
         // Test exact match highlighting

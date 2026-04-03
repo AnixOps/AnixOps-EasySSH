@@ -68,11 +68,8 @@ async fn main() {
     };
     let preview_checker = UpdateChecker::new(preview_config);
 
-    match preview_checker.check().await {
-        UpdateCheckResult::UpdateAvailable(info) => {
-            println!("预览版更新: {}", info.version);
-        }
-        _ => {}
+    if let UpdateCheckResult::UpdateAvailable(info) = preview_checker.check().await {
+        println!("预览版更新: {}", info.version);
     }
 
     // 4. 忽略特定版本

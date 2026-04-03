@@ -10,12 +10,8 @@ pub mod cache;
 pub mod middleware;
 pub mod resolver;
 
-pub use cache::{CacheConfig, PermissionCache};
-pub use middleware::{
-    rbac_middleware, require_permission, require_role, require_team_permission,
-    RbacMiddlewareConfig, RbacRequestExt,
-};
-pub use resolver::{DatabaseResourceResolver, ServerResourceResolver};
+pub use cache::PermissionCache;
+pub use middleware::{rbac_middleware, RbacMiddlewareConfig, RbacRequestExt};
 
 use axum::extract::Request;
 use std::collections::HashMap;

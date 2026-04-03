@@ -7,10 +7,9 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::{models::*, redis_cache::RedisCache, services::auth_service::AuthService, AppState};
+use crate::{models::*, services::auth_service::AuthService, AppState};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {

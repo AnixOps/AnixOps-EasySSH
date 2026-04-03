@@ -88,12 +88,12 @@ fn test_full_server_management_workflow() {
             NewGroup {
                 id: "prod",
                 name: "Production",
-                color: Some("#ff0000"),
+                color: "#ff0000".to_string(),
             },
             NewGroup {
                 id: "dev",
                 name: "Development",
-                color: Some("#00ff00"),
+                color: "#00ff00".to_string(),
             },
         ];
         for group in &groups {
@@ -190,12 +190,12 @@ fn test_search_and_filter_workflow() {
             NewGroup {
                 id: "web",
                 name: "Web Servers",
-                color: None,
+                color: "#000000".to_string(),
             },
             NewGroup {
                 id: "db",
                 name: "Database",
-                color: None,
+                color: "#000000".to_string(),
             },
         ];
         for group in &groups {

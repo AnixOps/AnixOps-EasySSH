@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::{migrate::Migrator, sqlite::SqlitePoolOptions, Pool, Row, Sqlite};
+use sqlx::{migrate::Migrator, sqlite::SqlitePoolOptions, Pool, Sqlite};
 use std::path::Path;
 
 pub struct Database {

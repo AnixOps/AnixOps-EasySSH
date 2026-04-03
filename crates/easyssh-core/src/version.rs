@@ -465,7 +465,7 @@ mod tests {
         let summary = info.summary();
 
         assert!(summary.contains(&info.version_info.version));
-        assert!(summary.contains(&info.version_info.edition.name()));
+        assert!(summary.contains(info.version_info.edition.name()));
     }
 
     #[test]

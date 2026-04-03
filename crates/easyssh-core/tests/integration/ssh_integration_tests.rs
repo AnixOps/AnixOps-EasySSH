@@ -16,7 +16,7 @@ mod common;
 fn test_ssh_config_creation() {
     use easyssh_core::ssh::SshConfig;
 
-    let config = SshConfig::new("192.168.1.100", 22, "admin").with_password("secret123");
+    let config = SshConfig::with_password("192.168.1.100", 22, "admin", "secret123");
 
     assert_eq!(config.host, "192.168.1.100");
     assert_eq!(config.port, 22);
@@ -28,12 +28,13 @@ fn test_ssh_config_creation() {
 #[test]
 fn test_ssh_key_auth_config() {
     use easyssh_core::ssh::SshConfig;
+    use std::path::PathBuf;
 
     let config = SshConfig::with_key(
         "192.168.1.100",
         22,
         "admin",
-        "~/.ssh/id_rsa".to_string(),
+        PathBuf::from("~/.ssh/id_rsa"),
         Some("passphrase".to_string()),
     );
 
@@ -85,7 +86,7 @@ fn test_session_manager_creation() {
 
     // Initially no sessions
     let stats = manager.get_pool_stats();
-    assert_eq!(stats.active_sessions, 0);
+    assert_eq!(stats.total_sessions, 0);
 }
 
 /// Test session manager with pool config
@@ -93,10 +94,10 @@ fn test_session_manager_creation() {
 fn test_session_manager_with_pool_config() {
     use easyssh_core::ssh::SshSessionManager;
 
-    let manager = SshSessionManager::with_pool_config(10, Duration::from_secs(300));
+    let manager = SshSessionManager::new().with_pool_config(10, 300, 3600);
 
     let stats = manager.get_pool_stats();
-    assert_eq!(stats.active_sessions, 0);
+    assert_eq!(stats.total_sessions, 0);
 }
 
 /// Test jump host configuration
@@ -104,7 +105,7 @@ fn test_session_manager_with_pool_config() {
 fn test_jump_host_configuration() {
     use easyssh_core::ssh::JumpHost;
 
-    let jump_host = JumpHost::new("bastion.example.com", 22, "jumper").with_password("secret");
+    let jump_host = JumpHost::with_password("bastion.example.com", 22, "jumper", "secret");
 
     assert_eq!(jump_host.host, "bastion.example.com");
     assert_eq!(jump_host.port, 22);
@@ -116,9 +117,15 @@ fn test_jump_host_configuration() {
 #[test]
 fn test_jump_host_with_key() {
     use easyssh_core::ssh::JumpHost;
+    use std::path::PathBuf;
 
-    let jump_host = JumpHost::new("bastion.example.com", 22, "jumper")
-        .with_key("~/.ssh/bastion_key".to_string(), None);
+    let jump_host = JumpHost::with_key(
+        "bastion.example.com",
+        22,
+        "jumper",
+        PathBuf::from("~/.ssh/bastion_key"),
+        None,
+    );
 
     assert!(jump_host.is_public_key());
 }
@@ -129,15 +136,12 @@ fn test_pool_stats() {
     use easyssh_core::ssh::PoolStats;
 
     let stats = PoolStats {
-        active_sessions: 5,
-        idle_sessions: 3,
+        total_pools: 2,
         total_sessions: 8,
-        max_sessions: 10,
-        avg_session_age_secs: 300,
+        pools: vec![],
     };
 
-    assert_eq!(stats.active_sessions, 5);
-    assert_eq!(stats.idle_sessions, 3);
+    assert_eq!(stats.total_pools, 2);
     assert_eq!(stats.total_sessions, 8);
 }
 
@@ -145,16 +149,15 @@ fn test_pool_stats() {
 #[test]
 fn test_session_metadata() {
     use easyssh_core::ssh::SessionMetadata;
+    use std::time::Instant;
 
     let metadata = SessionMetadata {
+        id: "session-123".to_string(),
         server_id: "srv-001".to_string(),
         host: "192.168.1.100".to_string(),
         port: 22,
         username: "admin".to_string(),
-        connected_at: 0,
-        last_activity: 0,
-        bytes_sent: 0,
-        bytes_received: 0,
+        connected_at: Instant::now(),
     };
 
     assert_eq!(metadata.server_id, "srv-001");
@@ -166,18 +169,17 @@ fn test_session_metadata() {
 #[test]
 fn test_auth_method_enum() {
     use easyssh_core::ssh::AuthMethod;
+    use std::path::PathBuf;
 
     // Password auth
-    let password = AuthMethod::Password {
-        password: "secret".to_string(),
-    };
+    let password = AuthMethod::Password("secret".to_string());
     assert!(password.is_password());
     assert!(!password.is_public_key());
     assert!(!password.is_agent());
 
     // Key auth
     let key = AuthMethod::PublicKey {
-        key_path: "~/.ssh/id_rsa".to_string(),
+        path: PathBuf::from("~/.ssh/id_rsa"),
         passphrase: None,
     };
     assert!(key.is_public_key());

@@ -198,9 +198,7 @@ impl ServerResourceResolver for DatabaseResourceResolver {
             }
             ResourceType::Team => {
                 // 团队资源本身就是团队
-                Some(resource_id.clone())
-                    .map(Ok)
-                    .unwrap_or_else(|| Ok(None))
+                Ok(Some(resource_id.clone()))
             }
             _ => Ok(None),
         };

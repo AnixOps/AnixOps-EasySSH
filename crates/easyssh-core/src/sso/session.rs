@@ -815,7 +815,7 @@ mod tests {
 
         // 第一个会话应已被终止
         assert!(
-            !manager.get_session(&session1.id).is_some()
+            manager.get_session(&session1.id).is_none()
                 || manager.get_session(&session1.id).unwrap().status == SessionStatus::Revoked
         );
     }

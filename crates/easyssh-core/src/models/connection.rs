@@ -1199,7 +1199,7 @@ mod tests {
         assert!(!ConnectionStatus::Failed.is_active());
         assert!(!ConnectionStatus::Timeout.is_active());
 
-        assert!(ConnectionStatus::Connecting.is_established() == false);
+        assert!(!ConnectionStatus::Connecting.is_established());
         assert!(ConnectionStatus::Connected.is_established());
 
         assert!(ConnectionStatus::Disconnected.is_closed());

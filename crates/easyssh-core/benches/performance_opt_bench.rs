@@ -10,12 +10,11 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use easyssh_core::performance::{
-    check_performance_targets,
     crypto_optimizer::{CryptoOptimizer, KeyDerivationCache},
     memory_optimizer::{DataStructureGuide, MemoryOptimizer, ObjectPool},
     search_optimizer::{FastStringMatcher, InvertedIndex, SearchOptimizer},
     startup_optimizer::{LazyInitializer, StartupOptimizer},
-    BenchmarkTargets, PerformanceMetrics,
+    BenchmarkTargets,
 };
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

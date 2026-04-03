@@ -7,9 +7,7 @@
 //! - Lock/unlock state management
 //! - Secure memory clearing
 
-use easyssh_core::crypto::{
-    AuthMethod, CryptoState, EncryptedContainer, EncryptedServerCredential, ServerCredential,
-};
+use easyssh_core::crypto::{AuthMethod, CryptoState, EncryptedContainer, ServerCredential};
 
 #[path = "../common/mod.rs"]
 mod common;

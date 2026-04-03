@@ -176,7 +176,7 @@ fn test_list_servers() {
         service.create_server(dto).expect("Create should succeed");
     }
 
-    let result = service.get_all_servers();
+    let result = service.list_servers();
     assert!(result.is_ok());
     let servers = result.unwrap();
     assert!(servers.len() >= 5);

@@ -5,7 +5,7 @@
 use crate::db::Database;
 use crate::incident_models::*;
 use anyhow::{anyhow, Result};
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 

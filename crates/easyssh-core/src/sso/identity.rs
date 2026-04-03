@@ -530,7 +530,7 @@ mod tests {
         let mapper = default_identity_mapping();
 
         let roles =
-            mapper.map_groups_to_roles(&vec!["admin".to_string(), "users".to_string()], "team1");
+            mapper.map_groups_to_roles(&["admin".to_string(), "users".to_string()], "team1");
 
         assert!(roles.contains(&"team1:admin".to_string()));
     }

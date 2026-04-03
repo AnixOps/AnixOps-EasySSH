@@ -4,10 +4,8 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use easyssh_core::sftp::{
-    SftpEntry, TransferDirection, TransferOptions, TransferQueue, TransferStats, TransferStatus,
-    TransferTask,
+    SftpEntry, TransferDirection, TransferOptions, TransferQueue, TransferStats, TransferTask,
 };
-use std::time::Duration;
 
 fn bench_transfer_stats(c: &mut Criterion) {
     let mut group = c.benchmark_group("sftp_transfer_stats");

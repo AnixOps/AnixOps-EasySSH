@@ -6,7 +6,7 @@ use chrono::Utc;
 use sqlx::Row;
 
 use crate::{db::Database, redis_cache::RedisCache};
-use easyssh_core::sso::{SsoProvider, SsoProviderType, SsoSession, SsoUserInfo};
+use easyssh_core::sso::{SsoProvider, SsoProviderType, SsoSession};
 
 /// SSO数据服务
 pub struct SsoDataService {

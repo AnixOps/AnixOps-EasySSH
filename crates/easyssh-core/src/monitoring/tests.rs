@@ -3,7 +3,7 @@
 //! This demonstrates the professional monitoring dashboard system capabilities.
 
 #[cfg(test)]
-mod tests {
+mod monitoring_tests {
     use crate::monitoring::{
         Alert, AlertCondition, AlertEngine, AlertEngineConfig, AlertRule, AlertSeverity,
         AlertStatus, CapacityForecast, CapacityRecommendation, CapacityStatus, ChartSeries,
@@ -208,9 +208,9 @@ mod tests {
     /// Test trend direction
     #[test]
     fn test_trend_direction() {
-        let values_up = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let values_down = vec![5.0, 4.0, 3.0, 2.0, 1.0];
-        let values_stable = vec![1.0, 1.1, 0.9, 1.0, 1.05];
+        let values_up = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let values_down = [5.0, 4.0, 3.0, 2.0, 1.0];
+        let values_stable = [1.0, 1.1, 0.9, 1.0, 1.05];
 
         // Simple trend detection (last vs first)
         let trend_up = if values_up.last() > values_up.first() {
@@ -388,7 +388,7 @@ mod tests {
     /// Test chart types
     #[test]
     fn test_chart_types() {
-        let chart_types = vec![
+        let chart_types = [
             ChartType::Line,
             ChartType::Area,
             ChartType::Bar,

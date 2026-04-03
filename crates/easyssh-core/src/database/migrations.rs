@@ -346,7 +346,7 @@ mod tests {
         let pool = create_test_pool().await;
         let manager = MigrationManager::new(pool);
 
-        let migrations = vec![
+        let migrations = [
             Migration::new(1, "Migration 1", "SELECT 1"),
             Migration::new(2, "Migration 2", "SELECT 2"),
         ];

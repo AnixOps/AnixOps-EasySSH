@@ -13,12 +13,11 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::{delete, get, patch, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 use serde_json::{json, Value};
-use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::warn;
 
 /// 创建事件响应中心API路由
 pub fn incident_routes() -> Router<AppState> {

@@ -2,6 +2,7 @@ use anyhow::Result;
 use redis::{aio::ConnectionManager, AsyncCommands};
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct RedisCache {
     connection: ConnectionManager,
 }

@@ -2,27 +2,19 @@
 //!
 //! 处理SAML和OIDC的认证流程
 
-use axum::extract::{Extension, Json, Path, Query, State};
 use axum::http::StatusCode;
 use chrono::Utc;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use easyssh_core::sso::{
-    ConflictResolutionStrategy, IdentityConflictResolver, IdentityMapper, JitProvisioningConfig,
-    JustInTimeProvisioning, OidcHandler, OidcTokenResponse, OidcUserInfo, SamlAuthResponse,
-    SamlConfig, SamlHandler, SsoManager, SsoProvider, SsoProviderConfig, SsoProviderType,
-    SsoSession, SsoSessionManager,
+    JustInTimeProvisioning, OidcHandler, SamlConfig, SamlHandler, SsoManager, SsoProvider,
+    SsoProviderConfig, SsoProviderType, SsoSession, SsoSessionManager,
 };
 
 use crate::{
-    models::*,
     redis_cache::RedisCache,
     services::auth_service::AuthService,
-    sso::{
-        SamlCallbackRequest, SsoCallbackRequest, SsoLoginCompleteResponse, SsoLoginRequest,
-        SsoLoginResponse, SsoUserResponse,
-    },
+    sso::{SamlCallbackRequest, SsoCallbackRequest, SsoLoginCompleteResponse, SsoLoginResponse},
     AppState,
 };
 

@@ -1,9 +1,17 @@
+//! EasySSH Pro Server
+//!
+//! Backend service for team collaboration, SSO, RBAC, and audit logging.
+//!
+//! Note: This crate is under active development. Some unused imports and
+//! variables are intentionally left for future use.
+
+// Allow unused imports during active development
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
 use anyhow::Result;
-use axum::{
-    middleware as axum_middleware,
-    routing::{delete, get, patch, post, put},
-    Router,
-};
+use axum::{middleware as axum_middleware, routing::get, Router};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{
@@ -11,7 +19,7 @@ use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
-use tracing::{info, warn};
+use tracing::info;
 
 mod api;
 mod auth;
@@ -42,7 +50,7 @@ use crate::auth::auth_routes;
 use crate::config::AppConfig;
 use crate::db::Database;
 use crate::docs::swagger::swagger_routes;
-use crate::middleware::{auth_middleware, rate_limit_middleware};
+use crate::middleware::rate_limit_middleware;
 use crate::sso::routes::sso_routes;
 use crate::websocket::ws_routes;
 
@@ -79,8 +87,8 @@ async fn main() -> Result<()> {
     let redis = redis_cache::RedisCache::new(&config.redis_url).await?;
     info!("Redis connected");
 
-    // Initialize SSO handler
-    let sso_handler = sso::handlers::SsoServiceHandler::new((*redis).clone());
+    // Initialize SSO handler (clone redis before wrapping in Arc)
+    let sso_handler = sso::handlers::SsoServiceHandler::new(redis.clone());
     info!("SSO handler initialized");
 
     // Initialize audit service

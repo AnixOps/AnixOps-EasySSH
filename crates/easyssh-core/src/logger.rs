@@ -938,7 +938,7 @@ mod tests {
         // Just verify it builds without error
         // Can't test actual file output in unit test without temp dir
         assert_eq!(builder.level, LogLevel::Debug);
-        assert_eq!(builder.use_json, true);
+        assert!(builder.use_json);
     }
 
     #[test]
@@ -946,7 +946,7 @@ mod tests {
         let config = RotationConfig::default();
         assert_eq!(config.max_size, 10 * 1024 * 1024);
         assert_eq!(config.max_files, 5);
-        assert_eq!(config.compress, true);
+        assert!(config.compress);
     }
 
     #[test]

@@ -22,7 +22,7 @@
 //! requiring actual SSH servers. Some benchmarks may require the `ssh2`
 //! feature to be available.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use easyssh_core::connection_pool::{EnhancedConnectionState, EnhancedSshManager};
 use easyssh_core::ssh::{ConnectionHealth, SessionMetadata, SshSessionManager};
 use std::time::{Duration, Instant};

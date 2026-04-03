@@ -66,7 +66,7 @@ fn bench_cold_start_initialization(c: &mut Criterion) {
 
     group.bench_function("cold_start_with_deferred_indexes", |b| {
         b.iter(|| {
-            let fast_path = DatabaseFastPath::with_config(FastPathConfig::for_cold_start());
+            let _fast_path = DatabaseFastPath::with_config(FastPathConfig::for_cold_start());
 
             // Simulate deferred index initialization
             // This should be much faster than creating all indexes immediately

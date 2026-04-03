@@ -943,7 +943,7 @@ mod tests {
     fn test_user_status() {
         let mut user = User::new_local("test".to_string(), "Test".to_string());
         assert!(user.is_active());
-        assert_eq!(user.status.can_login(), true);
+        assert!(user.status.can_login());
         assert_eq!(user.status.display_name(), "Active");
 
         user.status = UserStatus::Inactive;
@@ -1105,7 +1105,7 @@ mod tests {
         assert_eq!(dto.username, "jdoe");
         assert_eq!(dto.display_name, "John Doe");
         assert_eq!(dto.email, Some("john@example.com".to_string()));
-        assert_eq!(dto.is_local, true);
+        assert!(dto.is_local);
         assert_eq!(dto.roles, vec!["admin".to_string(), "user".to_string()]);
         assert!(dto.validate().is_ok());
     }

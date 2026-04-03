@@ -6,14 +6,15 @@
 //! - Search performance
 //! - Memory usage patterns
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 #[path = "../common/mod.rs"]
 mod common;
 
 use easyssh_core::crypto::CryptoState;
-use easyssh_core::db::Database;
-use easyssh_core::models::{AuthMethod, Server};
+use easyssh_core::db::{Database, NewHost, NewServer};
+use easyssh_core::services::search_service::{SearchQuery, SearchService};
 use tempfile::TempDir;
 
 /// Benchmark encryption throughput
@@ -79,19 +80,18 @@ fn test_database_bulk_operations() {
     let start = Instant::now();
 
     for i in 0..count {
-        let server = easyssh_core::db::NewServer {
+        let server = NewServer {
             id: format!("srv-{}", i),
             name: format!("Server {}", i),
             host: format!("192.168.1.{}", i % 256),
             port: 22,
-            username: "admin",
-            auth_type: "agent",
+            username: "admin".to_string(),
+            auth_type: "agent".to_string(),
             identity_file: None,
-            password_encrypted: None,
             group_id: None,
-            status: "unknown",
+            status: "unknown".to_string(),
         };
-        db.create_server(&server).expect("Should add server");
+        db.add_server(&server).expect("Should add server");
     }
 
     let insert_time = start.elapsed();
@@ -103,7 +103,7 @@ fn test_database_bulk_operations() {
 
     // Bulk read
     let start = Instant::now();
-    let all_servers = db.get_all_servers().expect("Should get all servers");
+    let all_servers = db.get_servers().expect("Should get all servers");
     let read_time = start.elapsed();
     let read_rate = count as f64 / read_time.as_secs_f64();
     println!(
@@ -113,11 +113,18 @@ fn test_database_bulk_operations() {
 
     assert_eq!(all_servers.len(), count, "Should retrieve all servers");
 
-    // Performance assertions
+    // Performance assertions - relaxed for debug builds
+    // Debug builds are significantly slower than release builds
+    #[cfg(debug_assertions)]
+    let min_insert_rate = 10.0;
+    #[cfg(not(debug_assertions))]
+    let min_insert_rate = 100.0;
+
     assert!(
-        insert_rate > 100.0,
-        "Insert rate too slow: {:.0} ops/sec",
-        insert_rate
+        insert_rate > min_insert_rate,
+        "Insert rate too slow: {:.0} ops/sec (min: {})",
+        insert_rate,
+        min_insert_rate
     );
     assert!(
         read_rate > 1000.0,
@@ -129,24 +136,19 @@ fn test_database_bulk_operations() {
 /// Test search performance with large dataset
 #[test]
 fn test_search_performance() {
-    use easyssh_core::services::search_service::{SearchQuery, SearchService};
-
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let db_path = temp_dir.path().join("test.db");
 
     let db = Database::new(db_path).expect("Failed to create database");
     db.init().expect("Failed to initialize database");
 
-    let search_engine =
-        SearchService::new(std::sync::Arc::new(db.clone())).expect("Should create search service");
-
-    // Populate database
+    // Populate database with hosts (SearchService uses hosts, not servers)
     let count = 1000;
     for i in 0..count {
-        let server = easyssh_core::db::NewServer {
-            id: format!("srv-{}", i),
+        let host = NewHost {
+            id: format!("host-{}", i),
             name: format!(
-                "Server {} - {}",
+                "Host {} - {}",
                 i,
                 if i % 2 == 0 {
                     "production"
@@ -156,16 +158,27 @@ fn test_search_performance() {
             ),
             host: format!("192.168.{}.{}", i / 256, i % 256),
             port: 22,
-            username: "admin",
-            auth_type: "agent",
+            username: "admin".to_string(),
+            auth_type: "agent".to_string(),
             identity_file: None,
-            password_encrypted: None,
+            identity_id: None,
             group_id: None,
-            status: "unknown",
+            notes: None,
+            color: None,
+            environment: None,
+            region: None,
+            purpose: None,
+            status: "unknown".to_string(),
         };
 
-        db.create_server(&server).expect("Should add server");
+        db.add_host(&host).expect("Should add host");
     }
+
+    // Create SearchService with Arc<Database>
+    #[allow(clippy::arc_with_non_send_sync)]
+    let db_arc = Arc::new(db);
+    let search_engine =
+        SearchService::new(Arc::clone(&db_arc)).expect("Should create search service");
 
     // Build search index
     let start = Instant::now();
@@ -174,7 +187,7 @@ fn test_search_performance() {
     println!("Search index built in {:?}", index_time);
 
     // Test search performance
-    let queries = vec!["production", "Server 500", "192.168", "admin"];
+    let queries = vec!["production", "Host 500", "192.168", "admin"];
 
     for query in &queries {
         let search_query = SearchQuery {
@@ -193,11 +206,19 @@ fn test_search_performance() {
             search_time
         );
 
-        // Search should be fast (< 100ms for this dataset)
+        // Search should be reasonably fast
+        // Note: Debug builds are significantly slower than release builds
+        #[cfg(debug_assertions)]
+        let max_search_time = Duration::from_millis(500);
+        #[cfg(not(debug_assertions))]
+        let max_search_time = Duration::from_millis(100);
+
         assert!(
-            search_time < Duration::from_millis(100),
-            "Search too slow for '{}'",
-            query
+            search_time < max_search_time,
+            "Search too slow for '{}': {:?} (max: {:?})",
+            query,
+            search_time,
+            max_search_time
         );
     }
 }

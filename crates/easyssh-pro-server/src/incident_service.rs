@@ -7,13 +7,12 @@ use crate::incident_models::*;
 use crate::redis_cache::RedisCache;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
-use sqlx::{Any, Transaction};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
-use uuid::Uuid;
 
 use sqlx::Row;
+use uuid::Uuid;
 
 pub struct IncidentService {
     db: Arc<Database>,

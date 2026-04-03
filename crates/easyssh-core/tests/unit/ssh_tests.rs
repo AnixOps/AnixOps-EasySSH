@@ -139,18 +139,19 @@ fn test_host_validation_valid_hostnames() {
 
 #[test]
 fn test_session_metadata() {
+    use std::time::Instant;
+
     let metadata = SessionMetadata {
-        server_id: "test-session".to_string(),
+        id: "session-001".to_string(),
+        server_id: "test-server".to_string(),
         host: "192.168.1.100".to_string(),
         port: 22,
         username: "admin".to_string(),
-        connected_at: 0,
-        last_activity: 0,
-        bytes_sent: 0,
-        bytes_received: 0,
+        connected_at: Instant::now(),
     };
 
-    assert_eq!(metadata.server_id, "test-session");
+    assert_eq!(metadata.id, "session-001");
+    assert_eq!(metadata.server_id, "test-server");
     assert_eq!(metadata.host, "192.168.1.100");
     assert_eq!(metadata.port, 22);
     assert_eq!(metadata.username, "admin");
@@ -176,6 +177,6 @@ fn test_ssh_key_validation() {
 fn test_port_validation() {
     let valid_ports = [1u16, 22, 80, 443, 2222, 8080, 65535];
     for port in &valid_ports {
-        assert!(*port > 0 && *port <= 65535, "Port {} should be valid", port);
+        assert!(*port > 0, "Port {} should be valid", port);
     }
 }

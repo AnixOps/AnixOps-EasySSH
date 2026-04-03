@@ -294,6 +294,5 @@ mod tests {
     #[test]
     fn test_sftp_manager_default() {
         let _manager: SftpManager = Default::default();
-        assert!(true);
     }
 }

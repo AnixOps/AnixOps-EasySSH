@@ -5,6 +5,11 @@
 //! - Test data loading
 //! - Mock object creation
 //! - Async test helpers
+//!
+//! Note: Some functions may be unused in certain test configurations,
+//! but are kept for completeness.
+
+#![allow(dead_code)]
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -54,6 +59,13 @@ pub fn create_in_memory_db() -> Database {
 pub fn create_test_db_arc() -> (Arc<Mutex<Database>>, TempDir) {
     let (db, temp_dir) = create_test_db();
     (Arc::new(Mutex::new(db)), temp_dir)
+}
+
+/// Create a test database wrapped in Arc (without Mutex) for SearchService tests
+#[allow(clippy::arc_with_non_send_sync)]
+pub fn create_test_db_arc_direct() -> (Arc<Database>, TempDir) {
+    let (db, temp_dir) = create_test_db();
+    (Arc::new(db), temp_dir)
 }
 
 /// Get test master password

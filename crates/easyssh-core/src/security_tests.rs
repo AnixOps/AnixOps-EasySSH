@@ -618,7 +618,7 @@ mod tests {
         for _ in 0..1000 {
             deep_json.push_str("{\"b\":");
         }
-        deep_json.push_str("1");
+        deep_json.push('1');
         for _ in 0..1000 {
             deep_json.push('}');
         }

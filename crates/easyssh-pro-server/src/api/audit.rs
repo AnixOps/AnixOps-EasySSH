@@ -3,7 +3,6 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use chrono::Utc;
 
 use crate::{auth::Claims, models::*, services::audit_service::AuditService, AppState};
 

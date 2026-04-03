@@ -2,6 +2,11 @@
 //!
 //! Utilities for generating test data for unit and integration tests.
 //! Supports generating servers, groups, and related entities.
+//!
+//! Note: Some methods may be unused in certain test configurations,
+//! but are kept for completeness.
+
+#![allow(dead_code)]
 
 use easyssh_core::models::{AuthMethod, Group, Server};
 
@@ -33,7 +38,7 @@ impl TestDataGenerator {
         let id = self.next_id();
         let num = id
             .split('-')
-            .last()
+            .next_back()
             .unwrap_or("1")
             .parse::<u16>()
             .unwrap_or(1);
@@ -59,7 +64,7 @@ impl TestDataGenerator {
         let id = self.next_id();
         let num = id
             .split('-')
-            .last()
+            .next_back()
             .unwrap_or("1")
             .parse::<u16>()
             .unwrap_or(1);
@@ -80,12 +85,12 @@ impl TestDataGenerator {
     /// Generate a test group
     pub fn generate_group(&self) -> Group {
         let id = self.next_id();
-        let colors = vec![
+        let colors = [
             "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
         ];
         let num = id
             .split('-')
-            .last()
+            .next_back()
             .unwrap_or("1")
             .parse::<usize>()
             .unwrap_or(1);

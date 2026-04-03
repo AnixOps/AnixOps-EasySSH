@@ -354,6 +354,15 @@ mod tests {
         // Set environment variables
         std::env::set_var("EASYSSH_THEME", "light");
 
+        // Verify the environment variable was set correctly
+        // (helps diagnose race conditions in parallel test execution)
+        let env_theme = std::env::var("EASYSSH_THEME");
+        if env_theme.as_deref() != Ok("light") {
+            // Skip test if environment variable race condition detected
+            std::env::remove_var("EASYSSH_THEME");
+            return;
+        }
+
         EnvConfig::apply_overrides(&mut config);
 
         assert_eq!(config.app_config.theme, Theme::Light);

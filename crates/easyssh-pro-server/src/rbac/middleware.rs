@@ -6,10 +6,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use easyssh_core::rbac::{
-    CheckResult, Operation, Permission, PermissionContext, Resource, ResourceType,
-};
-use std::sync::Arc;
+use easyssh_core::rbac::{Operation, Permission, PermissionContext, Resource, ResourceType};
 
 use super::{extract_rbac_context, method_to_operation, parse_resource_path, RequestRbacContext};
 use crate::AppState;

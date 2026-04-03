@@ -22,7 +22,7 @@ use tokio::sync::{broadcast, mpsc, RwLock};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::{auth::decode_token, models::*, AppState};
+use crate::{auth::decode_token, AppState};
 
 // ============ 本地协作类型定义 ============
 
