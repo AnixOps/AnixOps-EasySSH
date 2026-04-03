@@ -30,10 +30,9 @@
 //! }
 //! ```
 
-#![cfg(feature = "database")]
-
 mod backup;
 mod config_repository;
+#[allow(clippy::module_inception)]
 mod database;
 mod enhanced_migrations;
 mod error;

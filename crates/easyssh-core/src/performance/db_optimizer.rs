@@ -636,8 +636,8 @@ impl DatabaseFastPath {
         // Combine all and sort by priority (descending)
         let mut all: Vec<DeferredIndex> = essential
             .into_iter()
-            .chain(secondary.into_iter())
-            .chain(optional.into_iter())
+            .chain(secondary)
+            .chain(optional)
             .collect();
         all.sort_by(|a, b| b.priority.cmp(&a.priority));
         all

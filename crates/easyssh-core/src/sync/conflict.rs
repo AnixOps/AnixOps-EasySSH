@@ -2,9 +2,8 @@
 
 use crate::error::LiteError;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-use super::types::{SyncDocument, SyncDocumentType, SyncOperation};
+use super::types::{SyncDocument, SyncDocumentType};
 
 /// Conflict information
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

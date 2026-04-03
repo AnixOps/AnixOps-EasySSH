@@ -1,10 +1,10 @@
 //! Backup verification and integrity checking
 
-use super::{BackupError, BackupResult, SnapshotId};
+use super::{BackupError, BackupResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncReadExt;
-use tracing::{error, info, warn};
+use tracing::info;
 
 /// Backup verification options
 #[derive(Debug, Clone)]

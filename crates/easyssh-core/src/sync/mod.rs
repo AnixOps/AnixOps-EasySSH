@@ -2,8 +2,6 @@
 //!
 //! This module provides cross-device synchronization with E2EE (AES-256-GCM).
 
-#![cfg(feature = "sync")]
-
 mod conflict;
 mod engine;
 mod providers;

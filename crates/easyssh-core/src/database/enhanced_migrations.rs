@@ -132,7 +132,7 @@ impl EnhancedMigrationManager {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        .map_err(DatabaseError::SqlError)?;
 
         // Rollback history table
         sqlx::query(
@@ -149,7 +149,7 @@ impl EnhancedMigrationManager {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        .map_err(DatabaseError::SqlError)?;
 
         // Migration validation table
         sqlx::query(
@@ -164,7 +164,7 @@ impl EnhancedMigrationManager {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        .map_err(DatabaseError::SqlError)?;
 
         Ok(())
     }

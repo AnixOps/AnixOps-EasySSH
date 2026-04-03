@@ -294,13 +294,13 @@ mod tests {
 
     #[test]
     fn test_ffi_language_count() {
-        let count = unsafe { easyssh_i18n_get_language_count() };
+        let count = easyssh_i18n_get_language_count();
         assert!(count > 0);
     }
 
     #[test]
     fn test_ffi_get_language_code() {
-        let code = unsafe { easyssh_i18n_get_language_code(0) };
+        let code = easyssh_i18n_get_language_code(0);
         assert!(!code.is_null());
 
         // Clean up

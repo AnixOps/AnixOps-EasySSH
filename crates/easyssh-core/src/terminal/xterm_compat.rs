@@ -24,6 +24,7 @@ impl Default for XtermMode {
 }
 
 /// xterm 兼容性处理器
+#[allow(dead_code)]
 pub struct XtermCompat {
     mode: XtermMode,
     /// 当前解析状态

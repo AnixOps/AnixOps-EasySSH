@@ -4,8 +4,7 @@
 
 use crate::error::LiteError;
 use crate::sso::{
-    ConflictResolution, ConflictResolutionStrategy, ConflictType, ExistingUserInfo,
-    GroupToRoleMapping, IdentityConflict, IdentityConflictResolver, IdentityMapper, MappedIdentity,
+    ConflictResolution, IdentityConflictResolver, IdentityMapper, MappedIdentity,
     SsoProvider, SsoUserInfo, TeamSsoMapping,
 };
 use chrono::Utc;

@@ -140,7 +140,7 @@ impl SyncManager {
             .ok();
 
         let local_docs = self.get_local_changes().await?;
-        let local_doc_count = local_docs.len() as u32;
+        let _local_doc_count = local_docs.len() as u32;
 
         // 3. Get remote changes
         self.event_tx
@@ -582,7 +582,7 @@ impl SyncManager {
         drop(crypto);
 
         let data: serde_json::Value = serde_json::from_slice(&decrypted)?;
-        let mut db = self.db.lock().await;
+        let db = self.db.lock().await;
 
         if doc.deleted {
             match doc.doc_type {

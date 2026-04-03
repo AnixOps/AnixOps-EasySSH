@@ -230,6 +230,7 @@ impl NotificationSender for EmailSender {
 }
 
 impl EmailSender {
+    #[allow(dead_code)]
     fn format_email_body(&self, payload: &NotificationPayload) -> String {
         format!(
             r#"<html>

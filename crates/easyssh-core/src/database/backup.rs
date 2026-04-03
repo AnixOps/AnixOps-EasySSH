@@ -441,7 +441,7 @@ impl BackupManager {
         let mut deleted = 0;
 
         for backup in to_delete {
-            if let Err(_) = std::fs::remove_file(backup) {
+            if std::fs::remove_file(backup).is_err() {
                 continue;
             }
             deleted += 1;

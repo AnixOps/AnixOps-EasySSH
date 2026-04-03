@@ -277,6 +277,7 @@ impl Permission {
     }
 
     /// 转换为字符串表示
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         format!(
             "{}:{}",

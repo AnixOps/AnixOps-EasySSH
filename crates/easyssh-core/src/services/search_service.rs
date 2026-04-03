@@ -1959,7 +1959,7 @@ mod tests {
     fn test_levenshtein_distance() {
         // Simple tests using the SearchService implementation
         let db = Arc::new(Database::new_in_memory().unwrap());
-        let service = SearchService::new(db).unwrap();
+        let _service = SearchService::new(db).unwrap();
 
         // Test with direct string comparison
         let distance = SearchService::levenshtein_distance("kitten", "sitting");

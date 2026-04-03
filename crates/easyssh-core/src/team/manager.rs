@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use super::permissions::TeamPermission;
 use super::types::{
     ActivityType, CleanupResult, InviteStatus, MemberStatus, ShareType, ShareableResourceType,
-    SharedResource, Team, TeamActivity, TeamInvite, TeamMember, TeamOperationResult, TeamRole,
+    SharedResource, Team, TeamActivity, TeamInvite, TeamMember, TeamRole,
     TeamStats,
 };
 

@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 
 /// 文件传输器
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct FileTransfer {
     client: Arc<RwLock<SftpClient>>,
     queue: Arc<RwLock<TransferQueue>>,

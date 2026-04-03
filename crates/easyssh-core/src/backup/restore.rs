@@ -1,11 +1,11 @@
 //! Backup restore functionality
 
-use super::{BackupError, BackupResult, CompressionFormat, EncryptionAlgorithm, SnapshotId};
+use super::{BackupError, BackupResult, CompressionFormat, SnapshotId};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Restore options
 #[derive(Serialize, Deserialize)]
@@ -175,8 +175,7 @@ impl RestoreManager {
         // Determine target path
         let target_path = options
             .target_path
-            .as_ref()
-            .map(|p| p.clone())
+            .clone()
             .unwrap_or_else(|| PathBuf::from("."));
 
         // Create target directory

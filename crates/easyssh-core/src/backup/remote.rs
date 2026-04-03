@@ -1,16 +1,13 @@
 //! Remote file backup over SSH
 
-use super::{
-    BackupError, BackupFilter, BackupResult, BackupSource, BackupTarget, CloudCredentials,
-};
+use super::{BackupError, BackupFilter, BackupResult};
 use crate::ssh::SshSessionManager;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// Remote backup source configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

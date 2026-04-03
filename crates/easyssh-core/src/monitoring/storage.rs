@@ -13,12 +13,14 @@ use crate::monitoring::{
 };
 
 /// Time-series metrics storage using SQLite with rollups
+#[allow(dead_code)]
 pub struct MetricsStorage {
     conn: Arc<tokio::sync::Mutex<rusqlite::Connection>>,
     config: StorageConfig,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct StorageConfig {
     retention_days: u32,
 }

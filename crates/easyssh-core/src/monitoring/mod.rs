@@ -226,6 +226,7 @@ impl Default for MonitoringConfig {
 }
 
 /// Monitoring manager - main entry point
+#[allow(dead_code)]
 pub struct MonitoringManager {
     config: MonitoringConfig,
     collector: Arc<MetricsCollector>,

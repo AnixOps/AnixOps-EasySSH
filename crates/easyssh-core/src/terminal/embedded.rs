@@ -542,6 +542,7 @@ fn shell_escape(s: &str) -> String {
 }
 
 /// 终端管理器
+#[allow(dead_code)]
 pub struct TerminalManager {
     terminals: Arc<RwLock<HashMap<String, Arc<dyn TerminalEmulator>>>>,
     output_handlers: Arc<RwLock<HashMap<String, mpsc::UnboundedReceiver<TerminalOutput>>>>,
@@ -888,6 +889,7 @@ pub enum TerminalWsOutput {
 /// WebSocket桥接器
 /// 处理WebSocket与终端之间的双向通信
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct WebSocketBridge {
     terminal_id: String,
     terminal: Arc<dyn TerminalEmulator>,
@@ -1226,6 +1228,7 @@ impl PtyStatus {
 
 /// PTY管理器
 /// 管理所有PTY实例的生命周期和资源
+#[allow(dead_code)]
 pub struct PtyManager {
     instances: Arc<RwLock<HashMap<String, PtyInstance>>>,
     terminals: Arc<RwLock<HashMap<String, Arc<dyn TerminalEmulator>>>>,

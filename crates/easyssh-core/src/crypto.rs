@@ -2070,6 +2070,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_key_derivation_different_passwords() {
         let state = CryptoState::new();
         let mut salt = [0u8; SALT_LENGTH];
@@ -2086,6 +2087,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_key_derivation_different_salts() {
         let state = CryptoState::new();
         let password = "same_password";
@@ -2106,6 +2108,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_key_derivation_deterministic() {
         let state = CryptoState::new();
         let password = "deterministic_test";

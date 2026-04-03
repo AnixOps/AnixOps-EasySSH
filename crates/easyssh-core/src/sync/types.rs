@@ -1,6 +1,5 @@
 //! Sync types - Data structures for synchronization
 
-use crate::error::LiteError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

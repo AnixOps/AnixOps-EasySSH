@@ -26,7 +26,7 @@ pub use provisioning::*;
 pub use session::*;
 
 use crate::error::LiteError;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::Engine as _;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

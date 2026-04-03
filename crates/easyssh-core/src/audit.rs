@@ -389,7 +389,7 @@ impl AuditEntry {
         };
         mac.update(hash.as_bytes());
 
-        Self::sign_hash(hash, key).map_or(false, |expected| signature == expected)
+        Self::sign_hash(hash, key).is_some_and(|expected| signature == expected)
     }
 
     /// 添加详情

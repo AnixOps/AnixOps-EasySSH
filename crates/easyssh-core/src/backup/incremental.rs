@@ -1,10 +1,9 @@
 //! Incremental backup with deduplication
 
 use super::{BackupError, BackupResult, SnapshotId};
-use blake3::Hasher;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// File hash for deduplication
@@ -232,11 +231,11 @@ impl IncrementalBackupManager {
 
         let base_path = source.to_path_buf();
 
-        let mut entries = walkdir::WalkDir::new(source)
+        let entries = walkdir::WalkDir::new(source)
             .into_iter()
             .filter_map(|e| e.ok());
 
-        while let Some(entry) = entries.next() {
+        for entry in entries {
             let path = entry.path();
             let relative_path = path.strip_prefix(&base_path).unwrap_or(path);
 

@@ -73,6 +73,7 @@ impl SftpClientConfig {
 }
 
 /// SFTP客户端
+#[allow(dead_code)]
 pub struct SftpClient {
     id: String,
     config: SftpClientConfig,

@@ -231,10 +231,12 @@ mod client_pool {
     use super::*;
     use std::collections::HashMap;
 
+    #[allow(dead_code)]
     pub struct ClientPool {
         clients: HashMap<String, Arc<RwLock<SftpClient>>>,
     }
 
+    #[allow(dead_code)]
     impl ClientPool {
         pub fn new() -> Self {
             Self {

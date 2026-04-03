@@ -13,6 +13,7 @@ pub struct ConfigRepository {
 }
 
 /// Default configuration keys
+#[allow(dead_code)]
 pub mod keys {
     /// Application version
     pub const APP_VERSION: &str = "app.version";

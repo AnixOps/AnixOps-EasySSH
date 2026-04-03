@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 
 /// 远程文件系统
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RemoteFs {
     client: Arc<RwLock<SftpClient>>,
     cache: Arc<RwLock<HashMap<PathBuf, (Vec<FileInfo>, tokio::time::Instant)>>>,
@@ -107,6 +108,7 @@ pub enum ContentType {
 }
 
 /// 文件系统监视器
+#[allow(dead_code)]
 pub struct FileSystemWatcher {
     watched_paths: Arc<RwLock<Vec<PathBuf>>>,
     interval: Duration,

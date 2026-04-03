@@ -220,7 +220,7 @@ impl Database {
             page_count: page_count.0,
             page_size: page_size.0,
             estimated_size_bytes: page_count.0 * page_size.0,
-            pool_connections: pool_stats as u32,
+            pool_connections: pool_stats,
         })
     }
 

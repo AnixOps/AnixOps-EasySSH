@@ -1,8 +1,7 @@
 //! Backup engine - orchestrates the backup process
 
 use super::*;
-use compression::{compress_and_encrypt, compress_backup};
-use incremental::{IncrementalBackupManager, IncrementalIndex};
+use incremental::IncrementalBackupManager;
 use remote::{RemoteBackupConfig, RemoteFileBackup};
 use scheduler::{BackupScheduler, ScheduleConfig};
 use storage::{BackupStorage, LocalStorage};
@@ -421,7 +420,7 @@ impl BackupEngine {
         snapshot.file_count = files.len() as u64;
 
         // 2. Build incremental index if needed
-        let (incremental_index, diff) = if job.config.backup_type == BackupType::Incremental {
+        let (incremental_index, _diff) = if job.config.backup_type == BackupType::Incremental {
             info!("Building incremental index...");
             // Find parent snapshot
             let parent_id = self.find_parent_snapshot(job.id).await;
@@ -469,7 +468,7 @@ impl BackupEngine {
         // 3. Create archive
         info!("Creating archive...");
         let archive_path = temp_dir.path().join("backup.tar.gz");
-        let filter = BackupFilter {
+        let _filter = BackupFilter {
             exclude_patterns: job.config.exclusions.clone(),
             ..Default::default()
         };

@@ -1,6 +1,5 @@
 //! Team types - Data structures for team management
 
-use crate::error::LiteError;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

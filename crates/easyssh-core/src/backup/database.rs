@@ -2,14 +2,13 @@
 
 use super::{BackupError, BackupResult};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
-use tracing::{error, info, warn};
+use tracing::info;
 
 /// Database type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

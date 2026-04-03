@@ -1241,6 +1241,7 @@ impl Default for ParallelInitializer {
 
 /// Helper for executing startup phases with timing
 pub struct PhaseExecutorHelper {
+    #[allow(dead_code)]
     sequence: Arc<StartupSequence>,
     cache: Arc<ColdStartCache>,
 }

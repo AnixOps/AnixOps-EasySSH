@@ -1,7 +1,5 @@
 //! Team module - Team management for Pro version
 
-#![cfg(feature = "team")]
-
 mod manager;
 mod permissions;
 mod types;

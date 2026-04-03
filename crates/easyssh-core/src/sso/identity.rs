@@ -3,7 +3,7 @@
 //! 提供SSO身份到EasySSH用户身份的映射功能
 
 use crate::error::LiteError;
-use crate::sso::{SsoProviderType, SsoUserInfo};
+use crate::sso::SsoUserInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

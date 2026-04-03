@@ -88,6 +88,7 @@ impl Default for PerformanceConfig {
 
 /// Query cache entry
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct CacheEntry {
     /// Query text
     query: String,
@@ -101,6 +102,7 @@ struct CacheEntry {
 
 /// Query performance monitor
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct QueryMonitor {
     pool: SqlitePool,
     metrics: HashMap<String, QueryMetrics>,

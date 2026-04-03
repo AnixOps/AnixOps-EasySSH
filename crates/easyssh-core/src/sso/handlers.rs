@@ -5,7 +5,7 @@
 use crate::error::LiteError;
 use crate::sso::{
     generate_secure_random, sha256_hash, OidcConfig, OidcTokenResponse, OidcUserInfo,
-    SamlAuthRequest, SamlAuthResponse, SamlConfig, SsoProvider, SsoProviderConfig, SsoProviderType,
+    SamlAuthRequest, SamlConfig, SsoProvider, SsoProviderConfig, SsoProviderType,
     SsoUserInfo,
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -368,7 +368,7 @@ impl OidcHandler {
 
     /// 刷新访问令牌
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<OidcTokenResponse, LiteError> {
-        let params: Vec<(&str, &str)> = vec![
+        let _params: Vec<(&str, &str)> = vec![
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token),
             ("client_id", &self.config.client_id),
@@ -391,7 +391,7 @@ impl OidcHandler {
     }
 
     /// 获取用户信息
-    pub async fn get_userinfo(&self, access_token: &str) -> Result<OidcUserInfo, LiteError> {
+    pub async fn get_userinfo(&self, _access_token: &str) -> Result<OidcUserInfo, LiteError> {
         log::info!("Fetching userinfo from {}", self.config.userinfo_endpoint);
 
         // 实际实现需要发送HTTP GET请求到userinfo端点

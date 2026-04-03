@@ -4,7 +4,7 @@ use super::{BackupError, BackupJobId, BackupResult, BackupSnapshot, BackupStats,
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// Backup report types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

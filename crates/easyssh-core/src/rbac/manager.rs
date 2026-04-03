@@ -1,6 +1,6 @@
 //! 角色管理器 - 角色和分配的CRUD操作
 
-use super::{types::*, RbacAuditEntry, RbacAuditLogger, RbacConfig, RbacError};
+use super::{types::*, RbacAuditLogger, RbacConfig, RbacError};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 

@@ -99,7 +99,7 @@ mod tests {
         }
     }
 
-    fn is_path_within_base(base: &Path, input: &str) -> bool {
+    fn is_path_within_base(_base: &Path, input: &str) -> bool {
         let input_path = Path::new(input);
 
         // 检查是否包含 .. 组件
