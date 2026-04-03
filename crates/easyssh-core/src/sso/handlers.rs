@@ -5,8 +5,7 @@
 use crate::error::LiteError;
 use crate::sso::{
     generate_secure_random, sha256_hash, OidcConfig, OidcTokenResponse, OidcUserInfo,
-    SamlAuthRequest, SamlConfig, SsoProvider, SsoProviderConfig, SsoProviderType,
-    SsoUserInfo,
+    SamlAuthRequest, SamlConfig, SsoProvider, SsoProviderConfig, SsoProviderType, SsoUserInfo,
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::Utc;

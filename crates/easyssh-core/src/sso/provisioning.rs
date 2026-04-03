@@ -4,8 +4,8 @@
 
 use crate::error::LiteError;
 use crate::sso::{
-    ConflictResolution, IdentityConflictResolver, IdentityMapper, MappedIdentity,
-    SsoProvider, SsoUserInfo, TeamSsoMapping,
+    ConflictResolution, IdentityConflictResolver, IdentityMapper, MappedIdentity, SsoProvider,
+    SsoUserInfo, TeamSsoMapping,
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
