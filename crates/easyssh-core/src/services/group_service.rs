@@ -15,7 +15,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::db::{Database, GroupRecord, NewGroup, UpdateGroup};
-use crate::error::{CoreDatabaseError, EasySSHErrors};
+use crate::error::{CoreDatabaseError, EasySSHErrors, LiteError};
 use crate::models::group::{
     CreateGroupRequest, Group, GroupId, GroupStats, GroupWithServers, MoveServerRequest,
     ServerReference, UpdateGroupRequest, UNGROUPED_COLOR, UNGROUPED_ID, UNGROUPED_NAME,
@@ -77,6 +77,16 @@ impl std::error::Error for GroupServiceError {}
 impl From<ValidationError> for GroupServiceError {
     fn from(e: ValidationError) -> Self {
         GroupServiceError::Validation(e)
+    }
+}
+
+impl From<LiteError> for GroupServiceError {
+    fn from(e: LiteError) -> Self {
+        match e {
+            LiteError::GroupNotFound(id) => GroupServiceError::NotFound(id),
+            LiteError::ServerNotFound(id) => GroupServiceError::ServerNotFound(id),
+            _ => GroupServiceError::Database(e.to_string()),
+        }
     }
 }
 

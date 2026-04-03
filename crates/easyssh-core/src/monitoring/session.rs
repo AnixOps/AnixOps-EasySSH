@@ -3,7 +3,7 @@
 //! Provides lightweight, real-time system metrics collection via SSH
 //! using direct /proc filesystem reads (avoiding command execution).
 
-use crate::monitoring::alerts::{condition_description, AlertRule};
+use crate::monitoring::alerts::AlertRule;
 use crate::monitoring::metrics::SystemMetrics;
 use crate::monitoring::MonitoringError;
 use std::collections::VecDeque;
@@ -174,7 +174,7 @@ impl MonitoringSession {
     /// Disconnect from the server
     pub async fn disconnect(&self) {
         let mut session = self.ssh_session.write().await;
-        if let Some(mut s) = session.take() {
+        if let Some(s) = session.take() {
             let _ = s.disconnect(None, "Monitoring session closed", None);
         }
         *self.running.write().await = false;
@@ -579,7 +579,7 @@ impl Drop for MonitoringSession {
         let _ = try_block_on(async move {
             *running.write().await = false;
             let mut s = session.write().await;
-            if let Some(mut sess) = s.take() {
+            if let Some(sess) = s.take() {
                 let _ = sess.disconnect(None, "Session dropped", None);
             }
         });

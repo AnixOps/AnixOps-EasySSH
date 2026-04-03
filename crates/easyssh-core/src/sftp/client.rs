@@ -150,7 +150,7 @@ impl SftpClient {
         Ok(())
     }
 
-    pub async fn list_dir(&self, path: impl AsRef<Path>) -> Result<Vec<FileInfo>, LiteError> {
+    pub async fn list_dir(&self, _path: impl AsRef<Path>) -> Result<Vec<FileInfo>, LiteError> {
         // 简化实现
         Ok(Vec::new())
     }

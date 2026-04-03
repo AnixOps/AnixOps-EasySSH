@@ -149,7 +149,11 @@ impl From<ValidationError> for ServerServiceError {
 
 impl From<LiteError> for ServerServiceError {
     fn from(e: LiteError) -> Self {
-        ServerServiceError::Database(e.to_string())
+        match e {
+            LiteError::ServerNotFound(id) => ServerServiceError::NotFound(id),
+            LiteError::GroupNotFound(id) => ServerServiceError::NotFound(id),
+            _ => ServerServiceError::Database(e.to_string()),
+        }
     }
 }
 
@@ -388,7 +392,7 @@ impl ServerService {
             .port(dto.port)
             .username(dto.username)
             .auth_method(dto.auth_method)
-            .group_id(dto.group_id.unwrap_or_default())
+            .group_id(dto.group_id)
             .build_validated()?;
 
         // Convert to database record and save
@@ -1484,7 +1488,7 @@ mod tests {
                 port: 22,
                 username: "root".to_string(),
                 auth_method: AuthMethod::Agent,
-                group_id: Some("group1".to_string()),
+                group_id: None,
             })
             .unwrap();
 
@@ -1498,7 +1502,7 @@ mod tests {
                     key_path: "/path/to/key".to_string(),
                     passphrase: None,
                 },
-                group_id: Some("group2".to_string()),
+                group_id: None,
             })
             .unwrap();
 
@@ -1802,7 +1806,7 @@ mod tests {
                 port: 22,
                 username: "root".to_string(),
                 auth_method: AuthMethod::Agent,
-                group_id: Some("group1".to_string()),
+                group_id: None,
             })
             .unwrap();
 
@@ -1816,7 +1820,7 @@ mod tests {
                     key_path: "/path".to_string(),
                     passphrase: None,
                 },
-                group_id: Some("group2".to_string()),
+                group_id: None,
             })
             .unwrap();
 
@@ -1824,8 +1828,8 @@ mod tests {
         assert_eq!(stats.total, 2);
         assert_eq!(stats.by_auth_type.get("agent"), Some(&1));
         assert_eq!(stats.by_auth_type.get("key"), Some(&1));
-        assert_eq!(stats.by_group.get("group1"), Some(&1));
-        assert_eq!(stats.by_group.get("group2"), Some(&1));
+        // Ungrouped servers go to "_ungrouped"
+        assert_eq!(stats.by_group.get("_ungrouped"), Some(&2));
     }
 
     #[test]

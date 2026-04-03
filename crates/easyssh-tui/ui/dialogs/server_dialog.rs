@@ -12,12 +12,12 @@
 
 use super::{Dialog, DialogResult, ServerData};
 use crate::theme::ColorPalette;
-use crate::ui::dialogs::{handle_dialog_keys, handle_text_input};
+use crate::ui::dialogs::handle_text_input;
 use crossterm::event::{KeyCode, KeyEvent};
 use easyssh_core::{AuthMethod, ServerRecord};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,

@@ -221,7 +221,7 @@ impl TransferQueue {
     ) -> String {
         let options = options.unwrap_or_default();
 
-        let mut task = TransferTask::new(
+        let task = TransferTask::new(
             source.into(),
             destination.into(),
             TransferDirection::Download,
@@ -242,7 +242,7 @@ impl TransferQueue {
     ) -> String {
         let options = options.unwrap_or_default();
 
-        let mut task = TransferTask::new(
+        let task = TransferTask::new(
             source.into(),
             destination.into(),
             TransferDirection::Upload,

@@ -10,15 +10,12 @@ use crate::events::Key;
 use crate::keybindings::{Action, KeyBindings};
 use crate::theme::{ColorPalette, Theme};
 use crate::ui::dialogs::{Dialog, DialogResult};
-use crate::virtual_list::{
-    render_virtual_group_list, render_virtual_server_list, GroupListItem, ServerListItem,
-    VirtualListState,
-};
-use crossterm::event::{KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crate::virtual_list::VirtualListState;
+use crossterm::event::{KeyCode, MouseButton, MouseEvent, MouseEventKind};
 use easyssh_core::{
-    connect_server, delete_group, delete_server, get_db_path, get_groups, get_servers,
+    connect_server, delete_group, delete_server, get_groups, get_servers,
     init_database, update_server, AppState, AuthMethod, GroupRecord, NewGroup, NewServer,
-    ServerRecord, ServerStatus,
+    ServerRecord,
 };
 use std::io;
 

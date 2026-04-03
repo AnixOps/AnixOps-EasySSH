@@ -27,7 +27,6 @@ pub mod tests;
 pub mod session;
 
 pub use alerts::*;
-pub use collector::*;
 pub use dashboard::*;
 pub use metrics::*;
 pub use notifications::*;

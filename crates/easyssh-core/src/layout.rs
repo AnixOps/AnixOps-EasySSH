@@ -1079,22 +1079,27 @@ mod tests {
         let rects =
             layout_utils::calculate_split_rects(&parent, SplitDirection::Horizontal, &ratios);
         assert_eq!(rects.len(), 2);
-        assert_eq!(rects[0].width, 30.0);
-        assert_eq!(rects[1].width, 70.0);
+        // Use approximate comparison for floating point
+        assert!((rects[0].width - 30.0).abs() < 0.001);
+        assert!((rects[1].width - 70.0).abs() < 0.001);
     }
 
     #[test]
     fn test_next_prev_panel() {
         let mut manager = LayoutManager::new();
-        let layout_id = manager.current_layout.clone().unwrap();
+        // Create a layout first
+        manager.create_layout("Test Layout", WorkspaceMode::Split);
+
         let panels: Vec<String> = manager
             .current_layout()
             .map(|l| l.panels.keys().cloned().collect())
             .unwrap();
         let root = &panels[0];
+
+        // Split the root panel to create two panels
         manager
             .split_panel(
-                &layout_id,
+                root,
                 SplitDirection::Horizontal,
                 PanelContent::Empty,
             )

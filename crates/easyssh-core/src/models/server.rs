@@ -625,8 +625,10 @@ impl ServerBuilder {
     }
 
     /// Set the group ID
-    pub fn group_id(mut self, group_id: impl Into<String>) -> Self {
-        self.group_id = Some(group_id.into());
+    ///
+    /// If `None` is passed, the group_id is cleared (ungrouped).
+    pub fn group_id(mut self, group_id: Option<String>) -> Self {
+        self.group_id = group_id;
         self
     }
 

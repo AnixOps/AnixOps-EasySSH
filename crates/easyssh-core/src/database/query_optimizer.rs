@@ -459,7 +459,7 @@ impl QueryMonitor {
     /// Sanitize query for metrics (remove parameters)
     fn sanitize_query(&self, query: &str) -> String {
         // Replace string literals with placeholder
-        let mut result = query.to_string();
+        let result = query.to_string();
 
         // Simple regex-like replacement for string literals
         let mut in_string = false;

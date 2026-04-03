@@ -143,7 +143,7 @@ impl MaintenanceManager {
         sqlx::query("VACUUM")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         // Get size after
         let after = self.get_database_stats().await?;
@@ -170,14 +170,14 @@ impl MaintenanceManager {
         sqlx::query("PRAGMA auto_vacuum = incremental")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         // Vacuum specified number of pages
         let sql = format!("PRAGMA incremental_vacuum({})", pages);
         sqlx::query(&sql)
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok((
             true,
@@ -191,7 +191,7 @@ impl MaintenanceManager {
         sqlx::query("ANALYZE")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok((true, None, "Analyze complete".to_string()))
     }
@@ -201,7 +201,7 @@ impl MaintenanceManager {
         sqlx::query("REINDEX")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok((true, None, "Reindex complete".to_string()))
     }
@@ -211,13 +211,13 @@ impl MaintenanceManager {
         sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         // Get checkpoint info
         let log: (i64,) = sqlx::query_as("PRAGMA wal_checkpoint")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok((
             true,
@@ -228,7 +228,7 @@ impl MaintenanceManager {
 
     /// Perform full maintenance suite
     async fn full_maintenance(&self) -> Result<(bool, Option<i64>, String)> {
-        let mut total_reclaimed: i64 = 0;
+        let total_reclaimed;
 
         // Checkpoint first
         self.wal_checkpoint().await?;
@@ -260,17 +260,17 @@ impl MaintenanceManager {
         let page_count: (i64,) = sqlx::query_as("PRAGMA page_count")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let free_pages: (i64,) = sqlx::query_as("PRAGMA freelist_count")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let page_size: (i64,) = sqlx::query_as("PRAGMA page_size")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let file_size = page_count.0 * page_size.0;
         let unused_bytes = free_pages.0 * page_size.0;
@@ -295,7 +295,7 @@ impl MaintenanceManager {
         let journal_mode: (String,) = sqlx::query_as("PRAGMA journal_mode")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let wal_mode = journal_mode.0.to_uppercase() == "WAL";
 
@@ -304,14 +304,14 @@ impl MaintenanceManager {
             let wal_size: (i64,) = sqlx::query_as("PRAGMA wal_size")
                 .fetch_optional(&self.pool)
                 .await
-                .map_err(|e| DatabaseError::SqlError(e))?
+                .map_err(DatabaseError::SqlError)?
                 .unwrap_or((0,));
 
             // These pragmas may not be available in all SQLite builds
             let frames: (i64,) = sqlx::query_as("PRAGMA wal_checkpoint")
                 .fetch_optional(&self.pool)
                 .await
-                .map_err(|e| DatabaseError::SqlError(e))?
+                .map_err(DatabaseError::SqlError)?
                 .unwrap_or((0,));
 
             (wal_size.0, frames.0, 0)
@@ -332,27 +332,27 @@ impl MaintenanceManager {
         let page_count: (i64,) = sqlx::query_as("PRAGMA page_count")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let page_size: (i64,) = sqlx::query_as("PRAGMA page_size")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let free_pages: (i64,) = sqlx::query_as("PRAGMA freelist_count")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let schema_version: (i64,) = sqlx::query_as("PRAGMA schema_version")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let user_version: (i64,) = sqlx::query_as("PRAGMA user_version")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(DatabaseStats {
             page_count: page_count.0,
@@ -426,7 +426,7 @@ impl MaintenanceManager {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        .map_err(DatabaseError::SqlError)?;
 
         let mut stats = Vec::new();
 
@@ -434,7 +434,7 @@ impl MaintenanceManager {
             let count: (i64,) = sqlx::query_as(&format!("SELECT COUNT(*) FROM {}", table_name))
                 .fetch_one(&self.pool)
                 .await
-                .map_err(|e| DatabaseError::SqlError(e))?;
+                .map_err(DatabaseError::SqlError)?;
 
             // Get approximate size
             let size_info: std::result::Result<(i64,), _> = sqlx::query_as(&format!(
@@ -464,13 +464,13 @@ impl MaintenanceManager {
         sqlx::query("VACUUM")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         // Analyze for optimization
         sqlx::query("ANALYZE")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         let after = self.get_database_stats().await?;
 

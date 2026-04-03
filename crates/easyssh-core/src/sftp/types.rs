@@ -346,7 +346,7 @@ impl SftpEntry {
 
     /// 格式化修改时间显示
     pub fn mtime_display(&self) -> String {
-        use chrono::{DateTime, Utc};
+        use chrono::DateTime;
         let datetime = DateTime::from_timestamp(self.mtime, 0)
             .unwrap_or_else(|| DateTime::from_timestamp(0, 0).unwrap());
         datetime.format("%Y-%m-%d %H:%M:%S").to_string()

@@ -954,10 +954,10 @@ impl WebSocketBridge {
         };
 
         // 创建新的接收器给调用者
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (_tx, rx) = mpsc::unbounded_channel();
 
         // 转发输出
-        let output_tx_clone = bridge.output_tx.clone();
+        let _output_tx_clone = bridge.output_tx.clone();
         tokio::spawn(async move {
             // 这里可以添加额外的处理逻辑
         });
@@ -1941,7 +1941,7 @@ impl EmbeddedTerminalServer {
         &self,
         session_id: String,
         terminal_id: String,
-        mut ws_tx: mpsc::UnboundedSender<WsMessage>,
+        ws_tx: mpsc::UnboundedSender<WsMessage>,
         mut ws_rx: mpsc::UnboundedReceiver<String>,
     ) -> Result<(), LiteError> {
         log::info!(

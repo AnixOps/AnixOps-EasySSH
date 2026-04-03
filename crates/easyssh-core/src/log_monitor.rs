@@ -879,7 +879,7 @@ impl LogMonitorCenter {
         }
 
         let source_id = source.id.clone();
-        let source_id_for_insert = source_id.clone();
+        let _source_id_for_insert = source_id.clone();
         let source_name = source.name.clone();
         let server_id = source.server_id.clone();
         let log_path = source.log_path.clone();

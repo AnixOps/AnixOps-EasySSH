@@ -69,6 +69,23 @@ impl ExportFormat {
     pub fn detect(content: &str) -> Option<Self> {
         let trimmed = content.trim_start();
 
+        // Check for TOML section headers [section] BEFORE JSON
+        // TOML: [section] - starts with [, contains only word chars between [ and ]
+        // JSON: [1, 2, 3] or ["a"] - starts with [, contains comma or quote inside
+        let has_toml_header = trimmed.lines().any(|line| {
+            let line = line.trim();
+            if line.starts_with('[') && line.ends_with(']') {
+                let inner = &line[1..line.len() - 1];
+                // TOML section has alphanumeric/underscore/dash chars only
+                !inner.contains(',') && !inner.contains('"') && !inner.contains('\'')
+            } else {
+                false
+            }
+        });
+        if has_toml_header && trimmed.contains('=') {
+            return Some(ExportFormat::Toml);
+        }
+
         // Check for JSON
         if trimmed.starts_with('{') || trimmed.starts_with('[') {
             return Some(ExportFormat::Json);
@@ -79,11 +96,6 @@ impl ExportFormat {
             || (trimmed.contains(':') && !trimmed.contains('=') && !trimmed.contains('['))
         {
             return Some(ExportFormat::Yaml);
-        }
-
-        // Check for TOML
-        if trimmed.contains('=') && trimmed.contains('[') {
-            return Some(ExportFormat::Toml);
         }
 
         // Check for env format (KEY=VALUE pairs)

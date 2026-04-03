@@ -364,7 +364,7 @@ async fn collect_server_metrics(
 
 /// Collect SystemMetrics via SSH (for Standard version)
 async fn collect_system_metrics_ssh(
-    server_id: &str,
+    _server_id: &str,
     config: &ServerConnectionConfig,
 ) -> Result<SystemMetrics, MonitoringError> {
     // Establish SSH connection
@@ -445,8 +445,8 @@ fn parse_system_metrics_output(output: &str) -> Result<SystemMetrics, Monitoring
     let mut load_avg = [0.0f32; 3];
 
     for line in output.lines() {
-        if line.starts_with("CPU:") {
-            let parts: Vec<&str> = line[4..].split_whitespace().collect();
+        if let Some(rest) = line.strip_prefix("CPU:") {
+            let parts: Vec<&str> = rest.split_whitespace().collect();
             if parts.len() >= 8 {
                 let user: f64 = parts[0].parse().unwrap_or(0.0);
                 let nice: f64 = parts[1].parse().unwrap_or(0.0);
@@ -464,8 +464,8 @@ fn parse_system_metrics_output(output: &str) -> Result<SystemMetrics, Monitoring
                     cpu_percent = ((active / total) * 100.0) as f32;
                 }
             }
-        } else if line.starts_with("MEM:") {
-            let parts: Vec<&str> = line[4..].split_whitespace().collect();
+        } else if let Some(rest) = line.strip_prefix("MEM:") {
+            let parts: Vec<&str> = rest.split_whitespace().collect();
             if parts.len() >= 4 {
                 let total_kb: u64 = parts[0].parse().unwrap_or(0);
                 let free_kb: u64 = parts[1].parse().unwrap_or(0);
@@ -480,22 +480,20 @@ fn parse_system_metrics_output(output: &str) -> Result<SystemMetrics, Monitoring
                 memory_used =
                     memory_total.saturating_sub(memory_free + memory_buffers + memory_cached);
             }
-        } else if line.starts_with("DISK:") {
-            let disk_data = &line[5..];
+        } else if let Some(disk_data) = line.strip_prefix("DISK:") {
             let parts: Vec<&str> = disk_data.split(',').collect();
             if parts.len() >= 2 {
                 disk_total = parts[0].parse().unwrap_or(0);
                 disk_used = parts[1].parse().unwrap_or(0);
             }
-        } else if line.starts_with("NET:") {
-            let net_data = &line[4..];
+        } else if let Some(net_data) = line.strip_prefix("NET:") {
             let parts: Vec<&str> = net_data.split(',').collect();
             if parts.len() >= 2 {
                 network_rx = parts[0].trim().parse().unwrap_or(0);
                 network_tx = parts[1].trim().parse().unwrap_or(0);
             }
-        } else if line.starts_with("LOAD:") {
-            let parts: Vec<&str> = line[5..].split_whitespace().collect();
+        } else if let Some(load_data) = line.strip_prefix("LOAD:") {
+            let parts: Vec<&str> = load_data.split_whitespace().collect();
             if parts.len() >= 3 {
                 load_avg[0] = parts[0].parse().unwrap_or(0.0);
                 load_avg[1] = parts[1].parse().unwrap_or(0.0);
@@ -525,7 +523,7 @@ fn parse_cpu_metrics(stat_line: &str, loadavg_line: &str) -> CpuMetrics {
     let mut system = 0.0;
     let mut iowait = 0.0;
     let mut steal = 0.0;
-    let mut cores = 1;
+    let cores;
 
     if parts.len() >= 5 && parts[0] == "cpu" {
         let user_ticks: f64 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0.0);
@@ -559,7 +557,7 @@ fn parse_cpu_metrics(stat_line: &str, loadavg_line: &str) -> CpuMetrics {
     // Parse /proc/loadavg: load1 load5 load15 running/total last_pid
     let load_parts: Vec<&str> = loadavg_line.split_whitespace().collect();
     let load1 = load_parts
-        .get(0)
+        .first()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0.0);
     let load5 = load_parts
@@ -898,7 +896,7 @@ impl SimpleCollector {
     }
 
     pub fn disconnect(&mut self) {
-        if let Some(mut session) = self.session.take() {
+        if let Some(session) = self.session.take() {
             let _ = session.disconnect(None, "SimpleCollector disconnect", None);
         }
     }

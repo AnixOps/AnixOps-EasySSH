@@ -20,7 +20,7 @@ pub use group_dialog::GroupDialog;
 pub use help_dialog::HelpDialog;
 pub use server_dialog::ServerDialog;
 
-use ratatui::{layout::Rect, widgets::Clear, Frame};
+use ratatui::{layout::Rect, Frame};
 
 /// Result of a dialog interaction
 #[derive(Debug, Clone)]

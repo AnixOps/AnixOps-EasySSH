@@ -218,7 +218,7 @@ pub fn render_virtual_server_list(
     // Create table with scroll indicator in title if needed
     let title = if state.total_items > state.visible_count {
         let scroll_pct = if state.total_items > 0 {
-            (state.scroll_offset * 100 / state.total_items)
+            state.scroll_offset * 100 / state.total_items
         } else {
             0
         };

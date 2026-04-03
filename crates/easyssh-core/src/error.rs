@@ -1017,7 +1017,7 @@ impl CustomJsonError for serde_json::Error {
 /// New code should use EasySSHErrors directly.
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum LiteError {
-    #[error("error-database")]
+    #[error("error-database: {0}")]
     Database(String),
 
     #[error("error-crypto")]
@@ -1264,7 +1264,10 @@ impl serde::Serialize for LiteError {
 
 impl From<rusqlite::Error> for LiteError {
     fn from(e: rusqlite::Error) -> Self {
-        LiteError::Database(e.to_string())
+        match e {
+            rusqlite::Error::QueryReturnedNoRows => LiteError::ServerNotFound("query returned no rows".to_string()),
+            _ => LiteError::Database(e.to_string()),
+        }
     }
 }
 

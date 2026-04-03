@@ -132,7 +132,7 @@ impl BackupManager {
         sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         // Copy the database file
         tokio::fs::copy(&self.db_path, backup_path)
@@ -157,7 +157,7 @@ impl BackupManager {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        .map_err(DatabaseError::SqlError)?;
 
         for (table_name,) in tables {
             // Get table schema
@@ -165,14 +165,14 @@ impl BackupManager {
                 .bind(&table_name)
                 .fetch_one(&self.pool)
                 .await
-                .map_err(|e| DatabaseError::SqlError(e))?;
+                .map_err(DatabaseError::SqlError)?;
 
             let sql = schema.0;
             if !sql.is_empty() {
                 sqlx::query(&sql)
                     .execute(&backup_pool)
                     .await
-                    .map_err(|e| DatabaseError::SqlError(e))?;
+                    .map_err(DatabaseError::SqlError)?;
             }
 
             // Copy data
@@ -190,7 +190,7 @@ impl BackupManager {
             sqlx::query(&copy_sql)
                 .execute(&backup_pool)
                 .await
-                .map_err(|e| DatabaseError::SqlError(e))?;
+                .map_err(DatabaseError::SqlError)?;
         }
 
         backup_pool.close().await;
@@ -218,7 +218,7 @@ impl BackupManager {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        .map_err(DatabaseError::SqlError)?;
 
         for (table_name,) in tables {
             // Get schema
@@ -227,7 +227,7 @@ impl BackupManager {
                     .bind(&table_name)
                     .fetch_optional(&self.pool)
                     .await
-                    .map_err(|e| DatabaseError::SqlError(e))?;
+                    .map_err(DatabaseError::SqlError)?;
 
             if let Some((sql,)) = schema {
                 if !sql.is_empty() {
@@ -241,7 +241,7 @@ impl BackupManager {
                     .bind(&table_name)
                     .fetch_all(&self.pool)
                     .await
-                    .map_err(|e| DatabaseError::SqlError(e))?;
+                    .map_err(DatabaseError::SqlError)?;
 
                     for (index_sql,) in indexes {
                         if !index_sql.is_empty() {
@@ -256,7 +256,7 @@ impl BackupManager {
                         sqlx::query_as(&format!("PRAGMA table_info({})", table_name))
                             .fetch_all(&self.pool)
                             .await
-                            .map_err(|e| DatabaseError::SqlError(e))?;
+                            .map_err(DatabaseError::SqlError)?;
 
                     let column_names: Vec<String> = columns_info
                         .iter()
@@ -268,7 +268,7 @@ impl BackupManager {
                         sqlx::query_as(&format!("SELECT COUNT(*) FROM {}", table_name))
                             .fetch_one(&self.pool)
                             .await
-                            .map_err(|e| DatabaseError::SqlError(e))?;
+                            .map_err(DatabaseError::SqlError)?;
 
                     if count.0 > 0 && !column_names.is_empty() {
                         dump_content
@@ -303,7 +303,7 @@ impl BackupManager {
                         let inserts: Vec<(String,)> = sqlx::query_as(&insert_sql)
                             .fetch_all(&self.pool)
                             .await
-                            .map_err(|e| DatabaseError::SqlError(e))?;
+                            .map_err(DatabaseError::SqlError)?;
 
                         for (insert_stmt,) in inserts {
                             dump_content.push_str(&insert_stmt);
@@ -529,7 +529,7 @@ impl BackupManager {
         let version: (String,) = sqlx::query_as("SELECT sqlite_version()")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(version.0)
     }
@@ -539,7 +539,7 @@ impl BackupManager {
         let version: Option<(i64,)> = sqlx::query_as("SELECT MAX(version) FROM schema_migrations")
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(version.map(|v| v.0).unwrap_or(0))
     }

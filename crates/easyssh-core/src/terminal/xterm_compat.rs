@@ -616,38 +616,38 @@ impl XtermCompat {
 
         match final_byte {
             b'A' => Some(EscapeSequence::CursorUp(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'B' => Some(EscapeSequence::CursorDown(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'C' => Some(EscapeSequence::CursorForward(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'D' => Some(EscapeSequence::CursorBackward(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'E' => Some(EscapeSequence::CursorPosition {
-                row: self.cursor_row + param_values.get(0).copied().unwrap_or(1) + 1,
+                row: self.cursor_row + param_values.first().copied().unwrap_or(1) + 1,
                 col: 1,
             }),
             b'F' => Some(EscapeSequence::CursorPosition {
                 row: self
                     .cursor_row
-                    .saturating_sub(param_values.get(0).copied().unwrap_or(1)),
+                    .saturating_sub(param_values.first().copied().unwrap_or(1)),
                 col: 1,
             }),
             b'G' => Some(EscapeSequence::CursorPosition {
                 row: self.cursor_row + 1,
-                col: param_values.get(0).copied().unwrap_or(1),
+                col: param_values.first().copied().unwrap_or(1),
             }),
             b'H' | b'f' => {
-                let row = param_values.get(0).copied().unwrap_or(1);
+                let row = param_values.first().copied().unwrap_or(1);
                 let col = param_values.get(1).copied().unwrap_or(1);
                 Some(EscapeSequence::CursorPosition { row, col })
             }
             b'J' => {
-                let mode = match param_values.get(0).copied().unwrap_or(0) {
+                let mode = match param_values.first().copied().unwrap_or(0) {
                     0 => EraseMode::ToEnd,
                     1 => EraseMode::FromStart,
                     2 => EraseMode::All,
@@ -657,7 +657,7 @@ impl XtermCompat {
                 Some(EscapeSequence::EraseDisplay(mode))
             }
             b'K' => {
-                let mode = match param_values.get(0).copied().unwrap_or(0) {
+                let mode = match param_values.first().copied().unwrap_or(0) {
                     0 => EraseMode::ToEnd,
                     1 => EraseMode::FromStart,
                     2 => EraseMode::All,
@@ -666,25 +666,25 @@ impl XtermCompat {
                 Some(EscapeSequence::EraseLine(mode))
             }
             b'L' => Some(EscapeSequence::InsertLines(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'M' => Some(EscapeSequence::DeleteLines(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'P' => Some(EscapeSequence::DeleteChars(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'S' => Some(EscapeSequence::ScrollUp(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'T' => Some(EscapeSequence::ScrollDown(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'X' => Some(EscapeSequence::EraseChars(
-                param_values.get(0).copied().unwrap_or(1),
+                param_values.first().copied().unwrap_or(1),
             )),
             b'd' => {
-                let row = param_values.get(0).copied().unwrap_or(1);
+                let row = param_values.first().copied().unwrap_or(1);
                 Some(EscapeSequence::CursorPosition {
                     row,
                     col: self.cursor_col + 1,
@@ -709,7 +709,7 @@ impl XtermCompat {
                 Some(EscapeSequence::SetGraphicsRendition(attrs))
             }
             b'r' => {
-                let top = param_values.get(0).copied().unwrap_or(1);
+                let top = param_values.first().copied().unwrap_or(1);
                 let bottom = param_values.get(1).copied().unwrap_or(self.rows);
                 Some(EscapeSequence::SetScrollRegion { top, bottom })
             }
@@ -732,7 +732,7 @@ impl XtermCompat {
             0 => {
                 let parts: Vec<&str> = text.split(';').collect();
                 Some(EscapeSequence::SetTitle {
-                    icon: parts.get(0).map(|s| s.to_string()),
+                    icon: parts.first().map(|s| s.to_string()),
                     window: parts.get(1).map(|s| s.to_string()),
                 })
             }
@@ -916,8 +916,7 @@ impl XtermCompat {
 
     /// 解析颜色规范
     fn parse_color_spec(&self, spec: &str) -> Option<Color> {
-        if spec.starts_with("rgb:") {
-            let rgb = &spec[4..];
+        if let Some(rgb) = spec.strip_prefix("rgb:") {
             let parts: Vec<&str> = rgb.split('/').collect();
             if parts.len() == 3 {
                 let r = u8::from_str_radix(parts[0], 16).ok()?;
@@ -925,8 +924,7 @@ impl XtermCompat {
                 let b = u8::from_str_radix(parts[2], 16).ok()?;
                 return Some(Color::RGB(r, g, b));
             }
-        } else if spec.starts_with("#") {
-            let hex = &spec[1..];
+        } else if let Some(hex) = spec.strip_prefix("#") {
             if hex.len() == 6 {
                 let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
                 let g = u8::from_str_radix(&hex[2..4], 16).ok()?;

@@ -124,7 +124,7 @@ impl IndexManager {
         sqlx::query(&sql)
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(())
     }
@@ -146,7 +146,7 @@ impl IndexManager {
         sqlx::query(&sql)
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(())
     }
@@ -177,7 +177,7 @@ impl IndexManager {
                 .bind(index_name)
                 .fetch_one(&self.pool)
                 .await
-                .map_err(|e| DatabaseError::SqlError(e))?;
+                .map_err(DatabaseError::SqlError)?;
 
         Ok(count.0 > 0)
     }
@@ -198,14 +198,14 @@ impl IndexManager {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DatabaseError::SqlError(e))?;
+        .map_err(DatabaseError::SqlError)?;
 
         Ok(rows
             .into_iter()
             .map(|(name, table, sql, unique)| IndexInfo {
                 name,
                 table,
-                sql: sql,
+                sql,
                 unique: unique > 0,
             })
             .collect())
@@ -219,7 +219,7 @@ impl IndexManager {
         let rows: Vec<(i64, i64, i64, String)> = sqlx::query_as(&explain_sql)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(rows
             .into_iter()
@@ -237,7 +237,7 @@ impl IndexManager {
         sqlx::query("ANALYZE")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(())
     }
@@ -273,7 +273,7 @@ impl IndexManager {
         sqlx::query("REINDEX")
             .execute(&self.pool)
             .await
-            .map_err(|e| DatabaseError::SqlError(e))?;
+            .map_err(DatabaseError::SqlError)?;
 
         Ok(())
     }

@@ -14,7 +14,7 @@ pub mod server_list;
 pub mod sidebar;
 
 use crate::app::App;
-use ratatui::{style::Style, widgets::Clear, Frame};
+use ratatui::{style::Style, Frame};
 
 pub struct Ui {
     layout: layout::LayoutManager,
@@ -132,8 +132,8 @@ impl Ui {
         app: &App,
         palette: &crate::theme::ColorPalette,
     ) {
-        use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
-        use ratatui::style::{Color, Modifier, Style};
+        use ratatui::layout::Rect;
+        use ratatui::style::{Modifier, Style};
         use ratatui::text::{Line, Span};
         use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 

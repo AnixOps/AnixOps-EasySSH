@@ -77,7 +77,7 @@ impl FileTransfer {
         )
         .with_options(options);
 
-        let mut queue = self.queue.write().await;
+        let queue = self.queue.write().await;
         let id = queue.add(task).await;
         Ok(id)
     }
@@ -99,7 +99,7 @@ impl FileTransfer {
         )
         .with_options(options);
 
-        let mut queue = self.queue.write().await;
+        let queue = self.queue.write().await;
         let id = queue.add(task).await;
         Ok(id)
     }

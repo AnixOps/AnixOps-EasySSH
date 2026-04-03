@@ -8,7 +8,7 @@
 //!
 //! Layout is responsive and adapts to terminal size.
 
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 /// Layout mode based on terminal size
 #[derive(Debug, Clone, Copy, PartialEq)]
