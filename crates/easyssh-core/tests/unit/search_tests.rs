@@ -9,14 +9,18 @@
 
 use std::sync::{Arc, Mutex};
 
-use easyssh_core::services::search_service::{SearchService, SearchQuery};
-use easyssh_core::db::{NewServer};
+use easyssh_core::db::NewServer;
+use easyssh_core::services::search_service::{SearchQuery, SearchService};
 
 #[path = "../common/mod.rs"]
 mod common;
-use common::{create_test_db_arc};
+use common::create_test_db_arc;
 
-fn create_search_service() -> (SearchService, Arc<Mutex<easyssh_core::db::Database>>, tempfile::TempDir) {
+fn create_search_service() -> (
+    SearchService,
+    Arc<Mutex<easyssh_core::db::Database>>,
+    tempfile::TempDir,
+) {
     let (db_arc, temp) = create_test_db_arc();
     let service = SearchService::new(db_arc.clone());
     (service, db_arc, temp)
@@ -53,7 +57,8 @@ fn test_basic_search() {
                 group_id: None,
                 status: "unknown".to_string(),
             };
-            db.add_server(&server).expect("Create server should succeed");
+            db.add_server(&server)
+                .expect("Create server should succeed");
         }
     }
 
@@ -95,7 +100,8 @@ fn test_search_by_ip() {
                 group_id: None,
                 status: "unknown".to_string(),
             };
-            db.add_server(&server).expect("Create server should succeed");
+            db.add_server(&server)
+                .expect("Create server should succeed");
         }
     }
 
@@ -136,7 +142,8 @@ fn test_search_empty_query() {
                 group_id: None,
                 status: "unknown".to_string(),
             };
-            db.add_server(&server).expect("Create server should succeed");
+            db.add_server(&server)
+                .expect("Create server should succeed");
         }
     }
 
@@ -168,7 +175,8 @@ fn test_index_rebuild() {
             group_id: None,
             status: "unknown".to_string(),
         };
-        db.add_server(&server).expect("Create server should succeed");
+        db.add_server(&server)
+            .expect("Create server should succeed");
     }
 
     // Build initial index
@@ -188,11 +196,14 @@ fn test_index_rebuild() {
             group_id: None,
             status: "unknown".to_string(),
         };
-        db.add_server(&server).expect("Create server should succeed");
+        db.add_server(&server)
+            .expect("Create server should succeed");
     }
 
     // Rebuild index
-    service.rebuild_index().expect("Rebuild index should succeed");
+    service
+        .rebuild_index()
+        .expect("Rebuild index should succeed");
 
     // Search should find both servers
     let query = SearchQuery {

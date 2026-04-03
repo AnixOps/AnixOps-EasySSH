@@ -9,10 +9,10 @@
 use std::sync::{Arc, Mutex};
 
 use easyssh_core::crypto::{CryptoState, ServerCredential};
-use easyssh_core::db::{Database, NewServer, NewGroup, NewHost};
-use easyssh_core::services::server_service::{ServerService, CreateServerDto};
-use easyssh_core::services::search_service::{SearchService, SearchFilter};
+use easyssh_core::db::{Database, NewGroup, NewHost, NewServer};
 use easyssh_core::models::server::{AuthMethod as ServerAuthMethod, ServerStatus};
+use easyssh_core::services::search_service::{SearchFilter, SearchService};
+use easyssh_core::services::server_service::{CreateServerDto, ServerService};
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -25,18 +25,18 @@ fn test_create_encrypted_server_workflow() {
 
     // Initialize crypto
     let mut crypto = CryptoState::new();
-    crypto.initialize(test_master_password()).expect("Crypto init should succeed");
+    crypto
+        .initialize(test_master_password())
+        .expect("Crypto init should succeed");
 
     // Create credential
-    let credential = ServerCredential::with_password(
-        "srv-001",
-        "192.168.1.100",
-        "admin",
-        "secret_password"
-    );
+    let credential =
+        ServerCredential::with_password("srv-001", "192.168.1.100", "admin", "secret_password");
 
     // Encrypt credential
-    let encrypted = credential.encrypt(&crypto).expect("Encryption should succeed");
+    let encrypted = credential
+        .encrypt(&crypto)
+        .expect("Encryption should succeed");
 
     // Store in database (simulated - in real code, this would be part of the server record)
     let new_server = NewServer {
@@ -52,15 +52,23 @@ fn test_create_encrypted_server_workflow() {
         status: "unknown",
     };
 
-    db.create_server(&new_server).expect("Create server should succeed");
+    db.create_server(&new_server)
+        .expect("Create server should succeed");
 
     // Retrieve from database
-    let stored = db.get_server("srv-001").expect("Get should succeed").expect("Server should exist");
+    let stored = db
+        .get_server("srv-001")
+        .expect("Get should succeed")
+        .expect("Server should exist");
     assert_eq!(stored.name, "Test Server");
 
     // Decrypt and verify
-    let encrypted_data = stored.password_encrypted.expect("Should have encrypted data");
-    let decrypted = crypto.decrypt(&encrypted_data).expect("Decryption should succeed");
+    let encrypted_data = stored
+        .password_encrypted
+        .expect("Should have encrypted data");
+    let decrypted = crypto
+        .decrypt(&encrypted_data)
+        .expect("Decryption should succeed");
     assert_eq!(decrypted, b"secret_password");
 }
 
@@ -77,8 +85,16 @@ fn test_full_server_management_workflow() {
     {
         let db = db_arc.lock().unwrap();
         let groups = vec![
-            NewGroup { id: "prod", name: "Production", color: Some("#ff0000") },
-            NewGroup { id: "dev", name: "Development", color: Some("#00ff00") },
+            NewGroup {
+                id: "prod",
+                name: "Production",
+                color: Some("#ff0000"),
+            },
+            NewGroup {
+                id: "dev",
+                name: "Development",
+                color: Some("#00ff00"),
+            },
         ];
         for group in &groups {
             db.create_group(group).expect("Create group should succeed");
@@ -92,7 +108,9 @@ fn test_full_server_management_workflow() {
             host: "192.168.1.10".to_string(),
             port: Some(22),
             username: "admin".to_string(),
-            auth_method: ServerAuthMethod::Password { password: "web_pass".to_string() },
+            auth_method: ServerAuthMethod::Password {
+                password: "web_pass".to_string(),
+            },
             group_id: Some("prod".to_string()),
         },
         CreateServerDto {
@@ -100,7 +118,10 @@ fn test_full_server_management_workflow() {
             host: "192.168.1.11".to_string(),
             port: Some(22),
             username: "dbadmin".to_string(),
-            auth_method: ServerAuthMethod::PrivateKey { key_path: "~/.ssh/id_rsa".to_string(), passphrase: None },
+            auth_method: ServerAuthMethod::PrivateKey {
+                key_path: "~/.ssh/id_rsa".to_string(),
+                passphrase: None,
+            },
             group_id: Some("prod".to_string()),
         },
         CreateServerDto {
@@ -115,7 +136,9 @@ fn test_full_server_management_workflow() {
 
     let mut created_ids = vec![];
     for server in &servers {
-        let created = service.create_server(server.clone()).expect("Create should succeed");
+        let created = service
+            .create_server(server.clone())
+            .expect("Create should succeed");
         created_ids.push(created.id.clone());
     }
 
@@ -124,22 +147,29 @@ fn test_full_server_management_workflow() {
     assert_eq!(all_servers.len(), 3);
 
     // Get servers by group
-    let prod_servers = service.get_servers_by_group("prod").expect("Get by group should succeed");
+    let prod_servers = service
+        .get_servers_by_group("prod")
+        .expect("Get by group should succeed");
     assert_eq!(prod_servers.len(), 2);
 
-    let dev_servers = service.get_servers_by_group("dev").expect("Get by group should succeed");
+    let dev_servers = service
+        .get_servers_by_group("dev")
+        .expect("Get by group should succeed");
     assert_eq!(dev_servers.len(), 1);
     assert_eq!(dev_servers[0].name, "Dev Server");
 
     // Update server status
-    service.update_server_status(&created_ids[0], ServerStatus::Online)
+    service
+        .update_server_status(&created_ids[0], ServerStatus::Online)
         .expect("Update status should succeed");
 
     let updated = service.get_server(&created_ids[0]).unwrap().unwrap();
     assert_eq!(updated.status, ServerStatus::Online);
 
     // Delete a server
-    service.delete_server(&created_ids[2]).expect("Delete should succeed");
+    service
+        .delete_server(&created_ids[2])
+        .expect("Delete should succeed");
 
     let remaining = service.list_all_servers().expect("List should succeed");
     assert_eq!(remaining.len(), 2);
@@ -157,8 +187,16 @@ fn test_search_and_filter_workflow() {
 
         // Create groups
         let groups = vec![
-            NewGroup { id: "web", name: "Web Servers", color: None },
-            NewGroup { id: "db", name: "Database", color: None },
+            NewGroup {
+                id: "web",
+                name: "Web Servers",
+                color: None,
+            },
+            NewGroup {
+                id: "db",
+                name: "Database",
+                color: None,
+            },
         ];
         for group in &groups {
             db.create_group(group).expect("Create group should succeed");
@@ -166,11 +204,46 @@ fn test_search_and_filter_workflow() {
 
         // Create hosts with various attributes
         let hosts = vec![
-            ("host-001", "Production Web Server", "10.0.1.10", "web", "password", "online"),
-            ("host-002", "Staging Web Server", "10.0.2.10", "web", "key", "offline"),
-            ("host-003", "Primary Database", "10.0.1.20", "db", "password", "online"),
-            ("host-004", "Replica Database", "10.0.2.20", "db", "password", "online"),
-            ("host-005", "Cache Server", "10.0.1.30", None, "agent", "online"),
+            (
+                "host-001",
+                "Production Web Server",
+                "10.0.1.10",
+                "web",
+                "password",
+                "online",
+            ),
+            (
+                "host-002",
+                "Staging Web Server",
+                "10.0.2.10",
+                "web",
+                "key",
+                "offline",
+            ),
+            (
+                "host-003",
+                "Primary Database",
+                "10.0.1.20",
+                "db",
+                "password",
+                "online",
+            ),
+            (
+                "host-004",
+                "Replica Database",
+                "10.0.2.20",
+                "db",
+                "password",
+                "online",
+            ),
+            (
+                "host-005",
+                "Cache Server",
+                "10.0.1.30",
+                None,
+                "agent",
+                "online",
+            ),
         ];
 
         for (id, name, host, group_id, auth_type, status) in hosts {
@@ -191,7 +264,8 @@ fn test_search_and_filter_workflow() {
                 purpose: None,
                 status,
             };
-            db.create_host(&new_host).expect("Create host should succeed");
+            db.create_host(&new_host)
+                .expect("Create host should succeed");
         }
     }
 
@@ -202,7 +276,9 @@ fn test_search_and_filter_workflow() {
         query: Some("web".to_string()),
         ..Default::default()
     };
-    let results = search_service.search_hosts(&filter).expect("Search should succeed");
+    let results = search_service
+        .search_hosts(&filter)
+        .expect("Search should succeed");
     assert_eq!(results.len(), 2);
     assert!(results.iter().all(|h| h.name.contains("Web")));
 
@@ -211,7 +287,9 @@ fn test_search_and_filter_workflow() {
         query: Some("10.0.1".to_string()),
         ..Default::default()
     };
-    let results = search_service.search_hosts(&filter).expect("Search should succeed");
+    let results = search_service
+        .search_hosts(&filter)
+        .expect("Search should succeed");
     assert_eq!(results.len(), 3); // Production Web, Primary DB, Cache Server
 
     // 3. Group filter
@@ -219,34 +297,50 @@ fn test_search_and_filter_workflow() {
         group_ids: Some(vec!["db".to_string()]),
         ..Default::default()
     };
-    let results = search_service.search_hosts(&filter).expect("Search should succeed");
+    let results = search_service
+        .search_hosts(&filter)
+        .expect("Search should succeed");
     assert_eq!(results.len(), 2);
     assert!(results.iter().all(|h| h.name.contains("Database")));
 
     // 4. Status filter
     let filter = SearchFilter {
-        connection_status: Some(vec![easyssh_core::services::search_service::ConnectionStatus::Online]),
+        connection_status: Some(vec![
+            easyssh_core::services::search_service::ConnectionStatus::Online,
+        ]),
         ..Default::default()
     };
-    let results = search_service.search_hosts(&filter).expect("Search should succeed");
+    let results = search_service
+        .search_hosts(&filter)
+        .expect("Search should succeed");
     assert_eq!(results.len(), 4);
 
     // 5. Combined filters
     let filter = SearchFilter {
         group_ids: Some(vec!["web".to_string()]),
         query: Some("production".to_string()),
-        connection_status: Some(vec![easyssh_core::services::search_service::ConnectionStatus::Online]),
+        connection_status: Some(vec![
+            easyssh_core::services::search_service::ConnectionStatus::Online,
+        ]),
         ..Default::default()
     };
-    let results = search_service.search_hosts(&filter).expect("Search should succeed");
+    let results = search_service
+        .search_hosts(&filter)
+        .expect("Search should succeed");
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].name, "Production Web Server");
 
     // 6. Record and retrieve search history
-    search_service.record_search("web servers").expect("Record should succeed");
-    search_service.record_search("production database").expect("Record should succeed");
+    search_service
+        .record_search("web servers")
+        .expect("Record should succeed");
+    search_service
+        .record_search("production database")
+        .expect("Record should succeed");
 
-    let history = search_service.get_search_history(10).expect("Get history should succeed");
+    let history = search_service
+        .get_search_history(10)
+        .expect("Get history should succeed");
     assert_eq!(history.len(), 2);
 }
 
@@ -264,7 +358,9 @@ fn test_import_and_search_workflow() {
             host: "192.168.1.100".to_string(),
             port: Some(22),
             username: "admin".to_string(),
-            auth_method: ServerAuthMethod::Password { password: "pass1".to_string() },
+            auth_method: ServerAuthMethod::Password {
+                password: "pass1".to_string(),
+            },
             group_id: None,
         },
         CreateServerDto {
@@ -280,27 +376,39 @@ fn test_import_and_search_workflow() {
             host: "192.168.1.102".to_string(),
             port: Some(22),
             username: "dbadmin".to_string(),
-            auth_method: ServerAuthMethod::PrivateKey { key_path: "~/.ssh/db_key".to_string(), passphrase: None },
+            auth_method: ServerAuthMethod::PrivateKey {
+                key_path: "~/.ssh/db_key".to_string(),
+                passphrase: None,
+            },
             group_id: None,
         },
     ];
 
-    let import_result = server_service.import_servers(servers).expect("Import should succeed");
+    let import_result = server_service
+        .import_servers(servers)
+        .expect("Import should succeed");
     assert_eq!(import_result.total, 3);
     assert_eq!(import_result.imported, 3);
 
     // Search for imported servers
-    let all = server_service.list_all_servers().expect("List should succeed");
+    let all = server_service
+        .list_all_servers()
+        .expect("List should succeed");
     assert_eq!(all.len(), 3);
 
     // Search by name
-    let results = server_service.search_servers("Database", None).expect("Search should succeed");
+    let results = server_service
+        .search_servers("Database", None)
+        .expect("Search should succeed");
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].name, "Imported Database");
 
     // Verify authentication methods were preserved
     let db_result = results[0].clone();
-    assert!(matches!(db_result.auth_method, ServerAuthMethod::PrivateKey { .. }));
+    assert!(matches!(
+        db_result.auth_method,
+        ServerAuthMethod::PrivateKey { .. }
+    ));
 }
 
 /// Test: Crypto + Database encryption workflow
@@ -310,7 +418,9 @@ fn test_encryption_decryption_workflow() {
 
     // Initialize crypto
     let mut crypto = CryptoState::new();
-    crypto.initialize(test_master_password()).expect("Init should succeed");
+    crypto
+        .initialize(test_master_password())
+        .expect("Init should succeed");
 
     let salt = crypto.get_salt().expect("Should have salt");
 
@@ -324,7 +434,9 @@ fn test_encryption_decryption_workflow() {
     let mut encrypted_data = vec![];
 
     for (label, data) in data_to_encrypt {
-        let encrypted = crypto.encrypt(data).expect(&format!("Encrypt {} should succeed", label));
+        let encrypted = crypto
+            .encrypt(data)
+            .expect(&format!("Encrypt {} should succeed", label));
         encrypted_data.push((label, encrypted));
     }
 
@@ -333,16 +445,28 @@ fn test_encryption_decryption_workflow() {
     assert!(!crypto.is_unlocked());
 
     crypto.set_salt(salt.try_into().expect("Salt should be 32 bytes"));
-    crypto.unlock(test_master_password()).expect("Unlock should succeed");
+    crypto
+        .unlock(test_master_password())
+        .expect("Unlock should succeed");
     assert!(crypto.is_unlocked());
 
     // Decrypt and verify all data
     for (label, encrypted) in &encrypted_data {
-        let decrypted = crypto.decrypt(encrypted).expect(&format!("Decrypt {} should succeed", label));
+        let decrypted = crypto
+            .decrypt(encrypted)
+            .expect(&format!("Decrypt {} should succeed", label));
 
         // Find original data
-        let original = data_to_encrypt.iter().find(|(l, _)| *l == *label).unwrap().1;
-        assert_eq!(decrypted, original, "Decrypted {} should match original", label);
+        let original = data_to_encrypt
+            .iter()
+            .find(|(l, _)| *l == *label)
+            .unwrap()
+            .1;
+        assert_eq!(
+            decrypted, original,
+            "Decrypted {} should match original",
+            label
+        );
     }
 }
 
@@ -375,10 +499,12 @@ fn test_concurrent_operations_workflow() {
                     status: "unknown",
                 };
 
-                db.create_server(&new_server).expect("Create should succeed");
+                db.create_server(&new_server)
+                    .expect("Create should succeed");
 
                 // Retrieve it
-                let retrieved = db.get_server(&format!("concurrent-{}", i))
+                let retrieved = db
+                    .get_server(&format!("concurrent-{}", i))
                     .expect("Get should succeed")
                     .expect("Server should exist");
 
@@ -401,7 +527,8 @@ fn test_concurrent_operations_workflow() {
                 db.update_server(&update).expect("Update should succeed");
 
                 // Verify update
-                let updated = db.get_server(&format!("concurrent-{}", i))
+                let updated = db
+                    .get_server(&format!("concurrent-{}", i))
                     .unwrap()
                     .unwrap();
                 assert_eq!(updated.status, "online");
@@ -409,7 +536,8 @@ fn test_concurrent_operations_workflow() {
                 thread::sleep(Duration::from_millis(10));
 
                 // Delete
-                db.delete_server(&format!("concurrent-{}", i)).expect("Delete should succeed");
+                db.delete_server(&format!("concurrent-{}", i))
+                    .expect("Delete should succeed");
             })
         })
         .collect();
@@ -453,7 +581,10 @@ fn test_error_handling_workflow() {
 
     // Database update might succeed without affecting rows
     let result = db.update_server(&update);
-    assert!(result.is_ok(), "Update nonexistent should return Ok (no rows affected)");
+    assert!(
+        result.is_ok(),
+        "Update nonexistent should return Ok (no rows affected)"
+    );
 
     // But service should return NotFound error
     let service_update = easyssh_core::models::server::UpdateServerDto {
@@ -469,13 +600,16 @@ fn test_error_handling_workflow() {
     let result = service.update_server(service_update);
     assert!(result.is_err(), "Service update nonexistent should error");
     match result.unwrap_err() {
-        easyssh_core::services::server_service::ServerServiceError::NotFound(_) => {},
+        easyssh_core::services::server_service::ServerServiceError::NotFound(_) => {}
         _ => panic!("Expected NotFound error"),
     }
 
     // 3. Try to delete non-existent server
     let result = db.delete_server("nonexistent");
-    assert!(result.is_ok(), "Delete nonexistent should return Ok (no rows affected)");
+    assert!(
+        result.is_ok(),
+        "Delete nonexistent should return Ok (no rows affected)"
+    );
 
     // 4. Try to create server with duplicate ID
     let new_server = NewServer {
@@ -491,7 +625,8 @@ fn test_error_handling_workflow() {
         status: "unknown",
     };
 
-    db.create_server(&new_server).expect("First create should succeed");
+    db.create_server(&new_server)
+        .expect("First create should succeed");
 
     let duplicate = NewServer {
         id: "duplicate-test",

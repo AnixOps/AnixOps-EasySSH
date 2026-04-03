@@ -21,8 +21,12 @@ pub fn load_test_fixtures() -> Value {
         .join("fixtures")
         .join("test_data.json");
 
-    let content = std::fs::read_to_string(&fixtures_path)
-        .unwrap_or_else(|e| panic!("Failed to load test fixtures from {:?}: {}", fixtures_path, e));
+    let content = std::fs::read_to_string(&fixtures_path).unwrap_or_else(|e| {
+        panic!(
+            "Failed to load test fixtures from {:?}: {}",
+            fixtures_path, e
+        )
+    });
 
     serde_json::from_str(&content)
         .unwrap_or_else(|e| panic!("Failed to parse test fixtures: {}", e))
@@ -85,27 +89,63 @@ impl TestServerFixture {
     /// Load all server fixtures from test data
     pub fn load_all() -> Vec<Self> {
         let fixtures = load_test_fixtures();
-        let servers = fixtures.get("servers").expect("No servers in fixtures").as_array().expect("Servers not an array");
+        let servers = fixtures
+            .get("servers")
+            .expect("No servers in fixtures")
+            .as_array()
+            .expect("Servers not an array");
 
         servers
             .iter()
             .map(|s| Self {
-                id: s.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                name: s.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                host: s.get("host").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                id: s
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                name: s
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                host: s
+                    .get("host")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 port: s.get("port").and_then(|v| v.as_u64()).unwrap_or(22) as u16,
-                username: s.get("username").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                auth_type: s.get("auth_type").and_then(|v| v.as_str()).unwrap_or("agent").to_string(),
-                password: s.get("password").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                identity_file: s.get("identity_file").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                group_id: s.get("group_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                username: s
+                    .get("username")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                auth_type: s
+                    .get("auth_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("agent")
+                    .to_string(),
+                password: s
+                    .get("password")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                identity_file: s
+                    .get("identity_file")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                group_id: s
+                    .get("group_id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             })
             .collect()
     }
 
     /// Get first server fixture
     pub fn first() -> Self {
-        Self::load_all().into_iter().next().expect("No server fixtures found")
+        Self::load_all()
+            .into_iter()
+            .next()
+            .expect("No server fixtures found")
     }
 }
 
@@ -158,7 +198,9 @@ pub mod data_generator;
 
 impl TestContext {
     pub fn new() -> Self {
-        Self { temp_dirs: Vec::new() }
+        Self {
+            temp_dirs: Vec::new(),
+        }
     }
 
     pub fn create_temp_dir(&mut self) -> PathBuf {

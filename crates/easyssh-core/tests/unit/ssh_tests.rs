@@ -7,7 +7,7 @@
 //! - Health tracking
 
 use easyssh_core::models::server::{AuthMethod, ServerStatus};
-use easyssh_core::ssh::{ConnectionHealth, SshSessionManager, SessionMetadata};
+use easyssh_core::ssh::{ConnectionHealth, SessionMetadata, SshSessionManager};
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -32,20 +32,45 @@ fn test_server_status_display() {
 
 #[test]
 fn test_server_status_from_str() {
-    assert_eq!(ServerStatus::from_status_str("unknown"), ServerStatus::Unknown);
-    assert_eq!(ServerStatus::from_status_str("online"), ServerStatus::Online);
-    assert_eq!(ServerStatus::from_status_str("offline"), ServerStatus::Offline);
+    assert_eq!(
+        ServerStatus::from_status_str("unknown"),
+        ServerStatus::Unknown
+    );
+    assert_eq!(
+        ServerStatus::from_status_str("online"),
+        ServerStatus::Online
+    );
+    assert_eq!(
+        ServerStatus::from_status_str("offline"),
+        ServerStatus::Offline
+    );
     assert_eq!(ServerStatus::from_status_str("error"), ServerStatus::Error);
-    assert_eq!(ServerStatus::from_status_str("connecting"), ServerStatus::Connecting);
-    assert_eq!(ServerStatus::from_status_str("invalid"), ServerStatus::Unknown);
+    assert_eq!(
+        ServerStatus::from_status_str("connecting"),
+        ServerStatus::Connecting
+    );
+    assert_eq!(
+        ServerStatus::from_status_str("invalid"),
+        ServerStatus::Unknown
+    );
 }
 
 #[test]
 fn test_auth_method_auth_type() {
     assert_eq!(AuthMethod::Agent.auth_type(), "agent");
-    assert_eq!(AuthMethod::Password { password: "test".to_string() }.auth_type(), "password");
     assert_eq!(
-        AuthMethod::PrivateKey { key_path: "~/.ssh/id_rsa".to_string(), passphrase: None }.auth_type(),
+        AuthMethod::Password {
+            password: "test".to_string()
+        }
+        .auth_type(),
+        "password"
+    );
+    assert_eq!(
+        AuthMethod::PrivateKey {
+            key_path: "~/.ssh/id_rsa".to_string(),
+            passphrase: None
+        }
+        .auth_type(),
         "key"
     );
 }
@@ -87,7 +112,11 @@ fn test_host_validation_valid_ipv4() {
     for host in &hosts {
         // Basic format check - actual IP validation would be more thorough
         assert!(!host.is_empty());
-        assert!(host.contains('.') || host.contains(':') || host.chars().next().unwrap().is_alphanumeric());
+        assert!(
+            host.contains('.')
+                || host.contains(':')
+                || host.chars().next().unwrap().is_alphanumeric()
+        );
     }
 }
 

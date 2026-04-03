@@ -3,7 +3,7 @@
 //! Utilities for generating test data for unit and integration tests.
 //! Supports generating servers, groups, and related entities.
 
-use easyssh_core::models::{Server, Group, AuthMethod};
+use easyssh_core::models::{AuthMethod, Group, Server};
 
 /// Generator for creating test data with configurable properties
 pub struct TestDataGenerator {
@@ -22,14 +22,21 @@ impl TestDataGenerator {
 
     /// Get next unique ID
     fn next_id(&self) -> String {
-        let count = self.counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let count = self
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         format!("{}-{:06}", self.prefix, count)
     }
 
     /// Generate a test server
     pub fn generate_server(&self) -> Server {
         let id = self.next_id();
-        let num = id.split('-').last().unwrap_or("1").parse::<u16>().unwrap_or(1);
+        let num = id
+            .split('-')
+            .last()
+            .unwrap_or("1")
+            .parse::<u16>()
+            .unwrap_or(1);
 
         Server::new(
             format!("Server {}", id),
@@ -50,7 +57,12 @@ impl TestDataGenerator {
         username: Option<String>,
     ) -> Server {
         let id = self.next_id();
-        let num = id.split('-').last().unwrap_or("1").parse::<u16>().unwrap_or(1);
+        let num = id
+            .split('-')
+            .last()
+            .unwrap_or("1")
+            .parse::<u16>()
+            .unwrap_or(1);
 
         let name = name.unwrap_or_else(|| format!("Server {}", id));
         let host = host.unwrap_or_else(|| format!("192.168.{}.{}", num / 256, num % 256));
@@ -68,8 +80,15 @@ impl TestDataGenerator {
     /// Generate a test group
     pub fn generate_group(&self) -> Group {
         let id = self.next_id();
-        let colors = vec!["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"];
-        let num = id.split('-').last().unwrap_or("1").parse::<usize>().unwrap_or(1);
+        let colors = vec![
+            "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
+        ];
+        let num = id
+            .split('-')
+            .last()
+            .unwrap_or("1")
+            .parse::<usize>()
+            .unwrap_or(1);
         let color = colors[num % colors.len()].to_string();
 
         Group::new(format!("Group {}", id), color)
@@ -163,20 +182,76 @@ pub mod scenarios {
     pub fn edge_cases() -> Vec<Server> {
         vec![
             // Empty name
-            Server::new("".to_string(), "192.168.1.1".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new(
+                "".to_string(),
+                "192.168.1.1".to_string(),
+                22,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
             // Very long name
-            Server::new("a".repeat(1000), "192.168.1.2".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new(
+                "a".repeat(1000),
+                "192.168.1.2".to_string(),
+                22,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
             // Unicode name
-            Server::new("服务器测试".to_string(), "192.168.1.3".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new(
+                "服务器测试".to_string(),
+                "192.168.1.3".to_string(),
+                22,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
             // Special characters
-            Server::new("Test <script>alert('xss')</script>".to_string(), "192.168.1.4".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new(
+                "Test <script>alert('xss')</script>".to_string(),
+                "192.168.1.4".to_string(),
+                22,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
             // Edge port numbers
-            Server::new("Port 1".to_string(), "192.168.1.5".to_string(), 1, "admin".to_string(), AuthMethod::Agent, None),
-            Server::new("Port Max".to_string(), "192.168.1.6".to_string(), 65535, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new(
+                "Port 1".to_string(),
+                "192.168.1.5".to_string(),
+                1,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
+            Server::new(
+                "Port Max".to_string(),
+                "192.168.1.6".to_string(),
+                65535,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
             // IPv6 address
-            Server::new("IPv6".to_string(), "::1".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new(
+                "IPv6".to_string(),
+                "::1".to_string(),
+                22,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
             // Hostname
-            Server::new("Hostname".to_string(), "example.com".to_string(), 2222, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new(
+                "Hostname".to_string(),
+                "example.com".to_string(),
+                2222,
+                "admin".to_string(),
+                AuthMethod::Agent,
+                None,
+            ),
         ]
     }
 }

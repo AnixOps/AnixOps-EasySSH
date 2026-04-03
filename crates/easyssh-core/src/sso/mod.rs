@@ -466,7 +466,9 @@ impl SsoManager {
     ///
     /// 生成授权URL、state、nonce和PKCE verifier
     pub fn init_oidc_auth(&mut self, provider_id: &str) -> Result<OidcAuthRequest, LiteError> {
-        let provider = self.providers.get(provider_id)
+        let provider = self
+            .providers
+            .get(provider_id)
             .ok_or_else(|| LiteError::Sso(format!("Provider {} not found", provider_id)))?;
 
         if !provider.enabled {
@@ -491,9 +493,9 @@ impl SsoManager {
         };
 
         // 构建授权URL
-        let pkce_challenge = pkce_verifier.as_ref().map(|v| {
-            base64_encode(&sha256_hash(v))
-        });
+        let pkce_challenge = pkce_verifier
+            .as_ref()
+            .map(|v| base64_encode(&sha256_hash(v)));
 
         let mut authorization_url = format!(
             "{}?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}&nonce={}",
@@ -543,18 +545,21 @@ impl SsoManager {
         state: &str,
     ) -> Result<(SsoUserInfo, OidcTokenResponse), LiteError> {
         // 查找匹配的待处理请求
-        let pending = self.pending_requests.values()
+        let pending = self
+            .pending_requests
+            .values()
             .find(|p| p.provider_id == provider_id && p.state == state)
             .cloned();
 
-        let pending = pending.ok_or_else(||
-            LiteError::Sso("Invalid or expired state parameter".to_string())
-        )?;
+        let pending = pending
+            .ok_or_else(|| LiteError::Sso("Invalid or expired state parameter".to_string()))?;
 
         // 移除已使用的请求
         self.pending_requests.remove(&pending.request_id);
 
-        let provider = self.providers.get(provider_id)
+        let provider = self
+            .providers
+            .get(provider_id)
             .ok_or_else(|| LiteError::Sso(format!("Provider {} not found", provider_id)))?;
 
         let config = match &provider.config {

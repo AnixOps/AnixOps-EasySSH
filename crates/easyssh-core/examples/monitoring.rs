@@ -3,9 +3,9 @@
 //! 这个示例展示了如何使用监控模块的核心功能。
 
 use easyssh_core::monitoring::{
-    AlertCondition, AlertRule, AlertSeverity, AuthMethod, ChartData, MetricType,
-    MonitoringConfig, MonitoringManager, MonitoringSession, ServerConnectionConfig,
-    ServerHealthStatus, SystemMetrics, TimeRange,
+    AlertCondition, AlertRule, AlertSeverity, AuthMethod, ChartData, MetricType, MonitoringConfig,
+    MonitoringManager, MonitoringSession, ServerConnectionConfig, ServerHealthStatus,
+    SystemMetrics, TimeRange,
 };
 
 /// 示例 1: 创建并配置监控会话

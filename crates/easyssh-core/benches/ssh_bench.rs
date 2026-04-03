@@ -73,7 +73,9 @@ fn bench_enhanced_pool(c: &mut Criterion) {
                 EnhancedConnectionState::Connected,
                 EnhancedConnectionState::Connecting,
                 EnhancedConnectionState::Disconnected,
-                EnhancedConnectionState::Failed { reason: "test error" },
+                EnhancedConnectionState::Failed {
+                    reason: "test error",
+                },
             ];
             for state in states.iter() {
                 black_box(state);

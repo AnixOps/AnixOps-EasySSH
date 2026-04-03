@@ -16,8 +16,7 @@ mod common;
 fn test_ssh_config_creation() {
     use easyssh_core::ssh::SshConfig;
 
-    let config = SshConfig::new("192.168.1.100", 22, "admin")
-        .with_password("secret123");
+    let config = SshConfig::new("192.168.1.100", 22, "admin").with_password("secret123");
 
     assert_eq!(config.host, "192.168.1.100");
     assert_eq!(config.port, 22);
@@ -35,7 +34,7 @@ fn test_ssh_key_auth_config() {
         22,
         "admin",
         "~/.ssh/id_rsa".to_string(),
-        Some("passphrase".to_string())
+        Some("passphrase".to_string()),
     );
 
     assert!(config.is_public_key());
@@ -54,11 +53,10 @@ fn test_ssh_agent_auth_config() {
 /// Test connection timeout configuration
 #[test]
 fn test_connection_timeout_config() {
-    use easyssh_core::ssh::{SshConfig, ConnectionTimeout};
+    use easyssh_core::ssh::{ConnectionTimeout, SshConfig};
 
     let timeout = ConnectionTimeout::new(30, 10, 60, 300);
-    let config = SshConfig::new("192.168.1.100", 22, "admin")
-        .with_timeout(timeout);
+    let config = SshConfig::new("192.168.1.100", 22, "admin").with_timeout(timeout);
 
     assert_eq!(config.timeout.connect_secs, 30);
     assert_eq!(config.timeout.auth_secs, 10);
@@ -106,8 +104,7 @@ fn test_session_manager_with_pool_config() {
 fn test_jump_host_configuration() {
     use easyssh_core::ssh::JumpHost;
 
-    let jump_host = JumpHost::new("bastion.example.com", 22, "jumper")
-        .with_password("secret");
+    let jump_host = JumpHost::new("bastion.example.com", 22, "jumper").with_password("secret");
 
     assert_eq!(jump_host.host, "bastion.example.com");
     assert_eq!(jump_host.port, 22);
@@ -171,7 +168,9 @@ fn test_auth_method_enum() {
     use easyssh_core::ssh::AuthMethod;
 
     // Password auth
-    let password = AuthMethod::Password { password: "secret".to_string() };
+    let password = AuthMethod::Password {
+        password: "secret".to_string(),
+    };
     assert!(password.is_password());
     assert!(!password.is_public_key());
     assert!(!password.is_agent());
@@ -179,7 +178,7 @@ fn test_auth_method_enum() {
     // Key auth
     let key = AuthMethod::PublicKey {
         key_path: "~/.ssh/id_rsa".to_string(),
-        passphrase: None
+        passphrase: None,
     };
     assert!(key.is_public_key());
     assert!(!key.is_password());

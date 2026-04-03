@@ -13,14 +13,16 @@ use std::time::{Duration, Instant};
 mod common;
 use common::test_master_password;
 
-use easyssh_core::crypto::{CryptoState, ServerCredential, AuthMethod};
+use easyssh_core::crypto::{AuthMethod, CryptoState, ServerCredential};
 
 /// Test that encryption produces different ciphertexts for same plaintext
 /// This ensures nonces are being used correctly
 #[test]
 fn test_encryption_non_deterministic() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext = b"test message";
 
@@ -30,14 +32,29 @@ fn test_encryption_non_deterministic() {
     let encrypted3 = state.encrypt(plaintext).expect("Encryption should succeed");
 
     // All should be different (probabilistically, but extremely likely)
-    assert_ne!(encrypted1, encrypted2, "Same plaintext should produce different ciphertexts");
-    assert_ne!(encrypted2, encrypted3, "Same plaintext should produce different ciphertexts");
-    assert_ne!(encrypted1, encrypted3, "Same plaintext should produce different ciphertexts");
+    assert_ne!(
+        encrypted1, encrypted2,
+        "Same plaintext should produce different ciphertexts"
+    );
+    assert_ne!(
+        encrypted2, encrypted3,
+        "Same plaintext should produce different ciphertexts"
+    );
+    assert_ne!(
+        encrypted1, encrypted3,
+        "Same plaintext should produce different ciphertexts"
+    );
 
     // But all should decrypt to the same plaintext
-    let decrypted1 = state.decrypt(&encrypted1).expect("Decryption should succeed");
-    let decrypted2 = state.decrypt(&encrypted2).expect("Decryption should succeed");
-    let decrypted3 = state.decrypt(&encrypted3).expect("Decryption should succeed");
+    let decrypted1 = state
+        .decrypt(&encrypted1)
+        .expect("Decryption should succeed");
+    let decrypted2 = state
+        .decrypt(&encrypted2)
+        .expect("Decryption should succeed");
+    let decrypted3 = state
+        .decrypt(&encrypted3)
+        .expect("Decryption should succeed");
 
     assert_eq!(decrypted1, plaintext);
     assert_eq!(decrypted2, plaintext);
@@ -49,16 +66,22 @@ fn test_encryption_non_deterministic() {
 #[test]
 fn test_decryption_timing_consistency() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext = vec![0u8; 1024]; // 1KB of data
-    let encrypted = state.encrypt(&plaintext).expect("Encryption should succeed");
+    let encrypted = state
+        .encrypt(&plaintext)
+        .expect("Encryption should succeed");
 
     // Measure decryption time multiple times
     let mut times = Vec::new();
     for _ in 0..10 {
         let start = Instant::now();
-        let _ = state.decrypt(&encrypted).expect("Decryption should succeed");
+        let _ = state
+            .decrypt(&encrypted)
+            .expect("Decryption should succeed");
         let elapsed = start.elapsed();
         times.push(elapsed);
     }
@@ -71,11 +94,16 @@ fn test_decryption_timing_consistency() {
             let diff = if *t > avg { *t - avg } else { avg - *t };
             diff
         })
-        .sum::<Duration>() / times.len() as u32;
+        .sum::<Duration>()
+        / times.len() as u32;
 
     // Variance should be within reasonable bounds (allowing for system load)
     // This is a sanity check, not a rigorous timing attack test
-    assert!(variance < Duration::from_millis(50), "Timing variance too high: {:?}", variance);
+    assert!(
+        variance < Duration::from_millis(50),
+        "Timing variance too high: {:?}",
+        variance
+    );
 }
 
 /// Test password validation edge cases
@@ -85,7 +113,10 @@ fn test_password_edge_cases() {
 
     // Empty password should still work (though not recommended)
     let result = state.initialize("");
-    assert!(result.is_ok(), "Empty password should be allowed (though not secure)");
+    assert!(
+        result.is_ok(),
+        "Empty password should be allowed (though not secure)"
+    );
 
     // Very long password
     let mut state2 = CryptoState::new();
@@ -104,7 +135,7 @@ fn test_password_edge_cases() {
 #[test]
 fn test_sql_injection_prevention_in_server_names() {
     use easyssh_core::db::Database;
-    use easyssh_core::models::{Server, AuthMethod};
+    use easyssh_core::models::{AuthMethod, Server};
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -133,17 +164,28 @@ fn test_sql_injection_prevention_in_server_names() {
 
         // Should not panic or execute malicious SQL
         let result = db.add_server(&server);
-        assert!(result.is_ok(), "SQL injection attempt should not crash: {}", name);
+        assert!(
+            result.is_ok(),
+            "SQL injection attempt should not crash: {}",
+            name
+        );
 
         // Verify the name was stored as-is (not executed)
         let id = result.unwrap();
         let retrieved = db.get_server(&id).expect("Should retrieve server");
-        assert_eq!(retrieved.name, *name, "Name should be stored literally, not executed");
+        assert_eq!(
+            retrieved.name, *name,
+            "Name should be stored literally, not executed"
+        );
     }
 
     // Verify all servers were created (no DROP TABLE occurred)
     let all_servers = db.get_all_servers().expect("Should get all servers");
-    assert_eq!(all_servers.len(), malicious_names.len(), "All servers should exist");
+    assert_eq!(
+        all_servers.len(),
+        malicious_names.len(),
+        "All servers should exist"
+    );
 }
 
 /// Test path traversal prevention
@@ -164,8 +206,12 @@ fn test_path_traversal_prevention() {
 
         // Path should be sanitized before use
         // In real implementation, this would use a secure path join
-        assert!(path.components().any(|c| matches!(c, std::path::Component::ParentDir)),
-            "Test path should contain parent directory references: {}", path_str);
+        assert!(
+            path.components()
+                .any(|c| matches!(c, std::path::Component::ParentDir)),
+            "Test path should contain parent directory references: {}",
+            path_str
+        );
     }
 }
 
@@ -176,14 +222,17 @@ fn test_credential_secure_handling() {
         "test-server",
         "192.168.1.100",
         "admin",
-        "secret_password_123"
+        "secret_password_123",
     );
 
     // Password should be stored securely
     match &credential.auth_method {
         AuthMethod::Password { encrypted } => {
             // Password should not be stored in plaintext
-            assert_ne!(encrypted, b"secret_password_123", "Password should be encrypted");
+            assert_ne!(
+                encrypted, b"secret_password_123",
+                "Password should be encrypted"
+            );
         }
         _ => panic!("Expected Password auth method"),
     }
@@ -193,13 +242,18 @@ fn test_credential_secure_handling() {
 #[test]
 fn test_encryption_authentication() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext = b"test message for authentication";
     let encrypted = state.encrypt(plaintext).expect("Encryption should succeed");
 
     // Encrypted data should include nonce (12 bytes) + ciphertext + tag (16 bytes)
-    assert!(encrypted.len() > 28, "Encrypted data should include nonce, ciphertext, and auth tag");
+    assert!(
+        encrypted.len() > 28,
+        "Encrypted data should include nonce, ciphertext, and auth tag"
+    );
 
     // Corrupt the authentication tag (last 16 bytes)
     let mut corrupted = encrypted.clone();
@@ -210,7 +264,10 @@ fn test_encryption_authentication() {
 
     // Decryption should fail due to authentication failure
     let result = state.decrypt(&corrupted);
-    assert!(result.is_err(), "Decryption should fail with corrupted auth tag");
+    assert!(
+        result.is_err(),
+        "Decryption should fail with corrupted auth tag"
+    );
 }
 
 /// Test key derivation produces different keys for different passwords
@@ -228,13 +285,18 @@ fn test_key_derivation_uniqueness() {
 
     for password in &passwords {
         let mut state = CryptoState::new();
-        state.initialize(password).expect("Initialize should succeed");
+        state
+            .initialize(password)
+            .expect("Initialize should succeed");
 
         let salt = state.get_salt().expect("Should have salt");
 
         // Each password should produce a different salt/key combination
         if let Some(prev) = &previous_key {
-            assert_ne!(salt, *prev, "Different passwords should produce different keys");
+            assert_ne!(
+                salt, *prev,
+                "Different passwords should produce different keys"
+            );
         }
         previous_key = Some(salt);
     }

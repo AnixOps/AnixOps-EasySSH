@@ -10,11 +10,11 @@
 use std::sync::Arc;
 use std::thread;
 
-use easyssh_core::db::{NewServer, UpdateServer, NewGroup, NewHost};
+use easyssh_core::db::{NewGroup, NewHost, NewServer, UpdateServer};
 
 #[path = "../common/mod.rs"]
 mod common;
-use common::{create_test_db, create_in_memory_db, create_test_db_arc};
+use common::{create_in_memory_db, create_test_db, create_test_db_arc};
 
 #[test]
 fn test_database_creation() {
@@ -29,18 +29,31 @@ fn test_database_init_creates_tables() {
 
     // Try to query each expected table
     let tables = [
-        "groups", "servers", "schema_migrations", "hosts",
-        "tags", "host_tags", "identities", "snippets",
-        "sessions", "layouts", "sync_state", "audit_events"
+        "groups",
+        "servers",
+        "schema_migrations",
+        "hosts",
+        "tags",
+        "host_tags",
+        "identities",
+        "snippets",
+        "sessions",
+        "layouts",
+        "sync_state",
+        "audit_events",
     ];
 
     for table in &tables {
-        let result: Result<i64, _> = db.query_row(
-            &format!("SELECT COUNT(*) FROM {}", table),
-            [],
-            |row| row.get(0)
+        let result: Result<i64, _> =
+            db.query_row(&format!("SELECT COUNT(*) FROM {}", table), [], |row| {
+                row.get(0)
+            });
+        assert!(
+            result.is_ok(),
+            "Table {} should exist: {:?}",
+            table,
+            result.err()
         );
-        assert!(result.is_ok(), "Table {} should exist: {:?}", table, result.err());
     }
 }
 
@@ -61,7 +74,11 @@ fn test_create_server() {
     };
 
     let result = db.add_server(&new_server);
-    assert!(result.is_ok(), "Create server should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Create server should succeed: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -80,10 +97,15 @@ fn test_get_server_by_id() {
         status: "unknown".to_string(),
     };
 
-    db.add_server(&new_server).expect("Create server should succeed");
+    db.add_server(&new_server)
+        .expect("Create server should succeed");
 
     let server = db.get_server("srv-002");
-    assert!(server.is_ok(), "Get server should succeed: {:?}", server.err());
+    assert!(
+        server.is_ok(),
+        "Get server should succeed: {:?}",
+        server.err()
+    );
 
     let server = server.unwrap();
     assert_eq!(server.name, "Test Server");
@@ -106,7 +128,8 @@ fn test_update_server() {
         status: "unknown".to_string(),
     };
 
-    db.add_server(&new_server).expect("Create server should succeed");
+    db.add_server(&new_server)
+        .expect("Create server should succeed");
 
     let update = UpdateServer {
         id: "srv-003".to_string(),
@@ -121,7 +144,11 @@ fn test_update_server() {
     };
 
     let result = db.update_server(&update);
-    assert!(result.is_ok(), "Update server should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Update server should succeed: {:?}",
+        result.err()
+    );
 
     let updated = db.get_server("srv-003").unwrap();
     assert_eq!(updated.name, "Updated Name");
@@ -145,11 +172,16 @@ fn test_delete_server() {
         status: "unknown".to_string(),
     };
 
-    db.add_server(&new_server).expect("Create server should succeed");
+    db.add_server(&new_server)
+        .expect("Create server should succeed");
 
     // Delete it
     let result = db.delete_server("srv-004");
-    assert!(result.is_ok(), "Delete server should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Delete server should succeed: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -169,11 +201,16 @@ fn test_list_servers() {
             group_id: None,
             status: "unknown".to_string(),
         };
-        db.add_server(&new_server).expect("Create server should succeed");
+        db.add_server(&new_server)
+            .expect("Create server should succeed");
     }
 
     let servers = db.get_servers();
-    assert!(servers.is_ok(), "List servers should succeed: {:?}", servers.err());
+    assert!(
+        servers.is_ok(),
+        "List servers should succeed: {:?}",
+        servers.err()
+    );
 
     let servers = servers.unwrap();
     assert_eq!(servers.len(), 5, "Should have 5 servers");
@@ -190,7 +227,11 @@ fn test_create_group() {
     };
 
     let result = db.add_group(&new_group);
-    assert!(result.is_ok(), "Create group should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Create group should succeed: {:?}",
+        result.err()
+    );
 
     let group = db.get_group("grp-001").unwrap();
     assert_eq!(group.name, "Production");
@@ -221,11 +262,16 @@ fn test_foreign_key_constraint() {
         group_id: Some("grp-fk".to_string()),
         status: "unknown".to_string(),
     };
-    db.add_server(&server).expect("Create server with valid group should succeed");
+    db.add_server(&server)
+        .expect("Create server with valid group should succeed");
 
     // Try to delete the group (should succeed with ON DELETE SET NULL)
     let result = db.delete_group("grp-fk");
-    assert!(result.is_ok(), "Delete group should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Delete group should succeed: {:?}",
+        result.err()
+    );
 
     // Server should still exist but with null group_id
     let srv = db.get_server("srv-fk").unwrap();
@@ -303,7 +349,11 @@ fn test_host_crud_operations() {
     };
 
     let result = db.add_host(&new_host);
-    assert!(result.is_ok(), "Create host should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Create host should succeed: {:?}",
+        result.err()
+    );
 
     // Get the host
     let host = db.get_host("host-001").unwrap();
@@ -327,7 +377,8 @@ fn test_unique_id_constraint() {
         status: "unknown".to_string(),
     };
 
-    db.add_server(&new_server).expect("First create should succeed");
+    db.add_server(&new_server)
+        .expect("First create should succeed");
 
     // Try to create another server with the same ID
     let duplicate = NewServer {
@@ -363,7 +414,8 @@ fn test_list_all_servers() {
             group_id: None,
             status: "unknown".to_string(),
         };
-        db.add_server(&new_server).expect("Create server should succeed");
+        db.add_server(&new_server)
+            .expect("Create server should succeed");
     }
 
     // Get all servers

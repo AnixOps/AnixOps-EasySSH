@@ -10,9 +10,9 @@ use std::thread;
 
 #[path = "../common/mod.rs"]
 mod common;
-use common::{create_test_db, create_in_memory_db, create_test_db_arc};
+use common::{create_in_memory_db, create_test_db, create_test_db_arc};
 
-use easyssh_core::db::{Database, NewServer, NewGroup, UpdateServer, UpdateGroup};
+use easyssh_core::db::{Database, NewGroup, NewServer, UpdateGroup, UpdateServer};
 use tempfile::TempDir;
 
 /// Test database initialization
@@ -85,7 +85,9 @@ fn test_server_crud() {
     };
     db.update_server(&update).expect("Should update server");
 
-    let updated = db.get_server(&server.id).expect("Should get updated server");
+    let updated = db
+        .get_server(&server.id)
+        .expect("Should get updated server");
     assert_eq!(updated.name, "Updated Server");
     assert_eq!(updated.host, "192.168.1.200");
     assert_eq!(updated.port, 2222);
@@ -192,7 +194,11 @@ fn test_concurrent_database_access() {
                     group_id: None,
                     status: "active".to_string(),
                 };
-                db_clone.lock().unwrap().add_server(&server).expect("Should add");
+                db_clone
+                    .lock()
+                    .unwrap()
+                    .add_server(&server)
+                    .expect("Should add");
             }
         });
         handles.push(handle);
@@ -203,7 +209,11 @@ fn test_concurrent_database_access() {
     }
 
     // Verify all servers were added
-    let servers = db_arc.lock().unwrap().get_servers().expect("Should get servers");
+    let servers = db_arc
+        .lock()
+        .unwrap()
+        .get_servers()
+        .expect("Should get servers");
     assert_eq!(servers.len(), 25);
 }
 
@@ -213,7 +223,8 @@ fn test_config_operations() {
     let (db, _temp) = create_test_db();
 
     // Set config value
-    db.set_config("test_key", "test_value").expect("Should set config");
+    db.set_config("test_key", "test_value")
+        .expect("Should set config");
 
     // Get config value
     let value = db.get_config("test_key").expect("Should get config");
@@ -224,7 +235,8 @@ fn test_config_operations() {
     assert!(value.is_none());
 
     // Update config
-    db.set_config("test_key", "updated_value").expect("Should set config");
+    db.set_config("test_key", "updated_value")
+        .expect("Should set config");
     let value = db.get_config("test_key").expect("Should get config");
     assert_eq!(value, Some("updated_value".to_string()));
 }

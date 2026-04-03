@@ -21,13 +21,29 @@ pub enum NameIdFormat {
 impl std::fmt::Display for NameIdFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NameIdFormat::EmailAddress => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"),
-            NameIdFormat::Persistent => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"),
-            NameIdFormat::Transient => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"),
-            NameIdFormat::Unspecified => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"),
-            NameIdFormat::Kerberos => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:kerberos"),
-            NameIdFormat::X509SubjectName => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:x509SubjectName"),
-            NameIdFormat::WindowsDomainQualifiedName => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:WindowsDomainQualifiedName"),
+            NameIdFormat::EmailAddress => {
+                write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress")
+            }
+            NameIdFormat::Persistent => {
+                write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent")
+            }
+            NameIdFormat::Transient => {
+                write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient")
+            }
+            NameIdFormat::Unspecified => {
+                write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified")
+            }
+            NameIdFormat::Kerberos => {
+                write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:kerberos")
+            }
+            NameIdFormat::X509SubjectName => write!(
+                f,
+                "urn:oasis:names:tc:SAML:1.1:nameid-format:x509SubjectName"
+            ),
+            NameIdFormat::WindowsDomainQualifiedName => write!(
+                f,
+                "urn:oasis:names:tc:SAML:1.1:nameid-format:WindowsDomainQualifiedName"
+            ),
         }
     }
 }
@@ -48,12 +64,24 @@ pub enum SignatureAlgorithm {
 impl std::fmt::Display for SignatureAlgorithm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SignatureAlgorithm::RsaSha256 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"),
-            SignatureAlgorithm::RsaSha384 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384"),
-            SignatureAlgorithm::RsaSha512 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"),
-            SignatureAlgorithm::EcdsaSha256 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"),
-            SignatureAlgorithm::EcdsaSha384 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha384"),
-            SignatureAlgorithm::EcdsaSha512 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512"),
+            SignatureAlgorithm::RsaSha256 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256")
+            }
+            SignatureAlgorithm::RsaSha384 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384")
+            }
+            SignatureAlgorithm::RsaSha512 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512")
+            }
+            SignatureAlgorithm::EcdsaSha256 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256")
+            }
+            SignatureAlgorithm::EcdsaSha384 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha384")
+            }
+            SignatureAlgorithm::EcdsaSha512 => {
+                write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512")
+            }
         }
     }
 }

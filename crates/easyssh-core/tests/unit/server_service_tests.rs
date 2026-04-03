@@ -9,14 +9,18 @@
 
 use std::sync::{Arc, Mutex};
 
+use easyssh_core::models::server::{AuthMethod, CreateServerDto, UpdateServerDto};
 use easyssh_core::services::server_service::ServerService;
-use easyssh_core::models::server::{CreateServerDto, UpdateServerDto, AuthMethod};
 
 #[path = "../common/mod.rs"]
 mod common;
-use common::{create_test_db_arc};
+use common::create_test_db_arc;
 
-fn create_server_service() -> (ServerService, Arc<Mutex<easyssh_core::db::Database>>, tempfile::TempDir) {
+fn create_server_service() -> (
+    ServerService,
+    Arc<Mutex<easyssh_core::db::Database>>,
+    tempfile::TempDir,
+) {
     let (db_arc, temp) = create_test_db_arc();
     let service = ServerService::new(db_arc.clone());
     (service, db_arc, temp)
@@ -42,7 +46,11 @@ fn test_create_server_success() {
     };
 
     let result = service.create_server(dto);
-    assert!(result.is_ok(), "Create server should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Create server should succeed: {:?}",
+        result.err()
+    );
 
     let server = result.unwrap();
     assert_eq!(server.name, "Test Server");

@@ -573,8 +573,7 @@ impl SsoLoginPanel {
                     idp_metadata_url: self.saml_config.idp_metadata_url.clone(),
                     sp_entity_id: self.saml_config.sp_entity_id.clone(),
                     acs_url: self.saml_config.acs_url.clone(),
-                    slo_url: Some(self.saml_config.slo_url.clone())
-                        .filter(|s| !s.is_empty()),
+                    slo_url: Some(self.saml_config.slo_url.clone()).filter(|s| !s.is_empty()),
                     signature_algorithm: self.saml_config.signature_algorithm.to_string(),
                     verify_signatures: self.saml_config.verify_signatures,
                     want_assertions_encrypted: false,

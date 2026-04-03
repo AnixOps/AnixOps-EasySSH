@@ -7,11 +7,13 @@
 //! - Lock/unlock state management
 //! - Secure memory clearing
 
-use easyssh_core::crypto::{CryptoState, ServerCredential, AuthMethod, EncryptedServerCredential, EncryptedContainer};
+use easyssh_core::crypto::{
+    AuthMethod, CryptoState, EncryptedContainer, EncryptedServerCredential, ServerCredential,
+};
 
 #[path = "../common/mod.rs"]
 mod common;
-use common::{test_master_password, test_wrong_password, test_encryption_data};
+use common::{test_encryption_data, test_master_password, test_wrong_password};
 
 #[test]
 fn test_crypto_state_new_is_locked() {
@@ -23,14 +25,23 @@ fn test_crypto_state_new_is_locked() {
 fn test_crypto_state_initialize_unlocks() {
     let mut state = CryptoState::new();
     let result = state.initialize(test_master_password());
-    assert!(result.is_ok(), "Initialize should succeed: {:?}", result.err());
-    assert!(state.is_unlocked(), "State should be unlocked after initialization");
+    assert!(
+        result.is_ok(),
+        "Initialize should succeed: {:?}",
+        result.err()
+    );
+    assert!(
+        state.is_unlocked(),
+        "State should be unlocked after initialization"
+    );
 }
 
 #[test]
 fn test_encrypt_decrypt_roundtrip() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext = test_encryption_data();
 
@@ -40,17 +51,23 @@ fn test_encrypt_decrypt_roundtrip() {
     assert!(encrypted.len() > 12, "Encrypted data should include nonce");
 
     // Decrypt
-    let decrypted = state.decrypt(&encrypted).expect("Decryption should succeed");
+    let decrypted = state
+        .decrypt(&encrypted)
+        .expect("Decryption should succeed");
     assert_eq!(decrypted, plaintext, "Decrypted data should match original");
 }
 
 #[test]
 fn test_decrypt_with_wrong_password_fails() {
     let mut state1 = CryptoState::new();
-    state1.initialize(test_master_password()).expect("Initialize should succeed");
+    state1
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext = test_encryption_data();
-    let encrypted = state1.encrypt(plaintext).expect("Encryption should succeed");
+    let encrypted = state1
+        .encrypt(plaintext)
+        .expect("Encryption should succeed");
 
     // Create new state with different password but same salt
     let salt = state1.get_salt().expect("Should have salt");
@@ -59,17 +76,25 @@ fn test_decrypt_with_wrong_password_fails() {
 
     // Try to unlock with wrong password
     let unlock_result = state2.unlock(test_wrong_password());
-    assert!(unlock_result.is_ok(), "Unlock with wrong password should succeed (key derivation works)");
+    assert!(
+        unlock_result.is_ok(),
+        "Unlock with wrong password should succeed (key derivation works)"
+    );
 
     // But decryption should fail with corrupted data or wrong key
     let decrypt_result = state2.decrypt(&encrypted);
-    assert!(decrypt_result.is_err(), "Decryption with wrong key should fail");
+    assert!(
+        decrypt_result.is_err(),
+        "Decryption with wrong key should fail"
+    );
 }
 
 #[test]
 fn test_lock_clears_key() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
     assert!(state.is_unlocked(), "State should be unlocked");
 
     // Lock the state
@@ -84,7 +109,9 @@ fn test_lock_clears_key() {
 #[test]
 fn test_unlock_with_correct_password() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let salt = state.get_salt().expect("Should have salt");
     let plaintext = b"test data for unlock";
@@ -96,22 +123,23 @@ fn test_unlock_with_correct_password() {
 
     state.set_salt(salt.try_into().expect("Salt should be 32 bytes"));
     let unlock_result = state.unlock(test_master_password());
-    assert!(unlock_result.is_ok(), "Unlock with correct password should succeed");
+    assert!(
+        unlock_result.is_ok(),
+        "Unlock with correct password should succeed"
+    );
     assert!(state.is_unlocked(), "State should be unlocked");
 
     // Should be able to decrypt again
-    let decrypted = state.decrypt(&encrypted).expect("Decryption should succeed after unlock");
+    let decrypted = state
+        .decrypt(&encrypted)
+        .expect("Decryption should succeed after unlock");
     assert_eq!(decrypted, plaintext, "Decrypted data should match");
 }
 
 #[test]
 fn test_server_credential_with_password() {
-    let credential = ServerCredential::with_password(
-        "test-server",
-        "192.168.1.100",
-        "admin",
-        "secret123"
-    );
+    let credential =
+        ServerCredential::with_password("test-server", "192.168.1.100", "admin", "secret123");
 
     assert_eq!(credential.id, "test-server");
     assert_eq!(credential.host, "192.168.1.100");
@@ -133,13 +161,16 @@ fn test_server_credential_with_ssh_key() {
         "192.168.1.100",
         "admin",
         "-----BEGIN RSA KEY-----\n...",
-        Some("key_passphrase")
+        Some("key_passphrase"),
     );
 
     assert_eq!(credential.id, "test-server");
 
     match &credential.auth_method {
-        AuthMethod::SshKey { private_key_encrypted, passphrase_encrypted } => {
+        AuthMethod::SshKey {
+            private_key_encrypted,
+            passphrase_encrypted,
+        } => {
             assert!(!private_key_encrypted.is_empty());
             assert!(passphrase_encrypted.is_some());
             assert_eq!(passphrase_encrypted.as_ref().unwrap(), b"key_passphrase");
@@ -150,8 +181,7 @@ fn test_server_credential_with_ssh_key() {
 
 #[test]
 fn test_server_credential_with_custom_port() {
-    let credential = ServerCredential::with_password("srv", "host", "user", "pass")
-        .with_port(2222);
+    let credential = ServerCredential::with_password("srv", "host", "user", "pass").with_port(2222);
 
     assert_eq!(credential.port, 2222);
 }
@@ -159,22 +189,24 @@ fn test_server_credential_with_custom_port() {
 #[test]
 fn test_credential_encrypt_decrypt() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
-    let credential = ServerCredential::with_password(
-        "test-server",
-        "192.168.1.100",
-        "admin",
-        "secret_password"
-    );
+    let credential =
+        ServerCredential::with_password("test-server", "192.168.1.100", "admin", "secret_password");
 
     // Encrypt
-    let encrypted = credential.encrypt(&state).expect("Credential encryption should succeed");
+    let encrypted = credential
+        .encrypt(&state)
+        .expect("Credential encryption should succeed");
     assert_eq!(encrypted.id, "test-server");
     assert!(!encrypted.encrypted_data.is_empty());
 
     // Decrypt
-    let decrypted = encrypted.decrypt(&state).expect("Credential decryption should succeed");
+    let decrypted = encrypted
+        .decrypt(&state)
+        .expect("Credential decryption should succeed");
     assert_eq!(decrypted.id, credential.id);
     assert_eq!(decrypted.host, credential.host);
     assert_eq!(decrypted.username, credential.username);
@@ -200,22 +232,33 @@ fn test_encrypted_container_version() {
 #[test]
 fn test_encrypt_different_plaintexts_produces_different_ciphertexts() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext1 = b"message one";
     let plaintext2 = b"message two";
 
-    let encrypted1 = state.encrypt(plaintext1).expect("Encryption should succeed");
-    let encrypted2 = state.encrypt(plaintext2).expect("Encryption should succeed");
+    let encrypted1 = state
+        .encrypt(plaintext1)
+        .expect("Encryption should succeed");
+    let encrypted2 = state
+        .encrypt(plaintext2)
+        .expect("Encryption should succeed");
 
     // Different plaintexts should produce different ciphertexts (with high probability due to random nonces)
-    assert_ne!(encrypted1, encrypted2, "Different plaintexts should produce different ciphertexts");
+    assert_ne!(
+        encrypted1, encrypted2,
+        "Different plaintexts should produce different ciphertexts"
+    );
 }
 
 #[test]
 fn test_encrypt_same_plaintext_produces_different_ciphertexts() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext = b"same message";
 
@@ -223,11 +266,18 @@ fn test_encrypt_same_plaintext_produces_different_ciphertexts() {
     let encrypted2 = state.encrypt(plaintext).expect("Encryption should succeed");
 
     // Same plaintext encrypted twice should produce different ciphertexts (due to random nonces)
-    assert_ne!(encrypted1, encrypted2, "Same plaintext should produce different ciphertexts due to random nonces");
+    assert_ne!(
+        encrypted1, encrypted2,
+        "Same plaintext should produce different ciphertexts due to random nonces"
+    );
 
     // But both should decrypt to the same plaintext
-    let decrypted1 = state.decrypt(&encrypted1).expect("Decryption should succeed");
-    let decrypted2 = state.decrypt(&encrypted2).expect("Decryption should succeed");
+    let decrypted1 = state
+        .decrypt(&encrypted1)
+        .expect("Decryption should succeed");
+    let decrypted2 = state
+        .decrypt(&encrypted2)
+        .expect("Decryption should succeed");
     assert_eq!(decrypted1, plaintext);
     assert_eq!(decrypted2, plaintext);
 }
@@ -235,7 +285,9 @@ fn test_encrypt_same_plaintext_produces_different_ciphertexts() {
 #[test]
 fn test_decrypt_too_short_data_fails() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let too_short = vec![1, 2, 3]; // Less than 12 bytes (nonce length)
     let result = state.decrypt(&too_short);
@@ -245,7 +297,9 @@ fn test_decrypt_too_short_data_fails() {
 #[test]
 fn test_decrypt_corrupted_data_fails() {
     let mut state = CryptoState::new();
-    state.initialize(test_master_password()).expect("Initialize should succeed");
+    state
+        .initialize(test_master_password())
+        .expect("Initialize should succeed");
 
     let plaintext = b"test message";
     let mut encrypted = state.encrypt(plaintext).expect("Encryption should succeed");
@@ -286,12 +340,7 @@ fn test_default_crypto_state() {
 fn test_credential_zeroize_on_drop() {
     // This test mainly ensures that ZeroizeOnDrop is implemented
     // The actual zeroization is difficult to test directly
-    let credential = ServerCredential::with_password(
-        "test",
-        "host",
-        "user",
-        "password123"
-    );
+    let credential = ServerCredential::with_password("test", "host", "user", "password123");
 
     // Just create and drop
     drop(credential);

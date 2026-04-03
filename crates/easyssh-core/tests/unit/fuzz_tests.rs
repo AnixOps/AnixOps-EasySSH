@@ -14,7 +14,9 @@ fn test_random_input_handling() {
     use easyssh_core::crypto::CryptoState;
 
     let mut state = CryptoState::new();
-    state.initialize("test_password").expect("Should initialize");
+    state
+        .initialize("test_password")
+        .expect("Should initialize");
 
     // Generate pseudo-random data
     let mut random_data = Vec::new();
@@ -57,16 +59,9 @@ fn test_malformed_config_parsing() {
 /// Test with extreme integer values
 #[test]
 fn test_extreme_integer_values() {
-    use easyssh_core::models::{Server, AuthMethod};
+    use easyssh_core::models::{AuthMethod, Server};
 
-    let valid_ports = vec![
-        0,
-        1,
-        22,
-        443,
-        8080,
-        65535,
-    ];
+    let valid_ports = vec![0, 1, 22, 443, 8080, 65535];
 
     for port in &valid_ports {
         let server = Server::new(
@@ -86,7 +81,7 @@ fn test_extreme_integer_values() {
 /// Test string boundary conditions
 #[test]
 fn test_string_boundary_conditions() {
-    use easyssh_core::models::{Server, AuthMethod};
+    use easyssh_core::models::{AuthMethod, Server};
 
     let boundary_strings: Vec<String> = vec![
         "".to_string(),
@@ -112,7 +107,12 @@ fn test_string_boundary_conditions() {
         );
 
         // Name should be stored correctly
-        assert_eq!(server.name, *name, "Name should be preserved: {}", name.len());
+        assert_eq!(
+            server.name,
+            *name,
+            "Name should be preserved: {}",
+            name.len()
+        );
     }
 }
 
@@ -156,9 +156,12 @@ fn test_concurrent_stress() {
     let db_path = temp_dir.path().join("test.db");
 
     let db = Arc::new(std::sync::Mutex::new(
-        Database::new(db_path).expect("Failed to create database")
+        Database::new(db_path).expect("Failed to create database"),
     ));
-    db.lock().unwrap().init().expect("Failed to initialize database");
+    db.lock()
+        .unwrap()
+        .init()
+        .expect("Failed to initialize database");
 
     let mut handles = vec![];
 
@@ -206,7 +209,12 @@ fn test_concurrent_stress() {
     }
 
     // Database should still be functional after stress test
-    let final_count = db.lock().unwrap().get_servers().expect("Should get servers").len();
+    let final_count = db
+        .lock()
+        .unwrap()
+        .get_servers()
+        .expect("Should get servers")
+        .len();
     println!("Final server count after stress test: {}", final_count);
 }
 
@@ -216,7 +224,9 @@ fn test_corrupted_data_recovery() {
     use easyssh_core::crypto::CryptoState;
 
     let mut state = CryptoState::new();
-    state.initialize("test_password").expect("Should initialize");
+    state
+        .initialize("test_password")
+        .expect("Should initialize");
 
     // Create valid encrypted data
     let plaintext = b"test message";
@@ -244,9 +254,18 @@ fn test_corrupted_data_recovery() {
     };
 
     // All corrupted versions should fail to decrypt
-    assert!(state.decrypt(&corrupted_nonce).is_err(), "Corrupted nonce should fail");
-    assert!(state.decrypt(&corrupted_ciphertext).is_err(), "Corrupted ciphertext should fail");
-    assert!(state.decrypt(&corrupted_tag).is_err(), "Corrupted tag should fail");
+    assert!(
+        state.decrypt(&corrupted_nonce).is_err(),
+        "Corrupted nonce should fail"
+    );
+    assert!(
+        state.decrypt(&corrupted_ciphertext).is_err(),
+        "Corrupted ciphertext should fail"
+    );
+    assert!(
+        state.decrypt(&corrupted_tag).is_err(),
+        "Corrupted tag should fail"
+    );
 
     // Original should still work
     let decrypted = state.decrypt(&encrypted).expect("Original should decrypt");

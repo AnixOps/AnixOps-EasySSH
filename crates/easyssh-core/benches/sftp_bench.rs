@@ -4,8 +4,8 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use easyssh_core::sftp::{
-    SftpEntry, TransferDirection, TransferTask, TransferOptions, TransferStats, TransferQueue,
-    TransferStatus,
+    SftpEntry, TransferDirection, TransferOptions, TransferQueue, TransferStats, TransferStatus,
+    TransferTask,
 };
 use std::time::Duration;
 
@@ -126,7 +126,8 @@ fn bench_transfer_item_creation(c: &mut Criterion) {
                 "/local/file.txt",
                 TransferDirection::Download,
                 "session-1",
-            ).with_options(options.clone());
+            )
+            .with_options(options.clone());
             black_box(task);
         });
     });
