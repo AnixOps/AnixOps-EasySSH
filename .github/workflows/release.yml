@@ -258,68 +258,60 @@ jobs:
           Copy-Item $SrcBinary $DestBinary -Force -ErrorAction Stop
 
           # Create README
-          @"
-EasySSH ${{ matrix.version }} v$Version for Windows ($Arch)
-==================================================
-
-Quick Start:
-1. Run "EasySSH.exe"
-2. Add your SSH servers via the UI
-3. Connect using password or key authentication
-
-System Requirements:
-- Windows 10/11 ${{ matrix.arch == 'arm64' && 'ARM64' || '64-bit' }}
-- No additional dependencies required
-
-Features:
-- Native Windows UI with egui
-- SSH connection management
-- Password and key-based authentication
-- Server grouping
-- Secure credential storage via Windows Credential Manager
-- ${{ matrix.version == 'pro' && 'Team collaboration + SSO' || '' }}
-- ${{ matrix.version == 'standard' && 'Embedded terminal + Splits' || '' }}
-
-For support: https://github.com/anixops/easyssh
-
-Version: $Version
-Built: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-"@ | Set-Content "$PkgDir/README.txt" -Encoding UTF8
+          $ReadmeLines = @(
+            "EasySSH ${{ matrix.version }} v$Version for Windows ($Arch)",
+            "==================================================",
+            "",
+            "Quick Start:",
+            "1. Run 'EasySSH.exe'",
+            "2. Add your SSH servers via the UI",
+            "3. Connect using password or key authentication",
+            "",
+            "System Requirements:",
+            "- Windows 10/11 ${{ matrix.arch == 'arm64' && 'ARM64' || '64-bit' }}",
+            "- No additional dependencies required",
+            "",
+            "Features:",
+            "- Native Windows UI with egui",
+            "- SSH connection management",
+            "- Password and key-based authentication",
+            "- Server grouping",
+            "- Secure credential storage via Windows Credential Manager",
+            "- ${{ matrix.version == 'pro' && 'Team collaboration + SSO' || '' }}",
+            "- ${{ matrix.version == 'standard' && 'Embedded terminal + Splits' || '' }}",
+            "",
+            "For support: https://github.com/anixops/easyssh",
+            "",
+            "Version: $Version",
+            "Built: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+          )
+          $ReadmeLines | Out-File -FilePath "$PkgDir/README.txt" -Encoding utf8
 
           # Create ZIP
           Compress-Archive -Path "$PkgDir/*" -DestinationPath "$ReleaseDir/$PkgName.zip" -Force
 
           # Create MSI using WiX
           $WxsPath = "$ReleaseDir/wix-$VerType-$Arch.wxs"
-          @"
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-    <Product Id="*" Name="EasySSH ${{ matrix.version }}" Language="1033" Version="$Version"
-             Manufacturer="AnixOps" UpgradeCode="E3F5A2B7-8C9D-4E1F-2A3B-5C6D7E8F9A0B">
-        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Platform="${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}" />
-        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
-        <MediaTemplate EmbedCab="yes" />
-        <Feature Id="ProductFeature" Title="EasySSH ${{ matrix.version }}" Level="1">
-            <ComponentRef Id="MainExecutable" />
-        </Feature>
-        <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="${{ matrix.arch == 'arm64' && 'ProgramFiles64Folder' || 'ProgramFilesFolder' }}">
-                <Directory Id="APPLICATIONFOLDER" Name="EasySSH ${{ matrix.version }}">
-                    <Component Id="MainExecutable" Guid="*">
-                        <File Id="EasySSHExe" Source="$($DestBinary -replace '\\', '\\\\')" KeyPath="yes">
-                            <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="EasySSH ${{ matrix.version }}"
-                                     WorkingDirectory="APPLICATIONFOLDER" Icon="EasySSH.exe" Advertise="yes" />
-                        </File>
-                    </Component>
-                </Directory>
-            </Directory>
-            <Directory Id="ProgramMenuFolder" Name="Programs" />
-        </Directory>
-        <Icon Id="EasySSH.exe" SourceFile="$($DestBinary -replace '\\', '\\\\')" />
-        <Property Id="ARPPRODUCTICON" Value="EasySSH.exe" />
-    </Product>
-</Wix>
-"@ | Set-Content $WxsPath -Encoding UTF8
+          $WixXml = "<?xml version='1.0' encoding='UTF-8?>"
+          $WixXml += "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>"
+          $WixXml += "<Product Id='*' Name='EasySSH ${{ matrix.version }}' Language='1033' Version='$Version' Manufacturer='AnixOps' UpgradeCode='E3F5A2B7-8C9D-4E1F-2A3B-5C6D7E8F9A0B'>"
+          $WixXml += "<Package InstallerVersion='200' Compressed='yes' InstallScope='perMachine' Platform='${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}' />"
+          $WixXml += "<MajorUpgrade DowngradeErrorMessage='A newer version of [ProductName] is already installed.' />"
+          $WixXml += "<MediaTemplate EmbedCab='yes' />"
+          $WixXml += "<Feature Id='ProductFeature' Title='EasySSH ${{ matrix.version }}' Level='1'><ComponentRef Id='MainExecutable' /></Feature>"
+          $WixXml += "<Directory Id='TARGETDIR' Name='SourceDir'>"
+          $WixXml += "<Directory Id='${{ matrix.arch == 'arm64' && 'ProgramFiles64Folder' || 'ProgramFilesFolder' }}'>"
+          $WixXml += "<Directory Id='APPLICATIONFOLDER' Name='EasySSH ${{ matrix.version }}'>"
+          $WixXml += "<Component Id='MainExecutable' Guid='*'>"
+          $DestBinaryEscaped = $DestBinary -replace '\\', '\\\\'
+          $WixXml += "<File Id='EasySSHExe' Source='$DestBinaryEscaped' KeyPath='yes'>"
+          $WixXml += "<Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='EasySSH ${{ matrix.version }}' WorkingDirectory='APPLICATIONFOLDER' Icon='EasySSH.exe' Advertise='yes' />"
+          $WixXml += "</File></Component></Directory></Directory>"
+          $WixXml += "<Directory Id='ProgramMenuFolder' Name='Programs' /></Directory>"
+          $WixXml += "<Icon Id='EasySSH.exe' SourceFile='$DestBinaryEscaped' />"
+          $WixXml += "<Property Id='ARPPRODUCTICON' Value='EasySSH.exe' />"
+          $WixXml += "</Product></Wix>"
+          $WixXml | Set-Content $WxsPath -Encoding UTF8
 
           & "C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe" -out "$ReleaseDir/wix-$VerType-$Arch.wixobj" $WxsPath -arch ${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}
           & "C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe" -out "$ReleaseDir/$PkgName.msi" "$ReleaseDir/wix-$VerType-$Arch.wixobj" -ext WixUIExtension
@@ -467,69 +459,36 @@ Built: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
           chmod +x "$PKG_DIR/usr/bin/easyssh"
 
           # Create desktop entry
-          cat > "$PKG_DIR/usr/share/applications/easyssh.desktop" << EOF
-[Desktop Entry]
-Name=EasySSH ${{ matrix.version }}
-Comment=SSH Client - ${{ matrix.version }} Edition
-Exec=/usr/bin/easyssh
-Icon=easyssh
-Type=Application
-Categories=Network;RemoteAccess;
-Terminal=false
-Version=$VERSION_NO_V
-EOF
+          mkdir -p "$PKG_DIR/usr/share/applications"
+          echo "[Desktop Entry]" > "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Name=EasySSH ${{ matrix.version }}" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Comment=SSH Client - ${{ matrix.version }} Edition" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Exec=/usr/bin/easyssh" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Icon=easyssh" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Type=Application" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Categories=Network;RemoteAccess;" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Terminal=false" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
+          echo "Version=$VERSION_NO_V" >> "$PKG_DIR/usr/share/applications/easyssh.desktop"
 
           # Create install script
-          cat > "$PKG_DIR/install.sh" << 'INSTALLSCRIPT'
-#!/bin/bash
-set -e
-INSTALL_PREFIX="${1:-$HOME/.local}"
-
-if [ "$EUID" -ne 0 ] && [ "$INSTALL_PREFIX" = "/usr/local" ]; then
-    echo "Installing to user directory..."
-    mkdir -p "$HOME/.local/bin"
-    mkdir -p "$HOME/.local/share/applications"
-    cp usr/bin/easyssh "$HOME/.local/bin/"
-    cp usr/share/applications/easyssh.desktop "$HOME/.local/share/applications/"
-    chmod +x "$HOME/.local/bin/easyssh"
-    echo "EasySSH installed to ~/.local/bin/"
-else
-    echo "Installing to $INSTALL_PREFIX..."
-    mkdir -p "${INSTALL_PREFIX}/bin"
-    cp usr/bin/easyssh "${INSTALL_PREFIX}/bin/"
-    chmod +x "${INSTALL_PREFIX}/bin/easyssh"
-    echo "EasySSH installed to ${INSTALL_PREFIX}/bin/"
-fi
-
-echo "Run 'easyssh' to start."
-INSTALLSCRIPT
+          mkdir -p "$PKG_DIR"
+          printf '#!/bin/bash\nset -e\nINSTALL_PREFIX="${1:-$HOME/.local}"\n\nif [ "$EUID" -ne 0 ] && [ "$INSTALL_PREFIX" = "/usr/local" ]; then\n    echo "Installing to user directory..."\n    mkdir -p "$HOME/.local/bin"\n    mkdir -p "$HOME/.local/share/applications"\n    cp usr/bin/easyssh "$HOME/.local/bin/"\n    cp usr/share/applications/easyssh.desktop "$HOME/.local/share/applications/"\n    chmod +x "$HOME/.local/bin/easyssh"\n    echo "EasySSH installed to ~/.local/bin/"\nelse\n    echo "Installing to $INSTALL_PREFIX..."\n    mkdir -p "${INSTALL_PREFIX}/bin"\n    cp usr/bin/easyssh "${INSTALL_PREFIX}/bin/"\n    chmod +x "${INSTALL_PREFIX}/bin/easyssh"\n    echo "EasySSH installed to ${INSTALL_PREFIX}/bin/"\nfi\n\necho "Run '"'"'easyssh'"'"' to start."\n' > "$PKG_DIR/install.sh"
           chmod +x "$PKG_DIR/install.sh"
 
           # Create README
-          cat > "$PKG_DIR/README.txt" << EOF
-EasySSH ${{ matrix.version }} $VERSION for Linux ($ARCH)
-=========================================
-
-Quick Start:
-1. Run ./install.sh (user install) or sudo ./install.sh (system install)
-2. Run 'easyssh' to start
-
-System Requirements:
-- GTK4 runtime
-- libadwaita runtime
-- 64-bit Linux distribution
-
-Features:
-${{ matrix.version == 'lite' && '- SSH configuration management' || '' }}
-${{ matrix.version == 'lite' && '- Password and key authentication' || '' }}
-${{ matrix.version == 'standard' && '- Embedded terminal + Splits' || '' }}
-${{ matrix.version == 'standard' && '- SFTP file manager' || '' }}
-${{ matrix.version == 'pro' && '- Team collaboration' || '' }}
-${{ matrix.version == 'pro' && '- SSO integration' || '' }}
-${{ matrix.version == 'pro' && '- Audit logging' || '' }}
-
-For support: https://github.com/anixops/easyssh
-EOF
+          echo "EasySSH ${{ matrix.version }} v$VERSION_NO_V for Linux ($ARCH)" > "$PKG_DIR/README.txt"
+          echo "=========================================" >> "$PKG_DIR/README.txt"
+          echo "" >> "$PKG_DIR/README.txt"
+          echo "Quick Start:" >> "$PKG_DIR/README.txt"
+          echo "1. Run ./install.sh (user install) or sudo ./install.sh (system install)" >> "$PKG_DIR/README.txt"
+          echo "2. Run 'easyssh' to start" >> "$PKG_DIR/README.txt"
+          echo "" >> "$PKG_DIR/README.txt"
+          echo "System Requirements:" >> "$PKG_DIR/README.txt"
+          echo "- GTK4 runtime" >> "$PKG_DIR/README.txt"
+          echo "- libadwaita runtime" >> "$PKG_DIR/README.txt"
+          echo "- 64-bit Linux distribution" >> "$PKG_DIR/README.txt"
+          echo "" >> "$PKG_DIR/README.txt"
+          echo "For support: https://github.com/anixops/easyssh" >> "$PKG_DIR/README.txt"
 
           # Create tarball
           cd "$RELEASE_DIR"
@@ -633,34 +592,32 @@ EOF
           chmod +x "$PKG_DIR/EasySSH.app/Contents/MacOS/EasySSH" 2>/dev/null || true
 
           # Create Info.plist
-          cat > "$PKG_DIR/EasySSH.app/Contents/Info.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>EasySSH</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.anixops.easyssh-${{ matrix.version }}</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>EasySSH ${{ matrix.version }}</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$VERSION_NO_V</string>
-    <key>CFBundleVersion</key>
-    <string>$VERSION_NO_V</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-</dict>
-</plist>
-EOF
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '<plist version="1.0">' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '<dict>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundleDevelopmentRegion</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <string>en</string>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundleExecutable</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <string>EasySSH</string>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundleIdentifier</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo "    <string>com.anixops.easyssh-${{ matrix.version }}</string>" >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundleInfoDictionaryVersion</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <string>6.0</string>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundleName</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo "    <string>EasySSH ${{ matrix.version }}</string>" >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundlePackageType</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <string>APPL</string>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundleShortVersionString</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo "    <string>$VERSION_NO_V</string>" >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>CFBundleVersion</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo "    <string>$VERSION_NO_V</string>" >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>LSMinimumSystemVersion</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <string>13.0</string>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <key>LSApplicationCategoryType</key>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '    <string>public.app-category.utilities</string>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '</dict>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
+          echo '</plist>' >> "$PKG_DIR/EasySSH.app/Contents/Info.plist"
 
           # Create DMG
           ln -sf /Applications "$PKG_DIR/Applications"
@@ -784,38 +741,34 @@ EOF
           chmod +x "$RELEASE_DIR/$PKG_NAME/easyssh-pro-server"
 
           # Create systemd service file
-          cat > "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service" << EOF
-[Unit]
-Description=EasySSH Pro Server
-After=network.target
-
-[Service]
-Type=simple
-User=easyssh
-ExecStart=/usr/local/bin/easyssh-pro-server
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
+          echo "[Unit]" > "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "Description=EasySSH Pro Server" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "After=network.target" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "[Service]" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "Type=simple" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "User=easyssh" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "ExecStart=/usr/local/bin/easyssh-pro-server" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "Restart=on-failure" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "RestartSec=5" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "[Install]" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
+          echo "WantedBy=multi-user.target" >> "$RELEASE_DIR/$PKG_NAME/easyssh-pro.service"
 
           # Create README
-          cat > "$RELEASE_DIR/$PKG_NAME/README.txt" << EOF
-EasySSH Pro Server $VERSION for Linux ($ARCH)
-==============================================
-
-Quick Start:
-1. Copy binary to /usr/local/bin/
-2. Create user: sudo useradd -r -s /bin/false easyssh
-3. Copy service file: sudo cp easyssh-pro.service /etc/systemd/system/
-4. Enable service: sudo systemctl enable --now easyssh-pro
-
-Docker:
-  docker run -p 8080:8080 anixops/easyssh-pro:$VERSION
-
-For support: https://github.com/anixops/easyssh
-EOF
+          echo "EasySSH Pro Server v$VERSION for Linux ($ARCH)" > "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "==============================================" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "Quick Start:" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "1. Copy binary to /usr/local/bin/" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "2. Create user: sudo useradd -r -s /bin/false easyssh" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "3. Copy service file: sudo cp easyssh-pro.service /etc/systemd/system/" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "4. Enable service: sudo systemctl enable --now easyssh-pro" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "Docker:" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "  docker run -p 8080:8080 anixops/easyssh-pro:$VERSION" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
+          echo "For support: https://github.com/anixops/easyssh" >> "$RELEASE_DIR/$PKG_NAME/README.txt"
 
           cd "$RELEASE_DIR"
           tar -czf "$PKG_NAME.tar.gz" "$PKG_NAME"
@@ -862,13 +815,11 @@ EOF
             awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | head -n -1 > changelog_section.md || true
           fi
 
-          cat > release_notes.md << EOF
-## EasySSH Release $VERSION
-
-**Channel:** $CHANNEL
-**Version:** $VERSION_NO_V
-
-EOF
+          echo "## EasySSH Release $VERSION" > release_notes.md
+          echo "" >> release_notes.md
+          echo "**Channel:** $CHANNEL" >> release_notes.md
+          echo "**Version:** $VERSION_NO_V" >> release_notes.md
+          echo "" >> release_notes.md
 
           # Add changelog section if exists
           if [ -f changelog_section.md ] && [ -s changelog_section.md ]; then
@@ -879,108 +830,96 @@ EOF
             git log --oneline --no-decorate -20 >> release_notes.md || true
           fi
 
-          cat >> release_notes.md << EOF
-
-### Downloads
-
-EOF
+          echo "" >> release_notes.md
+          echo "### Downloads" >> release_notes.md
+          echo "" >> release_notes.md
 
           # Lite downloads
           if [ "$BUILD_LITE" = "true" ]; then
-            cat >> release_notes.md << EOF
-#### EasySSH Lite - Configuration Management
-| Platform | Package | Architecture |
-|----------|---------|--------------|
-| Windows x64 | easyssh-lite-$VERSION-windows-x64.zip / .msi | AMD64 |
-| Windows ARM64 | easyssh-lite-$VERSION-windows-arm64.zip / .msi | ARM64 |
-| Linux x64 | easyssh-lite-$VERSION-linux-x64.tar.gz | x86_64 |
-| Linux ARM64 | easyssh-lite-$VERSION-linux-arm64.tar.gz | aarch64 |
-| macOS Universal | easyssh-lite-$VERSION-macos-universal.dmg | Intel + Apple Silicon |
-
-**Features:** SSH configuration management, password/key auth, native UI, secure storage
-
-EOF
+            echo "#### EasySSH Lite - Configuration Management" >> release_notes.md
+            echo "| Platform | Package | Architecture |" >> release_notes.md
+            echo "|----------|---------|--------------|" >> release_notes.md
+            echo "| Windows x64 | easyssh-lite-$VERSION-windows-x64.zip / .msi | AMD64 |" >> release_notes.md
+            echo "| Windows ARM64 | easyssh-lite-$VERSION-windows-arm64.zip / .msi | ARM64 |" >> release_notes.md
+            echo "| Linux x64 | easyssh-lite-$VERSION-linux-x64.tar.gz | x86_64 |" >> release_notes.md
+            echo "| Linux ARM64 | easyssh-lite-$VERSION-linux-arm64.tar.gz | aarch64 |" >> release_notes.md
+            echo "| macOS Universal | easyssh-lite-$VERSION-macos-universal.dmg | Intel + Apple Silicon |" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "Features: SSH configuration management, password/key auth, native UI, secure storage" >> release_notes.md
+            echo "" >> release_notes.md
           fi
 
           # Standard downloads
           if [ "$BUILD_STANDARD" = "true" ]; then
-            cat >> release_notes.md << EOF
-#### EasySSH Standard - Full-Featured Client
-| Platform | Package | Architecture |
-|----------|---------|--------------|
-| Windows x64 | easyssh-standard-$VERSION-windows-x64.zip / .msi | AMD64 |
-| Windows ARM64 | easyssh-standard-$VERSION-windows-arm64.zip / .msi | ARM64 |
-| Linux x64 | easyssh-standard-$VERSION-linux-x64.tar.gz | x86_64 |
-| Linux ARM64 | easyssh-standard-$VERSION-linux-arm64.tar.gz | aarch64 |
-| macOS Universal | easyssh-standard-$VERSION-macos-universal.dmg | Intel + Apple Silicon |
-
-**Features:** Embedded terminal, split panes, SFTP, monitoring widgets
-
-EOF
+            echo "#### EasySSH Standard - Full-Featured Client" >> release_notes.md
+            echo "| Platform | Package | Architecture |" >> release_notes.md
+            echo "|----------|---------|--------------|" >> release_notes.md
+            echo "| Windows x64 | easyssh-standard-$VERSION-windows-x64.zip / .msi | AMD64 |" >> release_notes.md
+            echo "| Windows ARM64 | easyssh-standard-$VERSION-windows-arm64.zip / .msi | ARM64 |" >> release_notes.md
+            echo "| Linux x64 | easyssh-standard-$VERSION-linux-x64.tar.gz | x86_64 |" >> release_notes.md
+            echo "| Linux ARM64 | easyssh-standard-$VERSION-linux-arm64.tar.gz | aarch64 |" >> release_notes.md
+            echo "| macOS Universal | easyssh-standard-$VERSION-macos-universal.dmg | Intel + Apple Silicon |" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "Features: Embedded terminal, split panes, SFTP, monitoring widgets" >> release_notes.md
+            echo "" >> release_notes.md
           fi
 
           # Pro downloads
           if [ "$BUILD_PRO" = "true" ]; then
-            cat >> release_notes.md << EOF
-#### EasySSH Pro - Team Collaboration
-| Platform | Package | Architecture |
-|----------|---------|--------------|
-| Windows x64 | easyssh-pro-$VERSION-windows-x64.zip / .msi | AMD64 |
-| Linux x64 | easyssh-pro-$VERSION-linux-x64.tar.gz | x86_64 |
-| Linux ARM64 | easyssh-pro-$VERSION-linux-arm64.tar.gz | aarch64 |
-| Pro Server x64 | easyssh-pro-server-$VERSION-linux-x64.tar.gz | Server Binary |
-| Pro Server ARM64 | easyssh-pro-server-$VERSION-linux-arm64.tar.gz | Server Binary |
-| Docker | \\\"anixops/easyssh-pro:$VERSION\\\" | Multi-arch |
-
-**Features:** Team management, RBAC, SSO (SAML/OIDC), audit logging, shared snippets
-
-EOF
+            echo "#### EasySSH Pro - Team Collaboration" >> release_notes.md
+            echo "| Platform | Package | Architecture |" >> release_notes.md
+            echo "|----------|---------|--------------|" >> release_notes.md
+            echo "| Windows x64 | easyssh-pro-$VERSION-windows-x64.zip / .msi | AMD64 |" >> release_notes.md
+            echo "| Linux x64 | easyssh-pro-$VERSION-linux-x64.tar.gz | x86_64 |" >> release_notes.md
+            echo "| Linux ARM64 | easyssh-pro-$VERSION-linux-arm64.tar.gz | aarch64 |" >> release_notes.md
+            echo "| Pro Server x64 | easyssh-pro-server-$VERSION-linux-x64.tar.gz | Server Binary |" >> release_notes.md
+            echo "| Pro Server ARM64 | easyssh-pro-server-$VERSION-linux-arm64.tar.gz | Server Binary |" >> release_notes.md
+            echo "| Docker | anixops/easyssh-pro:$VERSION | Multi-arch |" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "Features: Team management, RBAC, SSO (SAML/OIDC), audit logging, shared snippets" >> release_notes.md
+            echo "" >> release_notes.md
           fi
 
-          cat >> release_notes.md << EOF
-
-### System Requirements
-
-- **Windows:** Windows 10/11 x64 or ARM64
-- **Linux:** GTK4, libadwaita, 64-bit distribution (glibc 2.31+)
-- **macOS:** macOS 13.0+, Apple Silicon or Intel
-- **Pro Server:** Docker 20.10+ or systemd-based Linux
-
-### Verification
-
-SHA256 checksums are available in \\\"SHA256SUMS.txt\\\" attached to this release.
-
-\`\`\`bash
-# Verify download
-sha256sum -c SHA256SUMS.txt
-\`\`\`
-
-### Installation
-
-**Windows:**
-- ZIP: Extract and run \\\"EasySSH.exe\\\"
-- MSI: Run installer for system-wide installation
-
-**Linux:**
-\`\`\`bash
-# User install
-./install.sh
-
-# System install
-sudo ./install.sh /usr/local
-\`\`\`
-
-**macOS:**
-Open DMG and drag \\\"EasySSH.app\\\" to Applications
-
-**Pro Server:**
-\`\`\`bash
-docker run -p 8080:8080 anixops/easyssh-pro:$VERSION
-\`\`\`
-
----
-Built with ❤️ by the EasySSH Team
-EOF
+          echo "### System Requirements" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "- Windows: Windows 10/11 x64 or ARM64" >> release_notes.md
+          echo "- Linux: GTK4, libadwaita, 64-bit distribution (glibc 2.31+)" >> release_notes.md
+          echo "- macOS: macOS 13.0+, Apple Silicon or Intel" >> release_notes.md
+          echo "- Pro Server: Docker 20.10+ or systemd-based Linux" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Verification" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "SHA256 checksums are available in SHA256SUMS.txt attached to this release." >> release_notes.md
+          echo "" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo "# Verify download" >> release_notes.md
+          echo "sha256sum -c SHA256SUMS.txt" >> release_notes.md
+          echo '```' >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "Windows:" >> release_notes.md
+          echo "- ZIP: Extract and run EasySSH.exe" >> release_notes.md
+          echo "- MSI: Run installer for system-wide installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "Linux:" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo "# User install" >> release_notes.md
+          echo "./install.sh" >> release_notes.md
+          echo "# System install" >> release_notes.md
+          echo "sudo ./install.sh /usr/local" >> release_notes.md
+          echo '```' >> release_notes.md
+          echo "" >> release_notes.md
+          echo "macOS:" >> release_notes.md
+          echo "Open DMG and drag EasySSH.app to Applications" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "Pro Server:" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo "docker run -p 8080:8080 anixops/easyssh-pro:$VERSION" >> release_notes.md
+          echo '```' >> release_notes.md
+          echo "" >> release_notes.md
+          echo "---" >> release_notes.md
+          echo "Built by EasySSH Team" >> release_notes.md
 
           cat release_notes.md
           echo "content<<EOF" >> $GITHUB_OUTPUT
@@ -1158,7 +1097,7 @@ EOF
 
     steps:
       - name: Post to Slack
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        continue-on-error: true
         uses: slackapi/slack-github-action@v1
         with:
           payload: |

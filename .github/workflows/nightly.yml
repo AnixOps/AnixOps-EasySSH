@@ -167,13 +167,11 @@ jobs:
 
       - name: Combine Reports
         run: |
-          cat > code-quality-report.md << EOF
-# Code Quality Report - Nightly ${{ needs.version.outputs.version }}
-
-**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-**Commit:** ${{ github.sha }}
-
-EOF
+          echo "# Code Quality Report - Nightly ${{ needs.version.outputs.version }}" > code-quality-report.md
+          echo "" >> code-quality-report.md
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> code-quality-report.md
+          echo "**Commit:** ${{ github.sha }}" >> code-quality-report.md
+          echo "" >> code-quality-report.md
           cat format-report.md >> code-quality-report.md
           echo "" >> code-quality-report.md
           cat clippy-report.md >> code-quality-report.md
@@ -368,18 +366,16 @@ EOF
           VERSION="${{ needs.version.outputs.version }}"
           DATE="${{ needs.version.outputs.date }}"
 
-          cat > nightly-report.md << 'EOF'
-# EasySSH Nightly Build Report
-
-**Version:** NIGHTLY_VERSION
-**Date:** BUILD_DATE
-**Commit:** GITHUB_SHA
-
-## Summary
-
-| Component | Status |
-|-----------|--------|
-EOF
+          echo "# EasySSH Nightly Build Report" > nightly-report.md
+          echo "" >> nightly-report.md
+          echo "**Version:** $VERSION" >> nightly-report.md
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> nightly-report.md
+          echo "**Commit:** ${{ github.sha }}" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "## Summary" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "| Component | Status |" >> nightly-report.md
+          echo "|-----------|--------|" >> nightly-report.md
 
           # Determine test status for each version
           LITE_STATUS="${{ needs.test-reports.result }}"
@@ -387,46 +383,40 @@ EOF
           PRO_STATUS="${{ needs.test-reports.result }}"
           BUILD_STATUS="${{ needs.build.result }}"
 
-          sed -i "s/NIGHTLY_VERSION/$VERSION/g" nightly-report.md
-          sed -i "s/BUILD_DATE/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" nightly-report.md
-          sed -i "s/GITHUB_SHA/${{ github.sha }}/g" nightly-report.md
-
           # Add test status
           echo "| Lite Tests | $([[ "$LITE_STATUS" == "success" ]] && echo "✅ Pass" || echo "❌ Fail") |" >> nightly-report.md
           echo "| Standard Tests | $([[ "$STD_STATUS" == "success" ]] && echo "✅ Pass" || echo "❌ Fail") |" >> nightly-report.md
           echo "| Pro Tests | $([[ "$PRO_STATUS" == "success" ]] && echo "✅ Pass" || echo "❌ Fail") |" >> nightly-report.md
           echo "| Builds | $([[ "$BUILD_STATUS" == "success" ]] && echo "✅ Success" || echo "❌ Fail") |" >> nightly-report.md
 
-          cat >> nightly-report.md << 'EOF'
-
-## Build Matrix
-
-| Platform | Lite | Standard | Pro |
-|----------|------|----------|-----|
-| Windows x64 | ✅ | ✅ | ✅ |
-| Linux x64 | ✅ | ✅ | ✅ |
-| macOS x64 | ✅ | ✅ | - |
-
-## Test Coverage
-
-Coverage reports available for:
-- Lite (Ubuntu)
-- Standard (Ubuntu)
-- Pro (Ubuntu)
-
-## Artifacts
-
-All build artifacts are available for 3 days.
-
-## Next Steps
-
-1. Review test logs in artifacts
-2. Check coverage reports
-3. Verify code quality report
-
----
-Generated automatically by GitHub Actions
-EOF
+          echo "" >> nightly-report.md
+          echo "## Build Matrix" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "| Platform | Lite | Standard | Pro |" >> nightly-report.md
+          echo "|----------|------|----------|-----|" >> nightly-report.md
+          echo "| Windows x64 | OK | OK | OK |" >> nightly-report.md
+          echo "| Linux x64 | OK | OK | OK |" >> nightly-report.md
+          echo "| macOS x64 | OK | OK | - |" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "## Test Coverage" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "Coverage reports available for:" >> nightly-report.md
+          echo "- Lite (Ubuntu)" >> nightly-report.md
+          echo "- Standard (Ubuntu)" >> nightly-report.md
+          echo "- Pro (Ubuntu)" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "## Artifacts" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "All build artifacts are available for 3 days." >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "## Next Steps" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "1. Review test logs in artifacts" >> nightly-report.md
+          echo "2. Check coverage reports" >> nightly-report.md
+          echo "3. Verify code quality report" >> nightly-report.md
+          echo "" >> nightly-report.md
+          echo "---" >> nightly-report.md
+          echo "Generated automatically by GitHub Actions" >> nightly-report.md
 
           cat nightly-report.md
 

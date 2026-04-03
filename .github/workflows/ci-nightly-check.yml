@@ -609,7 +609,7 @@ jobs:
           path: report
 
       - name: Slack Notification (on failure)
-        if: ${{ (needs.error-analysis.outputs.has_errors == 'true' || needs.dependency-check.outputs.has_vulnerabilities == 'true') && secrets.SLACK_WEBHOOK_URL != '' }}
+        if: needs.error-analysis.outputs.has_errors == 'true' || needs.dependency-check.outputs.has_vulnerabilities == 'true'
         uses: slackapi/slack-github-action@v1
         with:
           payload: |
@@ -663,7 +663,7 @@ jobs:
         continue-on-error: true
 
       - name: Slack Notification (on success)
-        if: ${{ github.event.inputs.notify_on_success == 'true' && needs.error-analysis.outputs.has_errors == 'false' && needs.dependency-check.outputs.has_vulnerabilities == 'false' && secrets.SLACK_WEBHOOK_URL != '' }}
+        if: github.event.inputs.notify_on_success == 'true' && needs.error-analysis.outputs.has_errors == 'false' && needs.dependency-check.outputs.has_vulnerabilities == 'false'
         uses: slackapi/slack-github-action@v1
         with:
           payload: |

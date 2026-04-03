@@ -29,7 +29,7 @@ tracing-subscriber = { workspace = true }
 validator = { workspace = true }
 base64 = { workspace = true }
 redis = { workspace = true, features = ["tokio-comp", "connection-manager"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "postgres", "mysql", "chrono", "uuid", "migrate", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "postgres", "chrono", "uuid", "migrate", "macros"] }
 libsqlite3-sys = { workspace = true }
 
 # Web framework

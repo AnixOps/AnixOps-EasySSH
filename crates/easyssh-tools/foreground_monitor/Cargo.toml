@@ -2,6 +2,9 @@
 name = "easyssh-foreground-monitor"
 version = "0.3.0"
 edition = "2021"
+authors = ["EasySSH Team"]
+license = "MIT"
+description = "Foreground window monitor for EasySSH"
 
 [[bin]]
 name = "foreground-monitor"

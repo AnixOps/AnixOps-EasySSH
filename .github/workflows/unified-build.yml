@@ -159,11 +159,7 @@ jobs:
   build-matrix:
     name: Build ${{ matrix.config.edition }} for ${{ matrix.config.target }}
     needs: [changes, quality, test]
-    if: |
-      (needs.changes.outputs.windows == 'true' && contains(matrix.config.target, 'windows')) ||
-      (needs.changes.outputs.linux == 'true' && contains(matrix.config.target, 'linux')) ||
-      (needs.changes.outputs.pro-server == 'true' && matrix.config.edition == 'pro') ||
-      github.event_name == 'workflow_dispatch'
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ${{ matrix.config.runner }}
     strategy:
       fail-fast: false

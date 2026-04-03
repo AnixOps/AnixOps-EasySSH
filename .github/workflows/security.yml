@@ -273,7 +273,7 @@ jobs:
   snyk:
     name: Snyk Security Scan
     runs-on: ubuntu-latest
-    if: ${{ secrets.SNYK_TOKEN != '' }}
+    continue-on-error: true
     env:
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 

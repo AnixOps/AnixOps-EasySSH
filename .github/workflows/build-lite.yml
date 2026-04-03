@@ -144,31 +144,32 @@ jobs:
           Copy-Item $SrcBinary $DestBinary -Force
 
           # Create README
-          @"
-EasySSH Lite v$Version for Windows ($Arch)
-==============================================
-
-Quick Start:
-1. Run "EasySSH Lite.exe"
-2. Add your SSH servers via the UI
-3. Connect using password or key authentication
-
-System Requirements:
-- Windows 10/11 ${{ matrix.arch == 'arm64' && 'ARM64' || '64-bit' }}
-- No additional dependencies required
-
-Features:
-- Native Windows UI with egui
-- SSH connection management
-- Password and key-based authentication
-- Server grouping
-- Secure credential storage via Windows Credential Manager
-
-For support: https://github.com/anixops/easyssh
-
-Version: $Version
-Built: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-"@ | Set-Content "$PkgDir/README.txt" -Encoding UTF8
+          $ReadmeLines = @(
+            "EasySSH Lite v$Version for Windows ($Arch)",
+            "==============================================",
+            "",
+            "Quick Start:",
+            "1. Run 'EasySSH Lite.exe'",
+            "2. Add your SSH servers via the UI",
+            "3. Connect using password or key authentication",
+            "",
+            "System Requirements:",
+            "- Windows 10/11 ${{ matrix.arch == 'arm64' && 'ARM64' || '64-bit' }}",
+            "- No additional dependencies required",
+            "",
+            "Features:",
+            "- Native Windows UI with egui",
+            "- SSH connection management",
+            "- Password and key-based authentication",
+            "- Server grouping",
+            "- Secure credential storage via Windows Credential Manager",
+            "",
+            "For support: https://github.com/anixops/easyssh",
+            "",
+            "Version: $Version",
+            "Built: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+          )
+          $ReadmeLines | Out-File -FilePath "$PkgDir/README.txt" -Encoding utf8
 
           # Create ZIP
           Compress-Archive -Path "$PkgDir/*" -DestinationPath "$ReleaseDir/$PkgName.zip" -Force
@@ -176,35 +177,26 @@ Built: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
           # Create MSI using WiX
           if (Test-Path "C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe") {
             $WxsPath = "$ReleaseDir/wix-$Arch.wxs"
-            @"
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-    <Product Id="*" Name="EasySSH Lite" Language="1033" Version="$Version"
-             Manufacturer="AnixOps" UpgradeCode="E3F5A2B7-8C9D-4E1F-2A3B-5C6D7E8F9A0B">
-        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Platform="${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}" />
-        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
-        <MediaTemplate EmbedCab="yes" />
-        <Feature Id="ProductFeature" Title="EasySSH Lite" Level="1">
-            <ComponentRef Id="MainExecutable" />
-        </Feature>
-        <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="${{ matrix.arch == 'arm64' && 'ProgramFiles64Folder' || 'ProgramFilesFolder' }}">
-                <Directory Id="APPLICATIONFOLDER" Name="EasySSH Lite">
-                    <Component Id="MainExecutable" Guid="*">
-                        <File Id="EasySSHLiteExe" Source="$($DestBinary -replace '\\', '\\')" KeyPath="yes">
-                            <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="EasySSH Lite"
-                                     WorkingDirectory="APPLICATIONFOLDER" Icon="EasySSHLite.exe" Advertise="yes" />
-                        </File>
-                    </Component>
-                </Directory>
-            </Directory>
-            <Directory Id="ProgramMenuFolder" Name="Programs" />
-        </Directory>
-        <Icon Id="EasySSHLite.exe" SourceFile="$($DestBinary -replace '\\', '\\')" />
-        <Property Id="ARPPRODUCTICON" Value="EasySSHLite.exe" />
-    </Product>
-</Wix>
-"@ | Set-Content $WxsPath -Encoding UTF8
+            $WixXml = "<?xml version='1.0' encoding='UTF-8?>"
+            $WixXml += "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>"
+            $WixXml += "<Product Id='*' Name='EasySSH Lite' Language='1033' Version='$Version' Manufacturer='AnixOps' UpgradeCode='E3F5A2B7-8C9D-4E1F-2A3B-5C6D7E8F9A0B'>"
+            $WixXml += "<Package InstallerVersion='200' Compressed='yes' InstallScope='perMachine' Platform='${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}' />"
+            $WixXml += "<MajorUpgrade DowngradeErrorMessage='A newer version of [ProductName] is already installed.' />"
+            $WixXml += "<MediaTemplate EmbedCab='yes' />"
+            $WixXml += "<Feature Id='ProductFeature' Title='EasySSH Lite' Level='1'><ComponentRef Id='MainExecutable' /></Feature>"
+            $WixXml += "<Directory Id='TARGETDIR' Name='SourceDir'>"
+            $WixXml += "<Directory Id='${{ matrix.arch == 'arm64' && 'ProgramFiles64Folder' || 'ProgramFilesFolder' }}'>"
+            $WixXml += "<Directory Id='APPLICATIONFOLDER' Name='EasySSH Lite'>"
+            $WixXml += "<Component Id='MainExecutable' Guid='*'>"
+            $DestBinaryEscaped = $DestBinary -replace '\\', '\\'
+            $WixXml += "<File Id='EasySSHLiteExe' Source='$DestBinaryEscaped' KeyPath='yes'>"
+            $WixXml += "<Shortcut Id='StartMenuShortcut' Directory='ProgramMenuFolder' Name='EasySSH Lite' WorkingDirectory='APPLICATIONFOLDER' Icon='EasySSHLite.exe' Advertise='yes' />"
+            $WixXml += "</File></Component></Directory></Directory>"
+            $WixXml += "<Directory Id='ProgramMenuFolder' Name='Programs' /></Directory>"
+            $WixXml += "<Icon Id='EasySSHLite.exe' SourceFile='$DestBinaryEscaped' />"
+            $WixXml += "<Property Id='ARPPRODUCTICON' Value='EasySSHLite.exe' />"
+            $WixXml += "</Product></Wix>"
+            $WixXml | Set-Content $WxsPath -Encoding UTF8
 
             & "C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe" -out "$ReleaseDir/wix-$Arch.wixobj" $WxsPath -arch ${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}
             & "C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe" -out "$ReleaseDir/$PkgName.msi" "$ReleaseDir/wix-$Arch.wixobj" -ext WixUIExtension
@@ -315,60 +307,36 @@ Built: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
           chmod +x "$PKG_DIR/usr/bin/easyssh-lite"
 
           # Create desktop entry
-          cat > "$PKG_DIR/usr/share/applications/easyssh-lite.desktop" << EOF
-[Desktop Entry]
-Name=EasySSH Lite
-Comment=Lightweight SSH Configuration Manager
-Exec=/usr/bin/easyssh-lite
-Icon=easyssh-lite
-Type=Application
-Categories=Network;RemoteAccess;
-Terminal=false
-Version=$VERSION
-EOF
+          mkdir -p "$PKG_DIR/usr/share/applications"
+          echo "[Desktop Entry]" > "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Name=EasySSH Lite" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Comment=Lightweight SSH Configuration Manager" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Exec=/usr/bin/easyssh-lite" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Icon=easyssh-lite" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Type=Application" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Categories=Network;RemoteAccess;" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Terminal=false" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
+          echo "Version=$VERSION" >> "$PKG_DIR/usr/share/applications/easyssh-lite.desktop"
 
           # Create install script
-          cat > "$PKG_DIR/install.sh" << 'INSTALLSCRIPT'
-#!/bin/bash
-set -e
-INSTALL_PREFIX="${1:-$HOME/.local}"
-
-if [ "$EUID" -ne 0 ] && [ "$INSTALL_PREFIX" = "/usr/local" ]; then
-    echo "Installing to user directory..."
-    mkdir -p "$HOME/.local/bin"
-    mkdir -p "$HOME/.local/share/applications"
-    cp usr/bin/easyssh-lite "$HOME/.local/bin/"
-    cp usr/share/applications/easyssh-lite.desktop "$HOME/.local/share/applications/"
-    chmod +x "$HOME/.local/bin/easyssh-lite"
-    echo "EasySSH Lite installed to ~/.local/bin/"
-else
-    echo "Installing to $INSTALL_PREFIX..."
-    mkdir -p "${INSTALL_PREFIX}/bin"
-    cp usr/bin/easyssh-lite "${INSTALL_PREFIX}/bin/"
-    chmod +x "${INSTALL_PREFIX}/bin/easyssh-lite"
-    echo "EasySSH Lite installed to ${INSTALL_PREFIX}/bin/"
-fi
-
-echo "Run 'easyssh-lite' to start."
-INSTALLSCRIPT
+          mkdir -p "$PKG_DIR"
+          printf '#!/bin/bash\nset -e\nINSTALL_PREFIX="${1:-$HOME/.local}"\n\nif [ "$EUID" -ne 0 ] && [ "$INSTALL_PREFIX" = "/usr/local" ]; then\n    echo "Installing to user directory..."\n    mkdir -p "$HOME/.local/bin"\n    mkdir -p "$HOME/.local/share/applications"\n    cp usr/bin/easyssh-lite "$HOME/.local/bin/"\n    cp usr/share/applications/easyssh-lite.desktop "$HOME/.local/share/applications/"\n    chmod +x "$HOME/.local/bin/easyssh-lite"\n    echo "EasySSH Lite installed to ~/.local/bin/"\nelse\n    echo "Installing to $INSTALL_PREFIX..."\n    mkdir -p "${INSTALL_PREFIX}/bin"\n    cp usr/bin/easyssh-lite "${INSTALL_PREFIX}/bin/"\n    chmod +x "${INSTALL_PREFIX}/bin/easyssh-lite"\n    echo "EasySSH Lite installed to ${INSTALL_PREFIX}/bin/"\nfi\n\necho "Run '"'"'easyssh-lite'"'"' to start."\n' > "$PKG_DIR/install.sh"
           chmod +x "$PKG_DIR/install.sh"
 
           # Create README
-          cat > "$PKG_DIR/README.txt" << EOF
-EasySSH Lite v$VERSION for Linux ($ARCH)
-=========================================
-
-Quick Start:
-1. Run ./install.sh (user install) or sudo ./install.sh (system install)
-2. Run 'easyssh-lite' to start
-
-System Requirements:
-- GTK4 runtime
-- libadwaita runtime
-- 64-bit Linux distribution
-
-For support: https://github.com/anixops/easyssh
-EOF
+          echo "EasySSH Lite v$VERSION for Linux ($ARCH)" > "$PKG_DIR/README.txt"
+          echo "=========================================" >> "$PKG_DIR/README.txt"
+          echo "" >> "$PKG_DIR/README.txt"
+          echo "Quick Start:" >> "$PKG_DIR/README.txt"
+          echo "1. Run ./install.sh (user install) or sudo ./install.sh (system install)" >> "$PKG_DIR/README.txt"
+          echo "2. Run 'easyssh-lite' to start" >> "$PKG_DIR/README.txt"
+          echo "" >> "$PKG_DIR/README.txt"
+          echo "System Requirements:" >> "$PKG_DIR/README.txt"
+          echo "- GTK4 runtime" >> "$PKG_DIR/README.txt"
+          echo "- libadwaita runtime" >> "$PKG_DIR/README.txt"
+          echo "- 64-bit Linux distribution" >> "$PKG_DIR/README.txt"
+          echo "" >> "$PKG_DIR/README.txt"
+          echo "For support: https://github.com/anixops/easyssh" >> "$PKG_DIR/README.txt"
 
           # Create tarball
           cd "$RELEASE_DIR"
@@ -460,34 +428,32 @@ EOF
           chmod +x "$PKG_DIR/EasySSH Lite.app/Contents/MacOS/EasySSH Lite" 2>/dev/null || true
 
           # Create Info.plist
-          cat > "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>EasySSH Lite</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.anixops.easyssh-lite</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>EasySSH Lite</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$VERSION</string>
-    <key>CFBundleVersion</key>
-    <string>$VERSION</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-</dict>
-</plist>
-EOF
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '<plist version="1.0">' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '<dict>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundleDevelopmentRegion</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>en</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundleExecutable</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>EasySSH Lite</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundleIdentifier</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>com.anixops.easyssh-lite</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundleInfoDictionaryVersion</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>6.0</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundleName</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>EasySSH Lite</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundlePackageType</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>APPL</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundleShortVersionString</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo "    <string>$VERSION</string>" >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>CFBundleVersion</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo "    <string>$VERSION</string>" >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>LSMinimumSystemVersion</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>13.0</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <key>LSApplicationCategoryType</key>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '    <string>public.app-category.utilities</string>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '</dict>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
+          echo '</plist>' >> "$PKG_DIR/EasySSH Lite.app/Contents/Info.plist"
 
           # Create DMG
           ln -sf /Applications "$PKG_DIR/Applications"
@@ -570,50 +536,48 @@ EOF
           VERSION="${{ needs.version.outputs.version_no_v }}"
           CHANNEL="${{ needs.version.outputs.channel }}"
 
-          cat > release_notes.md << EOF
-## EasySSH Lite v$VERSION
-
-**Channel:** $CHANNEL
-
-### Downloads
-
-| Platform | Package | Notes |
-|----------|---------|-------|
-| Windows x64 | easyssh-lite-v$VERSION-windows-x64.zip | Portable executable |
-| Windows x64 | easyssh-lite-v$VERSION-windows-x64.msi | Installer (if available) |
-| Windows ARM64 | easyssh-lite-v$VERSION-windows-arm64.zip | Portable executable |
-| Linux x64 | easyssh-lite-v$VERSION-linux-x64.tar.gz | Portable tarball |
-| Linux ARM64 | easyssh-lite-v$VERSION-linux-arm64.tar.gz | Portable tarball |
-| macOS Universal | easyssh-lite-v$VERSION-macos-universal.dmg | Apple Silicon + Intel |
-
-### Features
-
-- Native platform UI (egui on Windows, GTK4 on Linux, SwiftUI on macOS)
-- SSH configuration management
-- Password and key-based authentication
-- Server grouping
-- Secure credential storage via OS keychain
-- Encrypted configuration storage
-
-### System Requirements
-
-- **Windows**: Windows 10/11 x64 or ARM64
-- **Linux**: GTK4, libadwaita, 64-bit distribution
-- **macOS**: macOS 13.0+, Apple Silicon or Intel
-
-### Installation
-
-**Windows**: Extract ZIP and run "EasySSH Lite.exe", or use the MSI installer
-**Linux**: Extract tarball and run ./install.sh
-**macOS**: Open DMG and drag to Applications
-
-### Verification
-
-Verify downloads using the SHA256SUMS.txt file:
-\`\`\`bash
-sha256sum -c SHA256SUMS.txt
-\`\`\`
-EOF
+          echo "## EasySSH Lite v$VERSION" > release_notes.md
+          echo "" >> release_notes.md
+          echo "**Channel:** $CHANNEL" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Downloads" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "| Platform | Package | Notes |" >> release_notes.md
+          echo "|----------|---------|-------|" >> release_notes.md
+          echo "| Windows x64 | easyssh-lite-v$VERSION-windows-x64.zip | Portable executable |" >> release_notes.md
+          echo "| Windows x64 | easyssh-lite-v$VERSION-windows-x64.msi | Installer (if available) |" >> release_notes.md
+          echo "| Windows ARM64 | easyssh-lite-v$VERSION-windows-arm64.zip | Portable executable |" >> release_notes.md
+          echo "| Linux x64 | easyssh-lite-v$VERSION-linux-x64.tar.gz | Portable tarball |" >> release_notes.md
+          echo "| Linux ARM64 | easyssh-lite-v$VERSION-linux-arm64.tar.gz | Portable tarball |" >> release_notes.md
+          echo "| macOS Universal | easyssh-lite-v$VERSION-macos-universal.dmg | Apple Silicon + Intel |" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Features" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "- Native platform UI (egui on Windows, GTK4 on Linux, SwiftUI on macOS)" >> release_notes.md
+          echo "- SSH configuration management" >> release_notes.md
+          echo "- Password and key-based authentication" >> release_notes.md
+          echo "- Server grouping" >> release_notes.md
+          echo "- Secure credential storage via OS keychain" >> release_notes.md
+          echo "- Encrypted configuration storage" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### System Requirements" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "- **Windows**: Windows 10/11 x64 or ARM64" >> release_notes.md
+          echo "- **Linux**: GTK4, libadwaita, 64-bit distribution" >> release_notes.md
+          echo "- **macOS**: macOS 13.0+, Apple Silicon or Intel" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Windows**: Extract ZIP and run 'EasySSH Lite.exe', or use the MSI installer" >> release_notes.md
+          echo "**Linux**: Extract tarball and run ./install.sh" >> release_notes.md
+          echo "**macOS**: Open DMG and drag to Applications" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Verification" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "Verify downloads using the SHA256SUMS.txt file:" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo "sha256sum -c SHA256SUMS.txt" >> release_notes.md
+          echo '```' >> release_notes.md
 
       - name: Create Draft Release
         uses: softprops/action-gh-release@v1

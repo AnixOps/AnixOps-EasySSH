@@ -565,7 +565,7 @@ jobs:
   notify-slack:
     name: Slack Notification
     needs: aggregate-report
-    if: ${{ (needs.aggregate-report.outputs.has_errors == 'true' || github.event.inputs.notify_slack == 'true') && secrets.SLACK_WEBHOOK_URL != '' }}
+    if: needs.aggregate-report.outputs.has_errors == 'true' || github.event.inputs.notify_slack == 'true'
     runs-on: ubuntu-latest
 
     steps:
