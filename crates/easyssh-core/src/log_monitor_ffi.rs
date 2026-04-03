@@ -29,19 +29,23 @@ pub extern "C" fn log_monitor_create() -> *mut LogMonitorHandle {
 }
 
 /// Destroy log monitor center
+///
+/// # Safety
+/// handle must be valid or null. After calling this, the handle is invalid and must not be used.
 #[no_mangle]
-pub extern "C" fn log_monitor_destroy(handle: *mut LogMonitorHandle) {
+pub unsafe extern "C" fn log_monitor_destroy(handle: *mut LogMonitorHandle) {
     if handle.is_null() {
         return;
     }
-    unsafe {
-        let _ = Box::from_raw(handle);
-    }
+    let _ = Box::from_raw(handle);
 }
 
 /// Add a log source
+///
+/// # Safety
+/// All pointer arguments must be valid or null. Source strings must be null-terminated.
 #[no_mangle]
-pub extern "C" fn log_monitor_add_source(
+pub unsafe extern "C" fn log_monitor_add_source(
     handle: *mut LogMonitorHandle,
     name: *const c_char,
     server_id: *const c_char,
@@ -54,11 +58,11 @@ pub extern "C" fn log_monitor_add_source(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
 
-    let name = unsafe { CStr::from_ptr(name).to_string_lossy().to_string() };
-    let server_id = unsafe { CStr::from_ptr(server_id).to_string_lossy().to_string() };
-    let log_path = unsafe { CStr::from_ptr(log_path).to_string_lossy().to_string() };
+    let name = CStr::from_ptr(name).to_string_lossy().to_string();
+    let server_id = CStr::from_ptr(server_id).to_string_lossy().to_string();
+    let log_path = CStr::from_ptr(log_path).to_string_lossy().to_string();
 
     let log_type = match log_type {
         0 => LogType::SystemdJournal,
@@ -84,14 +88,12 @@ pub extern "C" fn log_monitor_add_source(
                 };
                 let bytes = c_id.as_bytes_with_nul();
                 let len = bytes.len().min(source_id_len - 1);
-                unsafe {
-                    std::ptr::copy_nonoverlapping(
-                        bytes.as_ptr() as *const c_char,
-                        source_id_out,
-                        len,
-                    );
-                    *source_id_out.add(len) = 0;
-                }
+                std::ptr::copy_nonoverlapping(
+                    bytes.as_ptr() as *const c_char,
+                    source_id_out,
+                    len,
+                );
+                *source_id_out.add(len) = 0;
             }
             0
         }
@@ -100,8 +102,11 @@ pub extern "C" fn log_monitor_add_source(
 }
 
 /// Remove a log source
+///
+/// # Safety
+/// All pointer arguments must be valid or null. source_id must be null-terminated.
 #[no_mangle]
-pub extern "C" fn log_monitor_remove_source(
+pub unsafe extern "C" fn log_monitor_remove_source(
     handle: *mut LogMonitorHandle,
     source_id: *const c_char,
 ) -> c_int {
@@ -109,8 +114,8 @@ pub extern "C" fn log_monitor_remove_source(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
-    let source_id = unsafe { CStr::from_ptr(source_id).to_string_lossy().to_string() };
+    let handle = &mut *handle;
+    let source_id = CStr::from_ptr(source_id).to_string_lossy().to_string();
 
     match handle.rt.block_on(handle.center.remove_source(&source_id)) {
         Ok(_) => 0,
@@ -119,8 +124,11 @@ pub extern "C" fn log_monitor_remove_source(
 }
 
 /// Get all sources as JSON
+///
+/// # Safety
+/// All pointer arguments must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_get_sources_json(
+pub unsafe extern "C" fn log_monitor_get_sources_json(
     handle: *mut LogMonitorHandle,
     buffer: *mut c_char,
     buffer_len: usize,
@@ -129,7 +137,7 @@ pub extern "C" fn log_monitor_get_sources_json(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     let sources = handle.rt.block_on(handle.center.get_sources());
 
     match serde_json::to_string(&sources) {
@@ -141,13 +149,11 @@ pub extern "C" fn log_monitor_get_sources_json(
                 Ok(s) => s,
                 Err(_) => return -1,
             };
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    c_json.as_ptr(),
-                    buffer,
-                    c_json.as_bytes_with_nul().len(),
-                );
-            }
+            std::ptr::copy_nonoverlapping(
+                c_json.as_ptr(),
+                buffer,
+                c_json.as_bytes_with_nul().len(),
+            );
             0
         }
         Err(_) => -1,
@@ -155,8 +161,11 @@ pub extern "C" fn log_monitor_get_sources_json(
 }
 
 /// Search logs with filter
+///
+/// # Safety
+/// All pointer arguments must be valid or null. filter_json must be null-terminated.
 #[no_mangle]
-pub extern "C" fn log_monitor_search(
+pub unsafe extern "C" fn log_monitor_search(
     handle: *mut LogMonitorHandle,
     filter_json: *const c_char,
     results_buffer: *mut c_char,
@@ -166,8 +175,8 @@ pub extern "C" fn log_monitor_search(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
-    let filter_str = unsafe { CStr::from_ptr(filter_json).to_string_lossy() };
+    let handle = &mut *handle;
+    let filter_str = CStr::from_ptr(filter_json).to_string_lossy();
 
     let filter: LogFilter = match serde_json::from_str(&filter_str) {
         Ok(f) => f,
@@ -185,13 +194,11 @@ pub extern "C" fn log_monitor_search(
                 Ok(s) => s,
                 Err(_) => return -1,
             };
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    c_json.as_ptr(),
-                    results_buffer,
-                    c_json.as_bytes_with_nul().len(),
-                );
-            }
+            std::ptr::copy_nonoverlapping(
+                c_json.as_ptr(),
+                results_buffer,
+                c_json.as_bytes_with_nul().len(),
+            );
             0
         }
         Err(_) => -1,
@@ -199,8 +206,11 @@ pub extern "C" fn log_monitor_search(
 }
 
 /// Get statistics
+///
+/// # Safety
+/// All pointer arguments must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_get_stats(
+pub unsafe extern "C" fn log_monitor_get_stats(
     handle: *mut LogMonitorHandle,
     time_range_seconds: u64,
     buffer: *mut c_char,
@@ -210,7 +220,7 @@ pub extern "C" fn log_monitor_get_stats(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     let stats = handle
         .rt
         .block_on(handle.center.get_stats(time_range_seconds));
@@ -224,13 +234,11 @@ pub extern "C" fn log_monitor_get_stats(
                 Ok(s) => s,
                 Err(_) => return -1,
             };
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    c_json.as_ptr(),
-                    buffer,
-                    c_json.as_bytes_with_nul().len(),
-                );
-            }
+            std::ptr::copy_nonoverlapping(
+                c_json.as_ptr(),
+                buffer,
+                c_json.as_bytes_with_nul().len(),
+            );
             0
         }
         Err(_) => -1,
@@ -238,8 +246,11 @@ pub extern "C" fn log_monitor_get_stats(
 }
 
 /// Analyze logs
+///
+/// # Safety
+/// All pointer arguments must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_analyze(
+pub unsafe extern "C" fn log_monitor_analyze(
     handle: *mut LogMonitorHandle,
     time_range_seconds: u64,
     buffer: *mut c_char,
@@ -249,7 +260,7 @@ pub extern "C" fn log_monitor_analyze(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     let result = handle
         .rt
         .block_on(handle.center.analyze(time_range_seconds));
@@ -263,13 +274,11 @@ pub extern "C" fn log_monitor_analyze(
                 Ok(s) => s,
                 Err(_) => return -1,
             };
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    c_json.as_ptr(),
-                    buffer,
-                    c_json.as_bytes_with_nul().len(),
-                );
-            }
+            std::ptr::copy_nonoverlapping(
+                c_json.as_ptr(),
+                buffer,
+                c_json.as_bytes_with_nul().len(),
+            );
             0
         }
         Err(_) => -1,
@@ -277,8 +286,11 @@ pub extern "C" fn log_monitor_analyze(
 }
 
 /// Add alert rule
+///
+/// # Safety
+/// All pointer arguments must be valid or null. rule_json must be null-terminated.
 #[no_mangle]
-pub extern "C" fn log_monitor_add_alert(
+pub unsafe extern "C" fn log_monitor_add_alert(
     handle: *mut LogMonitorHandle,
     rule_json: *const c_char,
     rule_id_out: *mut c_char,
@@ -288,8 +300,8 @@ pub extern "C" fn log_monitor_add_alert(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
-    let rule_str = unsafe { CStr::from_ptr(rule_json).to_string_lossy() };
+    let handle = &mut *handle;
+    let rule_str = CStr::from_ptr(rule_json).to_string_lossy();
 
     let rule: LogAlertRule = match serde_json::from_str(&rule_str) {
         Ok(r) => r,
@@ -306,18 +318,19 @@ pub extern "C" fn log_monitor_add_alert(
         };
         let bytes = c_id.as_bytes_with_nul();
         let len = bytes.len().min(rule_id_len - 1);
-        unsafe {
-            std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, rule_id_out, len);
-            *rule_id_out.add(len) = 0;
-        }
+        std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, rule_id_out, len);
+        *rule_id_out.add(len) = 0;
     }
 
     0
 }
 
 /// Export logs
+///
+/// # Safety
+/// All pointer arguments must be valid or null. config_json and output_path must be null-terminated.
 #[no_mangle]
-pub extern "C" fn log_monitor_export(
+pub unsafe extern "C" fn log_monitor_export(
     handle: *mut LogMonitorHandle,
     config_json: *const c_char,
     output_path: *const c_char,
@@ -326,9 +339,9 @@ pub extern "C" fn log_monitor_export(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
-    let config_str = unsafe { CStr::from_ptr(config_json).to_string_lossy() };
-    let output_path = unsafe { CStr::from_ptr(output_path).to_string_lossy().to_string() };
+    let handle = &mut *handle;
+    let config_str = CStr::from_ptr(config_json).to_string_lossy();
+    let output_path = CStr::from_ptr(output_path).to_string_lossy().to_string();
 
     let config: ExportConfig = match serde_json::from_str(&config_str) {
         Ok(c) => c,
@@ -345,31 +358,40 @@ pub extern "C" fn log_monitor_export(
 }
 
 /// Rotate logs
+///
+/// # Safety
+/// handle must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_rotate(handle: *mut LogMonitorHandle) -> c_int {
+pub unsafe extern "C" fn log_monitor_rotate(handle: *mut LogMonitorHandle) -> c_int {
     if handle.is_null() {
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     let removed = handle.rt.block_on(handle.center.rotate_logs());
     removed as c_int
 }
 
 /// Clear all logs
+///
+/// # Safety
+/// handle must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_clear(handle: *mut LogMonitorHandle) {
+pub unsafe extern "C" fn log_monitor_clear(handle: *mut LogMonitorHandle) {
     if handle.is_null() {
         return;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     handle.rt.block_on(handle.center.clear());
 }
 
 /// Get recent entries
+///
+/// # Safety
+/// All pointer arguments must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_get_recent(
+pub unsafe extern "C" fn log_monitor_get_recent(
     handle: *mut LogMonitorHandle,
     count: usize,
     buffer: *mut c_char,
@@ -379,7 +401,7 @@ pub extern "C" fn log_monitor_get_recent(
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     let entries = handle.rt.block_on(handle.center.get_recent_entries(count));
 
     match serde_json::to_string(&entries) {
@@ -391,13 +413,11 @@ pub extern "C" fn log_monitor_get_recent(
                 Ok(s) => s,
                 Err(_) => return -1,
             };
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    c_json.as_ptr(),
-                    buffer,
-                    c_json.as_bytes_with_nul().len(),
-                );
-            }
+            std::ptr::copy_nonoverlapping(
+                c_json.as_ptr(),
+                buffer,
+                c_json.as_bytes_with_nul().len(),
+            );
             0
         }
         Err(_) => -1,
@@ -405,8 +425,11 @@ pub extern "C" fn log_monitor_get_recent(
 }
 
 /// Subscribe to WebSocket updates (callback-based)
+///
+/// # Safety
+/// handle must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_subscribe(
+pub unsafe extern "C" fn log_monitor_subscribe(
     handle: *mut LogMonitorHandle,
     callback: extern "C" fn(*const c_char),
 ) {
@@ -414,7 +437,7 @@ pub extern "C" fn log_monitor_subscribe(
         return;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     let mut rx = handle.center.subscribe();
 
     handle.rt.spawn(async move {
@@ -434,25 +457,31 @@ pub extern "C" fn log_monitor_subscribe(
 }
 
 /// Start log rotation background task
+///
+/// # Safety
+/// handle must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_start_rotation(handle: *mut LogMonitorHandle) -> c_int {
+pub unsafe extern "C" fn log_monitor_start_rotation(handle: *mut LogMonitorHandle) -> c_int {
     if handle.is_null() {
         return -1;
     }
 
-    let handle = unsafe { &mut *handle };
+    let handle = &mut *handle;
     handle.rt.block_on(handle.center.start_rotation_task());
     0
 }
 
 /// Start WebSocket server
+///
+/// # Safety
+/// handle must be valid or null.
 #[no_mangle]
-pub extern "C" fn log_monitor_start_ws(handle: *mut LogMonitorHandle, _port: u16) -> c_int {
+pub unsafe extern "C" fn log_monitor_start_ws(handle: *mut LogMonitorHandle, _port: u16) -> c_int {
     if handle.is_null() {
         return -1;
     }
 
-    let _handle = unsafe { &mut *handle };
+    let _handle = &mut *handle;
     // Note: The WebSocket server requires Arc<LogMonitorCenter> which has lifetime issues
     // This is a simplified FFI interface - in production you'd need to handle this differently
     0
