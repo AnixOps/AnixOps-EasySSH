@@ -800,7 +800,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_transfer_queue_add() {
-        let queue = TransferQueue::new();
+        let config = QueueConfig {
+            auto_start: false,
+            ..Default::default()
+        };
+        let queue = TransferQueue::new().with_config(config);
         let task = TransferTask::new(
             "/remote/file.txt",
             "/local/file.txt",

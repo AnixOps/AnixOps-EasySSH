@@ -547,6 +547,9 @@ impl Database {
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
             })
+        }).map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => LiteError::GroupNotFound(id.to_string()),
+            _ => LiteError::Database(e.to_string()),
         })?;
 
         Ok(group)
