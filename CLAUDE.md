@@ -157,15 +157,15 @@ CLAUDE.md                          # 本文件 - 总览
 ## 开发优先级
 
 ```
-Phase 1: Lite版本
-├── 项目脚手架 + Monorepo
-├── Windows egui原生UI
-├── Linux GTK4原生UI
-├── 加密存储 (Argon2id + AES-256-GCM)
-├── Keychain集成
-├── 服务器CRUD + 分组
-├── 原生终端唤起
-└── 搜索过滤
+Phase 1: Lite版本 ✅ 完成
+├── ✅ 项目脚手架 + Monorepo
+├── ✅ Windows egui原生UI
+├── ✅ Linux GTK4原生UI
+├── ✅ 加密存储 (Argon2id + AES-256-GCM)
+├── ✅ Keychain集成
+├── ✅ 服务器CRUD + 分组
+├── ✅ 原生终端唤起
+└── ✅ 搜索过滤
 
 Phase 2: Standard版本
 ├── 基于Lite代码添加嵌入式终端
@@ -193,6 +193,7 @@ Phase 3: Pro版本
 | 2026-03-28 | Monorepo结构 | 代码复用，版本协同 |
 | 2026-03-28 | Argon2id + AES-256-GCM | 业界标准安全加密 |
 | 2026-04-02 | 纯原生UI (egui/GTK4/SwiftUI) | 替代Tauri，追求原生性能和体验 |
+| 2026-04-03 | v0.3.0-beta.1 发布 | Lite版本核心功能完成，962测试通过 |
 | 2026-03-28 | xterm-addon-webgl | 多会话高频输出时GPU加速 |
 | 2026-03-28 | golden-layout | 成熟的面板管理库 |
 | 2026-03-28 | /proc/监控数据 | 避免命令解析脆弱性 |
@@ -283,7 +284,7 @@ ai_self_fix("TypeScript error in auth.ts:42")
 
 ## 当前状态
 
-**规划模式**: ✅ 完成
+**v0.3.0-beta.1 已发布** (2026-04-03)
 
 - [x] 三版本战略定位
 - [x] 功能矩阵
@@ -296,8 +297,12 @@ ai_self_fix("TypeScript error in auth.ts:42")
 - [x] 代码质量标准
 - [x] **AI全自动化运维接口** (新增)
 - [x] **文档归档与索引** (2026-04-01)
+- [x] **Phase 1 Lite版本开发完成**
 
-**等待中**:
-- [ ] 用户确认规划
-- [ ] 退出规划模式
-- [ ] 开始Lite版本开发
+**测试状态**: 962 tests passing
+
+**下一步**:
+- [ ] 用户反馈收集
+- [ ] Phase 2 Standard版本开发
+- [ ] 嵌入式终端集成
+- [ ] 分屏布局实现

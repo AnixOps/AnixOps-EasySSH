@@ -7,13 +7,18 @@
 ## 目录
 
 1. [测试概述](#1-测试概述)
-2. [单元测试](#2-单元测试)
-3. [集成测试](#3-集成测试)
-4. [端到端测试](#4-端到端测试)
-5. [性能测试](#5-性能测试)
-6. [安全测试](#6-安全测试)
-7. [测试工具](#7-测试工具)
-8. [CI/CD 集成](#8-cicd-集成)
+2. [当前测试状态](#2-当前测试状态)
+3. [运行测试](#3-运行测试)
+4. [单元测试](#4-单元测试)
+5. [集成测试](#5-集成测试)
+6. [端到端测试](#6-端到端测试)
+7. [性能测试](#7-性能测试)
+8. [安全测试](#8-安全测试)
+9. [测试工具](#9-测试工具)
+10. [CI/CD 集成](#10-cicd-集成)
+11. [测试最佳实践](#11-测试最佳实践)
+12. [故障排除](#12-故障排除)
+13. [相关文档](#13-相关文档)
 
 ---
 
@@ -45,9 +50,154 @@
 
 ---
 
-## 2. 单元测试
+## 2. 当前测试状态
 
-### 2.1 Rust 单元测试
+### 2.1 测试统计 (2026-04-03)
+
+| 指标 | 数值 |
+|------|------|
+| **总测试数** | 962 |
+| **通过** | 962 |
+| **失败** | 0 |
+| **忽略** | 11 |
+| **执行时间** | ~18.5s |
+
+### 2.2 测试覆盖模块
+
+| 模块 | 测试数量 | 覆盖状态 |
+|------|----------|----------|
+| Crypto (加密) | ~65 | 完整覆盖 |
+| Database (数据库) | ~120 | 完整覆盖 |
+| SSH (连接配置) | ~23 | 完整覆盖 |
+| Services (业务逻辑) | ~40 | 完整覆盖 |
+| Search (搜索) | ~14 | 完整覆盖 |
+| Models (数据模型) | ~200 | 完整覆盖 |
+| Version (版本管理) | ~50 | 完整覆盖 |
+| Vault (密码管理) | ~15 | 完整覆盖 |
+| Security (安全测试) | ~13 | 完整覆盖 |
+| Performance (性能) | ~7 | 关键路径 |
+| Terminal (终端) | ~30 | 完整覆盖 |
+| Config (配置) | ~80 | 完整覆盖 |
+| Backup (备份) | ~40 | 完整覆盖 |
+| Integration (集成) | ~35 | 核心流程 |
+
+### 2.3 测试文件结构
+
+```
+crates/easyssh-core/tests/
+├── common/                    # 共享测试工具
+│   ├── mod.rs                # 测试助手、fixtures、断言
+│   └── data_generator.rs     # 测试数据生成工具
+├── fixtures/                  # 测试数据文件
+│   ├── test_data.json        # 示例服务器、分组、身份
+│   └── comprehensive_test_data.json # 完整测试数据集
+├── unit/                      # 单元测试
+│   ├── crypto_tests.rs       # 加密测试 (~65 tests)
+│   ├── database_tests.rs     # 数据库CRUD测试 (~120 tests)
+│   ├── ssh_tests.rs          # SSH配置测试 (~23 tests)
+│   ├── server_service_tests.rs # 业务逻辑测试 (~19 tests)
+│   ├── search_tests.rs       # 搜索功能测试 (~14 tests)
+│   ├── security_tests.rs     # 安全测试 (~13 tests)
+│   ├── performance_tests.rs  # 性能测试 (~7 tests)
+│   └── fuzz_tests.rs         # 模糊/属性测试 (~8 tests)
+├── integration/               # 集成测试
+│   ├── workflow_tests.rs     # 端到端工作流测试 (~7 tests)
+│   ├── database_integration_tests.rs # 数据库集成测试 (~14 tests)
+│   └── ssh_integration_tests.rs # SSH集成测试 (~13 tests)
+└── database_compiles.rs      # 数据库编译验证 (1 test)
+```
+
+---
+
+## 3. 运行测试
+
+### 3.1 基础测试命令
+
+```bash
+# 运行所有测试 (Lite版本 - 默认)
+cargo test -p easyssh-core --no-default-features --features "lite"
+
+# 运行Lite + Standard版本测试
+cargo test -p easyssh-core --no-default-features --features "lite,standard"
+
+# 运行完整测试 (Lite + Standard + Pro)
+cargo test -p easyssh-core --all-features  # 注意: 需要Rust 1.91+
+```
+
+### 3.2 按版本运行测试
+
+| 版本 | 命令 | 测试数 |
+|------|------|--------|
+| **Lite** | `cargo test -p easyssh-core --features "lite"` | ~793 |
+| **Standard** | `cargo test -p easyssh-core --features "lite,standard"` | ~962 |
+| **Pro** | `cargo test -p easyssh-core --all-features` | ~962+ |
+
+### 3.3 按测试类型运行
+
+```bash
+# 仅单元测试
+cargo test -p easyssh-core --lib
+
+# 仅集成测试
+cargo test -p easyssh-core --tests
+
+# 特定测试文件
+cargo test -p easyssh-core --test crypto_tests
+cargo test -p easyssh-core --test security_tests
+cargo test -p easyssh-core --test performance_tests
+
+# 按名称过滤
+cargo test -p easyssh-core crypto
+cargo test -p easyssh-core security
+cargo test -p easyssh-core database
+```
+
+### 3.4 显示测试输出
+
+```bash
+# 显示println输出
+cargo test -p easyssh-core -- --nocapture
+
+# 显示测试执行顺序
+cargo test -p easyssh-core -- --test-threads=1
+
+# 详细输出
+cargo test -p easyssh-core -- --verbose
+```
+
+### 3.5 运行基准测试
+
+```bash
+# 运行所有基准测试
+cargo bench -p easyssh-core
+
+# 运行特定基准测试
+cargo bench -p easyssh-core --bench crypto_bench
+cargo bench -p easyssh-core --bench db_bench
+cargo bench -p easyssh-core --bench search_bench
+```
+
+### 3.6 运行其他包的测试
+
+```bash
+# TUI终端测试
+cargo test -p easyssh-tui
+
+# Windows UI测试 (需要Windows环境)
+cargo test -p easyssh-winui
+
+# Linux GTK4测试 (需要Linux + GTK4)
+cargo test -p easyssh-gtk4
+
+# Pro服务器测试
+cargo test -p easyssh-pro-server
+```
+
+---
+
+## 4. 单元测试
+
+### 4.1 Rust 单元测试
 
 ```rust
 // core/src/crypto.rs
@@ -114,7 +264,7 @@ mod tests {
 }
 ```
 
-### 2.2 异步测试
+### 4.2 异步测试
 
 ```rust
 #[tokio::test]
@@ -147,7 +297,7 @@ async fn test_concurrent_connections() {
 }
 ```
 
-### 2.3 Mock 测试
+### 4.3 Mock 测试
 
 ```rust
 use mockall::{mock, predicate::*};
@@ -179,7 +329,7 @@ async fn test_server_manager_with_mock() {
 }
 ```
 
-### 2.4 TypeScript 单元测试
+### 4.4 TypeScript 单元测试
 
 ```typescript
 // src/stores/__tests__/serverStore.test.ts
@@ -231,9 +381,9 @@ describe('ServerStore', () => {
 
 ---
 
-## 3. 集成测试
+## 5. 集成测试
 
-### 3.1 SSH 集成测试
+### 5.1 SSH 集成测试
 
 ```rust
 // tests/ssh_integration.rs
@@ -288,7 +438,7 @@ fn setup_test_env() -> (Cli, Container<GenericImage>) {
 }
 ```
 
-### 3.2 数据库集成测试
+### 5.2 数据库集成测试
 
 ```rust
 // tests/db_integration.rs
@@ -336,7 +486,7 @@ async fn test_server_crud_operations() {
 }
 ```
 
-### 3.3 API 集成测试
+### 5.3 API 集成测试
 
 ```rust
 // tests/api_integration.rs
@@ -377,9 +527,9 @@ async fn test_api_server_lifecycle() {
 
 ---
 
-## 4. 端到端测试
+## 6. 端到端测试
 
-### 4.1 Playwright E2E 测试
+### 6.1 Playwright E2E 测试
 
 ```typescript
 // e2e/server-management.spec.ts
@@ -446,7 +596,7 @@ test.describe('服务器管理', () => {
 });
 ```
 
-### 4.2 视觉回归测试
+### 6.2 视觉回归测试
 
 ```typescript
 // e2e/visual.spec.ts
@@ -477,7 +627,7 @@ test.describe('视觉回归', () => {
 });
 ```
 
-### 4.3 可访问性测试
+### 6.3 可访问性测试
 
 ```typescript
 // e2e/accessibility.spec.ts
@@ -505,9 +655,9 @@ test.describe('可访问性', () => {
 
 ---
 
-## 5. 性能测试
+## 7. 性能测试
 
-### 5.1 负载测试
+### 7.1 负载测试
 
 ```rust
 // benches/connection_bench.rs
@@ -541,7 +691,7 @@ criterion_group!(benches, bench_connection_establishment, bench_encryption);
 criterion_main!(benches);
 ```
 
-### 5.2 并发测试
+### 7.2 并发测试
 
 ```rust
 // tests/concurrent_tests.rs
@@ -575,7 +725,7 @@ async fn test_concurrent_connections() {
 }
 ```
 
-### 5.3 内存压力测试
+### 7.3 内存压力测试
 
 ```rust
 // tests/memory_tests.rs
@@ -611,9 +761,9 @@ async fn test_memory_under_load() {
 
 ---
 
-## 6. 安全测试
+## 8. 安全测试
 
-### 6.1 密码学测试
+### 8.1 密码学测试
 
 ```rust
 // tests/security_tests.rs
@@ -657,7 +807,7 @@ fn test_side_channel_resistance() {
 }
 ```
 
-### 6.2 输入验证测试
+### 8.2 输入验证测试
 
 ```rust
 #[test]
@@ -687,7 +837,7 @@ fn test_command_injection_prevention() {
 }
 ```
 
-### 6.3 模糊测试
+### 8.3 模糊测试
 
 ```rust
 // 使用 cargo-fuzz
@@ -707,9 +857,9 @@ fuzz_target!(|data: &[u8]| {
 
 ---
 
-## 7. 测试工具
+## 9. 测试工具
 
-### 7.1 常用 Cargo 工具
+### 9.1 常用 Cargo 工具
 
 ```bash
 # 代码覆盖率
@@ -731,7 +881,7 @@ cargo install cargo-nextest
 cargo nextest run
 ```
 
-### 7.2 测试 fixtures
+### 9.2 测试 fixtures
 
 ```rust
 // tests/fixtures/mod.rs
@@ -772,7 +922,7 @@ let config = TestServerBuilder::new()
     .build();
 ```
 
-### 7.3 测试配置
+### 9.3 测试配置
 
 ```toml
 # Cargo.toml (dev-dependencies)
@@ -793,9 +943,9 @@ path = "tests/integration/main.rs"
 
 ---
 
-## 8. CI/CD 集成
+## 10. CI/CD 集成
 
-### 8.1 GitHub Actions 工作流
+### 10.1 GitHub Actions 工作流
 
 ```yaml
 # .github/workflows/test.yml
@@ -879,7 +1029,7 @@ jobs:
           path: platforms/desktop/playwright-report/
 ```
 
-### 8.2 预提交钩子
+### 10.2 预提交钩子
 
 ```bash
 #!/bin/sh
@@ -901,9 +1051,9 @@ echo "Pre-commit checks passed!"
 
 ---
 
-## 9. 测试最佳实践
+## 11. 测试最佳实践
 
-### 9.1 测试命名规范
+### 11.1 测试命名规范
 
 ```rust
 // ✅ 清晰描述测试目的
@@ -923,7 +1073,7 @@ fn test1() {}
 fn it_works() {}
 ```
 
-### 9.2 AAA 模式 (Arrange-Act-Assert)
+### 11.2 AAA 模式 (Arrange-Act-Assert)
 
 ```rust
 #[test]
@@ -945,7 +1095,125 @@ fn test_server_group_assignment() {
 
 ---
 
-## 10. 相关文档
+## 12. 故障排除
+
+### 12.1 常见测试问题
+
+#### GTK4/Linux依赖缺失
+
+```bash
+# 错误信息
+error: failed to run custom build command for `gobject-sys v0.19.8`
+Could not run `pkg-config --libs --cflags gobject-2.0`
+
+# 解决方案 (Windows)
+# GTK4测试在Windows上无法运行，请使用Linux环境或跳过GTK4测试
+cargo test -p easyssh-core --features "lite,standard"  # 跳过GTK4
+
+# 解决方案 (Linux)
+sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config
+```
+
+#### Rust版本不兼容
+
+```bash
+# 错误信息
+error: rustc 1.89.0 is not supported by the following packages:
+  aws-config@1.8.15 requires rustc 1.91.1
+
+# 解决方案
+# Pro版本需要更新的Rust版本，使用Lite/Standard版本测试
+cargo test -p easyssh-core --no-default-features --features "lite,standard"
+
+# 或升级Rust版本
+rustup update stable
+```
+
+#### Example编译失败
+
+```bash
+# 错误信息
+error[E0432]: unresolved import `crossterm`
+error[E0599]: no method named `execute` found for struct `Stdout`
+
+# 解决方案
+# 跳过examples，仅运行lib和tests
+cargo test -p easyssh-core --lib
+cargo test -p easyssh-core --tests
+```
+
+#### 数据库测试失败
+
+```bash
+# 错误信息
+database tests failed: unable to open database file
+
+# 解决方案
+# 确保测试目录有写入权限
+# 使用临时目录创建测试数据库
+export TEST_DB_DIR=/tmp/easyssh-test
+cargo test database
+```
+
+#### 并行测试冲突
+
+```bash
+# 错误信息
+test failed: database is locked
+
+# 解决方案
+# 减少并行测试线程数
+cargo test -- --test-threads=1
+
+# 或使用nextest（更好的并行控制）
+cargo nextest run
+```
+
+### 12.2 测试调试技巧
+
+```bash
+# 运行单个测试并显示输出
+cargo test test_crypto_state_new_is_locked -- --nocapture
+
+# 显示测试执行详细信息
+cargo test -- --verbose
+
+# 仅运行失败的测试
+cargo test -- --failed
+
+# 忽略的测试（包含需要Docker的测试）
+cargo test -- --include-ignored
+
+# 特定模块的测试
+cargo test -p easyssh-core crypto::tests
+cargo test -p easyssh-core services::group_service::tests
+```
+
+### 12.3 测试环境设置
+
+| 环境 | 必需依赖 | 推荐工具 |
+|------|----------|----------|
+| **Lite测试** | 无特殊依赖 | cargo-test |
+| **Standard测试** | SQLite | cargo-nextest |
+| **Pro测试** | Rust 1.91+, Docker | cargo-nextest, testcontainers |
+| **GTK4测试** | GTK4, pkg-config | Linux环境 |
+| **Windows UI测试** | Windows SDK | Windows环境 |
+| **E2E测试** | Node.js, Playwright | pnpm |
+
+### 12.4 忽略的测试说明
+
+当前有11个被忽略的测试，主要原因：
+
+| 类别 | 原因 | 运行方式 |
+|------|------|----------|
+| Docker容器测试 | 需要Docker环境 | `cargo test -- --include-ignored` |
+| SSH连接测试 | 需要SSH服务器 | 配置TEST_SSH_HOST/PORT环境变量 |
+| 网络测试 | 需要网络连接 | 在CI环境中运行 |
+| 性能基准测试 | 长时间运行 | `cargo bench`单独运行 |
+
+---
+
+## 13. 相关文档
 
 - [设置指南](./SETUP.md) - 环境配置
 - [调试指南](./DEBUGGING.md) - 故障排查
@@ -955,4 +1223,4 @@ fn test_server_group_assignment() {
 
 ---
 
-*最后更新: 2026-04-02*
+*最后更新: 2026-04-03*

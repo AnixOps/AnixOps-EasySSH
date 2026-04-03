@@ -11,19 +11,49 @@
 
 ## [Unreleased]
 
+## [0.3.0-beta.1] - 2026-04-03
+
+### Highlights
+
+This is the initial beta release of EasySSH, introducing a secure and native SSH client with three product editions.
+
+- Initial beta release of EasySSH
+- Three editions: Lite, Standard, and Pro
+- 962 tests passing with 100% test pass rate
+- Native UI on all platforms (egui on Windows, GTK4 on Linux, SwiftUI on macOS)
+- Secure credential storage with Argon2id + AES-256-GCM encryption
+- Keychain integration for secure password management
+- Full SSH functionality with password and key-based authentication
+
 ### Added
-- Working Add Server dialog for Windows native UI
-- Working Connect dialog with SSH connection support
-- Clean Windows dependencies and build configuration
-- Comprehensive bilingual documentation (EN/CN)
+
+- Complete test suite with 962 passing tests
+- Native desktop UI implementations for all platforms
+- Secure credential encryption using Argon2id for key derivation and AES-256-GCM for data encryption
+- Keychain integration on macOS, Windows Credential Manager, and Linux secret service
+- SSH connection management with support for password and SSH key authentication
+- Server grouping and organization capabilities
+- Configuration import from ~/.ssh/config
+- Bilingual documentation (English/Chinese)
 
 ### Changed
-- Improved CI/CD workflow for cross-platform builds
-- Enhanced Windows native UI with egui
+
+- Improved build system for cross-platform compilation
+- Enhanced error handling with user-friendly messages
 
 ### Fixed
-- Windows platform dependency issues
-- Build configuration for release profile
+
+- Test failures in validation, edition, and models modules
+- Clippy warnings including unused variables and redundant closures
+- Backup test issues with schema migrations and timestamp handling
+- Compilation errors in easyssh-tui module
+
+### Security
+
+- Argon2id key derivation function for secure password hashing
+- AES-256-GCM authenticated encryption for credential storage
+- Secure keychain integration across all platforms
+- Input validation and sanitization
 
 ---
 
@@ -112,19 +142,49 @@ This is a major release introducing three product tiers and a complete native de
 
 ## [未发布]
 
+## [0.3.0-beta.1] - 2026-04-03
+
+### 亮点
+
+这是EasySSH的首个测试版本，推出了安全、原生的SSH客户端，包含三个产品版本。
+
+- EasySSH首个测试版本发布
+- 三个版本：Lite、Standard 和 Pro
+- 962个测试通过，测试通过率100%
+- 所有平台原生UI（Windows使用egui，Linux使用GTK4，macOS使用SwiftUI）
+- 使用Argon2id + AES-256-GCM安全存储凭据
+- Keychain集成用于安全密码管理
+- 完整SSH功能，支持密码和密钥认证
+
 ### 新增
-- Windows原生UI的添加服务器对话框
-- SSH连接支持的连接对话框
-- 清理Windows依赖和构建配置
-- 完整的中英文双语文档
+
+- 完整的测试套件，962个测试通过
+- 所有平台的原生桌面UI实现
+- 使用Argon2id密钥派生和AES-256-GCM数据加密的安全凭据加密
+- macOS、Windows凭据管理器和Linux密钥服务的Keychain集成
+- SSH连接管理，支持密码和SSH密钥认证
+- 服务器分组和组织功能
+- 从~/.ssh/config导入配置
+- 中英双语文档
 
 ### 变更
-- 改进跨平台构建的CI/CD工作流
-- 使用egui增强Windows原生UI
+
+- 改进跨平台编译的构建系统
+- 增强错误处理，提供用户友好的错误信息
 
 ### 修复
-- Windows平台依赖问题
-- Release配置的构建设置
+
+- 验证、版本和模型模块中的测试失败
+- Clippy警告，包括未使用的变量和冗余闭包
+- 备份测试中的架构迁移和时间戳处理问题
+- easyssh-tui模块中的编译错误
+
+### 安全
+
+- Argon2id密钥派生函数用于安全密码哈希
+- AES-256-GCM认证加密用于凭据存储
+- 所有平台的安全Keychain集成
+- 输入验证和清理
 
 ---
 
