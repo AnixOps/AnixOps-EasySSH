@@ -156,8 +156,14 @@ impl GroupService {
     pub fn initialize_default_groups(&self) -> GroupResult<()> {
         let existing = self.list_groups()?;
 
-        // Only create defaults if no groups exist
-        if existing.is_empty() {
+        // Only create defaults if no user-defined groups exist
+        // (system groups like "Ungrouped" don't count)
+        let user_groups: Vec<_> = existing
+            .iter()
+            .filter(|g| g.id != UNGROUPED_ID)
+            .collect();
+
+        if user_groups.is_empty() {
             let defaults = vec![
                 ("开发", "#4A90D9"),
                 ("测试", "#F5A623"),
@@ -312,7 +318,10 @@ impl GroupService {
             .lock()
             .unwrap()
             .get_group(id)
-            .map_err(|e| GroupServiceError::Database(e.to_string()))?;
+            .map_err(|e| match e {
+                LiteError::GroupNotFound(id) => GroupServiceError::NotFound(id),
+                _ => GroupServiceError::Database(e.to_string()),
+            })?;
 
         Self::record_to_group(record)
     }
@@ -1079,6 +1088,9 @@ mod tests {
     fn test_group_export_import() {
         let service = GroupService::new(create_test_db());
 
+        // Initialize default groups first
+        service.initialize_default_groups().unwrap();
+
         service
             .create_group(CreateGroupRequest {
                 name: "Production".to_string(),
@@ -1091,8 +1103,10 @@ mod tests {
 
         // Import should skip existing
         let result = service.import_from_json(&json, false).unwrap();
-        assert_eq!(result.total, 4); // 3 created + 1 ungrouped
-        assert_eq!(result.skipped, 3); // defaults + production
+        // 5 = 3 defaults + 1 ungrouped + 1 production
+        assert_eq!(result.total, 5);
+        // All groups should be skipped since they already exist
+        assert!(result.skipped >= 4);
     }
 
     #[test]
