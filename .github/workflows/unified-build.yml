@@ -269,7 +269,10 @@ jobs:
     name: Package & Verify
     needs: [build-matrix, build-macos]
     runs-on: ubuntu-latest
-    if: always() && (needs.build-matrix.result == 'success' || needs.build-matrix.result == 'skipped') && (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped')
+    # Only run if at least one build succeeded (not just skipped)
+    if: |
+      always() &&
+      (needs.build-matrix.result == 'success' || needs.build-macos.result == 'success')
 
     steps:
       - uses: actions/checkout@v4
@@ -287,13 +290,17 @@ jobs:
           echo "===================================" >> SHA256SUMS.txt
           echo "" >> SHA256SUMS.txt
 
-          find artifacts -type f \( -name "easyssh*" -o -name "EasySSH*" \) -exec sha256sum {} \; >> SHA256SUMS.txt
+          # Create artifacts dir if it doesn't exist (handles case where download found nothing)
+          mkdir -p artifacts
+
+          find artifacts -type f \( -name "easyssh*" -o -name "EasySSH*" \) -exec sha256sum {} \; >> SHA256SUMS.txt || true
 
           cat SHA256SUMS.txt
 
       - name: Generate release manifest
         run: |
           chmod +x resources/scripts/generate-release-manifest.sh
+          mkdir -p releases
           resources/scripts/generate-release-manifest.sh
 
       - name: Upload package artifacts
@@ -302,7 +309,8 @@ jobs:
           name: packages
           path: |
             SHA256SUMS.txt
-            release-manifest-*.json
+            releases/release-manifest-*.json
+          if-no-files-found: warn
           retention-days: 7
 
   # ============================================================================
@@ -400,6 +408,15 @@ jobs:
             echo "| Docker | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Docker | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Package
+          if [ "${{ needs.package.result }}" == "success" ]; then
+            echo "| Package | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.package.result }}" == "skipped" ]; then
+            echo "| Package | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Package | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
