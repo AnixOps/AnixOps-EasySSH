@@ -168,7 +168,7 @@ impl EguiWebGlTerminal {
             return Ok(());
         }
 
-        let html = self.terminal.lock().unwrap().get_webview_html();
+        let html = self.terminal.lock().unwrap().get_webview_html().to_owned();
         let message_queue = self.message_queue.clone();
 
         // Create WebView with IPC handler for bidirectional communication

@@ -4,9 +4,9 @@
 //! Platform-specific implementations use these as specifications.
 
 use crate::accessibility::{A11yProps, AriaRole};
-use crate::animations::{Animation, Duration, Easing};
-use crate::icons::{Icon, IconId, IconSize};
-use crate::layout::{Alignment, Spacing};
+use crate::animations::Animation;
+use crate::icons::IconId;
+use crate::layout::Spacing;
 use crate::theme::{Color, Theme};
 use serde::{Deserialize, Serialize};
 
@@ -161,7 +161,7 @@ impl Button {
             ButtonVariant::Secondary => ButtonColors {
                 background: theme.colors.interactive_secondary.clone(),
                 background_hover: theme.colors.interactive_secondary_hover.clone(),
-                background_active: theme.colors.interactive_secondary_active.clone(),
+                background_active: theme.colors.interactive_secondary_hover.clone(),
                 text: theme.colors.text_primary.clone(),
                 border: Some(theme.colors.border_default.clone()),
             },
@@ -567,7 +567,7 @@ impl Toast {
 
     /// Get icon
     pub fn icon(&self) -> IconId {
-        self.icon.unwrap_or_else(|| self.toast_type.default_icon())
+        self.icon.clone().unwrap_or_else(|| self.toast_type.default_icon())
     }
 }
 

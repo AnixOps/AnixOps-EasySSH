@@ -56,7 +56,7 @@ impl IconSize {
 }
 
 /// Icon sets supported
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum IconSet {
     /// Lucide icons (default, cross-platform)
@@ -156,7 +156,7 @@ impl Icon {
 }
 
 /// Icon identifiers (comprehensive set)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IconId {
     // Connection & Network
@@ -182,6 +182,9 @@ pub enum IconId {
     Pause,
     Stop,
     Restart,
+    Plus,
+    Minus,
+    Sort,
 
     // Navigation
     Home,
@@ -502,7 +505,7 @@ impl IconId {
             Server | Database | Globe | Network | Wifi | WifiOff | Ethernet | Router | Cloud
             | CloudOffline | CloudUpload | CloudDownload => "network",
 
-            Connect | Disconnect | Refresh | Reload | Play | Pause | Stop | Restart => "actions",
+            Connect | Disconnect | Refresh | Reload | Play | Pause | Stop | Restart | Plus | Minus | Sort => "actions",
 
             Home | Back | Forward | ChevronLeft | ChevronRight | ChevronUp | ChevronDown
             | ArrowLeft | ArrowRight | ArrowUp | ArrowDown | Menu | Close | Maximize | Minimize

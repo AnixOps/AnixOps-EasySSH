@@ -8,7 +8,6 @@
 //! - Semantic color tokens
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Color scheme variants
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

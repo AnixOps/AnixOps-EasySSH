@@ -245,7 +245,7 @@ impl ResponsiveLayout {
     }
 
     /// Get responsive value based on breakpoint
-    pub fn responsive_value<T>(&self, values: &[(Breakpoint, T)]) -> &T {
+    pub fn responsive_value<'a, T>(&self, values: &'a [(Breakpoint, T)]) -> &'a T {
         // Find the value for current or nearest smaller breakpoint
         for (bp, value) in values.iter().rev() {
             if self.is_at_least(*bp) {

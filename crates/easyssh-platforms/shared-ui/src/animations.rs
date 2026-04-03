@@ -7,7 +7,7 @@
 //! - Animation presets for common transitions
 
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
+use std::time::{Duration as StdDuration, Instant};
 
 /// Animation configuration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,8 +62,8 @@ impl Duration {
     }
 
     /// Get duration as std::time::Duration
-    pub fn as_std_duration(&self) -> std::time::Duration {
-        std::time::Duration::from_millis(self.as_millis())
+    pub fn as_std_duration(&self) -> StdDuration {
+        StdDuration::from_millis(self.as_millis())
     }
 }
 
@@ -295,7 +295,7 @@ impl AnimationState {
     /// Get current progress (0.0 - 1.0)
     pub fn progress(&self) -> f32 {
         let elapsed = self.start_time.elapsed();
-        let duration = std::time::Duration::from_millis(self.duration.as_millis());
+        let duration = StdDuration::from_millis(self.duration.as_millis());
 
         if elapsed >= duration {
             1.0
