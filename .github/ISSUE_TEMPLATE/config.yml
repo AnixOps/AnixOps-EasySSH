@@ -1,16 +1,12 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://easyssh.io/docs
+    url: https://github.com/AnixOps/EasySSH/tree/main/docs
     about: Check our documentation for guides, API references, and troubleshooting tips
 
   - name: Discussions
     url: https://github.com/AnixOps/EasySSH/discussions
     about: Ask questions, share ideas, and connect with the community
-
-  - name: Discord Community
-    url: https://discord.gg/easyssh
-    about: Join our Discord server for real-time chat and support
 
   - name: Security Policy
     url: https://github.com/AnixOps/EasySSH/security/policy

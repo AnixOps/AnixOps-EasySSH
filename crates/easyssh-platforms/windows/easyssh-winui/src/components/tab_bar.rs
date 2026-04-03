@@ -1297,11 +1297,11 @@ mod tests {
         let tab_bar = TabBar::default();
 
         let short_title = "Short";
-        let truncated = tab_bar.truncate_title(short_title, 100.0, &mut egui::Ui::noop());
+        let truncated = tab_bar.truncate_title(short_title, 100.0);
         assert_eq!(truncated, short_title);
 
         let long_title = "This is a very long server name that should be truncated";
-        let truncated = tab_bar.truncate_title(long_title, 50.0, &mut egui::Ui::noop());
+        let truncated = tab_bar.truncate_title(long_title, 50.0);
         assert!(truncated.len() < long_title.len());
         assert!(truncated.ends_with("..."));
     }
