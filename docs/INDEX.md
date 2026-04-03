@@ -12,7 +12,8 @@
 
 ### Product Roadmap
 - [Roadmap Overview](./roadmap/README.md)
-- [v0.3.0 Beta Planning](./roadmap/v0.3.0-beta.md)
+- [v0.3.0 Beta.1 Planning](./roadmap/v0.3.0-beta.md) ✅ Released 2026-04-03
+- [v0.3.0 Beta.2 Planning](./roadmap/v0.3.0-beta.2.md) - Standard version core
 - [v0.4.0 Stable Planning](./roadmap/v0.4.0-stable.md)
 - [v0.5.0 Enterprise Planning](./roadmap/v0.5.0-enterprise.md)
 - [Feature Comparison](./roadmap/FEATURE_COMPARISON.md)
