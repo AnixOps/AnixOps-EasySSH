@@ -173,7 +173,7 @@ impl StorageBackend for LocalStorage {
 
             let chunk_size = self.get_chunk_size();
             let mut buffer = vec![0u8; chunk_size];
-            let mut total_written = 0u64;
+            let mut _total_written = 0u64;
 
             loop {
                 let n = src.read(&mut buffer).await.map_err(BackupError::Io)?;
@@ -181,7 +181,7 @@ impl StorageBackend for LocalStorage {
                     break;
                 }
                 dst.write_all(&buffer[..n]).await.map_err(BackupError::Io)?;
-                total_written += n as u64;
+                _total_written += n as u64;
 
                 // Rate limiting
                 if self.bandwidth_limit.bytes_per_second > 0 {

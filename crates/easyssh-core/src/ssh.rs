@@ -3719,7 +3719,7 @@ impl SshAgent {
             if std::env::var("SSH_AGENT_LAUNCHER").is_ok() {
                 return Ok(PathBuf::from("\\\\.\\pipe\\openssh-ssh-agent"));
             }
-            Ok(PathBuf::from("pageant"))
+            return Ok(PathBuf::from("pageant"));
         }
 
         #[cfg(target_os = "macos")]
@@ -3745,7 +3745,7 @@ impl SshAgent {
             }
         }
 
-        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        #[cfg(not(target_os = "windows"))]
         {
             Err(SshAgentError::NotAvailable)
         }

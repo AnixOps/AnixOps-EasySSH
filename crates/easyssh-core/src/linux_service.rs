@@ -8,6 +8,7 @@
 
 use std::env;
 use std::fs;
+use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,13 +16,13 @@ use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 
 /// Service state for systemd notification
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ServiceState {
     Starting,
     Ready,
     Reloading,
     Stopping,
-    Status(&'static str),
+    Status(String),
     Watchdog,
 }
 
@@ -149,7 +150,7 @@ impl SystemdNotifier {
     /// Get main pid notification
     pub fn notify_mainpid(&self) -> std::io::Result<()> {
         let pid = std::process::id();
-        self.notify(ServiceState::Status(&format!("MAINPID={}", pid)))
+        self.notify(ServiceState::Status(format!("MAINPID={}", pid)))
     }
 
     /// Notify systemd that service is ready
@@ -163,8 +164,8 @@ impl SystemdNotifier {
     }
 
     /// Set service status message
-    pub fn set_status(&self, msg: &'static str) -> std::io::Result<()> {
-        self.notify(ServiceState::Status(msg))
+    pub fn set_status(&self, msg: impl Into<String>) -> std::io::Result<()> {
+        self.notify(ServiceState::Status(msg.into()))
     }
 }
 
