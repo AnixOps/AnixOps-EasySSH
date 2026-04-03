@@ -95,6 +95,18 @@ impl Database {
         Ok(Self { pool })
     }
 
+    /// Create an in-memory database (for testing)
+    #[cfg(test)]
+    pub async fn new_in_memory() -> Result<Self> {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(":memory:")
+            .await
+            .map_err(|e| crate::database::error::DatabaseError::Connection(e.to_string()))?;
+
+        Ok(Self { pool })
+    }
+
     /// Create a database with an existing pool (for testing)
     #[cfg(test)]
     pub fn from_pool(pool: SqlitePool) -> Self {

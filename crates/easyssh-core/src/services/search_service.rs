@@ -513,7 +513,11 @@ impl SearchService {
             pinyin_cache: Arc::new(Mutex::new(PinyinCache::new())),
             history: Arc::new(Mutex::new(VecDeque::new())),
             history_config: HistoryConfig::default(),
-            last_index_update: Arc::new(Mutex::new(Instant::now() - Duration::from_secs(3600))),
+            last_index_update: Arc::new(Mutex::new(
+                Instant::now()
+                    .checked_sub(Duration::from_secs(3600))
+                    .unwrap_or(Instant::now()),
+            )),
             debounce_duration: Duration::from_millis(300),
             fuzzy_config: FuzzyConfig::default(),
             fuzzy_regex_cache: Arc::new(Mutex::new(HashMap::new())),
@@ -542,7 +546,11 @@ impl SearchService {
             pinyin_cache: Arc::new(Mutex::new(PinyinCache::new())),
             history: Arc::new(Mutex::new(VecDeque::new())),
             history_config,
-            last_index_update: Arc::new(Mutex::new(Instant::now() - Duration::from_secs(3600))),
+            last_index_update: Arc::new(Mutex::new(
+                Instant::now()
+                    .checked_sub(Duration::from_secs(3600))
+                    .unwrap_or(Instant::now()),
+            )),
             debounce_duration: Duration::from_millis(300),
             fuzzy_config,
             fuzzy_regex_cache: Arc::new(Mutex::new(HashMap::new())),
