@@ -3715,6 +3715,7 @@ impl SshAgent {
         }
 
         #[cfg(target_os = "windows")]
+        #[allow(clippy::needless_return)]
         {
             if std::env::var("SSH_AGENT_LAUNCHER").is_ok() {
                 return Ok(PathBuf::from("\\\\.\\pipe\\openssh-ssh-agent"));
