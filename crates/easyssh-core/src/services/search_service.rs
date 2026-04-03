@@ -1368,7 +1368,8 @@ impl SearchService {
         // 1. Search from history (highest priority for exact matches)
         for entry in history.iter() {
             if entry.query.to_lowercase().starts_with(&partial_lower)
-                && seen.insert(entry.query.clone()) {
+                && seen.insert(entry.query.clone())
+            {
                 suggestions.push(SearchSuggestion {
                     text: entry.query.clone(),
                     suggestion_type: SuggestionType::History,
@@ -1393,8 +1394,8 @@ impl SearchService {
 
         // 3. Search from host addresses
         for entry in index.iter() {
-            if entry.host.to_lowercase().contains(&partial_lower)
-                && seen.insert(entry.host.clone()) {
+            if entry.host.to_lowercase().contains(&partial_lower) && seen.insert(entry.host.clone())
+            {
                 suggestions.push(SearchSuggestion {
                     text: entry.host.clone(),
                     suggestion_type: SuggestionType::HostAddress,

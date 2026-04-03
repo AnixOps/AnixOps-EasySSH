@@ -45,7 +45,9 @@ fn bench_cold_start_initialization(c: &mut Criterion) {
 
             optimizer.start_phase(StartupPhase::DatabaseInit).unwrap();
             std::thread::sleep(Duration::from_millis(100)); // Simulate database init
-            optimizer.complete_phase(StartupPhase::DatabaseInit).unwrap();
+            optimizer
+                .complete_phase(StartupPhase::DatabaseInit)
+                .unwrap();
 
             optimizer.start_phase(StartupPhase::IndexBuild).unwrap();
             std::thread::sleep(Duration::from_millis(30)); // Simulate index build
@@ -112,7 +114,9 @@ fn bench_hot_start_initialization(c: &mut Criterion) {
 
             optimizer.start_phase(StartupPhase::DatabaseInit).unwrap();
             std::thread::sleep(Duration::from_millis(20)); // Faster database init (WAL ready)
-            optimizer.complete_phase(StartupPhase::DatabaseInit).unwrap();
+            optimizer
+                .complete_phase(StartupPhase::DatabaseInit)
+                .unwrap();
 
             optimizer.start_phase(StartupPhase::IndexBuild).unwrap();
             std::thread::sleep(Duration::from_millis(5)); // Indexes already exist
@@ -445,7 +449,9 @@ fn bench_startup_targets(c: &mut Criterion) {
 
             optimizer.start_phase(StartupPhase::DatabaseInit).unwrap();
             std::thread::sleep(Duration::from_millis(80));
-            optimizer.complete_phase(StartupPhase::DatabaseInit).unwrap();
+            optimizer
+                .complete_phase(StartupPhase::DatabaseInit)
+                .unwrap();
 
             optimizer.start_phase(StartupPhase::IndexBuild).unwrap();
             std::thread::sleep(Duration::from_millis(20));
@@ -487,7 +493,9 @@ fn bench_startup_targets(c: &mut Criterion) {
 
             optimizer.start_phase(StartupPhase::DatabaseInit).unwrap();
             std::thread::sleep(Duration::from_millis(20));
-            optimizer.complete_phase(StartupPhase::DatabaseInit).unwrap();
+            optimizer
+                .complete_phase(StartupPhase::DatabaseInit)
+                .unwrap();
 
             optimizer.start_phase(StartupPhase::IndexBuild).unwrap();
             std::thread::sleep(Duration::from_millis(5));
@@ -640,12 +648,4 @@ criterion_group!(
     targets = bench_phase_tracking
 );
 
-criterion_main!(
-    cold_start,
-    hot_start,
-    parallel,
-    lazy,
-    cache,
-    targets,
-    tracking
-);
+criterion_main!(cold_start, hot_start, parallel, lazy, cache, targets, tracking);

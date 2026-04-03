@@ -1141,8 +1141,14 @@ mod tests {
     #[test]
     fn test_server_status() {
         assert_eq!(ServerStatus::Online.as_str(), "online");
-        assert_eq!(ServerStatus::from_status_str("online"), ServerStatus::Online);
-        assert_eq!(ServerStatus::from_status_str("invalid"), ServerStatus::Unknown);
+        assert_eq!(
+            ServerStatus::from_status_str("online"),
+            ServerStatus::Online
+        );
+        assert_eq!(
+            ServerStatus::from_status_str("invalid"),
+            ServerStatus::Unknown
+        );
 
         assert!(ServerStatus::Unknown.is_connectable());
         assert!(ServerStatus::Online.is_connectable());

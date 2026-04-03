@@ -156,16 +156,24 @@ pub fn handle_text_input(key: KeyEvent, content: &mut String, cursor: &mut usize
         KeyCode::End => {
             *cursor = content.len();
         }
-        KeyCode::Char('a') | KeyCode::Char('A') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('a') | KeyCode::Char('A')
+            if key.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
             *cursor = 0;
         }
-        KeyCode::Char('e') | KeyCode::Char('E') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('e') | KeyCode::Char('E')
+            if key.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
             *cursor = content.len();
         }
-        KeyCode::Char('k') | KeyCode::Char('K') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('k') | KeyCode::Char('K')
+            if key.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
             content.truncate(*cursor);
         }
-        KeyCode::Char('u') | KeyCode::Char('U') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('u') | KeyCode::Char('U')
+            if key.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
             content.clear();
             *cursor = 0;
         }

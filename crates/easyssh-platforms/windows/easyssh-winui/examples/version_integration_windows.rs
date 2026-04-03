@@ -363,7 +363,11 @@ fn main() {
     println!();
 
     let info = FullBuildInfo::current();
-    println!("Current version: {} {}", info.version_info.edition.name(), info.version_info.version);
+    println!(
+        "Current version: {} {}",
+        info.version_info.edition.name(),
+        info.version_info.version
+    );
     println!("Build date: {}", info.build_date);
     println!("Platform: {}", info.platform.display());
 }

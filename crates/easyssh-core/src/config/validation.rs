@@ -227,7 +227,9 @@ impl ConfigValidator {
         self.validate_consistency(config, &mut errors);
 
         // Only fail on Error-severity issues, not warnings
-        let has_errors = errors.iter().any(|e| e.severity == ValidationSeverity::Error);
+        let has_errors = errors
+            .iter()
+            .any(|e| e.severity == ValidationSeverity::Error);
         if has_errors {
             Err(errors)
         } else {

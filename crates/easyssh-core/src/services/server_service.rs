@@ -764,8 +764,7 @@ impl ServerService {
             None => self.list_servers()?,
         };
 
-        let exports: Vec<ServerExport> =
-            servers.iter().map(Self::server_to_export).collect();
+        let exports: Vec<ServerExport> = servers.iter().map(Self::server_to_export).collect();
 
         serde_json::to_string_pretty(&exports)
             .map_err(|e| ServerServiceError::ImportExport(e.to_string()))

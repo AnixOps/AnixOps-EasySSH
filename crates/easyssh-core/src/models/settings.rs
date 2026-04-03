@@ -973,7 +973,8 @@ impl Validatable for BackupSettings {
         let mut errors = Vec::new();
 
         // Validate backup interval if auto backup is enabled
-        if self.auto_backup && (self.backup_interval_hours == 0 || self.backup_interval_hours > 168) {
+        if self.auto_backup && (self.backup_interval_hours == 0 || self.backup_interval_hours > 168)
+        {
             errors.push(ValidationError::out_of_range(
                 "backup.backup_interval_hours",
                 1,

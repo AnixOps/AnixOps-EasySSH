@@ -16,11 +16,13 @@
 //! @platform Windows (native egui)
 
 use crate::apple_design::{AppleTypography, LucideIcons, MicrointeractionState};
-use crate::design::{BrandColors, DesignTheme, NeutralColors, Radius, SemanticColors, Spacing, StatusColors};
+use crate::design::{
+    BrandColors, DesignTheme, NeutralColors, Radius, SemanticColors, Spacing, StatusColors,
+};
 use crate::hotkeys::HotkeyAction;
 use egui::{
-    Align, Align2, Color32, Context, Frame, Id, Layout, Margin, Pos2, Response, RichText, Rounding, Sense,
-    Stroke, Ui, Vec2, Widget, FontId,
+    Align, Align2, Color32, Context, FontId, Frame, Id, Layout, Margin, Pos2, Response, RichText,
+    Rounding, Sense, Stroke, Ui, Vec2, Widget,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -40,7 +42,10 @@ pub enum TabState {
 
 impl TabState {
     pub fn is_connected(&self) -> bool {
-        matches!(self, TabState::Active | TabState::Connecting | TabState::Reconnecting)
+        matches!(
+            self,
+            TabState::Active | TabState::Connecting | TabState::Reconnecting
+        )
     }
 }
 
@@ -235,7 +240,8 @@ impl TabBar {
         // Initialize hover states for new tabs
         for tab in &self.tabs {
             if !self.hover_states.contains_key(&tab.id) {
-                self.hover_states.insert(tab.id.clone(), MicrointeractionState::new());
+                self.hover_states
+                    .insert(tab.id.clone(), MicrointeractionState::new());
             }
         }
 
@@ -390,11 +396,9 @@ impl TabBar {
 
                     // Separator
                     ui.add_space(Spacing::_2);
-                    Frame::none()
-                        .fill(theme.border_default)
-                        .show(ui, |ui| {
-                            ui.allocate_space(Vec2::new(1.0, 24.0));
-                        });
+                    Frame::none().fill(theme.border_default).show(ui, |ui| {
+                        ui.allocate_space(Vec2::new(1.0, 24.0));
+                    });
 
                     ui.add_space(Spacing::_2);
 
@@ -514,7 +518,8 @@ impl TabBar {
         }
 
         // Collect tab info before iterating
-        let tabs_info: Vec<(usize, String, bool, bool)> = self.tabs
+        let tabs_info: Vec<(usize, String, bool, bool)> = self
+            .tabs
             .iter()
             .enumerate()
             .map(|(index, tab)| {
@@ -632,7 +637,8 @@ impl TabBar {
 
                     if new_index != drag.source_index {
                         // Create new order
-                        let mut new_order: Vec<String> = self.tabs.iter().map(|t| t.id.clone()).collect();
+                        let mut new_order: Vec<String> =
+                            self.tabs.iter().map(|t| t.id.clone()).collect();
                         let dragged_id = new_order.remove(drag.source_index);
                         new_order.insert(new_index, dragged_id);
 
@@ -661,7 +667,8 @@ impl TabBar {
         self.draw_tab(ui, theme, tab_rect, tab, is_active, interact.hovered());
 
         // Draw close button (separate interaction)
-        let close_response = self.draw_close_button(ui, theme, tab_rect, &tab.id, interact.hovered());
+        let close_response =
+            self.draw_close_button(ui, theme, tab_rect, &tab.id, interact.hovered());
 
         if close_response.clicked() {
             response = TabBarResponse::TabClosed {
@@ -702,18 +709,18 @@ impl TabBar {
                 Pos2::new(rect.min.x + 4.0, rect.max.y - 2.0),
                 Vec2::new(rect.width() - 8.0, 2.0),
             );
-            painter.rect_filled(indicator_rect, Rounding::same(1.0), theme.interactive_primary);
+            painter.rect_filled(
+                indicator_rect,
+                Rounding::same(1.0),
+                theme.interactive_primary,
+            );
         } else {
             painter.rect_filled(rect, tab_rounding, bg_color);
         }
 
         // Border for inactive tabs
         if !is_active {
-            painter.rect_stroke(
-                rect,
-                tab_rounding,
-                Stroke::new(1.0, theme.border_subtle),
-            );
+            painter.rect_stroke(rect, tab_rounding, Stroke::new(1.0, theme.border_subtle));
         }
 
         // Tab content
@@ -860,11 +867,7 @@ impl TabBar {
             );
 
             // Draw with shadow for dragged effect
-            painter.rect_filled(
-                tab_rect,
-                Rounding::same(6.0),
-                theme.bg_elevated,
-            );
+            painter.rect_filled(tab_rect, Rounding::same(6.0), theme.bg_elevated);
 
             // Draw shadow
             painter.rect_stroke(
@@ -984,7 +987,10 @@ impl TabBar {
                             .iter()
                             .find(|t| t.id == menu_state.tab_id)
                             .map(|t| t.state);
-                        if matches!(tab_state, Some(TabState::Disconnected) | Some(TabState::Error)) {
+                        if matches!(
+                            tab_state,
+                            Some(TabState::Disconnected) | Some(TabState::Error)
+                        ) {
                             if ui.button("Reconnect").clicked() {
                                 self.context_menu = None;
                             }
@@ -1002,7 +1008,8 @@ impl TabBar {
         // Close menu on click outside
         if ui.input(|i| i.pointer.any_click()) {
             let menu_rect = ui.ctx().memory(|mem| {
-                mem.area_rect(menu_id).unwrap_or_else(|| egui::Rect::NOTHING)
+                mem.area_rect(menu_id)
+                    .unwrap_or_else(|| egui::Rect::NOTHING)
             });
             let mouse_pos = ui.input(|i| i.pointer.interact_pos());
             if let Some(pos) = mouse_pos {
@@ -1286,10 +1293,22 @@ mod tests {
         let tab_bar = TabBar::default();
         let theme = DesignTheme::dark();
 
-        assert_eq!(tab_bar.get_status_color(TabState::Active, &theme), StatusColors::ONLINE);
-        assert_eq!(tab_bar.get_status_color(TabState::Connecting, &theme), StatusColors::CONNECTING);
-        assert_eq!(tab_bar.get_status_color(TabState::Disconnected, &theme), StatusColors::OFFLINE);
-        assert_eq!(tab_bar.get_status_color(TabState::Error, &theme), SemanticColors::DANGER);
+        assert_eq!(
+            tab_bar.get_status_color(TabState::Active, &theme),
+            StatusColors::ONLINE
+        );
+        assert_eq!(
+            tab_bar.get_status_color(TabState::Connecting, &theme),
+            StatusColors::CONNECTING
+        );
+        assert_eq!(
+            tab_bar.get_status_color(TabState::Disconnected, &theme),
+            StatusColors::OFFLINE
+        );
+        assert_eq!(
+            tab_bar.get_status_color(TabState::Error, &theme),
+            SemanticColors::DANGER
+        );
     }
 
     #[test]

@@ -226,10 +226,8 @@ impl ClientPool {
 
     /// Insert a client with a specific ID (for compatibility with old API)
     pub fn insert(&mut self, id: &str, client: SftpClient) {
-        self.clients.insert(
-            id.to_string(),
-            Arc::new(RwLock::new(client)),
-        );
+        self.clients
+            .insert(id.to_string(), Arc::new(RwLock::new(client)));
     }
 
     pub async fn get(&self, id: &str) -> Result<Arc<RwLock<SftpClient>>, LiteError> {

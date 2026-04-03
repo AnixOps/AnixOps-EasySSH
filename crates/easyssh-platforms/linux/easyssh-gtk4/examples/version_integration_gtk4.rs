@@ -72,7 +72,10 @@ impl VersionInfoDialog {
             lines.push(String::from("构建类型: 开发版本"));
         }
 
-        lines.push(format!("启用的功能: {}", info.version_info.features.join(", ")));
+        lines.push(format!(
+            "启用的功能: {}",
+            info.version_info.features.join(", ")
+        ));
 
         lines.join("\n")
     }
@@ -162,7 +165,10 @@ impl VersionInfoDialog {
         vbox.append(&scrolled);
 
         // 功能列表
-        let features_label = Label::new(Some(&format!("启用的功能: {}", info.version_info.features.join(", "))));
+        let features_label = Label::new(Some(&format!(
+            "启用的功能: {}",
+            info.version_info.features.join(", ")
+        )));
         features_label.set_wrap(true);
         features_label.set_max_width_chars(60);
         vbox.append(&features_label);
@@ -179,7 +185,10 @@ impl VersionInfoDialog {
             Edition::Pro => ("#F3E5F5", "#6A1B9A"),
         };
 
-        let label = Label::new(Some(&format!("{} Edition", info.version_info.edition.name())));
+        let label = Label::new(Some(&format!(
+            "{} Edition",
+            info.version_info.edition.name()
+        )));
         label.set_markup(&format!(
             "<span background=\"{}\" foreground=\"{}\" font_weight=\"bold\"> {} Edition </span>",
             bg_color,
@@ -365,7 +374,11 @@ fn main() {
     println!();
 
     let info = FullBuildInfo::current();
-    println!("Current version: {} {}", info.version_info.edition.name(), info.version_info.version);
+    println!(
+        "Current version: {} {}",
+        info.version_info.edition.name(),
+        info.version_info.version
+    );
     println!("Build date: {}", info.build_date);
     println!("Platform: {}", info.platform.display());
 }

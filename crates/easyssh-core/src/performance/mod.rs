@@ -14,7 +14,7 @@ pub mod search_optimizer;
 pub mod startup_optimizer;
 
 pub use crypto_optimizer::CryptoOptimizer;
-pub use db_optimizer::{DbOptimizer, DatabaseFastPath, FastPathConfig};
+pub use db_optimizer::{DatabaseFastPath, DbOptimizer, FastPathConfig};
 pub use memory_optimizer::MemoryOptimizer;
 pub use search_optimizer::SearchOptimizer;
 pub use startup_optimizer::{

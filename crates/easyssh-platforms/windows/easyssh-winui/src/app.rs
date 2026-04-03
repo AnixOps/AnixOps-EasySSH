@@ -517,7 +517,12 @@ impl EasySshApp {
             .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion {
                 egui::Shadow::NONE
             } else {
-                egui::Shadow { blur: 8.0, spread: 4.0, offset: egui::Vec2::new(0.0, 2.0), color: egui::Color32::from_black_alpha(40) }
+                egui::Shadow {
+                    blur: 8.0,
+                    spread: 4.0,
+                    offset: egui::Vec2::new(0.0, 2.0),
+                    color: egui::Color32::from_black_alpha(40),
+                }
             }))
             .show(ctx, |ui| {
                 let diag = get_terminal_diagnostics();
@@ -623,7 +628,12 @@ impl EasySshApp {
             .frame(Frame::window(&ctx.style()).shadow(if theme.reduced_motion {
                 egui::Shadow::NONE
             } else {
-                egui::Shadow { blur: 8.0, spread: 4.0, offset: egui::Vec2::new(0.0, 2.0), color: egui::Color32::from_black_alpha(40) }
+                egui::Shadow {
+                    blur: 8.0,
+                    spread: 4.0,
+                    offset: egui::Vec2::new(0.0, 2.0),
+                    color: egui::Color32::from_black_alpha(40),
+                }
             }))
             .show(ctx, |ui| {
                 ui.label(RichText::new("Quick Actions:").strong());

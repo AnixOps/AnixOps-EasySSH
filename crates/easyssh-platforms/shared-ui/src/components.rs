@@ -567,7 +567,9 @@ impl Toast {
 
     /// Get icon
     pub fn icon(&self) -> IconId {
-        self.icon.clone().unwrap_or_else(|| self.toast_type.default_icon())
+        self.icon
+            .clone()
+            .unwrap_or_else(|| self.toast_type.default_icon())
     }
 }
 

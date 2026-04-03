@@ -867,8 +867,14 @@ mod tests {
 
         // Log for debugging
         println!("Lite features: {:?}", lite_features);
-        println!("Standard features: {:?}, has_embedded_terminal: {}", standard_features, has_standard_features);
-        println!("Pro features: {:?}, has_team: {}", pro_features, has_pro_features);
+        println!(
+            "Standard features: {:?}, has_embedded_terminal: {}",
+            standard_features, has_standard_features
+        );
+        println!(
+            "Pro features: {:?}, has_team: {}",
+            pro_features, has_pro_features
+        );
     }
 
     #[test]

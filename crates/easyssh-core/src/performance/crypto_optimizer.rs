@@ -195,7 +195,9 @@ impl EncryptionBufferPool {
         buffer.clear();
         let capacity = buffer.capacity();
 
-        if capacity >= Self::LARGE_SIZE && self.large_buffers.lock().unwrap().len() < self.max_pool_size {
+        if capacity >= Self::LARGE_SIZE
+            && self.large_buffers.lock().unwrap().len() < self.max_pool_size
+        {
             buffer.resize(Self::LARGE_SIZE, 0);
             self.large_buffers.lock().unwrap().push(buffer);
         } else if capacity >= Self::MEDIUM_SIZE

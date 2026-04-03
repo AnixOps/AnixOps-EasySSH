@@ -13,9 +13,8 @@ use crate::ui::dialogs::{Dialog, DialogResult};
 use crate::virtual_list::VirtualListState;
 use crossterm::event::{KeyCode, MouseButton, MouseEvent, MouseEventKind};
 use easyssh_core::{
-    connect_server, delete_group, delete_server, get_groups, get_servers,
-    init_database, update_server, AppState, AuthMethod, GroupRecord, NewGroup, NewServer,
-    ServerRecord,
+    connect_server, delete_group, delete_server, get_groups, get_servers, init_database,
+    update_server, AppState, AuthMethod, GroupRecord, NewGroup, NewServer, ServerRecord,
 };
 use std::io;
 

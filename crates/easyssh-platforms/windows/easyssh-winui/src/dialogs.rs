@@ -233,12 +233,15 @@ impl GroupColorPicker {
 
                             // Checkmark for selected
                             if is_selected {
-                                let check_color =
-                                    if color_value.r() as u16 + color_value.g() as u16 + color_value.b() as u16 > 384 {
-                                        egui::Color32::BLACK
-                                    } else {
-                                        egui::Color32::WHITE
-                                    };
+                                let check_color = if color_value.r() as u16
+                                    + color_value.g() as u16
+                                    + color_value.b() as u16
+                                    > 384
+                                {
+                                    egui::Color32::BLACK
+                                } else {
+                                    egui::Color32::WHITE
+                                };
                                 painter.text(
                                     center,
                                     egui::Align2::CENTER_CENTER,
@@ -2214,10 +2217,8 @@ impl ImportConfigDialog {
             .collect();
 
         // Also check by name
-        let existing_names: std::collections::HashSet<String> = existing_servers
-            .iter()
-            .map(|s| s.name.clone())
-            .collect();
+        let existing_names: std::collections::HashSet<String> =
+            existing_servers.iter().map(|s| s.name.clone()).collect();
 
         for host in &mut self.parsed_hosts {
             // Check if exists by host+username or by name
@@ -2418,7 +2419,9 @@ impl ImportConfigDialog {
         }
 
         // Preview section (when parsed hosts are available)
-        if self.import_state == ImportState::Previewing || self.import_state == ImportState::Completed {
+        if self.import_state == ImportState::Previewing
+            || self.import_state == ImportState::Completed
+        {
             self.render_preview_section(ui, result, should_close);
         }
 
@@ -2470,7 +2473,10 @@ impl ImportConfigDialog {
     }
 
     /// Load and parse the SSH config file
-    fn load_and_parse_file(&mut self, view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>) {
+    fn load_and_parse_file(
+        &mut self,
+        view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>,
+    ) {
         if let Some(ref path) = self.file_path {
             self.import_state = ImportState::Loading;
             self.progress = 0.0;
@@ -2557,7 +2563,11 @@ impl ImportConfigDialog {
         // Filter controls
         ui.horizontal(|ui| {
             ui.label("Filter:");
-            ui.add(TextEdit::singleline(&mut self.search_filter).desired_width(150.0).hint_text("Search..."));
+            ui.add(
+                TextEdit::singleline(&mut self.search_filter)
+                    .desired_width(150.0)
+                    .hint_text("Search..."),
+            );
 
             ui.checkbox(&mut self.show_existing_only, "Existing only");
             ui.checkbox(&mut self.show_conflicts_only, "Conflicts only");
@@ -2579,118 +2589,138 @@ impl ImportConfigDialog {
         ui.add_space(5.0);
 
         // Hosts table
-        egui::ScrollArea::vertical().max_height(280.0).show(ui, |ui| {
-            use egui_extras::{Column, TableBuilder};
+        egui::ScrollArea::vertical()
+            .max_height(280.0)
+            .show(ui, |ui| {
+                use egui_extras::{Column, TableBuilder};
 
-            TableBuilder::new(ui)
-                .striped(true)
-                .resizable(true)
-                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                .column(Column::initial(40.0).at_least(30.0)) // Checkbox
-                .column(Column::initial(100.0).at_least(80.0)) // Name
-                .column(Column::initial(120.0).at_least(100.0)) // Hostname
-                .column(Column::initial(50.0).at_least(40.0)) // Port
-                .column(Column::initial(80.0).at_least(60.0)) // User
-                .column(Column::initial(80.0).at_least(60.0)) // Auth
-                .column(Column::remainder().at_least(100.0)) // Warnings
-                .header(25.0, |mut header| {
-                    header.col(|ui| { ui.strong("Sel"); });
-                    header.col(|ui| { ui.strong("Name"); });
-                    header.col(|ui| { ui.strong("Hostname"); });
-                    header.col(|ui| { ui.strong("Port"); });
-                    header.col(|ui| { ui.strong("User"); });
-                    header.col(|ui| { ui.strong("Auth"); });
-                    header.col(|ui| { ui.strong("Status"); });
-                })
-                .body(|mut body| {
-                    // Pre-compute filtered indices to avoid borrow conflict
-                    let filtered_indices: Vec<usize> = self.parsed_hosts
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, host)| {
-                            // Search filter
-                            if !self.search_filter.is_empty() {
-                                let filter = self.search_filter.to_lowercase();
-                                if !host.name.to_lowercase().contains(&filter)
-                                    && !host.host.to_lowercase().contains(&filter)
-                                    && !host.username.to_lowercase().contains(&filter)
-                                {
+                TableBuilder::new(ui)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .column(Column::initial(40.0).at_least(30.0)) // Checkbox
+                    .column(Column::initial(100.0).at_least(80.0)) // Name
+                    .column(Column::initial(120.0).at_least(100.0)) // Hostname
+                    .column(Column::initial(50.0).at_least(40.0)) // Port
+                    .column(Column::initial(80.0).at_least(60.0)) // User
+                    .column(Column::initial(80.0).at_least(60.0)) // Auth
+                    .column(Column::remainder().at_least(100.0)) // Warnings
+                    .header(25.0, |mut header| {
+                        header.col(|ui| {
+                            ui.strong("Sel");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Name");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Hostname");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Port");
+                        });
+                        header.col(|ui| {
+                            ui.strong("User");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Auth");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Status");
+                        });
+                    })
+                    .body(|mut body| {
+                        // Pre-compute filtered indices to avoid borrow conflict
+                        let filtered_indices: Vec<usize> = self
+                            .parsed_hosts
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, host)| {
+                                // Search filter
+                                if !self.search_filter.is_empty() {
+                                    let filter = self.search_filter.to_lowercase();
+                                    if !host.name.to_lowercase().contains(&filter)
+                                        && !host.host.to_lowercase().contains(&filter)
+                                        && !host.username.to_lowercase().contains(&filter)
+                                    {
+                                        return false;
+                                    }
+                                }
+
+                                // Show existing only filter
+                                if self.show_existing_only && !host.exists {
                                     return false;
                                 }
-                            }
 
-                            // Show existing only filter
-                            if self.show_existing_only && !host.exists {
-                                return false;
-                            }
-
-                            // Show conflicts only filter
-                            if self.show_conflicts_only && !host.exists {
-                                return false;
-                            }
-
-                            true
-                        })
-                        .map(|(idx, _)| idx)
-                        .collect();
-
-                    for host_idx in filtered_indices {
-                        body.row(20.0, |mut row| {
-                            let host = &mut self.parsed_hosts[host_idx];
-
-                            row.col(|ui| {
-                                // Checkbox for selection
-                                let checkbox_response = ui.checkbox(&mut host.selected, "");
-                                if checkbox_response.clicked() {
-                                    *result = ImportConfigDialogResult::SelectionChanged;
+                                // Show conflicts only filter
+                                if self.show_conflicts_only && !host.exists {
+                                    return false;
                                 }
-                            });
 
-                            row.col(|ui| {
-                                // Name (with color based on status)
-                                let name_color = if host.exists {
-                                    egui::Color32::YELLOW
-                                } else {
-                                    egui::Color32::WHITE
-                                };
-                                ui.label(RichText::new(&host.name).color(name_color));
-                            });
+                                true
+                            })
+                            .map(|(idx, _)| idx)
+                            .collect();
 
-                            row.col(|ui| {
-                                ui.label(&host.host);
-                            });
+                        for host_idx in filtered_indices {
+                            body.row(20.0, |mut row| {
+                                let host = &mut self.parsed_hosts[host_idx];
 
-                            row.col(|ui| {
-                                ui.label(host.port.to_string());
-                            });
+                                row.col(|ui| {
+                                    // Checkbox for selection
+                                    let checkbox_response = ui.checkbox(&mut host.selected, "");
+                                    if checkbox_response.clicked() {
+                                        *result = ImportConfigDialogResult::SelectionChanged;
+                                    }
+                                });
 
-                            row.col(|ui| {
-                                ui.label(&host.username);
-                            });
+                                row.col(|ui| {
+                                    // Name (with color based on status)
+                                    let name_color = if host.exists {
+                                        egui::Color32::YELLOW
+                                    } else {
+                                        egui::Color32::WHITE
+                                    };
+                                    ui.label(RichText::new(&host.name).color(name_color));
+                                });
 
-                            row.col(|ui| {
-                                let auth_text = match host.auth_type.as_str() {
-                                    "key" => "Key",
-                                    "agent" => "Agent",
-                                    _ => "Password",
-                                };
-                                ui.label(auth_text);
-                            });
+                                row.col(|ui| {
+                                    ui.label(&host.host);
+                                });
 
-                            row.col(|ui| {
-                                // Status/warnings
-                                if host.exists {
-                                    ui.colored_label(egui::Color32::YELLOW, "Exists");
-                                } else if !host.warnings.is_empty() {
-                                    ui.colored_label(egui::Color32::from_rgb(255, 150, 0), host.warnings.join(", "));
-                                } else {
-                                    ui.colored_label(egui::Color32::GREEN, "OK");
-                                }
+                                row.col(|ui| {
+                                    ui.label(host.port.to_string());
+                                });
+
+                                row.col(|ui| {
+                                    ui.label(&host.username);
+                                });
+
+                                row.col(|ui| {
+                                    let auth_text = match host.auth_type.as_str() {
+                                        "key" => "Key",
+                                        "agent" => "Agent",
+                                        _ => "Password",
+                                    };
+                                    ui.label(auth_text);
+                                });
+
+                                row.col(|ui| {
+                                    // Status/warnings
+                                    if host.exists {
+                                        ui.colored_label(egui::Color32::YELLOW, "Exists");
+                                    } else if !host.warnings.is_empty() {
+                                        ui.colored_label(
+                                            egui::Color32::from_rgb(255, 150, 0),
+                                            host.warnings.join(", "),
+                                        );
+                                    } else {
+                                        ui.colored_label(egui::Color32::GREEN, "OK");
+                                    }
+                                });
                             });
-                        });
-                    }
-                });
-        });
+                        }
+                    });
+            });
     }
 
     /// Render the import result section
@@ -2699,21 +2729,37 @@ impl ImportConfigDialog {
         ui.add_space(10.0);
 
         ui.group(|ui| {
-            ui.heading(RichText::new("Import Complete!").color(egui::Color32::GREEN).strong());
+            ui.heading(
+                RichText::new("Import Complete!")
+                    .color(egui::Color32::GREEN)
+                    .strong(),
+            );
             ui.add_space(10.0);
 
             if let Some(ref import_result) = self.import_result {
                 ui.horizontal(|ui| {
-                    ui.label(format!("Servers imported: {}", import_result.servers_imported));
+                    ui.label(format!(
+                        "Servers imported: {}",
+                        import_result.servers_imported
+                    ));
                 });
                 ui.horizontal(|ui| {
-                    ui.label(format!("Servers skipped: {}", import_result.servers_skipped));
+                    ui.label(format!(
+                        "Servers skipped: {}",
+                        import_result.servers_skipped
+                    ));
                 });
                 if import_result.groups_imported > 0 {
-                    ui.label(format!("Groups imported: {}", import_result.groups_imported));
+                    ui.label(format!(
+                        "Groups imported: {}",
+                        import_result.groups_imported
+                    ));
                 }
                 if import_result.identities_imported > 0 {
-                    ui.label(format!("Identities imported: {}", import_result.identities_imported));
+                    ui.label(format!(
+                        "Identities imported: {}",
+                        import_result.identities_imported
+                    ));
                 }
 
                 if !import_result.errors.is_empty() {
@@ -2738,7 +2784,10 @@ impl ImportConfigDialog {
     }
 
     /// Perform the import
-    fn perform_import(&mut self, view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>) {
+    fn perform_import(
+        &mut self,
+        view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>,
+    ) {
         self.import_state = ImportState::Importing;
         self.progress = 0.0;
 

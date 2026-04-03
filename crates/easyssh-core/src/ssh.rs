@@ -2860,7 +2860,8 @@ impl KeyManager {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
                     if (ext == "pem" || ext == "key")
-                        && !self.keys.iter().any(|k| k.private_path == path) {
+                        && !self.keys.iter().any(|k| k.private_path == path)
+                    {
                         match KeyPair::from_private_path(&path) {
                             Ok(keypair) => self.keys.push(keypair),
                             Err(e) => log::debug!("Skipping key {}: {}", path.display(), e),
@@ -3381,8 +3382,7 @@ impl HostKeyEntry {
                 return true;
             }
 
-            if (host.contains('*') || host.contains('?'))
-                && Self::wildcard_match(host, hostname) {
+            if (host.contains('*') || host.contains('?')) && Self::wildcard_match(host, hostname) {
                 return true;
             }
         }

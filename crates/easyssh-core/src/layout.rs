@@ -1098,11 +1098,7 @@ mod tests {
 
         // Split the root panel to create two panels
         manager
-            .split_panel(
-                root,
-                SplitDirection::Horizontal,
-                PanelContent::Empty,
-            )
+            .split_panel(root, SplitDirection::Horizontal, PanelContent::Empty)
             .unwrap();
 
         let initial = manager.current_layout().unwrap().active_panel.clone();

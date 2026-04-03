@@ -698,7 +698,8 @@ impl StartupMetrics {
             .collect();
 
         let hot_paths = Self::detect_hot_paths(&phase_durations);
-        let optimization_suggestions = Self::generate_suggestions(&phase_durations, report.target_ms);
+        let optimization_suggestions =
+            Self::generate_suggestions(&phase_durations, report.target_ms);
 
         Self {
             total_duration_ms: report.total_duration_ms,
@@ -722,13 +723,17 @@ impl StartupMetrics {
     }
 
     /// Generate optimization suggestions based on metrics
-    pub fn generate_suggestions(phase_durations: &HashMap<String, u64>, target_ms: u64) -> Vec<String> {
+    pub fn generate_suggestions(
+        phase_durations: &HashMap<String, u64>,
+        target_ms: u64,
+    ) -> Vec<String> {
         let mut suggestions: Vec<String> = Vec::new();
 
         // Database initialization suggestions
         if let Some(db_time) = phase_durations.get("Initializing Database") {
             if *db_time > 300 {
-                suggestions.push("Consider enabling database fast path with deferred indexes".to_string());
+                suggestions
+                    .push("Consider enabling database fast path with deferred indexes".to_string());
             }
         }
 
@@ -742,7 +747,8 @@ impl StartupMetrics {
         // Index building suggestions
         if let Some(index_time) = phase_durations.get("Building Search Index") {
             if *index_time > 150 {
-                suggestions.push("Consider deferring search index build to background thread".to_string());
+                suggestions
+                    .push("Consider deferring search index build to background thread".to_string());
             }
         }
 
@@ -898,7 +904,9 @@ impl ColdStartCache {
             .map_err(|_| LiteError::Internal("Cannot lock current startup".to_string()))?;
 
         if let Some(metrics) = current.as_mut() {
-            metrics.phase_durations.insert(phase_name.to_string(), duration_ms);
+            metrics
+                .phase_durations
+                .insert(phase_name.to_string(), duration_ms);
         }
 
         Ok(())
@@ -979,8 +987,16 @@ impl ColdStartCache {
             0
         };
 
-        let best = cached.iter().map(|m| m.total_duration_ms).min().unwrap_or(0);
-        let worst = cached.iter().map(|m| m.total_duration_ms).max().unwrap_or(0);
+        let best = cached
+            .iter()
+            .map(|m| m.total_duration_ms)
+            .min()
+            .unwrap_or(0);
+        let worst = cached
+            .iter()
+            .map(|m| m.total_duration_ms)
+            .max()
+            .unwrap_or(0);
 
         // Find most common slow phase
         let mut phase_slow_counts: HashMap<String, u64> = HashMap::new();
@@ -1096,7 +1112,8 @@ impl StartupStatistics {
         if self.worst_startup_ms == 0 {
             return 0.0;
         }
-        ((self.worst_startup_ms - self.best_startup_ms) as f64 / self.worst_startup_ms as f64) * 100.0
+        ((self.worst_startup_ms - self.best_startup_ms) as f64 / self.worst_startup_ms as f64)
+            * 100.0
     }
 }
 
@@ -1144,10 +1161,7 @@ impl ParallelInitializer {
     }
 
     /// Run all initialization phases with parallel optimization
-    pub async fn run_parallel<F>(
-        &self,
-        phase_executor: F,
-    ) -> Result<StartupReport, LiteError>
+    pub async fn run_parallel<F>(&self, phase_executor: F) -> Result<StartupReport, LiteError>
     where
         F: Fn(StartupPhase) -> Pin<Box<dyn Future<Output = Result<(), LiteError>> + Send>>,
     {
@@ -1184,10 +1198,7 @@ impl ParallelInitializer {
         }
 
         // Create futures for all phases
-        let futures: Vec<_> = group
-            .iter()
-            .map(|phase| phase_executor(*phase))
-            .collect();
+        let futures: Vec<_> = group.iter().map(|phase| phase_executor(*phase)).collect();
 
         // Run all futures concurrently
         let results = futures_util::future::join_all(futures).await;
@@ -1241,11 +1252,7 @@ impl PhaseExecutorHelper {
     }
 
     /// Execute a phase with timing and caching
-    pub async fn execute_phase<F>(
-        &self,
-        phase: StartupPhase,
-        executor: F,
-    ) -> Result<(), LiteError>
+    pub async fn execute_phase<F>(&self, phase: StartupPhase, executor: F) -> Result<(), LiteError>
     where
         F: std::future::Future<Output = Result<(), LiteError>>,
     {

@@ -9,6 +9,5 @@ pub mod tab_bar;
 
 // Re-export main types for convenience
 pub use tab_bar::{
-    TabBar, TabBarBuilder, TabBarResponse, TabDisplayState, TabManager,
-    SessionType, TabState,
+    SessionType, TabBar, TabBarBuilder, TabBarResponse, TabDisplayState, TabManager, TabState,
 };

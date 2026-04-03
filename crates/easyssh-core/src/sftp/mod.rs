@@ -41,8 +41,8 @@ pub use progress::{ProgressCallback, ProgressSnapshot, ProgressTracker, SpeedCal
 
 use crate::error::LiteError;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use std::sync::Mutex;
+use tokio::sync::RwLock;
 
 /// SFTP管理器 - 统一入口
 ///
@@ -157,8 +157,7 @@ impl SftpManager {
     ) -> Result<(), LiteError> {
         let file_transfer = self.file_transfer(session_id).await?;
         // 先写入临时文件
-        let temp_path =
-            std::env::temp_dir().join(format!("sftp_upload_{}", uuid::Uuid::new_v4()));
+        let temp_path = std::env::temp_dir().join(format!("sftp_upload_{}", uuid::Uuid::new_v4()));
         tokio::fs::write(&temp_path, contents)
             .await
             .map_err(|e| LiteError::Io(format!("写入临时文件失败: {}", e)))?;
@@ -193,14 +192,23 @@ impl SftpManager {
     }
 
     /// 列出目录
-    pub async fn list_dir(&self, session_id: &str, path: &str) -> Result<Vec<SftpEntry>, LiteError> {
+    pub async fn list_dir(
+        &self,
+        session_id: &str,
+        path: &str,
+    ) -> Result<Vec<SftpEntry>, LiteError> {
         let remote_fs = self.remote_fs(session_id).await?;
         let infos = remote_fs.list_dir(path).await?;
         Ok(infos.into_iter().map(SftpEntry::from).collect())
     }
 
     /// 创建目录
-    pub async fn mkdir(&self, session_id: &str, path: &str, _mode: Option<i32>) -> Result<(), LiteError> {
+    pub async fn mkdir(
+        &self,
+        session_id: &str,
+        path: &str,
+        _mode: Option<i32>,
+    ) -> Result<(), LiteError> {
         let remote_fs = self.remote_fs(session_id).await?;
         remote_fs.mkdir(path, _mode.unwrap_or(0o755) as u32).await
     }
@@ -242,10 +250,8 @@ mod client_pool {
         }
 
         pub fn insert(&mut self, id: &str, client: SftpClient) {
-            self.clients.insert(
-                id.to_string(),
-                Arc::new(RwLock::new(client)),
-            );
+            self.clients
+                .insert(id.to_string(), Arc::new(RwLock::new(client)));
         }
 
         pub async fn get(&self, id: &str) -> Result<Arc<RwLock<SftpClient>>, LiteError> {

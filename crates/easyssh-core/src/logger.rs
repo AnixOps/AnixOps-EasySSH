@@ -622,20 +622,14 @@ impl Logger {
 
         // Reopen file
         match self.file_handles.lock() {
-            Ok(mut handles) => {
-                match OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)
-                {
-                    Ok(file) => {
-                        handles.insert(path.to_path_buf(), file);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to reopen log file after rotation: {}", e);
-                    }
+            Ok(mut handles) => match OpenOptions::new().create(true).append(true).open(path) {
+                Ok(file) => {
+                    handles.insert(path.to_path_buf(), file);
                 }
-            }
+                Err(e) => {
+                    eprintln!("Failed to reopen log file after rotation: {}", e);
+                }
+            },
             Err(e) => {
                 eprintln!("Failed to lock file handles after rotation: {}", e);
             }

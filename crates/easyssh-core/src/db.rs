@@ -539,18 +539,20 @@ impl Database {
             .conn
             .prepare("SELECT id, name, color, created_at, updated_at FROM groups WHERE id = ?")?;
 
-        let group = stmt.query_row([id], |row| {
-            Ok(GroupRecord {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                color: row.get(2)?,
-                created_at: row.get(3)?,
-                updated_at: row.get(4)?,
+        let group = stmt
+            .query_row([id], |row| {
+                Ok(GroupRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    color: row.get(2)?,
+                    created_at: row.get(3)?,
+                    updated_at: row.get(4)?,
+                })
             })
-        }).map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => LiteError::GroupNotFound(id.to_string()),
-            _ => LiteError::Database(e.to_string()),
-        })?;
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => LiteError::GroupNotFound(id.to_string()),
+                _ => LiteError::Database(e.to_string()),
+            })?;
 
         Ok(group)
     }

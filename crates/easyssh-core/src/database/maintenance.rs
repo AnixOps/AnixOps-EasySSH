@@ -475,7 +475,9 @@ impl MaintenanceManager {
         let after = self.get_database_stats().await?;
 
         // Calculate saved bytes (can be negative if DB grew)
-        let saved_bytes = before.estimated_size_bytes.saturating_sub(after.estimated_size_bytes);
+        let saved_bytes = before
+            .estimated_size_bytes
+            .saturating_sub(after.estimated_size_bytes);
         let savings_percent = if before.estimated_size_bytes > 0 && saved_bytes > 0 {
             (saved_bytes as f64 / before.estimated_size_bytes as f64 * 100.0) as f64
         } else {

@@ -57,7 +57,11 @@ pub fn render_splash_banner() -> io::Result<()> {
     writeln!(stdout, "{}", logo)?;
 
     // 版本信息横幅
-    let banner = format!("  {} Edition v{}  ", info.version_info.edition.name(), info.version_info.version);
+    let banner = format!(
+        "  {} Edition v{}  ",
+        info.version_info.edition.name(),
+        info.version_info.version
+    );
 
     stdout.execute(SetForegroundColor(color))?;
     writeln!(stdout, "{}", "═".repeat(banner.len()))?;
@@ -222,7 +226,11 @@ pub fn render_about_dialog() -> io::Result<()> {
     stdout.execute(ResetColor)?;
     writeln!(stdout, "  ────────────────────────────────────────")?;
     writeln!(stdout, "  版本:        {}", info.version_info.version)?;
-    writeln!(stdout, "  版本类型:    {}", info.version_info.edition.name())?;
+    writeln!(
+        stdout,
+        "  版本类型:    {}",
+        info.version_info.edition.name()
+    )?;
     writeln!(stdout, "  构建日期:    {}", info.build_date)?;
 
     if let Some(ref hash) = info.version_info.git_hash {

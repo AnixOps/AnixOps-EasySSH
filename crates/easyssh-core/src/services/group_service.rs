@@ -158,10 +158,7 @@ impl GroupService {
 
         // Only create defaults if no user-defined groups exist
         // (system groups like "Ungrouped" don't count)
-        let user_groups: Vec<_> = existing
-            .iter()
-            .filter(|g| g.id != UNGROUPED_ID)
-            .collect();
+        let user_groups: Vec<_> = existing.iter().filter(|g| g.id != UNGROUPED_ID).collect();
 
         if user_groups.is_empty() {
             let defaults = vec![
@@ -313,15 +310,10 @@ impl GroupService {
             return Ok(self.get_ungrouped_system_group());
         }
 
-        let record = self
-            .db
-            .lock()
-            .unwrap()
-            .get_group(id)
-            .map_err(|e| match e {
-                LiteError::GroupNotFound(id) => GroupServiceError::NotFound(id),
-                _ => GroupServiceError::Database(e.to_string()),
-            })?;
+        let record = self.db.lock().unwrap().get_group(id).map_err(|e| match e {
+            LiteError::GroupNotFound(id) => GroupServiceError::NotFound(id),
+            _ => GroupServiceError::Database(e.to_string()),
+        })?;
 
         Self::record_to_group(record)
     }

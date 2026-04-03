@@ -57,8 +57,7 @@ pub enum UpdateCheckError {
 }
 
 /// 更新检查通道
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum UpdateChannel {
     /// 稳定版 - 只检查正式发布的版本
     #[default]
@@ -66,7 +65,6 @@ pub enum UpdateChannel {
     /// 预览版 - 包括预发布版本（beta, rc）
     Preview,
 }
-
 
 impl std::fmt::Display for UpdateChannel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

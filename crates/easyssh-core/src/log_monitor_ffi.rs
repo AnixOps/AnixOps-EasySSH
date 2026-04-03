@@ -88,11 +88,7 @@ pub unsafe extern "C" fn log_monitor_add_source(
                 };
                 let bytes = c_id.as_bytes_with_nul();
                 let len = bytes.len().min(source_id_len - 1);
-                std::ptr::copy_nonoverlapping(
-                    bytes.as_ptr() as *const c_char,
-                    source_id_out,
-                    len,
-                );
+                std::ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, source_id_out, len);
                 *source_id_out.add(len) = 0;
             }
             0

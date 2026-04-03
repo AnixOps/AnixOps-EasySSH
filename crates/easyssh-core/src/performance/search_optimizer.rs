@@ -379,7 +379,8 @@ impl SearchOptimizer {
         let mut results: Vec<_> = doc_ids
             .iter()
             .filter_map(|id| data.get(id))
-            .take(limit).cloned()
+            .take(limit)
+            .cloned()
             .collect();
 
         // Sort by name for consistent results
@@ -414,7 +415,8 @@ impl SearchOptimizer {
         let results: Vec<_> = doc_ids
             .iter()
             .filter_map(|id| data.get(id))
-            .take(limit).cloned()
+            .take(limit)
+            .cloned()
             .collect();
 
         let elapsed = start.elapsed();

@@ -30,8 +30,8 @@ use code_editor::{CodeEditor, FileInfo};
 mod app_settings;
 mod apple_design;
 mod bridge;
-mod components;
 mod cloud_sync_ui;
+mod components;
 mod connection_pool_ui;
 mod design;
 mod file_icons;
@@ -116,9 +116,11 @@ use macro_recorder_ui::{MacroRecorderPanel, MacroRecorderResponse};
 use sso_login_ui::{SsoLoginPanel, SsoLoginResponse};
 
 use apple_design::MicrointeractionState;
+use components::tab_bar::{
+    SessionType, TabBar, TabBarResponse, TabDisplayState, TabManager, TabState,
+};
 use design::{AccessibilitySettings, DesignTheme};
 use hotkeys::{CommandPalette, HotkeyManager, HotkeySettingsUI};
-use components::tab_bar::{TabBar, TabBarResponse, TabDisplayState, TabState, SessionType, TabManager};
 use layout_manager::SplitLayoutManager;
 use notification_panel::{NotificationPanel, NotificationSettingsPanel};
 use notifications::NotificationManager;
@@ -4555,8 +4557,10 @@ impl eframe::App for EasySSHApp {
                 .height_range(32.0..=40.0)
                 .show(ctx, |ui| {
                     // Update tab bar with current tabs
-                    let tabs: Vec<TabDisplayState> = self.session_tabs.iter().map(|t| {
-                        TabDisplayState {
+                    let tabs: Vec<TabDisplayState> = self
+                        .session_tabs
+                        .iter()
+                        .map(|t| TabDisplayState {
                             id: t.session_id.clone(),
                             title: t.title.clone(),
                             state: TabState::Active,
@@ -4564,8 +4568,8 @@ impl eframe::App for EasySSHApp {
                             is_pinned: false,
                             has_activity: false,
                             modified_at: None,
-                        }
-                    }).collect();
+                        })
+                        .collect();
 
                     self.tab_bar.set_tabs(tabs, self.active_tab.clone());
 
@@ -4577,7 +4581,9 @@ impl eframe::App for EasySSHApp {
                         TabBarResponse::TabActivated { tab_id } => {
                             self.active_tab = Some(tab_id.clone());
                             // Update terminal output to show selected tab's output
-                            if let Some(tab) = self.session_tabs.iter().find(|t| t.session_id == tab_id) {
+                            if let Some(tab) =
+                                self.session_tabs.iter().find(|t| t.session_id == tab_id)
+                            {
                                 self.terminal_output = tab.output.clone();
                             }
                         }
@@ -4586,9 +4592,14 @@ impl eframe::App for EasySSHApp {
                             self.session_tabs.retain(|t| t.session_id != tab_id);
                             if self.active_tab.as_ref() == Some(&tab_id) {
                                 // Switch to remaining tab or clear
-                                self.active_tab = self.session_tabs.first().map(|t| t.session_id.clone());
+                                self.active_tab =
+                                    self.session_tabs.first().map(|t| t.session_id.clone());
                                 if let Some(new_active) = &self.active_tab {
-                                    if let Some(tab) = self.session_tabs.iter().find(|t| t.session_id == *new_active) {
+                                    if let Some(tab) = self
+                                        .session_tabs
+                                        .iter()
+                                        .find(|t| t.session_id == *new_active)
+                                    {
                                         self.terminal_output = tab.output.clone();
                                     }
                                 } else {
@@ -4605,7 +4616,9 @@ impl eframe::App for EasySSHApp {
                             // Reorder tabs based on drag-and-drop
                             let mut reordered_tabs: Vec<SessionTab> = Vec::new();
                             for id in new_order {
-                                if let Some(tab) = self.session_tabs.iter().find(|t| t.session_id == id) {
+                                if let Some(tab) =
+                                    self.session_tabs.iter().find(|t| t.session_id == id)
+                                {
                                     reordered_tabs.push(tab.clone());
                                 }
                             }

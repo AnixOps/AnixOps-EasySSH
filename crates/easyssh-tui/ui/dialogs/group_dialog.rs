@@ -271,7 +271,10 @@ impl Dialog for GroupDialog {
         }
 
         let presets_para = Paragraph::new(Line::from(preset_spans));
-        frame.render_widget(presets_para, chunks[1].offset(ratatui::layout::Offset { x: 0, y: 1 }));
+        frame.render_widget(
+            presets_para,
+            chunks[1].offset(ratatui::layout::Offset { x: 0, y: 1 }),
+        );
 
         // Help text with theme
         let help_style = if self.is_valid() {

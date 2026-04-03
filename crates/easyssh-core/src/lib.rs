@@ -1235,7 +1235,9 @@ pub fn get_db_path() -> std::path::PathBuf {
 
 /// Get all servers
 pub fn get_servers(state: &AppState) -> std::result::Result<Vec<ServerRecord>, LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1245,7 +1247,9 @@ pub fn get_servers(state: &AppState) -> std::result::Result<Vec<ServerRecord>, L
 
 /// Get single server
 pub fn get_server(state: &AppState, id: &str) -> std::result::Result<ServerRecord, LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1255,7 +1259,9 @@ pub fn get_server(state: &AppState, id: &str) -> std::result::Result<ServerRecor
 
 /// Add server
 pub fn add_server(state: &AppState, server: &NewServer) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1268,7 +1274,9 @@ pub fn update_server(
     state: &AppState,
     server: &UpdateServer,
 ) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1278,7 +1286,9 @@ pub fn update_server(
 
 /// Delete server
 pub fn delete_server(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1288,7 +1298,9 @@ pub fn delete_server(state: &AppState, id: &str) -> std::result::Result<(), Lite
 
 /// Get all groups
 pub fn get_groups(state: &AppState) -> std::result::Result<Vec<GroupRecord>, LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1298,7 +1310,9 @@ pub fn get_groups(state: &AppState) -> std::result::Result<Vec<GroupRecord>, Lit
 
 /// Add group
 pub fn add_group(state: &AppState, group: &NewGroup) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1308,7 +1322,9 @@ pub fn add_group(state: &AppState, group: &NewGroup) -> std::result::Result<(), 
 
 /// Update group
 pub fn update_group(state: &AppState, group: &UpdateGroup) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1318,7 +1334,9 @@ pub fn update_group(state: &AppState, group: &UpdateGroup) -> std::result::Resul
 
 /// Delete group
 pub fn delete_group(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1353,7 +1371,9 @@ pub fn init_database(state: &AppState) -> std::result::Result<(), LiteError> {
     let db = db::Database::new(db_path)?;
     db.init()?;
 
-    let mut db_lock = state.db.lock()
+    let mut db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned".to_string()))?;
     *db_lock = Some(db);
 
@@ -1362,7 +1382,9 @@ pub fn init_database(state: &AppState) -> std::result::Result<(), LiteError> {
 
 /// Open native terminal and connect (Lite mode)
 pub fn connect_server(state: &AppState, id: &str) -> std::result::Result<(), LiteError> {
-    let db_lock = state.db.lock()
+    let db_lock = state
+        .db
+        .lock()
         .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
     let db = db_lock
         .as_ref()
@@ -1415,7 +1437,9 @@ pub async fn ssh_connect(
     password: Option<&str>,
 ) -> std::result::Result<SessionMetadata, LiteError> {
     let (host, port, username): (String, u16, String) = {
-        let db_lock = state.db.lock()
+        let db_lock = state
+            .db
+            .lock()
             .map_err(|_| LiteError::Config("数据库锁被 poisoned，请重启应用".to_string()))?;
         let db = db_lock
             .as_ref()

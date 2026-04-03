@@ -115,10 +115,7 @@ pub enum CoordinatorEvent {
     },
 
     /// Terminal output received (for UI updates)
-    TerminalOutput {
-        terminal_id: String,
-        data: String,
-    },
+    TerminalOutput { terminal_id: String, data: String },
 
     /// Terminal title changed
     TerminalTitleChanged {
@@ -135,9 +132,7 @@ pub enum CoordinatorEvent {
     },
 
     /// Tab was closed
-    TabClosed {
-        tab_id: String,
-    },
+    TabClosed { tab_id: String },
 
     /// Tab was activated (switched to)
     TabActivated {
@@ -264,7 +259,10 @@ pub enum ConnectionState {
 impl ConnectionState {
     /// Check if the connection is active (usable)
     pub fn is_active(&self) -> bool {
-        matches!(self, ConnectionState::Connected | ConnectionState::Reconnecting)
+        matches!(
+            self,
+            ConnectionState::Connected | ConnectionState::Reconnecting
+        )
     }
 
     /// Check if the connection can be closed
@@ -580,15 +578,14 @@ impl SessionCoordinator {
     /// // Create SSH terminal
     /// let ssh_id = coordinator.create_terminal("server-123").await?;
     /// ```
-    pub async fn create_terminal(
-        &self,
-        server_id: Option<&str>,
-    ) -> Result<String, LiteError> {
+    pub async fn create_terminal(&self, server_id: Option<&str>) -> Result<String, LiteError> {
         // Check session limit
         {
             let mappings = self.mappings.read().await;
             if mappings.len() >= self.config.max_sessions {
-                return Err(LiteError::Terminal("Maximum sessions limit reached".to_string()));
+                return Err(LiteError::Terminal(
+                    "Maximum sessions limit reached".to_string(),
+                ));
             }
         }
 
@@ -601,7 +598,10 @@ impl SessionCoordinator {
         };
 
         // Create tab
-        let tab_title = self.tab_manager.next_tab_title(session_type.default_title()).await;
+        let tab_title = self
+            .tab_manager
+            .next_tab_title(session_type.default_title())
+            .await;
         let tab_id = self
             .tab_manager
             .create_tab(&tab_title, session_type, None)
@@ -639,7 +639,7 @@ impl SessionCoordinator {
                         self.config.default_size,
                         "placeholder", // Would be replaced with actual host
                         22,
-                        "root",        // Would be replaced with actual username
+                        "root", // Would be replaced with actual username
                         super::embedded::SshAuthMethod::Agent,
                     )
                     .await?
@@ -659,7 +659,9 @@ impl SessionCoordinator {
         }
 
         // Attach terminal to tab
-        self.tab_manager.attach_terminal(&tab_id, &terminal_id).await?;
+        self.tab_manager
+            .attach_terminal(&tab_id, &terminal_id)
+            .await?;
 
         // Store mapping
         {
@@ -680,7 +682,9 @@ impl SessionCoordinator {
         }
 
         // Set tab state to active
-        self.tab_manager.set_state(&tab_id, TabState::Active).await?;
+        self.tab_manager
+            .set_state(&tab_id, TabState::Active)
+            .await?;
 
         // Emit connected event
         let _ = self.event_tx.send(CoordinatorEvent::TerminalConnected {
@@ -729,7 +733,9 @@ impl SessionCoordinator {
         {
             let mappings = self.mappings.read().await;
             if mappings.len() >= self.config.max_sessions {
-                return Err(LiteError::Terminal("Maximum sessions limit reached".to_string()));
+                return Err(LiteError::Terminal(
+                    "Maximum sessions limit reached".to_string(),
+                ));
             }
         }
 
@@ -771,8 +777,16 @@ impl SessionCoordinator {
         .with_ssh_session(&ssh_session_id);
 
         // Create terminal
-        let output_rx = self.terminal_manager
-            .create_ssh(&terminal_id, self.config.default_size, host, port, username, auth_method)
+        let output_rx = self
+            .terminal_manager
+            .create_ssh(
+                &terminal_id,
+                self.config.default_size,
+                host,
+                port,
+                username,
+                auth_method,
+            )
             .await?;
 
         // Store output receiver
@@ -782,7 +796,9 @@ impl SessionCoordinator {
         }
 
         // Attach terminal to tab
-        self.tab_manager.attach_terminal(&tab_id, &terminal_id).await?;
+        self.tab_manager
+            .attach_terminal(&tab_id, &terminal_id)
+            .await?;
 
         // Store mapping
         {
@@ -799,7 +815,9 @@ impl SessionCoordinator {
         }
 
         // Set tab state
-        self.tab_manager.set_state(&tab_id, TabState::Active).await?;
+        self.tab_manager
+            .set_state(&tab_id, TabState::Active)
+            .await?;
 
         // Emit events
         let _ = self.event_tx.send(CoordinatorEvent::SshSessionConnected {
@@ -839,7 +857,10 @@ impl SessionCoordinator {
                 {
                     let mappings_guard = mappings.read().await;
                     if !mappings_guard.contains_key(&terminal_id) {
-                        log::info!("Terminal {} no longer exists, stopping forwarder", terminal_id);
+                        log::info!(
+                            "Terminal {} no longer exists, stopping forwarder",
+                            terminal_id
+                        );
                         break;
                     }
                 }
@@ -885,10 +906,12 @@ impl SessionCoordinator {
 
             // Emit SSH disconnected event
             if let Some(ref server_id) = mapping.server_id {
-                let _ = self.event_tx.send(CoordinatorEvent::SshSessionDisconnected {
-                    session_id: ssh_session_id.clone(),
-                    server_id: server_id.clone(),
-                });
+                let _ = self
+                    .event_tx
+                    .send(CoordinatorEvent::SshSessionDisconnected {
+                        session_id: ssh_session_id.clone(),
+                        server_id: server_id.clone(),
+                    });
             }
         }
 
@@ -972,7 +995,9 @@ impl SessionCoordinator {
         // Note: This is a placeholder - actual implementation would
         // connect to the terminal's output stream
         tokio::spawn(async move {
-            let _ = tx.send(TerminalOutput::Data("Terminal output stream ready\n".to_string()));
+            let _ = tx.send(TerminalOutput::Data(
+                "Terminal output stream ready\n".to_string(),
+            ));
         });
 
         Ok(rx)
@@ -994,15 +1019,14 @@ impl SessionCoordinator {
         // Check if terminal exists and is active
         {
             let mappings = self.mappings.read().await;
-            let mapping = mappings
-                .get(terminal_id)
-                .ok_or_else(|| LiteError::Terminal(format!("Terminal {} not found", terminal_id)))?;
+            let mapping = mappings.get(terminal_id).ok_or_else(|| {
+                LiteError::Terminal(format!("Terminal {} not found", terminal_id))
+            })?;
 
             if !mapping.connection_state.is_active() {
                 return Err(LiteError::Terminal(format!(
                     "Terminal {} is not active (state: {:?})",
-                    terminal_id,
-                    mapping.connection_state
+                    terminal_id, mapping.connection_state
                 )));
             }
         }
@@ -1054,9 +1078,9 @@ impl SessionCoordinator {
         // Update mapping
         let tab_id = {
             let mut mappings = self.mappings.write().await;
-            let mapping = mappings
-                .get_mut(terminal_id)
-                .ok_or_else(|| LiteError::Terminal(format!("Terminal {} not found", terminal_id)))?;
+            let mapping = mappings.get_mut(terminal_id).ok_or_else(|| {
+                LiteError::Terminal(format!("Terminal {} not found", terminal_id))
+            })?;
 
             mapping.size = size;
             mapping.touch();
@@ -1095,10 +1119,7 @@ impl SessionCoordinator {
     /// * `tab_id` - The tab ID
     pub async fn get_mapping_by_tab(&self, tab_id: &str) -> Option<SessionTabMapping> {
         let mappings = self.mappings.read().await;
-        mappings
-            .values()
-            .find(|m| m.tab_id == tab_id)
-            .cloned()
+        mappings.values().find(|m| m.tab_id == tab_id).cloned()
     }
 
     /// Get all active terminals
@@ -1256,7 +1277,9 @@ impl SessionCoordinator {
         terminal_id: &str,
         signal: super::TerminalSignal,
     ) -> Result<(), LiteError> {
-        self.terminal_manager.send_signal(terminal_id, signal).await?;
+        self.terminal_manager
+            .send_signal(terminal_id, signal)
+            .await?;
 
         // Update activity
         {
@@ -1282,9 +1305,7 @@ impl SessionCoordinator {
 
         let tab_id = {
             let mappings = self.mappings.read().await;
-            mappings
-                .get(terminal_id)
-                .map(|m| m.tab_id.clone())
+            mappings.get(terminal_id).map(|m| m.tab_id.clone())
         };
 
         if let Some(ref tab_id) = tab_id {
@@ -1306,7 +1327,8 @@ impl SessionCoordinator {
     /// Gracefully shuts down all sessions and stops the coordinator.
     pub async fn shutdown(&self) -> Result<(), LiteError> {
         // Set inactive flag
-        self.active.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.active
+            .store(false, std::sync::atomic::Ordering::Relaxed);
 
         // Close all terminals
         self.close_all().await?;
@@ -1397,13 +1419,9 @@ mod tests {
 
     #[test]
     fn test_session_tab_mapping_with_server() {
-        let mapping = SessionTabMapping::new(
-            "term-1",
-            "tab-1",
-            SessionType::Ssh,
-            TerminalSize::default(),
-        )
-        .with_server("server-123");
+        let mapping =
+            SessionTabMapping::new("term-1", "tab-1", SessionType::Ssh, TerminalSize::default())
+                .with_server("server-123");
 
         assert_eq!(mapping.server_id, Some("server-123".to_string()));
     }

@@ -455,7 +455,12 @@ impl DeferredIndex {
     }
 
     /// Create with estimated time
-    pub fn with_estimate(name: String, create_sql: String, priority: u8, estimated_time_ms: u64) -> Self {
+    pub fn with_estimate(
+        name: String,
+        create_sql: String,
+        priority: u8,
+        estimated_time_ms: u64,
+    ) -> Self {
         Self {
             name,
             create_sql,
@@ -493,9 +498,9 @@ impl Default for FastPathConfig {
             defer_indexes: true,
             wal_mode: true,
             mmap: true,
-            cache_size: -20000, // 20MB cache
+            cache_size: -20000,  // 20MB cache
             synchronous_mode: 1, // NORMAL
-            temp_store: 1,      // MEMORY
+            temp_store: 1,       // MEMORY
             index_threshold_rows: 100,
             background_indexes: true,
         }
@@ -572,12 +577,14 @@ impl DatabaseFastPath {
         let essential = vec![
             DeferredIndex::new(
                 "idx_servers_name_lower".to_string(),
-                "CREATE INDEX IF NOT EXISTS idx_servers_name_lower ON servers(LOWER(name))".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_servers_name_lower ON servers(LOWER(name))"
+                    .to_string(),
                 10,
             ),
             DeferredIndex::new(
                 "idx_servers_host_lower".to_string(),
-                "CREATE INDEX IF NOT EXISTS idx_servers_host_lower ON servers(LOWER(host))".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_servers_host_lower ON servers(LOWER(host))"
+                    .to_string(),
                 10,
             ),
             DeferredIndex::new(
@@ -610,7 +617,8 @@ impl DatabaseFastPath {
         let optional = vec![
             DeferredIndex::new(
                 "idx_hosts_environment".to_string(),
-                "CREATE INDEX IF NOT EXISTS idx_hosts_environment ON hosts(environment)".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_hosts_environment ON hosts(environment)"
+                    .to_string(),
                 1,
             ),
             DeferredIndex::new(
@@ -626,7 +634,8 @@ impl DatabaseFastPath {
         ];
 
         // Combine all and sort by priority (descending)
-        let mut all: Vec<DeferredIndex> = essential.into_iter()
+        let mut all: Vec<DeferredIndex> = essential
+            .into_iter()
             .chain(secondary.into_iter())
             .chain(optional.into_iter())
             .collect();
@@ -670,16 +679,24 @@ impl DatabaseFastPath {
         // Set up deferred indexes if configured
         if self.config.defer_indexes {
             let indexes = Self::get_deferred_indexes();
-            let mut deferred = self.deferred_indexes.write()
+            let mut deferred = self
+                .deferred_indexes
+                .write()
                 .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
             *deferred = indexes;
-            *self.indexes_ready.write()
-                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? = false;
+            *self
+                .indexes_ready
+                .write()
+                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? =
+                false;
         } else {
             // Create all indexes immediately
             DbOptimizer::apply_performance_indexes(conn)?;
-            *self.indexes_ready.write()
-                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? = true;
+            *self
+                .indexes_ready
+                .write()
+                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? =
+                true;
         }
 
         Ok(())
@@ -687,7 +704,9 @@ impl DatabaseFastPath {
 
     /// Create essential indexes only (for fast startup)
     pub fn create_essential_indexes(&self, conn: &Connection) -> Result<(), LiteError> {
-        let mut deferred = self.deferred_indexes.write()
+        let mut deferred = self
+            .deferred_indexes
+            .write()
             .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
 
         let start = Instant::now();
@@ -697,27 +716,40 @@ impl DatabaseFastPath {
             if index.priority >= 10 && index.status == IndexStatus::Pending {
                 index.status = IndexStatus::Creating;
 
-                let result = conn.execute(&index.create_sql, [])
-                    .map_err(|e| LiteError::Database(format!("Failed to create index {}: {}", index.name, e)));
+                let result = conn.execute(&index.create_sql, []).map_err(|e| {
+                    LiteError::Database(format!("Failed to create index {}: {}", index.name, e))
+                });
 
                 if result.is_ok() {
                     index.status = IndexStatus::Ready;
                 } else {
                     index.status = IndexStatus::Failed;
-                    let mut stats = self.creation_stats.lock()
+                    let mut stats = self
+                        .creation_stats
+                        .lock()
                         .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
                     stats.indexes_failed += 1;
-                    stats.creation_errors.push(format!("Index {} failed", index.name));
+                    stats
+                        .creation_errors
+                        .push(format!("Index {} failed", index.name));
                 }
             }
         }
 
         let duration_ms = start.elapsed().as_millis() as u64;
-        let mut stats = self.creation_stats.lock()
+        let mut stats = self
+            .creation_stats
+            .lock()
             .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
         stats.total_creation_time_ms += duration_ms;
-        stats.indexes_created = deferred.iter().filter(|i| i.status == IndexStatus::Ready).count();
-        stats.indexes_pending = deferred.iter().filter(|i| i.status == IndexStatus::Pending).count();
+        stats.indexes_created = deferred
+            .iter()
+            .filter(|i| i.status == IndexStatus::Ready)
+            .count();
+        stats.indexes_pending = deferred
+            .iter()
+            .filter(|i| i.status == IndexStatus::Pending)
+            .count();
 
         Ok(())
     }
@@ -728,7 +760,9 @@ impl DatabaseFastPath {
             return Ok(());
         }
 
-        let mut deferred = self.deferred_indexes.write()
+        let mut deferred = self
+            .deferred_indexes
+            .write()
             .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
 
         let start = Instant::now();
@@ -746,26 +780,41 @@ impl DatabaseFastPath {
                     }
                     Err(e) => {
                         index.status = IndexStatus::Failed;
-                        let mut stats = self.creation_stats.lock()
+                        let mut stats = self
+                            .creation_stats
+                            .lock()
                             .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
                         stats.indexes_failed += 1;
-                        stats.creation_errors.push(format!("Index {} failed: {}", index.name, e));
+                        stats
+                            .creation_errors
+                            .push(format!("Index {} failed: {}", index.name, e));
                     }
                 }
             }
         }
 
         let duration_ms = start.elapsed().as_millis() as u64;
-        let mut stats = self.creation_stats.lock()
+        let mut stats = self
+            .creation_stats
+            .lock()
             .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
         stats.total_creation_time_ms += duration_ms;
-        stats.indexes_created = deferred.iter().filter(|i| i.status == IndexStatus::Ready).count();
-        stats.indexes_pending = deferred.iter().filter(|i| i.status == IndexStatus::Pending).count();
+        stats.indexes_created = deferred
+            .iter()
+            .filter(|i| i.status == IndexStatus::Ready)
+            .count();
+        stats.indexes_pending = deferred
+            .iter()
+            .filter(|i| i.status == IndexStatus::Pending)
+            .count();
 
         // Mark all indexes as ready if no pending
         if stats.indexes_pending == 0 {
-            *self.indexes_ready.write()
-                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? = true;
+            *self
+                .indexes_ready
+                .write()
+                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? =
+                true;
         }
 
         Ok(())
@@ -773,23 +822,30 @@ impl DatabaseFastPath {
 
     /// Check if all indexes are ready
     pub fn are_indexes_ready(&self) -> Result<bool, LiteError> {
-        let ready = self.indexes_ready.read()
+        let ready = self
+            .indexes_ready
+            .read()
             .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))?;
         Ok(*ready)
     }
 
     /// Get index creation statistics
     pub fn get_creation_stats(&self) -> Result<IndexCreationStats, LiteError> {
-        let stats = self.creation_stats.lock()
+        let stats = self
+            .creation_stats
+            .lock()
             .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
         Ok(stats.clone())
     }
 
     /// Get pending index names
     pub fn get_pending_indexes(&self) -> Result<Vec<String>, LiteError> {
-        let deferred = self.deferred_indexes.read()
+        let deferred = self
+            .deferred_indexes
+            .read()
             .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
-        Ok(deferred.iter()
+        Ok(deferred
+            .iter()
             .filter(|i| i.status == IndexStatus::Pending)
             .map(|i| i.name.clone())
             .collect())

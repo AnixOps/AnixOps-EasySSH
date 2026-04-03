@@ -505,7 +505,8 @@ impl IconId {
             Server | Database | Globe | Network | Wifi | WifiOff | Ethernet | Router | Cloud
             | CloudOffline | CloudUpload | CloudDownload => "network",
 
-            Connect | Disconnect | Refresh | Reload | Play | Pause | Stop | Restart | Plus | Minus | Sort => "actions",
+            Connect | Disconnect | Refresh | Reload | Play | Pause | Stop | Restart | Plus
+            | Minus | Sort => "actions",
 
             Home | Back | Forward | ChevronLeft | ChevronRight | ChevronUp | ChevronDown
             | ArrowLeft | ArrowRight | ArrowUp | ArrowDown | Menu | Close | Maximize | Minimize

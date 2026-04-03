@@ -1265,7 +1265,9 @@ impl serde::Serialize for LiteError {
 impl From<rusqlite::Error> for LiteError {
     fn from(e: rusqlite::Error) -> Self {
         match e {
-            rusqlite::Error::QueryReturnedNoRows => LiteError::ServerNotFound("query returned no rows".to_string()),
+            rusqlite::Error::QueryReturnedNoRows => {
+                LiteError::ServerNotFound("query returned no rows".to_string())
+            }
             _ => LiteError::Database(e.to_string()),
         }
     }
