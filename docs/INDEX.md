@@ -154,6 +154,7 @@
 
 | Document | Description | Status |
 |----------|-------------|--------|
+| [OxideTerm Inspiration](oxideterm-inspiration.md) | OxideTerm analysis & EasySSH future planning | ✅ Created |
 | [Dependency Analysis](dependency-analysis/dependency-report.md) | Dependency relationship analysis | ✅ Created |
 | [Dependency Graph DOT](dependency-analysis/dependency-graph.dot) | Dependency graph source | ✅ Created |
 | [Dependency Graph HTML](dependency-analysis/dependency-graph.svg.html) | Visual dependency graph | ✅ Created |
