@@ -70,7 +70,7 @@ redis = { version = "0.25", features = ["tokio-comp"] }
 
 # SSH & networking
 ssh2 = "0.9"
-tokio-tungstenite = "0.24"
+tokio-tungstenite = "0.29"
 
 # System utilities
 sysinfo = "0.30"
@@ -110,7 +110,7 @@ totp-rs = { version = "5.3", features = ["qr", "zeroize"] }
 
 # Cron scheduling
 cron-parser = "0.3"
-tokio-cron-scheduler = "0.13"
+tokio-cron-scheduler = "0.15"
 
 # Reed-Solomon (for backup)
 reed-solomon-erasure = "6.0"
