@@ -118,7 +118,7 @@ pub unsafe extern "C" fn edition_free_version_info(info: *mut CVersionInfo) {
 
     // 释放功能列表
     if !info.features.is_null() && info.feature_count > 0 {
-        let features = Box::from_raw(std::slice::from_raw_parts_mut(
+        let features = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
             info.features,
             info.feature_count as usize,
         ));

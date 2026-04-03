@@ -159,7 +159,7 @@ pub fn get_system_default_terminal() -> String {
 
         // Return the first one that might be available
         // In a real implementation, we'd check PATH
-        for terminal in &terminals {
+        if let Some(terminal) = terminals.first() {
             return terminal.to_string();
         }
 

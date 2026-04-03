@@ -1093,18 +1093,16 @@ fn find_linux_desktop_entry(terminal_type: TerminalType) -> Option<PathBuf> {
     ];
 
     for desktop_name in desktop_names {
-        for dir_opt in &data_dirs {
-            if let Some(dir) = dir_opt {
-                let desktop_path = dir.join(desktop_name);
-                if desktop_path.exists() {
-                    // Extract Exec line from desktop file
-                    if let Ok(content) = std::fs::read_to_string(&desktop_path) {
-                        for line in content.lines() {
-                            if line.starts_with("Exec=") {
-                                let exec =
-                                    line.trim_start_matches("Exec=").split_whitespace().next()?;
-                                return find_in_path(exec);
-                            }
+        for dir in data_dirs.iter().flatten() {
+            let desktop_path = dir.join(desktop_name);
+            if desktop_path.exists() {
+                // Extract Exec line from desktop file
+                if let Ok(content) = std::fs::read_to_string(&desktop_path) {
+                    for line in content.lines() {
+                        if line.starts_with("Exec=") {
+                            let exec =
+                                line.trim_start_matches("Exec=").split_whitespace().next()?;
+                            return find_in_path(exec);
                         }
                     }
                 }
@@ -1586,7 +1584,7 @@ fn launch_yakuake(
 ) -> Result<(), LiteError> {
     // First, ensure Yakuake is running
     let _ = Command::new("qdbus")
-        .args(&["org.kde.yakuake", "/yakuake/window", "isOpen"])
+        .args(["org.kde.yakuake", "/yakuake/window", "isOpen"])
         .output();
 
     let mut cmd = Command::new("konsole");
