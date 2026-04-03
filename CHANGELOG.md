@@ -11,6 +11,30 @@
 
 ## [Unreleased]
 
+## [0.3.0-beta.2] - Unreleased
+
+### Added
+
+- TerminalCoordinator for unified session management
+- Tab bar UI component for multi-terminal support
+- SSH config import dialog with preview
+- GitHub Issue templates (bug report, feature request, feedback)
+- Azure deployment documentation
+- Startup performance optimizations (parallel init, cold start cache)
+- Startup benchmarks
+
+### Fixed
+
+- workflow_demo.rs compilation error
+- Platform example files moved to correct crates
+- wry 0.46+ API compatibility
+- telemetry_demo unused imports
+
+### Changed
+
+- WebView integration updated for latest wry API
+- Database fast path with deferred indexing
+
 ## [0.3.0-beta.1] - 2026-04-03
 
 ### Highlights
@@ -141,6 +165,30 @@ This is a major release introducing three product tiers and a complete native de
 # 中文变更日志
 
 ## [未发布]
+
+## [0.3.0-beta.2] - 未发布
+
+### 新增
+
+- TerminalCoordinator 统一会话管理
+- 多终端标签栏UI组件
+- SSH配置导入对话框（带预览）
+- GitHub Issue模板（错误报告、功能请求、反馈）
+- Azure部署文档
+- 启动性能优化（并行初始化、冷启动缓存）
+- 启动性能基准测试
+
+### 修复
+
+- workflow_demo.rs 编译错误
+- 平台示例文件移动到正确的crate
+- wry 0.46+ API兼容性
+- telemetry_demo 未使用导入
+
+### 变更
+
+- WebView集成更新到最新wry API
+- 数据库快速路径与延迟索引
 
 ## [0.3.0-beta.1] - 2026-04-03
 
