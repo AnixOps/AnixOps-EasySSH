@@ -193,6 +193,7 @@ Feature implementation documents are archived in `docs/archives/implemented/` di
 
 | Document | Description | Status |
 |----------|-------------|--------|
+| [System Invariants](reference/SYSTEM_INVARIANTS.md) | System constraints and design invariants | ✅ Created |
 | [Stores Reference](./reference/stores/) | State management store reference | ✅ Created |
 | [Styles Reference](./reference/styles/) | UI styles reference | ✅ Created |
 | [Types Reference](./reference/types/) | TypeScript type definitions | ✅ Created |

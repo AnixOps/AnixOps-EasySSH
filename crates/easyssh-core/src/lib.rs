@@ -734,6 +734,7 @@ pub mod audit;
 pub mod collaboration;
 pub mod config;
 pub mod config_import_export;
+pub mod connection;
 pub mod connection_pool;
 pub mod crypto;
 #[cfg(feature = "database")]
@@ -775,6 +776,13 @@ pub mod telemetry;
 pub mod version;
 pub mod version_ffi;
 pub use ssh::{ConnectionHealth, PoolStats, SessionMetadata, SshSessionManager};
+// Export connection management types (auto-reconnect, heartbeat monitoring)
+// Note: ReconnectConfig from connection module is more comprehensive than connection_pool's
+pub use connection::{
+    HeartbeatConfig, HeartbeatMonitor, HeartbeatStatus,
+    ReconnectConfig as ConnectionReconnectConfig, ReconnectEvent,
+    ReconnectOrchestrator, ReconnectState, ReconnectTrigger,
+};
 // Export embedded terminal types
 #[cfg(feature = "embedded-terminal")]
 pub use terminal::{
