@@ -23,7 +23,7 @@ env_logger = { workspace = true }
 tokio = { workspace = true }
 
 # TUI dependencies
-ratatui = { version = "0.26", features = ["crossterm"] }
+ratatui = { version = "0.30", features = ["crossterm"] }
 crossterm = { version = "0.27", features = ["event-stream"] }
 
 [features]
