@@ -1085,7 +1085,7 @@ fn find_linux_desktop_entry(terminal_type: TerminalType) -> Option<PathBuf> {
         _ => return None,
     };
 
-    let data_dirs = vec![
+    let data_dirs = [
         dirs::data_dir(),
         Some(PathBuf::from("/usr/share/applications")),
         Some(PathBuf::from("/usr/local/share/applications")),
