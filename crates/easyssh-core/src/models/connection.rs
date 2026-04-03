@@ -1487,7 +1487,7 @@ mod tests {
         assert_eq!(history.success_rate(), 0.0);
         assert_eq!(history.average_duration(), 0);
 
-        let conn = Connection::new(
+        let mut conn = Connection::new(
             "srv-123".to_string(),
             "Test".to_string(),
             "192.168.1.1".to_string(),
@@ -1495,6 +1495,7 @@ mod tests {
             "root".to_string(),
             "agent".to_string(),
         );
+        conn.mark_connected(); // Mark as successful
 
         history.record_connection(&conn);
         assert_eq!(history.total_connections, 1);

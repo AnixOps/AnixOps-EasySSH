@@ -470,8 +470,8 @@ mod tests {
         let stats = tracker.stats().unwrap();
         assert_eq!(stats.current_bytes, 2048);
 
-        // Check limit
-        assert!(tracker.check_limit(100 * 1024 * 1024).unwrap()); // Under limit
+        // Check limit - can we allocate 99MB more? (current 2048 + 99MB should be under 100MB limit)
+        assert!(tracker.check_limit(99 * 1024 * 1024).unwrap());
     }
 
     #[test]

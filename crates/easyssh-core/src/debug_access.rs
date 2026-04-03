@@ -1189,8 +1189,8 @@ mod tests {
     fn test_session_timeout() {
         let access = DebugAccess::new(crate::edition::Edition::Lite);
 
-        // 设置很短的超时时间以便测试
-        access.set_timeout(0);
+        // 设置很短的超时时间以便测试 (1秒)
+        access.set_timeout(1);
 
         // 激活会话
         let session = access
@@ -1206,9 +1206,8 @@ mod tests {
         assert!(access.is_enabled());
         assert_eq!(access.get_session_id(), Some(session.id));
 
-        // 由于超时时间为0，下次检查时应该已超时
-        // 注意：实际超时检查在is_enabled()中完成
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        // 由于超时时间为1秒，等待后应该已超时
+        std::thread::sleep(std::time::Duration::from_secs(2));
         assert!(!access.is_enabled()); // 应该已超时
     }
 
