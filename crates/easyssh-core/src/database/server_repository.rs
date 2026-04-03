@@ -613,7 +613,9 @@ mod tests {
 
         // Case insensitive search
         let results = repo.search("server").await.unwrap();
-        assert_eq!(results.len(), 2);
+        // "Production Server" matches, but "Development Box" does not contain "server"
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "srv1");
     }
 
     #[tokio::test]

@@ -467,6 +467,13 @@ pub fn is_valid_ip(ip: &str) -> bool {
 /// ```
 pub fn is_valid_host(host: &str) -> bool {
     let host = host.trim();
+
+    // If it looks like an IP address (only digits and dots), use IP validation only
+    // This prevents invalid IPs like 999.999.999.999 from passing via hostname validation
+    if host.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        return is_valid_ip(host);
+    }
+
     is_valid_ip(host) || is_valid_hostname(host)
 }
 

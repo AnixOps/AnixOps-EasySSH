@@ -111,7 +111,7 @@ impl ValidationError {
         Self {
             field: field.into(),
             message: message.into(),
-            severity: ValidationSeverity::Warning,
+            severity: ValidationSeverity::Error,
             code: ValidationErrorCode::SecurityRisk,
         }
     }
@@ -226,10 +226,12 @@ impl ConfigValidator {
         // Validate cross-section consistency
         self.validate_consistency(config, &mut errors);
 
-        if errors.is_empty() {
-            Ok(())
-        } else {
+        // Only fail on Error-severity issues, not warnings
+        let has_errors = errors.iter().any(|e| e.severity == ValidationSeverity::Error);
+        if has_errors {
             Err(errors)
+        } else {
+            Ok(())
         }
     }
 
@@ -489,17 +491,25 @@ impl ConfigValidator {
 
         // Validate search history doesn't exceed max
         if prefs.search_history.len() > prefs.max_search_history {
-            errors.push(ValidationError::warning(
+            errors.push(ValidationError::new(
                 "user_preferences.search_history",
-                "Search history exceeds configured maximum",
+                format!(
+                    "Search history has {} items but max is {}",
+                    prefs.search_history.len(),
+                    prefs.max_search_history
+                ),
             ));
         }
 
         // Validate recent connections doesn't exceed max
         if prefs.recent_connections.len() > prefs.max_recent_connections {
-            errors.push(ValidationError::warning(
+            errors.push(ValidationError::new(
                 "user_preferences.recent_connections",
-                "Recent connections exceeds configured maximum",
+                format!(
+                    "Recent connections has {} items but max is {}",
+                    prefs.recent_connections.len(),
+                    prefs.max_recent_connections
+                ),
             ));
         }
 
@@ -943,7 +953,7 @@ mod tests {
         let errors = result.unwrap_err();
         assert!(errors
             .iter()
-            .any(|e| e.message.contains("exceeds configured maximum")));
+            .any(|e| e.message.contains("has ") && e.message.contains("items but max is")));
     }
 
     #[test]
@@ -986,7 +996,7 @@ mod tests {
         let error = ValidationError::security_risk("field", "security issue");
         errors.push(error);
 
-        assert_eq!(errors[0].severity, ValidationSeverity::Warning);
+        assert_eq!(errors[0].severity, ValidationSeverity::Error);
         assert_eq!(errors[0].code, ValidationErrorCode::SecurityRisk);
     }
 

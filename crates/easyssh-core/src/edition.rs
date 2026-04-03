@@ -148,6 +148,10 @@ impl Edition {
 
     /// 是否支持嵌入式终端
     pub const fn has_embedded_terminal(&self) -> bool {
+        // Lite edition never has embedded terminal, even with feature flag
+        if matches!(self, Edition::Lite) {
+            return false;
+        }
         #[cfg(feature = "embedded-terminal")]
         return true;
         #[cfg(not(feature = "embedded-terminal"))]
@@ -156,6 +160,10 @@ impl Edition {
 
     /// 是否支持分屏
     pub const fn has_split_screen(&self) -> bool {
+        // Lite edition never has split screen
+        if matches!(self, Edition::Lite) {
+            return false;
+        }
         #[cfg(feature = "split-screen")]
         return true;
         #[cfg(not(feature = "split-screen"))]
@@ -164,6 +172,10 @@ impl Edition {
 
     /// 是否支持SFTP
     pub const fn has_sftp(&self) -> bool {
+        // Lite edition never has SFTP
+        if matches!(self, Edition::Lite) {
+            return false;
+        }
         #[cfg(feature = "sftp")]
         return true;
         #[cfg(not(feature = "sftp"))]
@@ -172,6 +184,10 @@ impl Edition {
 
     /// 是否支持监控
     pub const fn has_monitoring(&self) -> bool {
+        // Lite edition never has monitoring
+        if matches!(self, Edition::Lite) {
+            return false;
+        }
         #[cfg(feature = "monitoring")]
         return true;
         #[cfg(not(feature = "monitoring"))]
@@ -180,6 +196,10 @@ impl Edition {
 
     /// 是否支持团队功能
     pub const fn has_team(&self) -> bool {
+        // Lite and Standard editions never have team features
+        if matches!(self, Edition::Lite | Edition::Standard) {
+            return false;
+        }
         #[cfg(feature = "team")]
         return true;
         #[cfg(not(feature = "team"))]

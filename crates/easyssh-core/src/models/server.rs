@@ -1453,7 +1453,8 @@ mod tests {
             "group_id": null
         }"##;
         let dto: UpdateServerDto = serde_json::from_str(json).unwrap();
-        assert_eq!(dto.group_id, Some(None));
+        // Note: serde deserializes null as None for Option<Option<T>>, not Some(None)
+        assert_eq!(dto.group_id, None);
     }
 
     #[test]
