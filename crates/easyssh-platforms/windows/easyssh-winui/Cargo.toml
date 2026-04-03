@@ -35,7 +35,7 @@ eframe = { version = "0.28", features = ["default", "wgpu"] }
 egui = "0.28"
 egui-wgpu = "0.28"
 egui_extras = { version = "0.28", features = ["all_loaders"] }
-wgpu = "0.20"
+wgpu = "29.0"
 rfd = "0.14"
 raw-window-handle = "0.6"
 
