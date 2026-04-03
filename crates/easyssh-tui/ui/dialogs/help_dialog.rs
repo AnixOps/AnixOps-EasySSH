@@ -124,7 +124,7 @@ impl Dialog for HelpDialog {
                         format!("  {:<15}", key),
                         Style::default().fg(theme.accent_info),
                     ),
-                    Span::raw(desc),
+                    Span::raw(*desc),
                 ]));
             }
         }
@@ -150,7 +150,7 @@ impl Dialog for HelpDialog {
                         format!("  {:<15}", key),
                         Style::default().fg(theme.accent_info),
                     ),
-                    Span::raw(desc),
+                    Span::raw(*desc),
                 ]));
             }
         }
@@ -171,7 +171,7 @@ impl Dialog for HelpDialog {
                         format!("  {:<15}", key),
                         Style::default().fg(theme.accent_info),
                     ),
-                    Span::raw(desc),
+                    Span::raw(*desc),
                 ]));
             }
         }
@@ -192,7 +192,7 @@ impl Dialog for HelpDialog {
                         format!("  {:<15}", key),
                         Style::default().fg(theme.accent_info),
                     ),
-                    Span::raw(desc),
+                    Span::raw(*desc),
                 ]));
             }
         }

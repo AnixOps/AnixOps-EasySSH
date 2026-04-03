@@ -49,12 +49,15 @@ impl GroupDialog {
             GroupData::default()
         };
 
+        let cursor_name = data.name.len();
+        let cursor_color = data.color.len();
+
         Self {
             title,
             data,
             focused_field: Field::Name,
-            cursor_name: data.name.len(),
-            cursor_color: data.color.len(),
+            cursor_name,
+            cursor_color,
             preset_colors: vec![
                 "#EF4444", // Red
                 "#F97316", // Orange
@@ -268,7 +271,7 @@ impl Dialog for GroupDialog {
         }
 
         let presets_para = Paragraph::new(Line::from(preset_spans));
-        frame.render_widget(presets_para, chunks[1].offset(0, 1));
+        frame.render_widget(presets_para, chunks[1].offset(ratatui::layout::Offset { x: 0, y: 1 }));
 
         // Help text with theme
         let help_style = if self.is_valid() {

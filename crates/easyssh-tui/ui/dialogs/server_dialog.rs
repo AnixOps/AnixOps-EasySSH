@@ -98,16 +98,23 @@ impl ServerDialog {
             ServerData::default()
         };
 
+        // Extract cursor positions before moving data
+        let cursor_name = data.name.len();
+        let cursor_host = data.host.len();
+        let cursor_port = data.port.to_string().len();
+        let cursor_username = data.username.len();
+        let cursor_identity = data.identity_file.as_ref().map(|s| s.len()).unwrap_or(0);
+
         Self {
             title,
             data,
             focused_field: Field::Name,
             groups,
-            cursor_name: data.name.len(),
-            cursor_host: data.host.len(),
-            cursor_port: data.port.to_string().len(),
-            cursor_username: data.username.len(),
-            cursor_identity: data.identity_file.as_ref().map(|s| s.len()).unwrap_or(0),
+            cursor_name,
+            cursor_host,
+            cursor_port,
+            cursor_username,
+            cursor_identity,
         }
     }
 

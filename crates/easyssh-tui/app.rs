@@ -335,17 +335,6 @@ impl App {
                     // Future: Open context menu
                 }
             }
-            MouseEventKind::DoubleClick(MouseButton::Left) => {
-                // Double click to connect
-                if x >= sidebar_width && x < sidebar_width + main_area_width && y > 0 {
-                    let index = (y as usize).saturating_sub(3);
-                    if index < self.filtered_servers.len() {
-                        self.selected_server = index;
-                        self.server_list_state.selected = index;
-                        self.connect().await?;
-                    }
-                }
-            }
             MouseEventKind::ScrollDown => match self.focus {
                 Focus::Sidebar => {
                     let max = self.groups.len();

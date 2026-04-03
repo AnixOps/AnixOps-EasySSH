@@ -32,7 +32,7 @@ impl Ui {
         self.layout.update(frame.size());
 
         // Clear background with theme color
-        let palette = app.palette();
+        let palette = app.palette().clone();
         frame.render_widget(
             ratatui::widgets::Block::default().style(Style::default().bg(palette.bg_primary)),
             frame.size(),
@@ -42,26 +42,26 @@ impl Ui {
         let areas = self.layout.calculate_areas(frame.size());
 
         // Render sidebar (groups) with theme
-        sidebar::render(frame, areas.sidebar, app, palette);
+        sidebar::render(frame, areas.sidebar, app, &palette);
 
         // Render server list with virtual scrolling and theme
-        server_list::render(frame, areas.server_list, app, palette);
+        server_list::render(frame, areas.server_list, app, &palette);
 
         // Render detail panel with theme
-        detail_panel::render(frame, areas.detail_panel, app, palette);
+        detail_panel::render(frame, areas.detail_panel, app, &palette);
 
         // Render status bar with theme
-        self.render_status_bar(frame, areas.status_bar, app, palette);
+        self.render_status_bar(frame, areas.status_bar, app, &palette);
 
         // Render dialog overlay if present
         if let Some(dialog) = &mut app.dialog {
             let dialog_area = self.layout.calculate_dialog_area(frame.size());
-            dialog.render(frame, dialog_area, palette);
+            dialog.render(frame, dialog_area, &palette);
         }
 
         // Render search overlay if in search mode
         if app.view_mode == crate::app::ViewMode::Search {
-            self.render_search_bar(frame, app, palette);
+            self.render_search_bar(frame, app, &palette);
         }
     }
 
