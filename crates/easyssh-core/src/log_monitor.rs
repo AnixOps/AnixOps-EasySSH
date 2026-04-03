@@ -33,6 +33,13 @@ impl Default for LogLevel {
     }
 }
 
+impl std::str::FromStr for LogLevel {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(LogLevel::from_str(s))
+    }
+}
+
 impl LogLevel {
     pub fn color(&self) -> &'static str {
         match self {

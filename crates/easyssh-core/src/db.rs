@@ -153,10 +153,9 @@ impl Database {
     ///
     /// Returns `LiteError::Database` if any table creation fails.
     pub fn init(&self) -> Result<(), LiteError> {
-        // 使用单个事务批量创建表
+        // 使用execute_batch自动处理每个语句，不需要显式BEGIN/COMMIT
         self.conn.execute_batch(
             r#"
-            BEGIN;
             CREATE TABLE IF NOT EXISTS groups (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -369,7 +368,6 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_k8s_clusters_name ON k8s_clusters(name);
             CREATE INDEX IF NOT EXISTS idx_k8s_namespaces_cluster ON k8s_namespaces(cluster_id);
             CREATE INDEX IF NOT EXISTS idx_k8s_port_forwards_cluster ON k8s_port_forwards(cluster_id);
-            COMMIT;
             "#,
         )?;
         Ok(())

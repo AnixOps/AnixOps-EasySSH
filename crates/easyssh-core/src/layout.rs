@@ -684,6 +684,19 @@ impl LayoutManager {
         }
     }
 
+    pub fn split_panel(
+        &mut self,
+        panel_id: &str,
+        direction: SplitDirection,
+        content: PanelContent,
+    ) -> Result<String, LiteError> {
+        if let Some(layout) = self.current_layout_mut() {
+            layout.split_panel(panel_id, direction, content)
+        } else {
+            Err(LiteError::Layout("No active layout".to_string()))
+        }
+    }
+
     pub fn close_current_panel(&mut self) -> Result<(), LiteError> {
         if let Some(layout) = self.current_layout_mut() {
             let active_id = layout
@@ -1082,7 +1095,6 @@ mod tests {
         manager
             .split_panel(
                 &layout_id,
-                root,
                 SplitDirection::Horizontal,
                 PanelContent::Empty,
             )
