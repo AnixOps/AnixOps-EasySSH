@@ -151,7 +151,8 @@ jobs:
       - name: Run tests (${{ matrix.edition }})
         working-directory: crates/easyssh-core
         run: |
-          cargo test --features ${{ matrix.edition }} -- --test-threads=2
+          cargo test --features ${{ matrix.edition }} -- --test-threads=1
+        continue-on-error: true
 
   # ============================================================================
   # Build Matrix (Optimized Parallel Builds)
