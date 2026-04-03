@@ -68,7 +68,7 @@ impl BackupManager {
         let backup_dir = backup_dir.as_ref();
         std::fs::create_dir_all(backup_dir)?;
 
-        let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
+        let timestamp = Utc::now().format("%Y%m%d_%H%M%S_%f");
         let schema_version = self.get_current_schema_version().await?;
 
         match strategy {
@@ -137,7 +137,7 @@ impl BackupManager {
         // Copy the database file
         tokio::fs::copy(&self.db_path, backup_path)
             .await
-            .map_err(|e| DatabaseError::Io(e))?;
+            .map_err(DatabaseError::Io)?;
 
         Ok(())
     }
@@ -205,7 +205,7 @@ impl BackupManager {
         let mut dump_content = String::new();
 
         // Header
-        dump_content.push_str(&format!("-- EasySSH Database Backup\n"));
+        dump_content.push_str("-- EasySSH Database Backup\n");
         dump_content.push_str(&format!("-- Generated: {}\n", Utc::now().to_rfc3339()));
         dump_content.push_str(&format!(
             "-- SQLite Version: {}\n\n",
@@ -592,6 +592,12 @@ mod tests {
 
         // Create a test table
         sqlx::query("CREATE TABLE test (id TEXT PRIMARY KEY, data TEXT)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        // Create schema_migrations table for backup manager's get_current_schema_version
+        sqlx::query("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)")
             .execute(&pool)
             .await
             .unwrap();
