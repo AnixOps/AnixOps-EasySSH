@@ -13,10 +13,11 @@
 //! # Example
 //! ```rust,no_run
 //! use easyssh_core::config::env::{EnvConfig, EnvProfile};
+//! use easyssh_core::config::FullConfig;
 //!
-//! let env_config = EnvConfig::new()
-//!     .with_profile(EnvProfile::Development)
-//!     .load();
+//! let mut env_config = EnvConfig::new()
+//!     .with_profile(EnvProfile::Development);
+//! env_config.load().expect("Failed to load env config");
 //!
 //! let config = env_config.apply_to(FullConfig::default());
 //! ```

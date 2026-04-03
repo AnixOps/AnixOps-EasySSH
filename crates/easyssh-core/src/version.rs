@@ -167,8 +167,8 @@ impl FullBuildInfo {
 
     /// 格式化详细版本显示
     ///
-    /// 示例:
-    /// ```
+    /// 示例输出:
+    /// ```text
     /// EasySSH Lite 0.3.0 [Dev]
     /// Build: 2024-01-15
     /// Git: abc1234 (main)

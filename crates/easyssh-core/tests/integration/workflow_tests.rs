@@ -14,6 +14,7 @@ use easyssh_core::services::server_service::{ServerService, CreateServerDto};
 use easyssh_core::services::search_service::{SearchService, SearchFilter};
 use easyssh_core::models::server::{AuthMethod as ServerAuthMethod, ServerStatus};
 
+#[path = "../common/mod.rs"]
 mod common;
 use common::{create_test_db, create_test_db_arc, test_master_password};
 

@@ -32,7 +32,7 @@
 //! # Example
 //!
 //! ```rust
-//! use easyssh_core::error::{EasySSHErrors, Result, ErrorRecovery};
+//! use easyssh_core::error::{EasySSHErrors, Result, RecoveryStrategy, ErrorRecovery};
 //!
 //! fn may_fail() -> Result<String> {
 //!     // Returns EasySSHErrors::Io on failure
@@ -41,12 +41,17 @@
 //! }
 //!
 //! fn handle_with_recovery() -> Result<String> {
-//!     match may_fail() {
+//!     let result = may_fail();
+//!     match result {
 //!         Ok(v) => Ok(v),
 //!         Err(e) => {
-//!             // Try automatic recovery
+//!             // Try automatic recovery with retry strategy
 //!             if let Some(recovery) = e.recovery_strategy() {
-//!                 recovery.attempt_recover(&e)
+//!                 if let RecoveryStrategy::RetryWithBackoff { .. } = recovery {
+//!                     recovery.attempt_recover(|| may_fail())
+//!                 } else {
+//!                     Err(e)
+//!                 }
 //!             } else {
 //!                 Err(e)
 //!             }

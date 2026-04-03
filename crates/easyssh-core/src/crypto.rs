@@ -31,7 +31,7 @@
 //! state.initialize("my_secure_password").unwrap();
 //!
 //! // Or use MasterKey for keychain integration
-//! let master = MasterKey::new();
+//! let mut master = MasterKey::new();
 //! master.initialize("my_secure_password").unwrap();
 //!
 //! // Create and encrypt server credentials

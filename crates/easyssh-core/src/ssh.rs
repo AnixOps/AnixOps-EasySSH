@@ -34,7 +34,7 @@
 //!     println!("Output: {}", output);
 //!
 //!     // Test connection before use
-//!     let test_result = manager.test_connection("session-1").await.unwrap();
+//!     let test_result = manager.test_connection(&config).await.unwrap();
 //!     println!("Connection test: {:?}", test_result);
 //!
 //!     // Disconnect

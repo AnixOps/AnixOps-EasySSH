@@ -32,16 +32,17 @@
 //!
 //! ```rust,no_run
 //! use easyssh_core::i18n::{t, t_args, set_language, get_current_language};
+//! use fluent_bundle::FluentValue;
 //!
 //! // Initialize with default system language
-//! easyssh_core::i18n::init().expect("Failed to initialize i18n");
+//! easyssh_core::i18n::init();
 //!
 //! // Get a simple translation
 //! let message = t("welcome-message");
 //! println!("{}", message);
 //!
 //! // Get translation with arguments
-//! let message = t_args("server-connected", &[("host", "192.168.1.1"), ("port", "22")]);
+//! let message = t_args("server-connected", &[("host", FluentValue::from("192.168.1.1")), ("port", FluentValue::from("22"))]);
 //! println!("{}", message);
 //!
 //! // Change language

@@ -533,7 +533,7 @@ pub async fn create_sso_tables(pool: &sqlx::Pool<sqlx::Any>) -> Result<(), sqlx:
     .execute(pool)
     .await?;
 
-    log::info!("SSO tables created successfully");
+    tracing::info!("SSO tables created successfully");
 
     Ok(())
 }

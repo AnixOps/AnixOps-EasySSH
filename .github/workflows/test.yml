@@ -73,9 +73,9 @@ jobs:
       - name: Run unit tests (${{ matrix.feature }})
         run: |
           cargo test --package easyssh-core --lib --features ${{ matrix.feature }} -- --test-threads=2
-          cargo test --package easyssh-core --test '*' --features ${{ matrix.feature }} -- security_tests --test-threads=1
-          cargo test --package easyssh-core --test '*' --features ${{ matrix.feature }} -- performance_tests --test-threads=1
-          cargo test --package easyssh-core --test '*' --features ${{ matrix.feature }} -- fuzz_tests --test-threads=1
+          cargo test --package easyssh-core --test security_tests --features ${{ matrix.feature }} -- --test-threads=1
+          cargo test --package easyssh-core --test performance_tests --features ${{ matrix.feature }} -- --test-threads=1
+          cargo test --package easyssh-core --test fuzz_tests --features ${{ matrix.feature }} -- --test-threads=1
         timeout-minutes: 20
 
   # ============ Integration Tests ============
@@ -288,10 +288,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libssh2-1-dev
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install libssh2 openssl
 
       - name: Build ${{ matrix.feature }}
         run: cargo build --package easyssh-core --features ${{ matrix.feature }} --release
+        env:
+          OPENSSL_DIR: /usr/local/opt/openssl@3  # For macOS OpenSSL path
 
   # ============ Test Summary ============
   test-summary:

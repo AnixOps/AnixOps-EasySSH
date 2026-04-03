@@ -92,7 +92,7 @@ fn bench_object_pool(c: &mut Criterion) {
     });
 
     // Optimized: Pool-based allocation
-    let pool = ObjectPool::new(100, || Vec::with_capacity(1024));
+    let pool = ObjectPool::new(100, || Vec::<u8>::with_capacity(1024));
 
     group.bench_function("pooled_vec", |b| {
         b.iter(|| {
@@ -366,7 +366,7 @@ fn bench_startup_optimizer(c: &mut Criterion) {
         optimizer.start().unwrap();
 
         b.iter(|| {
-            use easyssh_core::startup_optimizer::StartupPhase;
+            use easyssh_core::performance::startup_optimizer::StartupPhase;
             optimizer.start_phase(StartupPhase::ConfigLoad).unwrap();
             optimizer.complete_phase(StartupPhase::ConfigLoad).unwrap();
         });

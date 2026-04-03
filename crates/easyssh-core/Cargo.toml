@@ -324,3 +324,68 @@ required-features = ["workflow"]
 name = "startup_bench"
 harness = false
 required-features = ["lite"]
+
+# ============ Integration Tests ============
+[[test]]
+name = "database_integration_tests"
+path = "tests/integration/database_integration_tests.rs"
+required-features = ["database"]
+
+[[test]]
+name = "ssh_integration_tests"
+path = "tests/integration/ssh_integration_tests.rs"
+required-features = ["lite"]
+
+[[test]]
+name = "workflow_tests"
+path = "tests/integration/workflow_tests.rs"
+required-features = ["workflow"]
+
+# ============ Unit Tests (organized) ============
+[[test]]
+name = "crypto_tests"
+path = "tests/unit/crypto_tests.rs"
+
+[[test]]
+name = "database_tests"
+path = "tests/unit/database_tests.rs"
+required-features = ["database"]
+
+[[test]]
+name = "fuzz_tests"
+path = "tests/unit/fuzz_tests.rs"
+
+[[test]]
+name = "performance_tests"
+path = "tests/unit/performance_tests.rs"
+required-features = ["lite"]
+
+[[test]]
+name = "search_tests"
+path = "tests/unit/search_tests.rs"
+required-features = ["lite"]
+
+[[test]]
+name = "security_tests"
+path = "tests/unit/security_tests.rs"
+
+[[test]]
+name = "server_service_tests"
+path = "tests/unit/server_service_tests.rs"
+required-features = ["lite"]
+
+[[test]]
+name = "ssh_tests"
+path = "tests/unit/ssh_tests.rs"
+required-features = ["lite"]
+
+# Root level tests
+[[test]]
+name = "database_compiles"
+path = "tests/database_compiles.rs"
+required-features = ["database"]
+
+# Examples that require specific features
+[[example]]
+name = "workflow_demo"
+required-features = ["workflow"]

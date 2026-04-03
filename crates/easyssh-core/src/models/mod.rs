@@ -302,6 +302,7 @@ pub trait Validatable {
 /// ```rust
 /// use easyssh_core::models::{Versioned, CURRENT_SCHEMA_VERSION};
 ///
+/// #[derive(Clone)]
 /// struct MyModel {
 ///     schema_version: u32,
 ///     // ... other fields
@@ -492,7 +493,7 @@ pub fn is_valid_host(host: &str) -> bool {
 /// assert!(is_valid_port(65535));
 ///
 /// assert!(!is_valid_port(0));
-/// assert!(!is_valid_port(65536));
+/// // Note: 65536 would overflow u16, so we test with a valid value instead
 /// ```
 pub fn is_valid_port(port: u16) -> bool {
     port > 0

@@ -4,46 +4,33 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use easyssh_core::sftp::{
-    SftpEntry, TransferDirection, TransferItem, TransferOptions, TransferProgress, TransferQueue,
+    SftpEntry, TransferDirection, TransferTask, TransferOptions, TransferStats, TransferQueue,
     TransferStatus,
 };
 use std::time::Duration;
 
-fn bench_transfer_progress(c: &mut Criterion) {
-    let mut group = c.benchmark_group("sftp_transfer_progress");
+fn bench_transfer_stats(c: &mut Criterion) {
+    let mut group = c.benchmark_group("sftp_transfer_stats");
 
     group.bench_function("new", |b| {
         b.iter(|| {
-            let _ = black_box(TransferProgress::new("test.txt", Some(1024), false));
+            let _ = black_box(TransferStats::default());
         });
     });
 
-    group.bench_function("update", |b| {
-        let mut progress = TransferProgress::new("test.txt", Some(1048576), false);
-        let mut transferred = 0u64;
-
+    group.bench_function("with_values", |b| {
         b.iter(|| {
-            transferred = (transferred + 1024) % 1048576;
-            progress.update(black_box(transferred));
-        });
-    });
-
-    group.bench_function("percentage_calculation", |b| {
-        let progress = TransferProgress {
-            transferred: 524288,
-            total: Some(1048576),
-            start_time: chrono::Utc::now().timestamp(),
-            speed_bps: 1024.0 * 1024.0,
-            elapsed_secs: 0.5,
-            eta_secs: Some(0.5),
-            status: TransferStatus::Transferring,
-            filename: "test.txt".to_string(),
-            is_resume: false,
-            resume_offset: 0,
-        };
-
-        b.iter(|| {
-            let _ = black_box(progress.percentage());
+            let stats = TransferStats {
+                total_tasks: 10,
+                completed: 5,
+                failed: 1,
+                active: 2,
+                pending: 2,
+                total_bytes: 1024 * 1024,
+                current_speed: 1024.0 * 1024.0,
+                eta_seconds: Some(1.0),
+            };
+            black_box(stats);
         });
     });
 
@@ -61,14 +48,19 @@ fn bench_transfer_options(c: &mut Criterion) {
 
     group.bench_function("builder", |b| {
         b.iter(|| {
-            let _ = black_box(
-                TransferOptions::default()
-                    .with_chunk_size(128 * 1024)
-                    .with_resume(true)
-                    .with_max_concurrent(5)
-                    .with_speed_limit(1024 * 1024)
-                    .with_overwrite(false),
-            );
+            let _ = black_box(TransferOptions {
+                chunk_size: 128 * 1024,
+                resume: true,
+                max_concurrent: 5,
+                speed_limit: 1024 * 1024,
+                overwrite: false,
+                preserve_time: true,
+                preserve_permissions: true,
+                file_mode: 0o644,
+                timeout: std::time::Duration::from_secs(30),
+                retry_count: 3,
+                verify_checksum: true,
+            });
         });
     });
 
@@ -115,17 +107,27 @@ fn bench_transfer_item_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("sftp_transfer_item");
 
     group.bench_function("new_download", |b| {
-        let options = TransferOptions::default();
-
         b.iter(|| {
-            let _ = black_box(TransferItem::new(
-                "session-1",
+            let _ = black_box(TransferTask::new(
                 "/remote/file.txt",
                 "/local/file.txt",
                 TransferDirection::Download,
-                options.clone(),
-                Some(1024),
+                "session-1",
             ));
+        });
+    });
+
+    group.bench_function("with_options", |b| {
+        let options = TransferOptions::default();
+
+        b.iter(|| {
+            let task = TransferTask::new(
+                "/remote/file.txt",
+                "/local/file.txt",
+                TransferDirection::Download,
+                "session-1",
+            ).with_options(options.clone());
+            black_box(task);
         });
     });
 
@@ -150,19 +152,16 @@ fn bench_transfer_queue(c: &mut Criterion) {
             |b, &item_count| {
                 b.iter(|| {
                     let queue = TransferQueue::new();
-                    let options = TransferOptions::default();
 
                     rt.block_on(async {
                         for i in 0..item_count {
-                            let item = TransferItem::new(
-                                "session-1",
+                            let task = TransferTask::new(
                                 format!("/remote/file{}.txt", i),
                                 format!("/local/file{}.txt", i),
                                 TransferDirection::Download,
-                                options.clone(),
-                                Some(1024),
+                                "session-1",
                             );
-                            queue.add(item).await;
+                            queue.add(task).await;
                         }
                     });
                 });
@@ -208,7 +207,7 @@ fn bench_format_functions(c: &mut Criterion) {
 
 criterion_group!(
     sftp_benches,
-    bench_transfer_progress,
+    bench_transfer_stats,
     bench_transfer_options,
     bench_sftp_entry,
     bench_transfer_item_creation,

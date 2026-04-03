@@ -38,14 +38,13 @@ pub struct SsoLoginPanel {
 
 #[derive(Clone, Debug, Default)]
 struct SamlConfigForm {
-    idp_entity_id: String,
-    idp_sso_url: String,
-    idp_slo_url: String,
-    idp_certificate: String,
+    idp_metadata_url: String,
     sp_entity_id: String,
-    sp_acs_url: String,
+    acs_url: String,
+    slo_url: String,
     name_id_format: NameIdFormat,
     signature_algorithm: SignatureAlgorithm,
+    verify_signatures: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -120,15 +119,14 @@ impl SsoLoginPanel {
 
         // Add a demo SAML provider
         let saml_config = SamlConfig {
-            idp_entity_id: "https://demo-saml.example.com".to_string(),
-            idp_sso_url: "https://demo-saml.example.com/sso".to_string(),
-            idp_slo_url: Some("https://demo-saml.example.com/slo".to_string()),
-            idp_certificate: "-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAKoK/heBjcOu...\n-----END CERTIFICATE-----".to_string(),
+            idp_metadata_url: "https://demo-saml.example.com/metadata".to_string(),
             sp_entity_id: "easyssh-pro-client".to_string(),
-            sp_acs_url: "http://localhost:8765/sso/acs".to_string(),
-            name_id_format: NameIdFormat::EmailAddress,
-            signature_algorithm: SignatureAlgorithm::RsaSha256,
-            require_signed_assertions: true,
+            acs_url: "http://localhost:8765/sso/acs".to_string(),
+            slo_url: Some("https://demo-saml.example.com/slo".to_string()),
+            signature_algorithm: SignatureAlgorithm::RsaSha256.to_string(),
+            verify_signatures: true,
+            want_assertions_encrypted: false,
+            name_id_format: NameIdFormat::EmailAddress.to_string(),
             attribute_mapping: SamlAttributeMapping::default_mapping(),
         };
         let provider = SsoProvider::new_saml("Demo SAML Provider", saml_config);
@@ -450,19 +448,9 @@ impl SsoLoginPanel {
 
     fn render_saml_config_form(&mut self, ui: &mut Ui) {
         ui.collapsing("SAML 2.0 Configuration", |ui| {
-            ui.label("IdP Entity ID:");
-            ui.text_edit_singleline(&mut self.saml_config.idp_entity_id);
-            ui.label("Example: https://company.okta.com");
-            ui.add_space(8.0);
-
-            ui.label("IdP SSO URL:");
-            ui.text_edit_singleline(&mut self.saml_config.idp_sso_url);
-            ui.add_space(8.0);
-
-            ui.label("IdP Certificate (X.509):");
-            ui.add(
-                egui::TextEdit::multiline(&mut self.saml_config.idp_certificate).desired_rows(5),
-            );
+            ui.label("IdP Metadata URL:");
+            ui.text_edit_singleline(&mut self.saml_config.idp_metadata_url);
+            ui.label("Example: https://company.okta.com/.well-known/saml.xml");
             ui.add_space(8.0);
 
             ui.label("SP Entity ID:");
@@ -470,9 +458,13 @@ impl SsoLoginPanel {
             ui.label("Example: easyssh-pro-client");
             ui.add_space(8.0);
 
-            ui.label("SP ACS URL:");
-            ui.text_edit_singleline(&mut self.saml_config.sp_acs_url);
+            ui.label("ACS URL:");
+            ui.text_edit_singleline(&mut self.saml_config.acs_url);
             ui.label("Example: http://localhost:8765/sso/acs");
+            ui.add_space(8.0);
+
+            ui.label("SLO URL (optional):");
+            ui.text_edit_singleline(&mut self.saml_config.slo_url);
             ui.add_space(8.0);
 
             ui.label("NameID Format:");
@@ -495,6 +487,9 @@ impl SsoLoginPanel {
                         "Transient",
                     );
                 });
+
+            ui.add_space(8.0);
+            ui.checkbox(&mut self.saml_config.verify_signatures, "Verify signatures");
         });
     }
 
@@ -575,16 +570,15 @@ impl SsoLoginPanel {
             }
             SsoProviderType::Saml => {
                 let config = SamlConfig {
-                    idp_entity_id: self.saml_config.idp_entity_id.clone(),
-                    idp_sso_url: self.saml_config.idp_sso_url.clone(),
-                    idp_slo_url: Some(self.saml_config.idp_slo_url.clone())
-                        .filter(|s| !s.is_empty()),
-                    idp_certificate: self.saml_config.idp_certificate.clone(),
+                    idp_metadata_url: self.saml_config.idp_metadata_url.clone(),
                     sp_entity_id: self.saml_config.sp_entity_id.clone(),
-                    sp_acs_url: self.saml_config.sp_acs_url.clone(),
-                    name_id_format: self.saml_config.name_id_format,
-                    signature_algorithm: self.saml_config.signature_algorithm,
-                    require_signed_assertions: true,
+                    acs_url: self.saml_config.acs_url.clone(),
+                    slo_url: Some(self.saml_config.slo_url.clone())
+                        .filter(|s| !s.is_empty()),
+                    signature_algorithm: self.saml_config.signature_algorithm.to_string(),
+                    verify_signatures: self.saml_config.verify_signatures,
+                    want_assertions_encrypted: false,
+                    name_id_format: self.saml_config.name_id_format.to_string(),
                     attribute_mapping: SamlAttributeMapping::default_mapping(),
                 };
                 SsoProvider::new_saml(&self.new_provider_name, config)

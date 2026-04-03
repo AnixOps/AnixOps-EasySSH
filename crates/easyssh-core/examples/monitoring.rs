@@ -3,17 +3,16 @@
 //! 这个示例展示了如何使用监控模块的核心功能。
 
 use easyssh_core::monitoring::{
-    AlertCondition, AlertRule, AlertSeverity, AuthMethod, ChartData, MetricStats, MetricType,
+    AlertCondition, AlertRule, AlertSeverity, AuthMethod, ChartData, MetricType,
     MonitoringConfig, MonitoringManager, MonitoringSession, ServerConnectionConfig,
     ServerHealthStatus, SystemMetrics, TimeRange,
 };
-use std::sync::Arc;
 
 /// 示例 1: 创建并配置监控会话
 /// 适用于 Standard 版本的单服务器监控
 async fn example_monitoring_session() -> Result<(), Box<dyn std::error::Error>> {
     // 创建监控会话
-    let mut session = MonitoringSession::new("server-001".to_string());
+    let session = MonitoringSession::new("server-001".to_string());
 
     // 配置连接信息
     session
@@ -177,7 +176,7 @@ async fn example_monitoring_manager() -> Result<(), Box<dyn std::error::Error>> 
     };
 
     // 添加告警规则
-    manager.alert_engine.upsert_rule(alert_rule).await?;
+    manager.upsert_alert_rule(alert_rule).await?;
 
     // 启动监控
     manager.start().await?;

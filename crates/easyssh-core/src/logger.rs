@@ -26,21 +26,18 @@
 //! # Example
 //!
 //! ```rust
-//! use easyssh_core::logger::{Logger, LogLevel, LogContext};
+//! use easyssh_core::logger::{Logger, LogLevel, RotationConfig};
 //!
 //! // Initialize the logger
 //! let logger = Logger::builder()
 //!     .with_level(LogLevel::Debug)
-//!     .with_file_output("logs/easyssh.log")
+//!     .with_file("logs/easyssh.log")
 //!     .with_rotation(RotationConfig::default())
 //!     .build()
 //!     .expect("Failed to initialize logger");
 //!
 //! // Log with context
-//! let ctx = LogContext::new()
-//!     .with_request_id("req-123")
-//!     .with_session_id("sess-456");
-//! logger.info_with_context("Application started", &ctx);
+//! logger.info("Application started");
 //! ```
 
 use chrono::{DateTime, Local, Utc};

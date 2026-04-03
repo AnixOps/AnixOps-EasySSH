@@ -12,10 +12,11 @@
 //!
 //! # Example
 //! ```rust,no_run
-//! use easyssh_core::config::import_export::{ImportExportManager, ExportFormat};
+//! use easyssh_core::config::import_export::{ImportExportManager, ExportFormat, ExportOptions};
+//! use easyssh_core::config::FullConfig;
 //!
-//! let manager = ImportExportManager::new();
-//! let yaml = manager.export_config(&config, ExportFormat::Yaml)?;
+//! let config = FullConfig::default();
+//! let yaml = ImportExportManager::export_config(&config, ExportOptions::default()).unwrap();
 //! ```
 
 use crate::config::types::{FullConfig, Theme};

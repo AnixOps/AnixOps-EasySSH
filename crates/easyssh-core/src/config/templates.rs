@@ -16,8 +16,7 @@
 //! let mut manager = TemplateManager::new();
 //! manager.load_builtin_templates();
 //!
-//! let dev_template = manager.get_template("development").unwrap();
-//! let config = dev_template.apply();
+//! let config = manager.apply_template("development").unwrap();
 //! ```
 
 use crate::config::types::{FullConfig, Theme};

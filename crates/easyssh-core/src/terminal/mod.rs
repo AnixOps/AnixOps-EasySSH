@@ -46,14 +46,10 @@
 //! ## Native Terminal (Lite)
 //!
 //! ```rust,no_run
-//! use easyssh_core::terminal::{open_native_terminal, generate_ssh_command};
+//! use easyssh_core::terminal::open_native_terminal;
 //!
 //! // Open native terminal with SSH connection
-//! open_native_terminal("192.168.1.1", 22, "root", "agent").unwrap();
-//!
-//! // Or generate SSH command for manual use
-//! let cmd = generate_ssh_command("192.168.1.1", 22, "root", true);
-//! println!("SSH command: {}", cmd);
+//! open_native_terminal("192.168.1.100", 22, "admin", "agent").unwrap();
 //! ```
 //!
 //! ## Embedded Terminal (Standard/Pro)

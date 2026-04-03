@@ -9,6 +9,7 @@
 
 use easyssh_core::crypto::{CryptoState, ServerCredential, AuthMethod, EncryptedServerCredential, EncryptedContainer};
 
+#[path = "../common/mod.rs"]
 mod common;
 use common::{test_master_password, test_wrong_password, test_encryption_data};
 

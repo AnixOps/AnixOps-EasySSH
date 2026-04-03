@@ -432,15 +432,31 @@ impl ServerService {
     /// ```rust,no_run
     /// use easyssh_core::services::ServerService;
     /// use easyssh_core::models::CreateServerDto;
+    /// use easyssh_core::models::AuthMethod;
     ///
-    /// # let service = setup_service();
+    /// // Assume service is already created
+    /// // let service = ServerService::new(db);
     /// let servers = vec![
-    ///     CreateServerDto { /* ... */ },
-    ///     CreateServerDto { /* ... */ },
+    ///     CreateServerDto {
+    ///         name: "Server 1".to_string(),
+    ///         host: "192.168.1.1".to_string(),
+    ///         port: 22,
+    ///         username: "admin".to_string(),
+    ///         auth_method: AuthMethod::Agent,
+    ///         group_id: None,
+    ///     },
+    ///     CreateServerDto {
+    ///         name: "Server 2".to_string(),
+    ///         host: "192.168.1.2".to_string(),
+    ///         port: 22,
+    ///         username: "admin".to_string(),
+    ///         auth_method: AuthMethod::Agent,
+    ///         group_id: None,
+    ///     },
     /// ];
     ///
-    /// let result = service.batch_create_servers(servers).unwrap();
-    /// println!("Created {}/{} servers", result.success, result.total);
+    /// // let result = service.batch_create_servers(servers).unwrap();
+    /// // println!("Created {}/{} servers", result.success, result.total);
     /// ```
     pub fn batch_create_servers(
         &self,

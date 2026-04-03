@@ -12,7 +12,7 @@
 //! ```rust,no_run
 //! use easyssh_core::config::{ConfigManager, AppConfig};
 //!
-//! let config = ConfigManager::new().expect("Failed to create config manager");
+//! let mut config = ConfigManager::new().expect("Failed to create config manager");
 //! config.load().expect("Failed to load config");
 //!
 //! // Get application config

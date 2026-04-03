@@ -333,6 +333,21 @@ impl MonitoringManager {
         self.alert_engine.get_active_alerts().await
     }
 
+    /// Add or update an alert rule
+    pub async fn upsert_alert_rule(&self, rule: AlertRule) -> Result<(), MonitoringError> {
+        self.alert_engine.upsert_rule(rule).await
+    }
+
+    /// Delete an alert rule
+    pub async fn delete_alert_rule(&self, rule_id: &str) -> Result<(), MonitoringError> {
+        self.alert_engine.delete_rule(rule_id).await
+    }
+
+    /// Get all alert rules
+    pub async fn get_alert_rules(&self) -> Vec<AlertRule> {
+        self.alert_engine.get_rules().await
+    }
+
     /// Acknowledge an alert
     pub async fn acknowledge_alert(
         &self,

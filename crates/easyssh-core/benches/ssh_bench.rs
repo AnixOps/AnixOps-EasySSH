@@ -61,12 +61,7 @@ fn bench_enhanced_pool(c: &mut Criterion) {
 
     group.bench_function("create_manager_with_config", |b| {
         b.iter(|| {
-            let manager = EnhancedSshManager::builder()
-                .max_connections(50)
-                .idle_timeout(Duration::from_secs(600))
-                .max_age(Duration::from_secs(3600))
-                .health_check_interval(Duration::from_secs(30))
-                .build();
+            let manager = EnhancedSshManager::new();
             black_box(manager);
         });
     });
@@ -75,10 +70,10 @@ fn bench_enhanced_pool(c: &mut Criterion) {
     group.bench_function("state_transition", |b| {
         b.iter(|| {
             let states = [
-                EnhancedConnectionState::Idle,
-                EnhancedConnectionState::Active,
-                EnhancedConnectionState::Degraded,
-                EnhancedConnectionState::Unhealthy,
+                EnhancedConnectionState::Connected,
+                EnhancedConnectionState::Connecting,
+                EnhancedConnectionState::Disconnected,
+                EnhancedConnectionState::Failed { reason: "test error" },
             ];
             for state in states.iter() {
                 black_box(state);
@@ -167,13 +162,9 @@ fn bench_pool_stats(c: &mut Criterion) {
     group.bench_function("create_stats", |b| {
         b.iter(|| {
             let stats = PoolStats {
-                active_connections: 10,
-                idle_connections: 5,
+                total_pools: 10,
                 total_sessions: 15,
-                max_pool_size: 100,
-                healthy_connections: 8,
-                degraded_connections: 2,
-                unhealthy_connections: 0,
+                pools: vec![],
             };
             black_box(stats);
         });
@@ -181,19 +172,14 @@ fn bench_pool_stats(c: &mut Criterion) {
 
     group.bench_function("stats_calculation", |b| {
         let stats = PoolStats {
-            active_connections: 10,
-            idle_connections: 5,
+            total_pools: 10,
             total_sessions: 15,
-            max_pool_size: 100,
-            healthy_connections: 8,
-            degraded_connections: 2,
-            unhealthy_connections: 0,
+            pools: vec![],
         };
 
         b.iter(|| {
-            let utilization = stats.active_connections as f64 / stats.max_pool_size as f64;
-            let health_ratio = stats.healthy_connections as f64 / stats.active_connections as f64;
-            black_box((utilization, health_ratio));
+            let utilization = stats.total_sessions as f64 / stats.total_pools as f64;
+            black_box(utilization);
         });
     });
 
@@ -367,10 +353,9 @@ fn bench_reconnect_config(c: &mut Criterion) {
         b.iter(|| {
             let config = ReconnectConfig {
                 max_attempts: 3,
-                base_delay_ms: 1000,
+                initial_delay_ms: 1000,
                 max_delay_ms: 30000,
                 backoff_multiplier: 2.0,
-                jitter_factor: 0.1,
             };
             black_box(config);
         });
@@ -379,18 +364,16 @@ fn bench_reconnect_config(c: &mut Criterion) {
     group.bench_function("calculate_backoff", |b| {
         let config = ReconnectConfig {
             max_attempts: 3,
-            base_delay_ms: 1000,
+            initial_delay_ms: 1000,
             max_delay_ms: 30000,
             backoff_multiplier: 2.0,
-            jitter_factor: 0.1,
         };
 
         b.iter(|| {
             for attempt in 1..=3 {
                 let delay =
-                    config.base_delay_ms * (config.backoff_multiplier.powi(attempt - 1) as u64);
-                let jitter = (delay as f64 * config.jitter_factor) as u64;
-                let total_delay = std::cmp::min(delay + jitter, config.max_delay_ms);
+                    config.initial_delay_ms * (config.backoff_multiplier.powi(attempt - 1) as u64);
+                let total_delay = std::cmp::min(delay, config.max_delay_ms);
                 black_box(total_delay);
             }
         });

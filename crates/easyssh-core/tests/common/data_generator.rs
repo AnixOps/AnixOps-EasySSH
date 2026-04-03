@@ -1,10 +1,9 @@
 //! Test Data Generator
 //!
 //! Utilities for generating test data for unit and integration tests.
-//! Supports generating servers, groups, identities, and related entities.
+//! Supports generating servers, groups, and related entities.
 
-use easyssh_core::models::{Server, Group, Identity, Tag};
-use std::collections::HashMap;
+use easyssh_core::models::{Server, Group, AuthMethod};
 
 /// Generator for creating test data with configurable properties
 pub struct TestDataGenerator {
@@ -33,30 +32,32 @@ impl TestDataGenerator {
         let num = id.split('-').last().unwrap_or("1").parse::<u16>().unwrap_or(1);
 
         Server::new(
-            &format!("Server {}", id),
-            &format!("192.168.{}.{}", num / 256, num % 256),
-            22
+            format!("Server {}", id),
+            format!("192.168.{}.{}", num / 256, num % 256),
+            22,
+            "admin".to_string(),
+            AuthMethod::Agent,
+            None,
         )
-        .with_username("admin")
-        .with_description(&format!("Test server generated for {}", id))
     }
 
     /// Generate a server with specific properties
     pub fn generate_server_with(
         &self,
-        name: Option<&str>,
-        host: Option<&str>,
+        name: Option<String>,
+        host: Option<String>,
         port: Option<u16>,
+        username: Option<String>,
     ) -> Server {
         let id = self.next_id();
         let num = id.split('-').last().unwrap_or("1").parse::<u16>().unwrap_or(1);
 
-        let name = name.unwrap_or(&format!("Server {}", id));
-        let host = host.unwrap_or(&format!("192.168.{}.{}", num / 256, num % 256));
+        let name = name.unwrap_or_else(|| format!("Server {}", id));
+        let host = host.unwrap_or_else(|| format!("192.168.{}.{}", num / 256, num % 256));
         let port = port.unwrap_or(22);
+        let username = username.unwrap_or_else(|| "admin".to_string());
 
-        Server::new(name, host, port)
-            .with_username("admin")
+        Server::new(name, host, port, username, AuthMethod::Agent, None)
     }
 
     /// Generate multiple servers
@@ -69,54 +70,14 @@ impl TestDataGenerator {
         let id = self.next_id();
         let colors = vec!["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"];
         let num = id.split('-').last().unwrap_or("1").parse::<usize>().unwrap_or(1);
-        let color = colors[num % colors.len()];
+        let color = colors[num % colors.len()].to_string();
 
-        Group::new(&format!("Group {}", id), color)
+        Group::new(format!("Group {}", id), color)
     }
 
     /// Generate multiple groups
     pub fn generate_groups(&self, count: usize) -> Vec<Group> {
         (0..count).map(|_| self.generate_group()).collect()
-    }
-
-    /// Generate a test identity with password
-    pub fn generate_password_identity(&self) -> Identity {
-        let id = self.next_id();
-        Identity::new_password(&format!("Identity {}", id), &format!("password_{}", id))
-    }
-
-    /// Generate a test identity with SSH key
-    pub fn generate_key_identity(&self) -> Identity {
-        let id = self.next_id();
-        Identity::new_key(
-            &format!("Key Identity {}", id),
-            &format!("~/.ssh/id_{}", id.to_lowercase()),
-            None
-        )
-    }
-
-    /// Generate multiple identities
-    pub fn generate_identities(&self, count: usize) -> Vec<Identity> {
-        (0..count)
-            .map(|i| {
-                if i % 2 == 0 {
-                    self.generate_password_identity()
-                } else {
-                    self.generate_key_identity()
-                }
-            })
-            .collect()
-    }
-
-    /// Generate a tag
-    pub fn generate_tag(&self) -> Tag {
-        let id = self.next_id();
-        Tag::new(&format!("tag-{}", id.to_lowercase()))
-    }
-
-    /// Generate multiple tags
-    pub fn generate_tags(&self, count: usize) -> Vec<Tag> {
-        (0..count).map(|_| self.generate_tag()).collect()
     }
 }
 
@@ -129,7 +90,6 @@ impl Default for TestDataGenerator {
 /// Predefined test scenarios
 pub mod scenarios {
     use super::*;
-    use easyssh_core::models::{Server, Group};
 
     /// Generate a production-like environment
     pub fn production_environment() -> (Vec<Group>, Vec<Server>) {
@@ -137,129 +97,86 @@ pub mod scenarios {
         let mut servers = vec![];
 
         // Production group
-        let prod_group = Group::new("Production", "#FF4136");
+        let prod_group = Group::new("Production".to_string(), "#FF4136".to_string());
         groups.push(prod_group.clone());
 
         for i in 1..=5 {
             let server = Server::new(
-                &format!("Prod-Web-{}", i),
-                &format!("10.0.1.{}", i),
-                22
-            )
-            .with_username("deploy")
-            .with_group(&prod_group.id)
-            .with_tags(vec!["production".to_string(), "web".to_string()]);
+                format!("Prod-Web-{}", i),
+                format!("10.0.1.{}", i),
+                22,
+                "deploy".to_string(),
+                AuthMethod::Agent,
+                Some(prod_group.id.clone()),
+            );
             servers.push(server);
         }
 
         for i in 1..=3 {
             let server = Server::new(
-                &format!("Prod-DB-{}", i),
-                &format!("10.0.2.{}", i),
-                22
-            )
-            .with_username("dbadmin")
-            .with_group(&prod_group.id)
-            .with_tags(vec!["production".to_string(), "database".to_string()]);
+                format!("Prod-DB-{}", i),
+                format!("10.0.2.{}", i),
+                22,
+                "dbadmin".to_string(),
+                AuthMethod::Agent,
+                Some(prod_group.id.clone()),
+            );
             servers.push(server);
         }
 
         // Staging group
-        let staging_group = Group::new("Staging", "#FFDC00");
+        let staging_group = Group::new("Staging".to_string(), "#FFDC00".to_string());
         groups.push(staging_group.clone());
 
         for i in 1..=3 {
             let server = Server::new(
-                &format!("Staging-{}", i),
-                &format!("10.1.1.{}", i),
-                22
-            )
-            .with_username("deploy")
-            .with_group(&staging_group.id)
-            .with_tags(vec!["staging".to_string()]);
+                format!("Staging-{}", i),
+                format!("10.1.1.{}", i),
+                22,
+                "deploy".to_string(),
+                AuthMethod::Agent,
+                Some(staging_group.id.clone()),
+            );
             servers.push(server);
         }
 
         // Development group
-        let dev_group = Group::new("Development", "#2ECC40");
+        let dev_group = Group::new("Development".to_string(), "#2ECC40".to_string());
         groups.push(dev_group.clone());
 
         for i in 1..=10 {
             let server = Server::new(
-                &format!("Dev-{}", i),
-                &format!("192.168.10.{}", i),
-                22
-            )
-            .with_username("developer")
-            .with_group(&dev_group.id)
-            .with_tags(vec!["development".to_string()]);
+                format!("Dev-{}", i),
+                format!("192.168.10.{}", i),
+                22,
+                "developer".to_string(),
+                AuthMethod::Agent,
+                Some(dev_group.id.clone()),
+            );
             servers.push(server);
         }
 
         (groups, servers)
     }
 
-    /// Generate a team collaboration setup
-    pub fn team_collaboration_setup() -> Vec<(String, Vec<Server>)> {
-        let mut teams = vec![];
-
-        // Backend team
-        let backend_servers: Vec<_> = (1..=8)
-            .map(|i| Server::new(
-                &format!("Backend-{}", i),
-                &format!("10.20.1.{}", i),
-                22
-            )
-            .with_username("backend")
-            .with_tags(vec!["backend".to_string(), "api".to_string()]))
-            .collect();
-        teams.push(("Backend".to_string(), backend_servers));
-
-        // Frontend team
-        let frontend_servers: Vec<_> = (1..=6)
-            .map(|i| Server::new(
-                &format!("Frontend-{}", i),
-                &format!("10.20.2.{}", i),
-                22
-            )
-            .with_username("frontend")
-            .with_tags(vec!["frontend".to_string(), "web".to_string()]))
-            .collect();
-        teams.push(("Frontend".to_string(), frontend_servers));
-
-        // DevOps team
-        let devops_servers: Vec<_> = (1..=4)
-            .map(|i| Server::new(
-                &format!("Infra-{}", i),
-                &format!("10.20.3.{}", i),
-                22
-            )
-            .with_username("devops")
-            .with_tags(vec!["infrastructure".to_string(), "ci-cd".to_string()]))
-            .collect();
-        teams.push(("DevOps".to_string(), devops_servers));
-
-        teams
-    }
-
     /// Generate edge case scenarios
     pub fn edge_cases() -> Vec<Server> {
         vec![
             // Empty name
-            Server::new("", "192.168.1.1", 22),
+            Server::new("".to_string(), "192.168.1.1".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
             // Very long name
-            Server::new(&"a".repeat(1000), "192.168.1.2", 22),
+            Server::new("a".repeat(1000), "192.168.1.2".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
             // Unicode name
-            Server::new("服务器测试", "192.168.1.3", 22),
+            Server::new("服务器测试".to_string(), "192.168.1.3".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
             // Special characters
-            Server::new("Test <script>alert('xss')</script>", "192.168.1.4", 22),
+            Server::new("Test <script>alert('xss')</script>".to_string(), "192.168.1.4".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
             // Edge port numbers
-            Server::new("Port 1", "192.168.1.5", 1),
-            Server::new("Port Max", "192.168.1.6", 65535),
-            // IPv6 address (if supported)
-            Server::new("IPv6", "::1", 22),
-            // Hostname with port
-            Server::new("Hostname", "example.com:2222", 22),
+            Server::new("Port 1".to_string(), "192.168.1.5".to_string(), 1, "admin".to_string(), AuthMethod::Agent, None),
+            Server::new("Port Max".to_string(), "192.168.1.6".to_string(), 65535, "admin".to_string(), AuthMethod::Agent, None),
+            // IPv6 address
+            Server::new("IPv6".to_string(), "::1".to_string(), 22, "admin".to_string(), AuthMethod::Agent, None),
+            // Hostname
+            Server::new("Hostname".to_string(), "example.com".to_string(), 2222, "admin".to_string(), AuthMethod::Agent, None),
         ]
     }
 }

@@ -358,6 +358,14 @@ impl RoleDefinition {
         }
     }
 
+    /// 批量添加权限 (builder pattern)
+    pub fn with_permissions(mut self, permissions: Vec<Permission>) -> Self {
+        for p in permissions {
+            self.permissions.insert(p);
+        }
+        self
+    }
+
     /// 设置系统角色
     pub fn as_system(mut self) -> Self {
         self.is_system = true;
@@ -666,7 +674,7 @@ mod tests {
 
         let parent = RoleDefinition::new("parent")
             .with_name("Parent")
-            .add_permissions(Permission::crud(ResourceType::Server));
+            .with_permissions(Permission::crud(ResourceType::Server));
         roles.insert("parent".to_string(), parent);
 
         let child = RoleDefinition::new("child")

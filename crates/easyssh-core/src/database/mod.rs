@@ -16,8 +16,9 @@
 //!
 //! ```rust,no_run
 //! use easyssh_core::database::{Database, ServerRepository, GroupRepository};
+//! use easyssh_core::database::Result;
 //!
-//! async fn example() -> anyhow::Result<()> {
+//! async fn example() -> Result<()> {
 //!     // Initialize database
 //!     let db = Database::new("easyssh.db").await?;
 //!     db.init().await?;

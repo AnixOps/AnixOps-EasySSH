@@ -124,7 +124,7 @@ pub async fn sso_audit_middleware(
     // 记录审计日志 (异步)
     // 简化实现：只记录日志
     if path.starts_with("/api/sso") {
-        log::info!(
+        tracing::info!(
             "SSO Audit: method={}, path={}, ip={}, status={}, duration={}ms, ua={}",
             method,
             path,

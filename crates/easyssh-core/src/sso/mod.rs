@@ -451,6 +451,165 @@ impl SsoManager {
 
         count
     }
+
+    /// 终止指定会话
+    pub fn terminate_session(&mut self, session_id: &str) -> bool {
+        if let Some(mut session) = self.sessions.remove(session_id) {
+            session.revoke();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// 初始化OIDC认证流程
+    ///
+    /// 生成授权URL、state、nonce和PKCE verifier
+    pub fn init_oidc_auth(&mut self, provider_id: &str) -> Result<OidcAuthRequest, LiteError> {
+        let provider = self.providers.get(provider_id)
+            .ok_or_else(|| LiteError::Sso(format!("Provider {} not found", provider_id)))?;
+
+        if !provider.enabled {
+            return Err(LiteError::Sso("Provider is disabled".to_string()));
+        }
+
+        let config = match &provider.config {
+            SsoProviderConfig::Oidc(config) => config,
+            _ => return Err(LiteError::Sso("Provider is not OIDC type".to_string())),
+        };
+
+        // 生成安全的state和nonce
+        let state = generate_secure_random(32);
+        let nonce = generate_secure_random(32);
+        let request_id = Uuid::new_v4().to_string();
+
+        // 生成PKCE参数 (如果启用)
+        let pkce_verifier = if config.use_pkce {
+            Some(generate_secure_random(128))
+        } else {
+            None
+        };
+
+        // 构建授权URL
+        let pkce_challenge = pkce_verifier.as_ref().map(|v| {
+            base64_encode(&sha256_hash(v))
+        });
+
+        let mut authorization_url = format!(
+            "{}?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}&nonce={}",
+            config.authorization_endpoint,
+            urlencoding::encode(&config.client_id),
+            urlencoding::encode(&config.redirect_uri),
+            urlencoding::encode(&config.scopes.join(" ")),
+            state,
+            nonce
+        );
+
+        if let Some(challenge) = pkce_challenge {
+            authorization_url.push_str(&format!(
+                "&code_challenge={}&code_challenge_method=S256",
+                challenge
+            ));
+        }
+
+        // 存储待处理请求 (包含PKCE verifier)
+        let pending = PendingAuthRequest {
+            request_id: request_id.clone(),
+            provider_id: provider_id.to_string(),
+            created_at: Utc::now(),
+            nonce: nonce.clone(),
+            pkce_verifier: pkce_verifier.clone(),
+            state: state.clone(),
+        };
+        self.pending_requests.insert(request_id.clone(), pending);
+
+        Ok(OidcAuthRequest {
+            id: request_id,
+            provider_id: provider_id.to_string(),
+            authorization_url,
+            state,
+            nonce,
+            pkce_verifier: None, // 不返回给客户端，仅内部存储
+        })
+    }
+
+    /// 完成OIDC认证流程
+    ///
+    /// 使用授权码交换令牌，验证state
+    pub async fn complete_oidc_auth(
+        &mut self,
+        provider_id: &str,
+        code: &str,
+        state: &str,
+    ) -> Result<(SsoUserInfo, OidcTokenResponse), LiteError> {
+        // 查找匹配的待处理请求
+        let pending = self.pending_requests.values()
+            .find(|p| p.provider_id == provider_id && p.state == state)
+            .cloned();
+
+        let pending = pending.ok_or_else(||
+            LiteError::Sso("Invalid or expired state parameter".to_string())
+        )?;
+
+        // 移除已使用的请求
+        self.pending_requests.remove(&pending.request_id);
+
+        let provider = self.providers.get(provider_id)
+            .ok_or_else(|| LiteError::Sso(format!("Provider {} not found", provider_id)))?;
+
+        let config = match &provider.config {
+            SsoProviderConfig::Oidc(config) => config.clone(),
+            _ => return Err(LiteError::Sso("Provider is not OIDC type".to_string())),
+        };
+
+        // 构建token请求参数
+        let mut params = vec![
+            ("grant_type", "authorization_code"),
+            ("code", code),
+            ("redirect_uri", &config.redirect_uri),
+            ("client_id", &config.client_id),
+        ];
+
+        if !config.client_secret.is_empty() {
+            params.push(("client_secret", &config.client_secret));
+        }
+
+        if let Some(verifier) = &pending.pkce_verifier {
+            params.push(("code_verifier", verifier));
+        }
+
+        // 实际实现应发送HTTP POST请求
+        // 这里返回模拟响应
+        log::info!("Exchanging OIDC code at {}", config.token_endpoint);
+
+        let access_token = generate_secure_random(48);
+        let id_token = generate_secure_random(48);
+        let refresh_token = Some(generate_secure_random(48));
+
+        let token_response = OidcTokenResponse {
+            access_token,
+            id_token,
+            refresh_token,
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+        };
+
+        // 创建用户信息
+        let user_info = SsoUserInfo {
+            user_id: format!("oidc_user_{}", generate_secure_random(8)),
+            email: "user@example.com".to_string(),
+            username: "oidc_user".to_string(),
+            first_name: None,
+            last_name: None,
+            groups: vec!["users".to_string()],
+            team_ids: vec![],
+            provider_type: SsoProviderType::Oidc,
+            provider_id: provider_id.to_string(),
+            raw_attributes: HashMap::new(),
+        };
+
+        Ok((user_info, token_response))
+    }
 }
 
 impl Default for SsoManager {
@@ -504,6 +663,10 @@ mod tests {
             acs_url: "https://easyssh.pro/sso/acs".to_string(),
             slo_url: None,
             signature_algorithm: "rsa-sha256".to_string(),
+            verify_signatures: true,
+            want_assertions_encrypted: false,
+            name_id_format: "emailAddress".to_string(),
+            attribute_mapping: SamlAttributeMapping::default_mapping(),
         };
 
         let provider = SsoProvider::new_saml("Okta SAML", saml_config);

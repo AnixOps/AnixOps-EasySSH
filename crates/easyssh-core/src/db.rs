@@ -30,7 +30,7 @@
 //!
 //! ```rust,no_run
 //! use easyssh_core::db::{Database, get_db_path};
-//! use easyssh_core::db::{NewServer, NewGroup};
+//! use easyssh_core::db::NewGroup;
 //!
 //! // Open database
 //! let db_path = get_db_path();
@@ -43,9 +43,7 @@
 //! let group = NewGroup {
 //!     id: "group-1".to_string(),
 //!     name: "Production".to_string(),
-//!     color: Some("#4A90D9".to_string()),
-//!     created_at: chrono::Utc::now().to_rfc3339(),
-//!     updated_at: chrono::Utc::now().to_rfc3339(),
+//!     color: "#4A90D9".to_string(),
 //! };
 //! db.add_group(&group).expect("Failed to add group");
 //! ```

@@ -21,8 +21,9 @@ use std::time::Duration;
 ///
 /// ```rust,no_run
 /// use easyssh_core::database::Database;
+/// use easyssh_core::database::Result;
 ///
-/// async fn example() -> anyhow::Result<()> {
+/// async fn example() -> Result<()> {
 ///     let db = Database::new("easyssh.db").await?;
 ///     db.init().await?;
 ///
@@ -56,8 +57,9 @@ impl Database {
     ///
     /// ```rust,no_run
     /// use easyssh_core::database::Database;
+    /// use easyssh_core::database::Result;
     ///
-    /// async fn open_db() -> anyhow::Result<()> {
+    /// async fn open_db() -> Result<()> {
     ///     let db = Database::new("/path/to/db.sqlite").await?;
     ///     Ok(())
     /// }
@@ -156,8 +158,9 @@ impl Database {
     ///
     /// ```rust,no_run
     /// use easyssh_core::database::Database;
+    /// use easyssh_core::database::Result;
     ///
-    /// async fn transaction_example(db: &Database) -> anyhow::Result<()> {
+    /// async fn transaction_example(db: &Database) -> Result<()> {
     ///     let mut tx = db.begin_transaction().await?;
     ///
     ///     // Execute queries using tx...

@@ -12,8 +12,10 @@
 //! # Example
 //! ```rust,no_run
 //! use easyssh_core::config::encryption::{ConfigEncryption, EncryptionOptions};
+//! use easyssh_core::config::FullConfig;
 //!
 //! let encryption = ConfigEncryption::new("master_password").unwrap();
+//! let config = FullConfig::default();
 //! let encrypted = encryption.encrypt_config(&config).unwrap();
 //! let decrypted = encryption.decrypt_config(&encrypted).unwrap();
 //! ```

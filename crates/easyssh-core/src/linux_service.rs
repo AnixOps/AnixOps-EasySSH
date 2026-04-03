@@ -91,10 +91,10 @@ impl SystemdNotifier {
             // Handle abstract namespace socket (starts with null byte)
             let addr_bytes = socket_path.as_os_str().as_encoded_bytes();
             if addr_bytes.starts_with(&[0]) {
-                sock.send_to(
-                    msg.as_bytes(),
-                    std::os::unix::net::SocketAddr::from_abstract_name(&addr_bytes[1..])?,
-                )?;
+                // For abstract Unix sockets, we need to use the path directly with a null prefix
+                // The standard library doesn't have from_abstract_name, so we use the path directly
+                let abstract_name = std::ffi::OsStr::from_bytes(&addr_bytes[1..]);
+                sock.send_to(msg.as_bytes(), abstract_name)?;
             } else {
                 sock.send_to(msg.as_bytes(), socket_path)?;
             }

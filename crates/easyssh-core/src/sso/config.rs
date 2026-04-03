@@ -4,6 +4,74 @@
 
 use serde::{Deserialize, Serialize};
 
+/// NameID格式枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum NameIdFormat {
+    #[default]
+    EmailAddress,
+    Persistent,
+    Transient,
+    Unspecified,
+    Kerberos,
+    X509SubjectName,
+    WindowsDomainQualifiedName,
+}
+
+impl std::fmt::Display for NameIdFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NameIdFormat::EmailAddress => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"),
+            NameIdFormat::Persistent => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"),
+            NameIdFormat::Transient => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"),
+            NameIdFormat::Unspecified => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"),
+            NameIdFormat::Kerberos => write!(f, "urn:oasis:names:tc:SAML:2.0:nameid-format:kerberos"),
+            NameIdFormat::X509SubjectName => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:x509SubjectName"),
+            NameIdFormat::WindowsDomainQualifiedName => write!(f, "urn:oasis:names:tc:SAML:1.1:nameid-format:WindowsDomainQualifiedName"),
+        }
+    }
+}
+
+/// 签名算法枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SignatureAlgorithm {
+    #[default]
+    RsaSha256,
+    RsaSha384,
+    RsaSha512,
+    EcdsaSha256,
+    EcdsaSha384,
+    EcdsaSha512,
+}
+
+impl std::fmt::Display for SignatureAlgorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SignatureAlgorithm::RsaSha256 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"),
+            SignatureAlgorithm::RsaSha384 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384"),
+            SignatureAlgorithm::RsaSha512 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"),
+            SignatureAlgorithm::EcdsaSha256 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"),
+            SignatureAlgorithm::EcdsaSha384 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha384"),
+            SignatureAlgorithm::EcdsaSha512 => write!(f, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512"),
+        }
+    }
+}
+
+impl SignatureAlgorithm {
+    /// Get the algorithm name as used in XML signatures
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SignatureAlgorithm::RsaSha256 => "rsa-sha256",
+            SignatureAlgorithm::RsaSha384 => "rsa-sha384",
+            SignatureAlgorithm::RsaSha512 => "rsa-sha512",
+            SignatureAlgorithm::EcdsaSha256 => "ecdsa-sha256",
+            SignatureAlgorithm::EcdsaSha384 => "ecdsa-sha384",
+            SignatureAlgorithm::EcdsaSha512 => "ecdsa-sha512",
+        }
+    }
+}
+
 /// SAML 2.0 配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SamlConfig {
