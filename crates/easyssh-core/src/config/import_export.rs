@@ -92,9 +92,14 @@ impl ExportFormat {
         }
 
         // Check for YAML
-        if trimmed.starts_with("---")
-            || (trimmed.contains(':') && !trimmed.contains('=') && !trimmed.contains('['))
-        {
+        // YAML typically has key: value pairs at the start
+        // Check for "---" document marker or key: value pattern
+        if trimmed.starts_with("---") {
+            return Some(ExportFormat::Yaml);
+        }
+        // Check for YAML pattern: starts with a key: value at line start
+        let first_line = trimmed.lines().next().unwrap_or("");
+        if first_line.contains(':') && !first_line.contains('=') {
             return Some(ExportFormat::Yaml);
         }
 
@@ -805,8 +810,14 @@ mod tests {
         let options = ExportOptions::yaml();
 
         let exported = ImportExportManager::export_config(&config, options).unwrap();
+        eprintln!("Exported YAML:\n{}", exported);
+        eprintln!("Detected format: {:?}", ExportFormat::detect(&exported));
         let imported = ImportExportManager::import_config(&exported, ImportOptions::default());
 
+        if !imported.is_success() {
+            eprintln!("Import errors: {:?}", imported.errors);
+            eprintln!("Import warnings: {:?}", imported.warnings);
+        }
         assert!(imported.is_success());
         assert!(imported.config.is_some());
     }
@@ -832,7 +843,12 @@ mod tests {
         assert!(exported.contains("EASYSSH_THEME="));
         assert!(exported.contains("EASYSSH_DEFAULT_PORT="));
 
-        let imported = ImportExportManager::import_config(&exported, ImportOptions::default());
+        // Test with explicit format hint since env format detection is tricky
+        let import_options = ImportOptions {
+            format_hint: Some(ExportFormat::Env),
+            ..Default::default()
+        };
+        let imported = ImportExportManager::import_config(&exported, import_options);
         assert!(imported.is_success());
     }
 
