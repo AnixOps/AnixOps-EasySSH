@@ -96,8 +96,8 @@ cargo add easyssh-core --features "standard sftp"
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/easyssh.git
-cd easyssh
+git clone https://github.com/AnixOps/AnixOps-EasySSH.git
+cd AnixOps-EasySSH
 
 # Build Lite version (default)
 cargo build --release
@@ -201,8 +201,8 @@ EasySSH 是一个面向开发者和团队的现代 SSH 客户端产品线，提�
 
 **v0.3.0-beta.1** - 已发布 2026-04-03
 
-[![测试覆盖](https://img.shields.io/badge/测试-962%20通过-brightgreen)]()
-[![许可证](https://img.shields.io/badge/许可证-MIT-blue)](LICENSE)
+[![Test Coverage](https://img.shields.io/badge/tests-962%20passing-brightgreen)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 | 版本 | 状态 | 进度 |
 |------|------|------|
@@ -274,8 +274,8 @@ cargo add easyssh-core --features "standard sftp"
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-org/easyssh.git
-cd easyssh
+git clone https://github.com/AnixOps/AnixOps-EasySSH.git
+cd AnixOps-EasySSH
 
 # 构建 Lite 版本（默认）
 cargo build --release
@@ -321,7 +321,7 @@ let servers = get_servers(&state).expect("Failed to get servers");
 
 ## 功能特性
 
-### Feature Flags
+### 功能标志 (Feature Flags)
 
 | Feature | 描述 |
 |---------|------|

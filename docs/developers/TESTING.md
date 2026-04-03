@@ -56,30 +56,33 @@
 
 | 指标 | 数值 |
 |------|------|
-| **总测试数** | 962 |
-| **通过** | 962 |
+| **总测试数** | 803 |
+| **通过** | 793 |
 | **失败** | 0 |
-| **忽略** | 11 |
-| **执行时间** | ~18.5s |
+| **忽略** | 10 |
+| **执行时间** | ~6.5s |
 
 ### 2.2 测试覆盖模块
 
-| 模块 | 测试数量 | 覆盖状态 |
-|------|----------|----------|
-| Crypto (加密) | ~65 | 完整覆盖 |
-| Database (数据库) | ~120 | 完整覆盖 |
-| SSH (连接配置) | ~23 | 完整覆盖 |
-| Services (业务逻辑) | ~40 | 完整覆盖 |
-| Search (搜索) | ~14 | 完整覆盖 |
-| Models (数据模型) | ~200 | 完整覆盖 |
-| Version (版本管理) | ~50 | 完整覆盖 |
-| Vault (密码管理) | ~15 | 完整覆盖 |
-| Security (安全测试) | ~13 | 完整覆盖 |
-| Performance (性能) | ~7 | 关键路径 |
-| Terminal (终端) | ~30 | 完整覆盖 |
-| Config (配置) | ~80 | 完整覆盖 |
-| Backup (备份) | ~40 | 完整覆盖 |
-| Integration (集成) | ~35 | 核心流程 |
+| 模块 | 测试文件测试数 | 内嵌测试 | 覆盖状态 |
+|------|---------------|----------|----------|
+| Crypto (加密) | 18 | ~180 | 完整覆盖 |
+| Database (数据库) | 16 + 14 (集成) | ~120 | 完整覆盖 |
+| SSH (连接配置) | 23 + 13 (集成) | ~30 | 完整覆盖 |
+| Services (业务逻辑) | 19 | ~40 | 完整覆盖 |
+| Search (搜索) | 14 | ~15 | 完整覆盖 |
+| Models (数据模型) | - | ~200 | 完整覆盖 |
+| Version (版本管理) | - | ~50 | 完整覆盖 |
+| Vault (密码管理) | - | ~15 | 完整覆盖 |
+| Security (安全测试) | 13 | - | 完整覆盖 |
+| Performance (性能) | 7 | - | 关键路径 |
+| Terminal (终端) | - | ~30 | 完整覆盖 |
+| Config (配置) | - | ~80 | 完整覆盖 |
+| Backup (备份) | - | ~40 | 完整覆盖 |
+| Integration (集成) | 34 | - | 核心流程 |
+| Fuzz (模糊测试) | 8 | - | 属性测试 |
+
+> **注**: "内嵌测试"指在源码文件中使用 `#[cfg(test)] mod tests` 模块的测试。
 
 ### 2.3 测试文件结构
 
@@ -92,20 +95,22 @@ crates/easyssh-core/tests/
 │   ├── test_data.json        # 示例服务器、分组、身份
 │   └── comprehensive_test_data.json # 完整测试数据集
 ├── unit/                      # 单元测试
-│   ├── crypto_tests.rs       # 加密测试 (~65 tests)
-│   ├── database_tests.rs     # 数据库CRUD测试 (~120 tests)
-│   ├── ssh_tests.rs          # SSH配置测试 (~23 tests)
-│   ├── server_service_tests.rs # 业务逻辑测试 (~19 tests)
-│   ├── search_tests.rs       # 搜索功能测试 (~14 tests)
-│   ├── security_tests.rs     # 安全测试 (~13 tests)
-│   ├── performance_tests.rs  # 性能测试 (~7 tests)
-│   └── fuzz_tests.rs         # 模糊/属性测试 (~8 tests)
+│   ├── crypto_tests.rs       # 加密测试 (18 tests)
+│   ├── database_tests.rs     # 数据库CRUD测试 (16 tests)
+│   ├── ssh_tests.rs          # SSH配置测试 (23 tests)
+│   ├── server_service_tests.rs # 业务逻辑测试 (19 tests)
+│   ├── search_tests.rs       # 搜索功能测试 (14 tests)
+│   ├── security_tests.rs     # 安全测试 (13 tests)
+│   ├── performance_tests.rs  # 性能测试 (7 tests)
+│   └── fuzz_tests.rs         # 模糊/属性测试 (8 tests)
 ├── integration/               # 集成测试
-│   ├── workflow_tests.rs     # 端到端工作流测试 (~7 tests)
-│   ├── database_integration_tests.rs # 数据库集成测试 (~14 tests)
-│   └── ssh_integration_tests.rs # SSH集成测试 (~13 tests)
+│   ├── workflow_tests.rs     # 端到端工作流测试 (7 tests)
+│   ├── database_integration_tests.rs # 数据库集成测试 (14 tests)
+│   └── ssh_integration_tests.rs # SSH集成测试 (13 tests)
 └── database_compiles.rs      # 数据库编译验证 (1 test)
 ```
+
+> **注**: 额外的测试内嵌在源码文件的 `#[cfg(test)] mod tests` 模块中。
 
 ---
 
@@ -114,23 +119,30 @@ crates/easyssh-core/tests/
 ### 3.1 基础测试命令
 
 ```bash
-# 运行所有测试 (Lite版本 - 默认)
-cargo test -p easyssh-core --no-default-features --features "lite"
+# 运行所有测试 (推荐方式 - 跳过examples)
+cargo test -p easyssh-core --lib --tests
+
+# 运行Lite版本测试 (跳过examples编译)
+cargo test -p easyssh-core --lib --tests --no-default-features --features "lite"
 
 # 运行Lite + Standard版本测试
-cargo test -p easyssh-core --no-default-features --features "lite,standard"
+cargo test -p easyssh-core --lib --tests --no-default-features --features "lite,standard"
 
-# 运行完整测试 (Lite + Standard + Pro)
-cargo test -p easyssh-core --all-features  # 注意: 需要Rust 1.91+
+# 运行完整测试 (Lite + Standard + Pro, 需要Rust 1.91+)
+cargo test -p easyssh-core --lib --tests --all-features
 ```
+
+> **注意**: 使用 `--lib --tests` 标志可以避免examples编译错误。examples依赖完整运行环境，在测试时通常不需要编译。
 
 ### 3.2 按版本运行测试
 
 | 版本 | 命令 | 测试数 |
 |------|------|--------|
-| **Lite** | `cargo test -p easyssh-core --features "lite"` | ~793 |
-| **Standard** | `cargo test -p easyssh-core --features "lite,standard"` | ~962 |
-| **Pro** | `cargo test -p easyssh-core --all-features` | ~962+ |
+| **Lite** | `cargo test -p easyssh-core --lib --tests --features "lite"` | ~793 |
+| **Standard** | `cargo test -p easyssh-core --lib --tests --features "lite,standard"` | ~793 |
+| **Pro** | `cargo test -p easyssh-core --lib --tests --all-features` | ~793+ |
+
+> **注意**: Pro版本需要Rust 1.91+以支持aws-config等依赖。测试数差异主要来自feature gate控制的测试。
 
 ### 3.3 按测试类型运行
 
@@ -359,6 +371,12 @@ describe('ServerStore', () => {
   });
 
   it('should update server color', () => {
+    const testServer = {
+      name: 'Test Server',
+      host: '192.168.1.1',
+      port: 22,
+      username: 'admin',
+    };
     store.getState().addServer(testServer);
     const id = store.getState().servers[0].id;
 
@@ -368,6 +386,12 @@ describe('ServerStore', () => {
   });
 
   it('should handle invalid updates', () => {
+    const testServer = {
+      name: 'Test Server',
+      host: '192.168.1.1',
+      port: 22,
+      username: 'admin',
+    };
     store.getState().addServer(testServer);
 
     expect(() => {
@@ -1108,7 +1132,7 @@ Could not run `pkg-config --libs --cflags gobject-2.0`
 
 # 解决方案 (Windows)
 # GTK4测试在Windows上无法运行，请使用Linux环境或跳过GTK4测试
-cargo test -p easyssh-core --features "lite,standard"  # 跳过GTK4
+cargo test -p easyssh-core --lib --tests  # 跳过GTK4
 
 # 解决方案 (Linux)
 sudo apt-get install -y libgtk-4-dev libadwaita-1-dev pkg-config
@@ -1123,7 +1147,7 @@ error: rustc 1.89.0 is not supported by the following packages:
 
 # 解决方案
 # Pro版本需要更新的Rust版本，使用Lite/Standard版本测试
-cargo test -p easyssh-core --no-default-features --features "lite,standard"
+cargo test -p easyssh-core --lib --tests --no-default-features --features "lite,standard"
 
 # 或升级Rust版本
 rustup update stable
@@ -1136,10 +1160,18 @@ rustup update stable
 error[E0432]: unresolved import `crossterm`
 error[E0599]: no method named `execute` found for struct `Stdout`
 
-# 解决方案
-# 跳过examples，仅运行lib和tests
+# 原因
+# examples依赖crossterm等终端库，需要完整运行环境
+# examples目录下的文件不是测试的一部分
+
+# 解决方案 (推荐)
+# 使用 --lib --tests 标志跳过examples编译
 cargo test -p easyssh-core --lib
 cargo test -p easyssh-core --tests
+cargo test -p easyssh-core --lib --tests  # 同时运行两种测试
+
+# 如果需要编译examples，确保安装完整依赖
+cargo build -p easyssh-core --examples
 ```
 
 #### 数据库测试失败
@@ -1202,7 +1234,7 @@ cargo test -p easyssh-core services::group_service::tests
 
 ### 12.4 忽略的测试说明
 
-当前有11个被忽略的测试，主要原因：
+当前有10个被忽略的测试，主要原因：
 
 | 类别 | 原因 | 运行方式 |
 |------|------|----------|

@@ -187,7 +187,7 @@ Choose Pro if you:
 
 **English:**
 
-1. **Download**: Visit the [Releases page](https://github.com/your-repo/EasySSH/releases) and download the latest `.msi` or `.exe` installer.
+1. **Download**: Visit the [Releases page](https://github.com/AnixOps/AnixOps-EasySSH/releases) and download the latest `.msi` or `.exe` installer.
 
 2. **Install**: Double-click the downloaded file and follow the installation wizard.
 
@@ -199,7 +199,7 @@ Choose Pro if you:
 
 **中文：**
 
-1. **下载**：访问 [发布页面](https://github.com/your-repo/EasySSH/releases) 下载最新的 `.msi` 或 `.exe` 安装程序。
+1. **下载**：访问 [发布页面](https://github.com/AnixOps/AnixOps-EasySSH/releases) 下载最新的 `.msi` 或 `.exe` 安装程序。
 
 2. **安装**：双击下载的文件并按照安装向导操作。
 
@@ -239,7 +239,7 @@ flatpak run com.easyssh.EasySSH
 
 ```bash
 # Download the AppImage
-wget https://github.com/your-repo/EasySSH/releases/latest/download/EasySSH-x86_64.AppImage
+wget https://github.com/AnixOps/AnixOps-EasySSH/releases/latest/download/EasySSH-x86_64.AppImage
 
 # Make it executable
 chmod +x EasySSH-x86_64.AppImage
@@ -278,7 +278,7 @@ flatpak run com.easyssh.EasySSH
 
 ```bash
 # 下载 AppImage
-wget https://github.com/your-repo/EasySSH/releases/latest/download/EasySSH-x86_64.AppImage
+wget https://github.com/AnixOps/AnixOps-EasySSH/releases/latest/download/EasySSH-x86_64.AppImage
 
 # 添加执行权限
 chmod +x EasySSH-x86_64.AppImage
@@ -305,7 +305,7 @@ brew install --cask easyssh
 
 #### Option 2: DMG Installer | 选项 2：DMG 安装程序
 
-1. Download the `.dmg` file from the [Releases page](https://github.com/your-repo/EasySSH/releases)
+1. Download the `.dmg` file from the [Releases page](https://github.com/AnixOps/AnixOps-EasySSH/releases)
 2. Open the DMG file
 3. Drag EasySSH to your Applications folder
 4. Launch from Applications or Spotlight
@@ -324,7 +324,7 @@ brew install --cask easyssh
 
 #### 选项 2：DMG 安装程序
 
-1. 从 [发布页面](https://github.com/your-repo/EasySSH/releases) 下载 `.dmg` 文件
+1. 从 [发布页面](https://github.com/AnixOps/AnixOps-EasySSH/releases) 下载 `.dmg` 文件
 2. 打开 DMG 文件
 3. 将 EasySSH 拖入应用程序文件夹
 4. 从应用程序或 Spotlight 启动
@@ -617,9 +617,9 @@ Ready to explore more? Check out these resources:
 
 | Resource | Description |
 |----------|-------------|
-| [Full User Guide](user-guide/README.md) | Comprehensive documentation for all features |
-| [Advanced Features](features/README.md) | ProxyJump, SSH Agent forwarding, and more |
-| [Security Best Practices](security/best-practices.md) | Keep your connections secure |
+| [Full User Guide](product/en/index.md) | Comprehensive documentation for all features |
+| [Advanced Features](features/lite-features.md) | ProxyJump, SSH Agent forwarding, and more |
+| [Security Best Practices](security/audit-report.md) | Keep your connections secure |
 | [Troubleshooting](developers/TROUBLESHOOTING.md) | Common issues and solutions |
 
 **中文：**
@@ -628,9 +628,9 @@ Ready to explore more? Check out these resources:
 
 | 资源 | 描述 |
 |------|------|
-| [完整用户指南](user-guide/README.md) | 所有功能的综合文档 |
-| [高级功能](features/README.md) | ProxyJump、SSH Agent 转发等 |
-| [安全最佳实践](security/best-practices.md) | 保持您的连接安全 |
+| [完整用户指南](product/zh/guide/index.md) | 所有功能的综合文档 |
+| [高级功能](features/lite-features.md) | ProxyJump、SSH Agent 转发等 |
+| [安全最佳实践](security/audit-report.md) | 保持您的连接安全 |
 | [故障排查](developers/TROUBLESHOOTING.md) | 常见问题和解决方案 |
 
 ---
@@ -639,15 +639,15 @@ Ready to explore more? Check out these resources:
 
 **English:**
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/your-repo/EasySSH/issues)
-- **Discussions**: [Join the community](https://github.com/your-repo/EasySSH/discussions)
-- **Documentation**: [Full docs](docs/INDEX.md)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/AnixOps/AnixOps-EasySSH/issues)
+- **Discussions**: [Join the community](https://github.com/AnixOps/AnixOps-EasySSH/discussions)
+- **Documentation**: [Full docs](INDEX.md)
 
 **中文：**
 
-- **GitHub Issues**：[报告问题或请求功能](https://github.com/your-repo/EasySSH/issues)
-- **讨论区**：[加入社区](https://github.com/your-repo/EasySSH/discussions)
-- **文档**：[完整文档](docs/INDEX.md)
+- **GitHub Issues**：[报告问题或请求功能](https://github.com/AnixOps/AnixOps-EasySSH/issues)
+- **讨论区**：[加入社区](https://github.com/AnixOps/AnixOps-EasySSH/discussions)
+- **文档**：[完整文档](INDEX.md)
 
 ---
 

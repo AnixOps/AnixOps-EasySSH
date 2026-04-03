@@ -230,11 +230,8 @@
 | Edition / 版本 | Price / 价格 | Billing / 计费周期 |
 |----------------|--------------|-------------------|
 | **Lite** | Free / 免费 | - |
-| Lite | 免费 | - |
-| **Standard** | TBD / 待定 | Monthly / Yearly 月付 / 年付 |
-| Standard | 待定 | 月付 / 年付 |
-| **Pro** | TBD / 待定 | Per-seat, Monthly / Yearly 按席位, 月付 / 年付 |
-| Pro | 待定 | 按席位, 月付 / 年付 |
+| **Standard** | TBD / 待定 | Monthly / Yearly / 月付 / 年付 |
+| **Pro** | TBD / 待定 | Per-seat / 按席位, Monthly / Yearly / 月付 / 年付 |
 
 ### Notes / 说明
 
