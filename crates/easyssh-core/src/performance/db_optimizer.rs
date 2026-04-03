@@ -6,6 +6,8 @@
 //! - Prepared statement caching
 //! - Batch operation optimizations
 //! - WAL mode tuning
+//! - Database fast path with deferred index creation
+//! - Lazy index build for startup optimization
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -15,6 +17,10 @@ use rusqlite::Connection;
 
 use crate::db::{Database, HostRecord, ServerRecord};
 use crate::error::LiteError;
+
+// ============================================================================
+// Query Cache (existing)
+// ============================================================================
 
 /// Query cache entry
 struct QueryCacheEntry<T> {
@@ -404,6 +410,453 @@ impl BatchOperations {
     }
 }
 
+// ============================================================================
+// Database Fast Path - Deferred Index Creation
+// ============================================================================
+
+/// Index status for deferred index tracking
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IndexStatus {
+    /// Index not yet created
+    Pending,
+    /// Index creation in progress
+    Creating,
+    /// Index fully created and ready
+    Ready,
+    /// Index creation failed
+    Failed,
+}
+
+/// Deferred index entry for tracking
+#[derive(Debug, Clone)]
+pub struct DeferredIndex {
+    /// Index name
+    pub name: String,
+    /// SQL statement to create the index
+    pub create_sql: String,
+    /// Current status
+    pub status: IndexStatus,
+    /// Priority (higher = more important, create first)
+    pub priority: u8,
+    /// Estimated time to create in milliseconds
+    pub estimated_time_ms: u64,
+}
+
+impl DeferredIndex {
+    /// Create a new deferred index
+    pub fn new(name: String, create_sql: String, priority: u8) -> Self {
+        Self {
+            name,
+            create_sql,
+            status: IndexStatus::Pending,
+            priority,
+            estimated_time_ms: 0,
+        }
+    }
+
+    /// Create with estimated time
+    pub fn with_estimate(name: String, create_sql: String, priority: u8, estimated_time_ms: u64) -> Self {
+        Self {
+            name,
+            create_sql,
+            status: IndexStatus::Pending,
+            priority,
+            estimated_time_ms,
+        }
+    }
+}
+
+/// Database fast path configuration
+#[derive(Debug, Clone)]
+pub struct FastPathConfig {
+    /// Enable deferred index creation
+    pub defer_indexes: bool,
+    /// Enable WAL mode from start
+    pub wal_mode: bool,
+    /// Enable memory-mapped I/O
+    pub mmap: bool,
+    /// Cache size in pages (negative = kilobytes)
+    pub cache_size: i32,
+    /// Synchronous mode (0=OFF, 1=NORMAL, 2=FULL, 3=EXTRA)
+    pub synchronous_mode: u8,
+    /// Temp storage location (0=FILE, 1=MEMORY)
+    pub temp_store: u8,
+    /// Minimum data size before creating indexes (in rows)
+    pub index_threshold_rows: usize,
+    /// Background index creation after startup
+    pub background_indexes: bool,
+}
+
+impl Default for FastPathConfig {
+    fn default() -> Self {
+        Self {
+            defer_indexes: true,
+            wal_mode: true,
+            mmap: true,
+            cache_size: -20000, // 20MB cache
+            synchronous_mode: 1, // NORMAL
+            temp_store: 1,      // MEMORY
+            index_threshold_rows: 100,
+            background_indexes: true,
+        }
+    }
+}
+
+impl FastPathConfig {
+    /// Create fast path config optimized for cold start
+    pub fn for_cold_start() -> Self {
+        Self {
+            defer_indexes: true,
+            wal_mode: true,
+            mmap: true,
+            cache_size: -5000, // 5MB - smaller for cold start
+            synchronous_mode: 1,
+            temp_store: 1,
+            index_threshold_rows: 50,
+            background_indexes: true,
+        }
+    }
+
+    /// Create fast path config optimized for hot start
+    pub fn for_hot_start() -> Self {
+        Self {
+            defer_indexes: false, // Indexes should already exist
+            wal_mode: true,
+            mmap: true,
+            cache_size: -20000, // 20MB - larger cache for hot start
+            synchronous_mode: 1,
+            temp_store: 1,
+            index_threshold_rows: 100,
+            background_indexes: false,
+        }
+    }
+}
+
+/// Database fast path initializer
+pub struct DatabaseFastPath {
+    config: FastPathConfig,
+    deferred_indexes: RwLock<Vec<DeferredIndex>>,
+    indexes_ready: RwLock<bool>,
+    creation_stats: Mutex<IndexCreationStats>,
+}
+
+/// Statistics for index creation
+#[derive(Debug, Clone, Default)]
+pub struct IndexCreationStats {
+    pub indexes_created: usize,
+    pub indexes_pending: usize,
+    pub total_creation_time_ms: u64,
+    pub indexes_failed: usize,
+    pub creation_errors: Vec<String>,
+}
+
+impl DatabaseFastPath {
+    /// Create a new database fast path with default config
+    pub fn new() -> Self {
+        Self::with_config(FastPathConfig::default())
+    }
+
+    /// Create with custom config
+    pub fn with_config(config: FastPathConfig) -> Self {
+        Self {
+            config,
+            deferred_indexes: RwLock::new(Vec::new()),
+            indexes_ready: RwLock::new(false),
+            creation_stats: Mutex::new(IndexCreationStats::default()),
+        }
+    }
+
+    /// Get the list of deferred indexes (sorted by priority)
+    pub fn get_deferred_indexes() -> Vec<DeferredIndex> {
+        // Essential indexes for basic queries (priority 10)
+        let essential = vec![
+            DeferredIndex::new(
+                "idx_servers_name_lower".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_servers_name_lower ON servers(LOWER(name))".to_string(),
+                10,
+            ),
+            DeferredIndex::new(
+                "idx_servers_host_lower".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_servers_host_lower ON servers(LOWER(host))".to_string(),
+                10,
+            ),
+            DeferredIndex::new(
+                "idx_hosts_name_lower".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_hosts_name_lower ON hosts(LOWER(name))".to_string(),
+                10,
+            ),
+        ];
+
+        // Secondary indexes for common queries (priority 5)
+        let secondary = vec![
+            DeferredIndex::new(
+                "idx_servers_auth_type".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_servers_auth_type ON servers(auth_type)".to_string(),
+                5,
+            ),
+            DeferredIndex::new(
+                "idx_servers_composite".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_servers_composite ON servers(group_id, status, name)".to_string(),
+                5,
+            ),
+            DeferredIndex::new(
+                "idx_hosts_composite".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_hosts_composite ON hosts(group_id, status, name)".to_string(),
+                5,
+            ),
+        ];
+
+        // Optional indexes for advanced features (priority 1)
+        let optional = vec![
+            DeferredIndex::new(
+                "idx_hosts_environment".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_hosts_environment ON hosts(environment)".to_string(),
+                1,
+            ),
+            DeferredIndex::new(
+                "idx_hosts_region".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_hosts_region ON hosts(region)".to_string(),
+                1,
+            ),
+            DeferredIndex::new(
+                "idx_host_tags_host".to_string(),
+                "CREATE INDEX IF NOT EXISTS idx_host_tags_host ON host_tags(host_id)".to_string(),
+                1,
+            ),
+        ];
+
+        // Combine all and sort by priority (descending)
+        let mut all: Vec<DeferredIndex> = essential.into_iter()
+            .chain(secondary.into_iter())
+            .chain(optional.into_iter())
+            .collect();
+        all.sort_by(|a, b| b.priority.cmp(&a.priority));
+        all
+    }
+
+    /// Initialize database with fast path settings
+    pub fn initialize_fast_path(&self, conn: &Connection) -> Result<(), LiteError> {
+        // Apply WAL mode first (critical for performance)
+        if self.config.wal_mode {
+            conn.execute("PRAGMA journal_mode = WAL", [])
+                .map_err(|e| LiteError::Database(format!("Failed to set WAL mode: {}", e)))?;
+        }
+
+        // Apply synchronous mode
+        let sync_sql = format!("PRAGMA synchronous = {}", self.config.synchronous_mode);
+        conn.execute(&sync_sql, [])
+            .map_err(|e| LiteError::Database(format!("Failed to set synchronous mode: {}", e)))?;
+
+        // Apply cache size
+        let cache_sql = format!("PRAGMA cache_size = {}", self.config.cache_size);
+        conn.execute(&cache_sql, [])
+            .map_err(|e| LiteError::Database(format!("Failed to set cache size: {}", e)))?;
+
+        // Apply temp store
+        let temp_sql = format!("PRAGMA temp_store = {}", self.config.temp_store);
+        conn.execute(&temp_sql, [])
+            .map_err(|e| LiteError::Database(format!("Failed to set temp store: {}", e)))?;
+
+        // Apply memory-mapped I/O
+        if self.config.mmap {
+            conn.execute("PRAGMA mmap_size = 268435456", []) // 256MB
+                .map_err(|e| LiteError::Database(format!("Failed to set mmap size: {}", e)))?;
+        }
+
+        // Enable foreign keys
+        conn.execute("PRAGMA foreign_keys = ON", [])
+            .map_err(|e| LiteError::Database(format!("Failed to enable foreign keys: {}", e)))?;
+
+        // Set up deferred indexes if configured
+        if self.config.defer_indexes {
+            let indexes = Self::get_deferred_indexes();
+            let mut deferred = self.deferred_indexes.write()
+                .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
+            *deferred = indexes;
+            *self.indexes_ready.write()
+                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? = false;
+        } else {
+            // Create all indexes immediately
+            DbOptimizer::apply_performance_indexes(conn)?;
+            *self.indexes_ready.write()
+                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? = true;
+        }
+
+        Ok(())
+    }
+
+    /// Create essential indexes only (for fast startup)
+    pub fn create_essential_indexes(&self, conn: &Connection) -> Result<(), LiteError> {
+        let mut deferred = self.deferred_indexes.write()
+            .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
+
+        let start = Instant::now();
+
+        // Create only high-priority indexes (priority >= 10)
+        for index in deferred.iter_mut() {
+            if index.priority >= 10 && index.status == IndexStatus::Pending {
+                index.status = IndexStatus::Creating;
+
+                let result = conn.execute(&index.create_sql, [])
+                    .map_err(|e| LiteError::Database(format!("Failed to create index {}: {}", index.name, e)));
+
+                if result.is_ok() {
+                    index.status = IndexStatus::Ready;
+                } else {
+                    index.status = IndexStatus::Failed;
+                    let mut stats = self.creation_stats.lock()
+                        .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
+                    stats.indexes_failed += 1;
+                    stats.creation_errors.push(format!("Index {} failed", index.name));
+                }
+            }
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        let mut stats = self.creation_stats.lock()
+            .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
+        stats.total_creation_time_ms += duration_ms;
+        stats.indexes_created = deferred.iter().filter(|i| i.status == IndexStatus::Ready).count();
+        stats.indexes_pending = deferred.iter().filter(|i| i.status == IndexStatus::Pending).count();
+
+        Ok(())
+    }
+
+    /// Create remaining indexes in background (after startup)
+    pub fn create_background_indexes(&self, conn: &Connection) -> Result<(), LiteError> {
+        if !self.config.background_indexes {
+            return Ok(());
+        }
+
+        let mut deferred = self.deferred_indexes.write()
+            .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
+
+        let start = Instant::now();
+
+        // Create all pending indexes
+        for index in deferred.iter_mut() {
+            if index.status == IndexStatus::Pending {
+                index.status = IndexStatus::Creating;
+
+                let result = conn.execute(&index.create_sql, []);
+
+                match result {
+                    Ok(_) => {
+                        index.status = IndexStatus::Ready;
+                    }
+                    Err(e) => {
+                        index.status = IndexStatus::Failed;
+                        let mut stats = self.creation_stats.lock()
+                            .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
+                        stats.indexes_failed += 1;
+                        stats.creation_errors.push(format!("Index {} failed: {}", index.name, e));
+                    }
+                }
+            }
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        let mut stats = self.creation_stats.lock()
+            .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
+        stats.total_creation_time_ms += duration_ms;
+        stats.indexes_created = deferred.iter().filter(|i| i.status == IndexStatus::Ready).count();
+        stats.indexes_pending = deferred.iter().filter(|i| i.status == IndexStatus::Pending).count();
+
+        // Mark all indexes as ready if no pending
+        if stats.indexes_pending == 0 {
+            *self.indexes_ready.write()
+                .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))? = true;
+        }
+
+        Ok(())
+    }
+
+    /// Check if all indexes are ready
+    pub fn are_indexes_ready(&self) -> Result<bool, LiteError> {
+        let ready = self.indexes_ready.read()
+            .map_err(|_| LiteError::Internal("Failed to lock indexes_ready".to_string()))?;
+        Ok(*ready)
+    }
+
+    /// Get index creation statistics
+    pub fn get_creation_stats(&self) -> Result<IndexCreationStats, LiteError> {
+        let stats = self.creation_stats.lock()
+            .map_err(|_| LiteError::Internal("Failed to lock stats".to_string()))?;
+        Ok(stats.clone())
+    }
+
+    /// Get pending index names
+    pub fn get_pending_indexes(&self) -> Result<Vec<String>, LiteError> {
+        let deferred = self.deferred_indexes.read()
+            .map_err(|_| LiteError::Internal("Failed to lock deferred indexes".to_string()))?;
+        Ok(deferred.iter()
+            .filter(|i| i.status == IndexStatus::Pending)
+            .map(|i| i.name.clone())
+            .collect())
+    }
+
+    /// Get the config
+    pub fn config(&self) -> &FastPathConfig {
+        &self.config
+    }
+
+    /// Force create all indexes immediately
+    pub fn force_create_all_indexes(&self, conn: &Connection) -> Result<(), LiteError> {
+        // First create essential
+        self.create_essential_indexes(conn)?;
+
+        // Then create remaining
+        self.create_background_indexes(conn)?;
+
+        Ok(())
+    }
+}
+
+impl Default for DatabaseFastPath {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// Connection Pool Warmup
+// ============================================================================
+
+/// Connection pool warmup helper for hot starts
+pub struct ConnectionPoolWarmup;
+
+impl ConnectionPoolWarmup {
+    /// Warm up the connection pool with basic queries
+    pub fn warmup(conn: &Connection) -> Result<Duration, LiteError> {
+        let start = Instant::now();
+
+        // Execute a few simple queries to warm up the connection
+        conn.execute("SELECT 1", [])
+            .map_err(|e| LiteError::Database(e.to_string()))?;
+
+        conn.execute("SELECT 2", [])
+            .map_err(|e| LiteError::Database(e.to_string()))?;
+
+        // Touch the main tables
+        conn.execute("SELECT COUNT(*) FROM sqlite_master", [])
+            .map_err(|e| LiteError::Database(e.to_string()))?;
+
+        Ok(start.elapsed())
+    }
+
+    /// Estimate warmup benefit based on database size
+    pub fn estimate_warmup_benefit(db_size_bytes: u64) -> u64 {
+        // Larger databases benefit more from warmup
+        // Estimate: 10ms per MB of data, capped at 100ms
+        let mb = db_size_bytes / (1024 * 1024);
+        std::cmp::min(mb * 10, 100)
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -461,5 +914,67 @@ mod tests {
         assert_eq!(chunks[0].len(), 100);
         assert_eq!(chunks[1].len(), 100);
         assert_eq!(chunks[2].len(), 50);
+    }
+
+    #[test]
+    fn test_fast_path_config() {
+        let cold_config = FastPathConfig::for_cold_start();
+        assert!(cold_config.defer_indexes);
+        assert!(cold_config.wal_mode);
+        assert!(cold_config.background_indexes);
+
+        let hot_config = FastPathConfig::for_hot_start();
+        assert!(!hot_config.defer_indexes);
+        assert!(hot_config.wal_mode);
+    }
+
+    #[test]
+    fn test_deferred_index() {
+        let index = DeferredIndex::new(
+            "test_idx".to_string(),
+            "CREATE INDEX test_idx ON test(col)".to_string(),
+            5,
+        );
+
+        assert_eq!(index.name, "test_idx");
+        assert_eq!(index.status, IndexStatus::Pending);
+        assert_eq!(index.priority, 5);
+    }
+
+    #[test]
+    fn test_database_fast_path_new() {
+        let fast_path = DatabaseFastPath::new();
+
+        // Check config defaults
+        let config = fast_path.config();
+        assert!(config.defer_indexes);
+        assert!(config.wal_mode);
+
+        // Check initial state
+        assert!(!fast_path.are_indexes_ready().unwrap());
+    }
+
+    #[test]
+    fn test_connection_pool_warmup_estimate() {
+        // Test estimate for small database
+        let small_estimate = ConnectionPoolWarmup::estimate_warmup_benefit(1024 * 1024); // 1MB
+        assert_eq!(small_estimate, 10);
+
+        // Test estimate for large database (should cap at 100ms)
+        let large_estimate = ConnectionPoolWarmup::estimate_warmup_benefit(50 * 1024 * 1024); // 50MB
+        assert_eq!(large_estimate, 100);
+    }
+
+    #[test]
+    fn test_get_deferred_indexes_sorted() {
+        let indexes = DatabaseFastPath::get_deferred_indexes();
+
+        // Check that indexes are sorted by priority (descending)
+        for i in 0..indexes.len() - 1 {
+            assert!(indexes[i].priority >= indexes[i + 1].priority);
+        }
+
+        // Check that essential indexes have highest priority
+        assert!(indexes.iter().any(|i| i.priority >= 10));
     }
 }

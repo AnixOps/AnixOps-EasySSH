@@ -1,7 +1,7 @@
 #!/usr/bin/env rust-script
 //! ```cargo
 //! [dependencies]
-//! easyssh-core = { path = "../../core" }
+//! easyssh-core = { path = "..", features = ["workflow"] }
 //! tokio = { version = "1", features = ["full"] }
 //! ```
 

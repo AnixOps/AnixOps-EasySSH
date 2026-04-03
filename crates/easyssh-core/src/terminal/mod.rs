@@ -74,6 +74,8 @@ use std::process::Command;
 
 // Submodules
 #[cfg(feature = "embedded-terminal")]
+pub mod coordinator;
+#[cfg(feature = "embedded-terminal")]
 pub mod embedded;
 #[cfg(feature = "embedded-terminal")]
 pub mod multitab;
@@ -110,6 +112,13 @@ pub use theme::{ColorPalette, CursorStyle, TerminalTheme, ThemeManager};
 pub use webgl::{RenderStats, WebGlConfig, WebGlRenderer};
 #[cfg(feature = "embedded-terminal")]
 pub use xterm_compat::{EscapeSequence, XtermCompat, XtermMode};
+
+// Export coordinator types
+#[cfg(feature = "embedded-terminal")]
+pub use coordinator::{
+    ConnectionState, CoordinatorConfig, CoordinatorEvent, CoordinatorStats, SessionCoordinator,
+    SessionTabMapping,
+};
 
 // ============ Native Terminal Launch (Lite Version) ============
 

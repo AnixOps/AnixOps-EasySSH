@@ -5,7 +5,7 @@
 //! - Encryption operation optimization with key caching
 //! - Search algorithm optimization with SIMD and parallel processing
 //! - Memory usage optimization with object pools
-//! - Startup time optimization with lazy loading
+//! - Startup time optimization with lazy loading and parallel initialization
 
 pub mod crypto_optimizer;
 pub mod db_optimizer;
@@ -14,10 +14,13 @@ pub mod search_optimizer;
 pub mod startup_optimizer;
 
 pub use crypto_optimizer::CryptoOptimizer;
-pub use db_optimizer::DbOptimizer;
+pub use db_optimizer::{DbOptimizer, DatabaseFastPath, FastPathConfig};
 pub use memory_optimizer::MemoryOptimizer;
 pub use search_optimizer::SearchOptimizer;
-pub use startup_optimizer::StartupOptimizer;
+pub use startup_optimizer::{
+    ColdStartCache, ParallelInitializer, StartType, StartupMetrics, StartupOptimizer,
+    StartupSequence, StartupStatistics,
+};
 
 /// Performance metrics for monitoring optimization effectiveness
 #[derive(Debug, Clone, Default)]

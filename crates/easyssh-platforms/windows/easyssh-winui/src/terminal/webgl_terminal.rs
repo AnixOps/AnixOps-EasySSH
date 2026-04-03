@@ -11,14 +11,14 @@
 //! - Smooth cursor blink (CSS animation)
 //! - Optimized selection highlight
 //! - Big data streaming (>10MB)
+//! - Canvas2D fallback when WebGL fails
 
 use anyhow::Result;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::debug;
-use wry::{WebView, WebViewBuilder};
+use tracing::{debug, info, warn};
 
 /// Terminal color support level
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -455,11 +455,28 @@ impl WebGlTerminal {
         const webglAddon = new WebglAddon.WebglAddon();
         term.loadAddon(webglAddon);
 
-        // Handle WebGL context loss
+        // Handle WebGL context loss with fallback notification
         webglAddon.onContextLoss(() => {{
-            console.warn('WebGL context lost, attempting recovery...');
-            webglAddon.dispose();
-            term.loadAddon(new WebglAddon.WebglAddon());
+            console.warn('WebGL context lost, notifying host...');
+            if (window.ipc) {{
+                window.ipc.postMessage(JSON.stringify({{
+                    type: 'WebGLContextLost'
+                }}));
+            }}
+            // Try to recover
+            try {{
+                webglAddon.dispose();
+                const newAddon = new WebglAddon.WebglAddon();
+                term.loadAddon(newAddon);
+                console.log('WebGL context recovered');
+            }} catch (e) {{
+                console.error('WebGL recovery failed:', e);
+                if (window.ipc) {{
+                    window.ipc.postMessage(JSON.stringify({{
+                        type: 'FallbackModeActivated'
+                    }}));
+                }}
+            }}
         }});
 
         // Add other addons
@@ -499,10 +516,10 @@ impl WebGlTerminal {
                 frameCount = 0;
                 lastFpsUpdate = now;
 
-                // Send stats to host
-                if (window.chrome && window.chrome.webview) {{
-                    window.chrome.webview.postMessage(JSON.stringify({{
-                        type: 'renderStats',
+                // Send stats to host via wry IPC
+                if (window.ipc) {{
+                    window.ipc.postMessage(JSON.stringify({{
+                        type: 'RenderStats',
                         data: renderStats
                     }}));
                 }}
@@ -529,9 +546,9 @@ impl WebGlTerminal {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {{
                 fitAddon.fit();
-                if (window.chrome && window.chrome.webview) {{
-                    window.chrome.webview.postMessage(JSON.stringify({{
-                        type: 'resize',
+                if (window.ipc) {{
+                    window.ipc.postMessage(JSON.stringify({{
+                        type: 'Resize',
                         data: {{ cols: term.cols, rows: term.rows }}
                     }}));
                 }}
@@ -572,9 +589,9 @@ impl WebGlTerminal {
                     break;
                 case 'getSelection':
                     const selection = term.getSelection();
-                    if (window.chrome && window.chrome.webview) {{
-                        window.chrome.webview.postMessage(JSON.stringify({{
-                            type: 'selection',
+                    if (window.ipc) {{
+                        window.ipc.postMessage(JSON.stringify({{
+                            type: 'Selection',
                             data: selection
                         }}));
                     }}
@@ -598,9 +615,9 @@ impl WebGlTerminal {
                     term.options[msg.data.key] = msg.data.value;
                     break;
                 case 'getOptions':
-                    if (window.chrome && window.chrome.webview) {{
-                        window.chrome.webview.postMessage(JSON.stringify({{
-                            type: 'options',
+                    if (window.ipc) {{
+                        window.ipc.postMessage(JSON.stringify({{
+                            type: 'Options',
                             data: term.options
                         }}));
                     }}
@@ -610,20 +627,20 @@ impl WebGlTerminal {
             }}
         }});
 
-        // Input handling
+        // Input handling - send to host via IPC
         term.onData((data) => {{
-            if (window.chrome && window.chrome.webview) {{
-                window.chrome.webview.postMessage(JSON.stringify({{
-                    type: 'input',
+            if (window.ipc) {{
+                window.ipc.postMessage(JSON.stringify({{
+                    type: 'Input',
                     data: data
                 }}));
             }}
         }});
 
         term.onBinary((data) => {{
-            if (window.chrome && window.chrome.webview) {{
-                window.chrome.webview.postMessage(JSON.stringify({{
-                    type: 'binary',
+            if (window.ipc) {{
+                window.ipc.postMessage(JSON.stringify({{
+                    type: 'Binary',
                     data: data
                 }}));
             }}
@@ -632,9 +649,9 @@ impl WebGlTerminal {
         // Selection handling
         term.onSelectionChange(() => {{
             const selection = term.getSelection();
-            if (window.chrome && window.chrome.webview) {{
-                window.chrome.webview.postMessage(JSON.stringify({{
-                    type: 'selectionChange',
+            if (window.ipc) {{
+                window.ipc.postMessage(JSON.stringify({{
+                    type: 'SelectionChange',
                     data: selection
                 }}));
             }}
@@ -664,10 +681,10 @@ impl WebGlTerminal {
             }}
         }};
 
-        // Ready signal
-        if (window.chrome && window.chrome.webview) {{
-            window.chrome.webview.postMessage(JSON.stringify({{
-                type: 'ready',
+        // Ready signal - notify host that terminal is initialized
+        if (window.ipc) {{
+            window.ipc.postMessage(JSON.stringify({{
+                type: 'Ready',
                 data: {{ cols: term.cols, rows: term.rows }}
             }}));
         }}
@@ -758,15 +775,132 @@ impl WebGlTerminal {
         &self.webview_html
     }
 
-    /// Build WebView with this terminal
-    pub fn build_webview<'a>(&self, _builder: WebViewBuilder<'a>) -> Result<WebView> {
-        // WebView creation disabled for now - wry 0.46 API is significantly different
-        // TODO: Update to new wry API
-        Err(anyhow::anyhow!(
-            "WebView building not implemented for wry 0.46"
-        ))
+    /// Generate Canvas2D fallback HTML (used when WebGL fails)
+    fn generate_canvas_fallback_html(config: &TerminalConfig) -> String {
+        let font_family = &config.font.family;
+        let font_size = config.font.size;
+        let line_height = config.font.line_height;
+        let scrollback = config.scrollback_lines;
+
+        format!(
+            r#"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        html, body {{ width: 100%; height: 100%; background: #16181d; overflow: hidden; }}
+        #terminal {{ width: 100%; height: 100%; padding: 4px; }}
+        .xterm {{ font-family: {}; font-size: {}px; line-height: {}; }}
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <script>
+        const term = new Terminal({{
+            fontFamily: '{}',
+            fontSize: {},
+            lineHeight: {},
+            cursorBlink: true,
+            scrollback: {},
+            theme: {{
+                background: '#16181d',
+                foreground: '#c8d2dc',
+                cursor: '#aeafad'
+            }}
+        }});
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.loadAddon(new WebLinksAddon.WebLinksAddon());
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        window.term = term;
+        window.fitAddon = fitAddon;
+
+        // IPC message handling from host
+        window.addEventListener('message', (event) => {{
+            const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+            switch (msg.type) {{
+                case 'write': term.write(msg.data); break;
+                case 'paste': term.paste(msg.data); break;
+                case 'clear': term.clear(); break;
+                case 'reset': term.reset(); break;
+                case 'focus': term.focus(); break;
+                case 'blur': term.blur(); break;
+                case 'selectAll': term.selectAll(); break;
+                case 'resize': term.resize(msg.data.cols, msg.data.rows); break;
+                case 'scrollToBottom': term.scrollToBottom(); break;
+                case 'scrollToTop': term.scrollToTop(); break;
+            }}
+        }});
+
+        // Send input to host via wry IPC
+        term.onData((data) => {{
+            if (window.ipc) {{
+                window.ipc.postMessage(JSON.stringify({{ type: 'Input', data: data }}));
+            }}
+        }});
+
+        // Selection handling
+        term.onSelectionChange(() => {{
+            const selection = term.getSelection();
+            if (window.ipc) {{
+                window.ipc.postMessage(JSON.stringify({{ type: 'SelectionChange', data: selection }}));
+            }}
+        }});
+
+        // Ready signal - using PascalCase to match Rust enum
+        if (window.ipc) {{
+            window.ipc.postMessage(JSON.stringify({{ type: 'Ready', data: {{ cols: term.cols, rows: term.rows }} }}));
+            window.ipc.postMessage(JSON.stringify({{ type: 'FallbackModeActivated' }}));
+        }}
+    </script>
+</body>
+</html>"#,
+            font_family, font_size, line_height, font_family, font_size, line_height, scrollback
+        )
+    }
+
+    /// Get fallback HTML for when WebGL is not available
+    pub fn get_fallback_html(&self) -> String {
+        Self::generate_canvas_fallback_html(&self.config)
     }
 }
+
+/// WebView creation error types
+#[derive(Debug, Clone)]
+pub enum WebViewError {
+    /// WebGL context could not be created
+    WebGLContextLost,
+    /// WebView initialization failed
+    InitializationFailed(String),
+    /// IPC handler not configured
+    IpcNotConfigured,
+    /// Window handle not available
+    WindowHandleNotAvailable,
+}
+
+impl std::fmt::Display for WebViewError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WebViewError::WebGLContextLost => write!(f, "WebGL context lost"),
+            WebViewError::InitializationFailed(msg) => {
+                write!(f, "WebView initialization failed: {}", msg)
+            }
+            WebViewError::IpcNotConfigured => write!(f, "IPC handler not configured"),
+            WebViewError::WindowHandleNotAvailable => write!(f, "Window handle not available"),
+        }
+    }
+}
+
+impl std::error::Error for WebViewError {}
 
 /// Create default WebGL terminal
 pub fn create_default_terminal() -> WebGlTerminal {

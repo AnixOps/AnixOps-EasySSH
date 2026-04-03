@@ -2,32 +2,33 @@
 //!
 //! 本模块展示如何在Windows egui应用中集成版本显示
 
-use easyssh_core::version::{BuildType, Edition, FullVersionInfo};
+use easyssh_core::edition::{BuildType, Edition};
+use easyssh_core::version::FullBuildInfo;
 use eframe::egui;
 
 /// Windows应用版本显示组件
 pub struct VersionDisplay {
-    full_info: &'static FullVersionInfo,
+    full_info: &'static FullBuildInfo,
     show_detailed: bool,
 }
 
 impl VersionDisplay {
     pub fn new() -> Self {
         Self {
-            full_info: FullVersionInfo::current(),
+            full_info: FullBuildInfo::current(),
             show_detailed: false,
         }
     }
 
     /// 在标题栏显示版本徽章
     pub fn render_title_bar_version(&self, ui: &mut egui::Ui) {
-        let (text, color) = match self.full_info.edition {
+        let (text, color) = match self.full_info.version_info.edition {
             Edition::Lite => ("Lite", egui::Color32::from_rgb(0, 150, 136)), // Teal
             Edition::Standard => ("Standard", egui::Color32::from_rgb(33, 150, 243)), // Blue
             Edition::Pro => ("Pro", egui::Color32::from_rgb(156, 39, 176)),  // Purple
         };
 
-        let dev_marker = if self.full_info.build_type == BuildType::Dev {
+        let dev_marker = if self.full_info.version_info.build_type == BuildType::Dev {
             " [Dev]"
         } else {
             ""
@@ -84,7 +85,7 @@ impl VersionDisplay {
 
     /// 渲染版本徽章
     fn render_version_badge(&self, ui: &mut egui::Ui) {
-        let (bg_color, text_color) = match self.full_info.edition {
+        let (bg_color, text_color) = match self.full_info.version_info.edition {
             Edition::Lite => (
                 egui::Color32::from_rgb(224, 242, 241), // Light teal
                 egui::Color32::from_rgb(0, 105, 92),    // Dark teal
@@ -99,7 +100,7 @@ impl VersionDisplay {
             ),
         };
 
-        let edition_text = match self.full_info.edition {
+        let edition_text = match self.full_info.version_info.edition {
             Edition::Lite => "Lite Edition",
             Edition::Standard => "Standard Edition",
             Edition::Pro => "Pro Edition",
@@ -107,12 +108,8 @@ impl VersionDisplay {
 
         // 绘制徽章背景
         let padding = egui::vec2(16.0, 8.0);
-        let text = egui::RichText::new(edition_text)
-            .color(text_color)
-            .strong()
-            .size(14.0);
 
-        let (rect, _) = ui.allocate_space(ui.spacing().interact_size + padding * 2.0);
+        let (_, rect) = ui.allocate_space(ui.spacing().interact_size + padding * 2.0);
 
         ui.painter().rect_filled(
             rect, 6.0, // 圆角
@@ -131,13 +128,13 @@ impl VersionDisplay {
 
         // 版本号
         ui.label(
-            egui::RichText::new(format!("版本 {}", self.full_info.version))
+            egui::RichText::new(format!("版本 {}", self.full_info.version_info.version))
                 .size(16.0)
                 .monospace(),
         );
 
         // 构建类型标记
-        if self.full_info.build_type == BuildType::Dev {
+        if self.full_info.version_info.build_type == BuildType::Dev {
             ui.colored_label(
                 egui::Color32::YELLOW,
                 egui::RichText::new("开发版本").italics().size(12.0),
@@ -154,12 +151,12 @@ impl VersionDisplay {
             .show(ui, |ui| {
                 // 版本
                 ui.label("版本:");
-                ui.label(&self.full_info.version);
+                ui.label(&self.full_info.version_info.version);
                 ui.end_row();
 
                 // 版本类型
                 ui.label("版本类型:");
-                ui.label(self.full_info.edition.name());
+                ui.label(self.full_info.version_info.edition.name());
                 ui.end_row();
 
                 // 构建日期
@@ -168,7 +165,7 @@ impl VersionDisplay {
                 ui.end_row();
 
                 // Git信息
-                if let Some(ref hash) = self.full_info.git_hash {
+                if let Some(ref hash) = self.full_info.version_info.git_hash {
                     ui.label("Git Commit:");
                     let short_hash = &hash[..8.min(hash.len())];
                     if let Some(ref branch) = self.full_info.git_branch {
@@ -193,7 +190,7 @@ impl VersionDisplay {
 
                 // 功能特性
                 ui.label("启用的功能:");
-                let features_text = self.full_info.features.join(", ");
+                let features_text = self.full_info.version_info.features.join(", ");
                 ui.label(features_text);
                 ui.end_row();
             });
@@ -201,17 +198,17 @@ impl VersionDisplay {
 
     /// 在状态栏显示精简版本信息
     pub fn render_status_bar_version(&self, ui: &mut egui::Ui) {
-        let version_text = if self.full_info.build_type == BuildType::Dev {
+        let version_text = if self.full_info.version_info.build_type == BuildType::Dev {
             format!(
                 "{} {} [Dev]",
-                self.full_info.edition.code(),
-                self.full_info.version
+                self.full_info.version_info.edition.short_identifier(),
+                self.full_info.version_info.version
             )
         } else {
             format!(
                 "{} {}",
-                self.full_info.edition.code(),
-                self.full_info.version
+                self.full_info.version_info.edition.short_identifier(),
+                self.full_info.version_info.version
             )
         };
 
@@ -223,7 +220,7 @@ impl VersionDisplay {
 
 /// 在启动画面显示版本
 pub fn render_splash_version(ui: &mut egui::Ui) {
-    let info = FullVersionInfo::current();
+    let info = FullBuildInfo::current();
 
     ui.vertical_centered(|ui| {
         ui.add_space(100.0);
@@ -234,13 +231,13 @@ pub fn render_splash_version(ui: &mut egui::Ui) {
         ui.add_space(20.0);
 
         // 版本横幅
-        let banner_color = match info.edition {
+        let banner_color = match info.version_info.edition {
             Edition::Lite => egui::Color32::from_rgb(0, 150, 136),
             Edition::Standard => egui::Color32::from_rgb(33, 150, 243),
             Edition::Pro => egui::Color32::from_rgb(156, 39, 176),
         };
 
-        let edition_name = info.edition.name();
+        let edition_name = info.version_info.edition.name();
         ui.colored_label(
             banner_color,
             egui::RichText::new(format!("{} Edition", edition_name))
@@ -251,10 +248,10 @@ pub fn render_splash_version(ui: &mut egui::Ui) {
         ui.add_space(10.0);
 
         // 版本号
-        ui.monospace(format!("版本 {}", info.version));
+        ui.monospace(format!("版本 {}", info.version_info.version));
 
         // 开发标记
-        if info.build_type == BuildType::Dev {
+        if info.version_info.build_type == BuildType::Dev {
             ui.add_space(5.0);
             ui.colored_label(
                 egui::Color32::YELLOW,
@@ -289,6 +286,8 @@ impl EditionUpgradePrompt {
             return;
         }
 
+        let mut should_close = false;
+
         egui::Window::new("功能需要升级")
             .collapsible(false)
             .resizable(false)
@@ -305,17 +304,17 @@ impl EditionUpgradePrompt {
                 match self.target_edition {
                     Edition::Standard => {
                         ui.label("升级到 Standard 版本，您将获得:");
-                        ui.bullet("嵌入式终端");
-                        ui.bullet("分屏功能");
-                        ui.bullet("SFTP文件传输");
-                        ui.bullet("服务器监控");
+                        ui.label("• 嵌入式终端");
+                        ui.label("• 分屏功能");
+                        ui.label("• SFTP文件传输");
+                        ui.label("• 服务器监控");
                     }
                     Edition::Pro => {
                         ui.label("升级到 Pro 版本，您将获得:");
-                        ui.bullet("团队协作");
-                        ui.bullet("审计日志");
-                        ui.bullet("SSO集成");
-                        ui.bullet("高级安全功能");
+                        ui.label("• 团队协作");
+                        ui.label("• 审计日志");
+                        ui.label("• SSO集成");
+                        ui.label("• 高级安全功能");
                     }
                     _ => {}
                 }
@@ -327,10 +326,14 @@ impl EditionUpgradePrompt {
                         // 打开升级页面
                     }
                     if ui.button("暂不升级").clicked() {
-                        *open = false;
+                        should_close = true;
                     }
                 });
             });
+
+        if should_close {
+            *open = false;
+        }
     }
 }
 
@@ -341,6 +344,26 @@ mod tests {
     #[test]
     fn test_version_display_creation() {
         let display = VersionDisplay::new();
-        assert!(!display.full_info.version.is_empty());
+        assert!(!display.full_info.version_info.version.is_empty());
     }
+}
+
+fn main() {
+    // This is an example library showing how to integrate version display
+    // in a Windows egui application. It's not meant to be run as a standalone
+    // executable but rather used as a reference for integration.
+    println!("EasySSH Windows Version Integration Example");
+    println!("============================================");
+    println!();
+    println!("This example demonstrates how to integrate version display");
+    println!("in a Windows egui application.");
+    println!();
+    println!("To use this code, integrate the VersionDisplay struct into");
+    println!("your egui application's UI rendering code.");
+    println!();
+
+    let info = FullBuildInfo::current();
+    println!("Current version: {} {}", info.version_info.edition.name(), info.version_info.version);
+    println!("Build date: {}", info.build_date);
+    println!("Platform: {}", info.platform.display());
 }

@@ -768,6 +768,10 @@ impl QuickActionsBar {
                 response.manage_groups = true;
             }
 
+            if ui.button("📥 Import").clicked() {
+                response.import_config = true;
+            }
+
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.button("⚙").clicked() {
                     response.open_settings = true;
@@ -785,6 +789,7 @@ pub struct QuickActionsResponse {
     pub add_server: bool,
     pub manage_groups: bool,
     pub open_settings: bool,
+    pub import_config: bool,
 }
 
 #[cfg(test)]
@@ -851,10 +856,12 @@ mod tests {
             add_server: true,
             manage_groups: false,
             open_settings: true,
+            import_config: false,
         };
 
         assert!(response.add_server);
         assert!(!response.manage_groups);
         assert!(response.open_settings);
+        assert!(!response.import_config);
     }
 }

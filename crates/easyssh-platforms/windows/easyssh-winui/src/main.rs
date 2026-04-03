@@ -30,6 +30,7 @@ use code_editor::{CodeEditor, FileInfo};
 mod app_settings;
 mod apple_design;
 mod bridge;
+mod components;
 mod cloud_sync_ui;
 mod connection_pool_ui;
 mod design;
@@ -117,6 +118,7 @@ use sso_login_ui::{SsoLoginPanel, SsoLoginResponse};
 use apple_design::MicrointeractionState;
 use design::{AccessibilitySettings, DesignTheme};
 use hotkeys::{CommandPalette, HotkeyManager, HotkeySettingsUI};
+use components::tab_bar::{TabBar, TabBarResponse, TabDisplayState, TabState, SessionType, TabManager};
 use layout_manager::SplitLayoutManager;
 use notification_panel::{NotificationPanel, NotificationSettingsPanel};
 use notifications::NotificationManager;
@@ -412,6 +414,12 @@ struct EasySSHApp {
     tag_input: String,
     session_tabs: Vec<SessionTab>,
     active_tab: Option<String>,
+
+    // === Tab Bar Component for Multi-Terminal ===
+    /// Tab bar UI component for managing terminal tabs
+    tab_bar: TabBar,
+    /// Tab manager for tab state management (placeholder - uses local TabState)
+    tab_manager: Arc<Mutex<TabManager>>,
 
     // Server groups (group_name -> server_ids)
     #[allow(dead_code)]
@@ -958,6 +966,11 @@ impl EasySSHApp {
             tag_input: String::new(),
             session_tabs: Vec::new(),
             active_tab: None,
+
+            // Tab Bar Component for Multi-Terminal
+            tab_manager: Arc::new(Mutex::new(TabManager::new())),
+            tab_bar: TabBar::default(),
+
             server_groups: HashMap::new(),
             selected_group: None,
             command_history: Vec::new(),
@@ -4528,6 +4541,79 @@ impl eframe::App for EasySSHApp {
                         });
                     });
             }
+        }
+
+        // ==================== Tab Bar for Multi-Terminal ====================
+        // Show tab bar when there are active sessions
+        if !self.session_tabs.is_empty() {
+            egui::TopBottomPanel::top("tab_bar")
+                .frame(egui::Frame {
+                    fill: self.theme.bg_secondary,
+                    inner_margin: egui::Margin::symmetric(4.0, 2.0),
+                    ..Default::default()
+                })
+                .height_range(32.0..=40.0)
+                .show(ctx, |ui| {
+                    // Update tab bar with current tabs
+                    let tabs: Vec<TabDisplayState> = self.session_tabs.iter().map(|t| {
+                        TabDisplayState {
+                            id: t.session_id.clone(),
+                            title: t.title.clone(),
+                            state: TabState::Active,
+                            session_type: SessionType::Ssh,
+                            is_pinned: false,
+                            has_activity: false,
+                            modified_at: None,
+                        }
+                    }).collect();
+
+                    self.tab_bar.set_tabs(tabs, self.active_tab.clone());
+
+                    // Show tab bar and handle responses
+                    let response = self.tab_bar.show(ui);
+
+                    // Handle tab bar responses
+                    match response {
+                        TabBarResponse::TabActivated { tab_id } => {
+                            self.active_tab = Some(tab_id.clone());
+                            // Update terminal output to show selected tab's output
+                            if let Some(tab) = self.session_tabs.iter().find(|t| t.session_id == tab_id) {
+                                self.terminal_output = tab.output.clone();
+                            }
+                        }
+                        TabBarResponse::TabClosed { tab_id } => {
+                            // Remove the tab
+                            self.session_tabs.retain(|t| t.session_id != tab_id);
+                            if self.active_tab.as_ref() == Some(&tab_id) {
+                                // Switch to remaining tab or clear
+                                self.active_tab = self.session_tabs.first().map(|t| t.session_id.clone());
+                                if let Some(new_active) = &self.active_tab {
+                                    if let Some(tab) = self.session_tabs.iter().find(|t| t.session_id == *new_active) {
+                                        self.terminal_output = tab.output.clone();
+                                    }
+                                } else {
+                                    self.terminal_output.clear();
+                                }
+                            }
+                        }
+                        TabBarResponse::NewTabRequested => {
+                            // Create a new tab - this would typically open a new connection dialog
+                            // For now, we just log this request
+                            log::info!("New tab requested");
+                        }
+                        TabBarResponse::TabsReordered { new_order } => {
+                            // Reorder tabs based on drag-and-drop
+                            let mut reordered_tabs: Vec<SessionTab> = Vec::new();
+                            for id in new_order {
+                                if let Some(tab) = self.session_tabs.iter().find(|t| t.session_id == id) {
+                                    reordered_tabs.push(tab.clone());
+                                }
+                            }
+                            self.session_tabs = reordered_tabs;
+                        }
+                        _ => {}
+                    }
+                });
         }
 
         egui::SidePanel::left("server_list")

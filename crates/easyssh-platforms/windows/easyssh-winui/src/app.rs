@@ -12,8 +12,8 @@ use crate::design::{BrandColors, DesignTheme, Motion, Radius, Spacing, Typograph
 use crate::detail_panel::{DetailPanelContainer, DetailPanelContainerResponse, ServerUpdateData};
 use crate::dialogs::{
     AddServerDialog, DeleteConfirmDialog, DialogResult, EditServerDialog, ErrorDialog, GroupColor,
-    GroupColorPicker, GroupDialogAction, GroupManagerDialog, PasswordDialogResult,
-    PasswordPromptDialog,
+    GroupColorPicker, GroupDialogAction, GroupManagerDialog, ImportConfigDialog,
+    ImportConfigDialogResult, PasswordDialogResult, PasswordPromptDialog,
 };
 use crate::sidebar::{QuickActionsBar, QuickActionsResponse, Sidebar, SidebarResponse};
 use crate::terminal_launcher::{
@@ -44,6 +44,7 @@ pub struct EasySshApp {
     delete_confirm_dialog: DeleteConfirmDialog,
     error_dialog: ErrorDialog,
     group_color_picker: GroupColorPicker,
+    import_config_dialog: ImportConfigDialog,
 
     /// Connected servers (server_id -> session_id)
     connected_servers: std::collections::HashMap<String, String>,
@@ -147,6 +148,7 @@ impl EasySshApp {
             delete_confirm_dialog: DeleteConfirmDialog::new(),
             error_dialog: ErrorDialog::new(),
             group_color_picker: GroupColorPicker::new(),
+            import_config_dialog: ImportConfigDialog::new(),
             connected_servers: std::collections::HashMap::new(),
             pending_password_server: None,
             toasts: Vec::new(),
@@ -267,6 +269,10 @@ impl EasySshApp {
 
         if response.open_settings {
             self.show_shortcuts_help = !self.show_shortcuts_help;
+        }
+
+        if response.import_config {
+            self.import_config_dialog.open();
         }
     }
 
@@ -436,6 +442,33 @@ impl EasySshApp {
         if let Some(selected_color) = self.group_color_picker.show(ctx) {
             // Apply selected color to active group (would need to track which group is being edited)
             info!("Selected group color: {:?}", selected_color);
+        }
+
+        // Import Config Dialog
+        let import_result = self.import_config_dialog.show(ctx, &self.view_model);
+        match import_result {
+            ImportConfigDialogResult::ImportCompleted {
+                servers_imported,
+                servers_skipped,
+            } => {
+                self.refresh_data();
+                let message = if servers_skipped > 0 {
+                    format!(
+                        "Imported {} servers, skipped {} existing",
+                        servers_imported, servers_skipped
+                    )
+                } else {
+                    format!("Successfully imported {} servers", servers_imported)
+                };
+                self.show_toast(message, ToastLevel::Success);
+            }
+            ImportConfigDialogResult::Cancel => {
+                // Dialog closed
+            }
+            ImportConfigDialogResult::SelectionChanged => {
+                // Selection changed, no action needed
+            }
+            ImportConfigDialogResult::None => {}
         }
     }
 

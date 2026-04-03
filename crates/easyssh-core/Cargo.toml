@@ -319,3 +319,8 @@ required-features = ["lite"]
 name = "workflow_bench"
 harness = false
 required-features = ["workflow"]
+
+[[bench]]
+name = "startup_bench"
+harness = false
+required-features = ["lite"]

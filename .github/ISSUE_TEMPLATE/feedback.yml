@@ -1,0 +1,201 @@
+name: Beta Feedback
+description: Share your experience testing EasySSH beta versions
+title: "[Beta Feedback]: "
+labels: ["feedback", "beta"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing EasySSH beta!
+        Your feedback is invaluable in shaping the product.
+
+        Current beta: **v0.3.0-beta.1** (Lite Edition)
+
+  - type: dropdown
+    id: rating
+    attributes:
+      label: Overall Rating
+      description: How would you rate your overall experience with EasySSH?
+      options:
+        - "5 - Excellent"
+        - "4 - Good"
+        - "3 - Average"
+        - "2 - Below Average"
+        - "1 - Poor"
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Edition Tested
+      description: Which edition(s) have you tested?
+      options:
+        - Lite only
+        - Standard only
+        - Pro only
+        - Lite + Standard
+        - All editions
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform(s) Tested
+      description: Which platform(s) have you tested on?
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Windows + macOS
+        - Windows + Linux
+        - macOS + Linux
+        - All platforms
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: duration
+    attributes:
+      label: Testing Duration
+      description: How long have you been testing EasySSH?
+      options:
+        - Just started (< 1 day)
+        - A few days
+        - 1-2 weeks
+        - 2-4 weeks
+        - Since early beta
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: liked
+    attributes:
+      label: What did you like?
+      description: |
+        What features or aspects of EasySSH did you enjoy?
+        What worked well for you?
+      placeholder: |
+        - The clean UI made it easy to...
+        - Connection management is intuitive because...
+        - Performance is great when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: improvements
+    attributes:
+      label: What needs improvement?
+      description: |
+        What could be better?
+        Any rough edges, bugs, or UX issues?
+      placeholder: |
+        - The workflow for X could be simplified by...
+        - I found Y confusing because...
+        - Z felt slow when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: missing
+    attributes:
+      label: Missing Features
+      description: |
+        What features are you missing that would make EasySSH more useful?
+        What do you need that other SSH clients provide?
+      placeholder: |
+        - I really need support for...
+        - My workflow requires...
+        - It would be great to have...
+    validations:
+      required: false
+
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Adoption Blockers
+      description: |
+        Is there anything preventing you from using EasySSH as your primary SSH client?
+        What would need to change for you to fully adopt it?
+      placeholder: |
+        - I can't switch from my current tool because...
+        - The deal-breaker for me is...
+        - Once X is implemented, I could use it daily for...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: recommend
+    attributes:
+      label: Would you recommend EasySSH?
+      description: Would you recommend EasySSH to a friend or colleague?
+      options:
+        - "Definitely yes"
+        - "Probably yes"
+        - "Not sure"
+        - "Probably not"
+        - "Definitely not"
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: current_tool
+    attributes:
+      label: Current SSH Client
+      description: What SSH client do you currently use as your primary tool?
+      options:
+        - OpenSSH (command line)
+        - PuTTY
+        - Termius
+        - SecureCRT
+        - MobaXterm
+        - Royal TSX
+        - Kitty
+        - Other (please specify in comments)
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Comparison with Current Tool
+      description: |
+        How does EasySSH compare to your current SSH client?
+        What does EasySSH do better? What does it lack?
+      placeholder: |
+        Compared to Termius, EasySSH...
+
+        I prefer EasySSH's approach to...
+
+        However, I miss the feature X from my current tool...
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Comments
+      description: Any other feedback, suggestions, or comments?
+      placeholder: "Any other thoughts you'd like to share..."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: followup
+    attributes:
+      label: Follow-up
+      options:
+        - label: I'm open to being contacted for more detailed feedback or user interviews
+          required: false
+        - label: I'd like to participate in future beta testing
+          required: false
+        - label: I'm interested in contributing to the project
+          required: false

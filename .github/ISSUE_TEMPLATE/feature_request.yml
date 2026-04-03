@@ -1,0 +1,157 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for EasySSH
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature!
+        Your input helps shape the future of EasySSH.
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Target Edition
+      description: Which edition should this feature target?
+      options:
+        - Lite (Core functionality)
+        - Standard (Advanced users)
+        - Pro (Team features)
+        - All Editions
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What area does this feature relate to?
+      options:
+        - SSH Connection
+        - Terminal
+        - Server Management
+        - Security
+        - UI/UX
+        - Team Collaboration
+        - SFTP/File Transfer
+        - Snippets/Scripts
+        - Import/Export
+        - Other
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Use Case
+      description: |
+        What problem does this feature solve?
+        Or what use case does it enable?
+
+        A clear description of the pain point helps us understand the value.
+      placeholder: |
+        Currently, I need to manually copy server credentials when setting up...
+
+        This makes it difficult when I need to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: |
+        Describe your ideal solution.
+        How would you expect this feature to work?
+      placeholder: |
+        I would like to be able to...
+
+        The workflow could be:
+        1. Click on...
+        2. Select...
+        3. Result...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: |
+        Have you considered any alternative solutions or workarounds?
+        This helps us understand the constraints and trade-offs.
+      placeholder: |
+        I have considered:
+        - Using X to do Y, but it's slow
+        - Manually doing Z, but it's error-prone
+    validations:
+      required: false
+
+  - type: dropdown
+    id: importance
+    attributes:
+      label: Importance
+      description: How important is this feature to you?
+      options:
+        - Critical (Blocking my workflow)
+        - High (Significant productivity impact)
+        - Medium (Nice to have)
+        - Low (Minor convenience)
+      default: 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Usage Frequency
+      description: How often would you use this feature?
+      options:
+        - Multiple times per day
+        - Once per day
+        - A few times per week
+        - Occasionally
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: |
+        Are there any other applications that have this feature?
+        Links to discussions, mockups, or documentation are helpful.
+      placeholder: |
+        - Termius has this feature: [link]
+        - Similar to VS Code's...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: pre-submission
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched the existing issues and discussions to ensure this is not a duplicate
+          required: true
+        - label: I have provided a clear problem statement and proposed solution
+          required: true
+        - label: This feature request aligns with EasySSH's vision as an SSH client
+          required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to submit a pull request to implement this feature
+          required: false
+        - label: I am willing to help test this feature when implemented
+          required: false
+        - label: I am willing to provide more detailed requirements/specifications
+          required: false

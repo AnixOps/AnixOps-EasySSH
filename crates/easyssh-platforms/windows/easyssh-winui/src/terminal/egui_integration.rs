@@ -5,14 +5,18 @@
 //! This module provides integration between wry WebView and egui,
 //! enabling 60fps WebGL terminal rendering within the native UI.
 //! Includes full clipboard support (Ctrl+C/Ctrl+V) and context menu.
+//!
+//! IPC Communication:
+//! - Rust -> JS: terminal output, resize events via evaluate_script
+//! - JS -> Rust: user input, resize requests via window.ipc.postMessage
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use egui::{Color32, Key, Response, Rounding, Stroke, Ui};
-use raw_window_handle::WindowHandle;
+use raw_window_handle::HasWindowHandle;
 use tracing::{debug, info, warn};
-use wry::{Rect as WryRect, WebView};
+use wry::{http::Request, Rect as WryRect, WebView, WebViewBuilder};
 
 use super::clipboard::SharedClipboard;
 use super::webgl_terminal::{RenderStats, TerminalConfig, WebGlTerminal};
@@ -42,6 +46,10 @@ pub enum TerminalMessage {
         action: ClipboardAction,
         data: Option<String>,
     },
+    /// WebGL context lost - need fallback
+    WebGLContextLost,
+    /// Fallback mode activated
+    FallbackModeActivated,
 }
 
 /// Clipboard actions
@@ -58,6 +66,41 @@ pub enum ContextMenuAction {
     Paste,
     SelectAll,
     Clear,
+}
+
+/// WebView state for terminal
+pub struct WebViewState {
+    /// Whether WebView is initialized
+    pub is_initialized: bool,
+    /// Whether WebGL is available
+    pub webgl_available: bool,
+    /// Whether using fallback (Canvas2D)
+    pub using_fallback: bool,
+    /// Initialization error if any
+    pub init_error: Option<String>,
+}
+
+impl WebViewState {
+    pub fn new() -> Self {
+        Self {
+            is_initialized: false,
+            webgl_available: true,
+            using_fallback: false,
+            init_error: None,
+        }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.is_initialized
+    }
+
+    pub fn using_fallback(&self) -> bool {
+        self.using_fallback
+    }
+
+    pub fn get_error(&self) -> Option<&str> {
+        self.init_error.as_deref()
+    }
 }
 
 /// High-performance WebGL terminal widget for egui with clipboard support
@@ -109,19 +152,145 @@ impl EguiWebGlTerminal {
         Self::new(TerminalConfig::default())
     }
 
-    /// Initialize WebView for this terminal
+    /// Initialize WebView for this terminal with proper wry 0.46+ API
+    ///
+    /// This creates a child WebView with:
+    /// - IPC handler for bidirectional communication
+    /// - Clipboard access enabled
+    /// - DevTools in debug builds
+    /// - WebGL terminal HTML content
     pub fn init_webview(
         &mut self,
-        _window_handle: WindowHandle,
-        _rect: WryRect,
+        window: &impl HasWindowHandle,
+        rect: WryRect,
     ) -> anyhow::Result<()> {
         if self.webview.is_some() {
             return Ok(());
         }
 
-        // WebView creation disabled for now - wry 0.46 API is significantly different
-        // TODO: Update to new wry API
-        warn!("WebView terminal not implemented for wry 0.46 yet");
+        let html = self.terminal.lock().unwrap().get_webview_html();
+        let message_queue = self.message_queue.clone();
+
+        // Create WebView with IPC handler for bidirectional communication
+        let webview = WebViewBuilder::new()
+            .with_html(html)
+            .with_clipboard(true)
+            .with_bounds(rect)
+            .with_ipc_handler(move |request: Request<String>| {
+                // Handle incoming IPC messages from JavaScript
+                let body = request.body();
+                if let Ok(msg) = serde_json::from_str::<TerminalMessage>(body) {
+                    if let Ok(mut queue) = message_queue.lock() {
+                        queue.push(msg);
+                    }
+                }
+            })
+            // Enable devtools in debug builds
+            .with_devtools(cfg!(debug_assertions))
+            .build_as_child(window)?;
+
+        self.webview = Some(webview);
+        info!("WebView terminal initialized successfully with IPC handler");
+
+        // Flush any pending output that was queued before WebView was ready
+        self.flush_pending();
+
+        Ok(())
+    }
+
+    /// Initialize WebView with fallback (Canvas2D) mode
+    /// Used when WebGL fails or is not available
+    pub fn init_webview_fallback(
+        &mut self,
+        window: &impl HasWindowHandle,
+        rect: WryRect,
+    ) -> anyhow::Result<()> {
+        if self.webview.is_some() {
+            return Ok(());
+        }
+
+        warn!("Initializing WebView with Canvas2D fallback mode");
+
+        let fallback_html = self.terminal.lock().unwrap().get_fallback_html();
+        let message_queue = self.message_queue.clone();
+
+        let webview = WebViewBuilder::new()
+            .with_html(fallback_html)
+            .with_clipboard(true)
+            .with_bounds(rect)
+            .with_ipc_handler(move |request: Request<String>| {
+                let body = request.body();
+                if let Ok(msg) = serde_json::from_str::<TerminalMessage>(body) {
+                    if let Ok(mut queue) = message_queue.lock() {
+                        queue.push(msg);
+                    }
+                }
+            })
+            .with_devtools(cfg!(debug_assertions))
+            .build_as_child(window)?;
+
+        self.webview = Some(webview);
+        info!("WebView terminal initialized with Canvas2D fallback");
+
+        self.flush_pending();
+        Ok(())
+    }
+
+    /// Try to initialize WebView, falling back to Canvas2D if WebGL fails
+    pub fn init_webview_with_fallback(
+        &mut self,
+        window: &impl HasWindowHandle,
+        rect: WryRect,
+    ) -> anyhow::Result<()> {
+        // First try WebGL mode
+        match self.init_webview(window, rect) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                warn!(
+                    "WebGL WebView initialization failed: {}, trying fallback",
+                    e
+                );
+                // Fall back to Canvas2D mode
+                self.init_webview_fallback(window, rect)
+            }
+        }
+    }
+
+    /// Check if WebView is initialized and ready
+    pub fn is_webview_ready(&self) -> bool {
+        self.webview.is_some() && self.ready
+    }
+
+    /// Get WebView state information
+    pub fn webview_state(&self) -> WebViewState {
+        WebViewState {
+            is_initialized: self.webview.is_some(),
+            webgl_available: !self.using_fallback_mode(),
+            using_fallback: self.using_fallback_mode(),
+            init_error: None,
+        }
+    }
+
+    /// Check if using fallback rendering mode
+    fn using_fallback_mode(&self) -> bool {
+        // This would be set based on messages from the JS side
+        false
+    }
+
+    /// Resize WebView bounds
+    pub fn resize_webview(&mut self, rect: WryRect) -> anyhow::Result<()> {
+        if let Some(webview) = &self.webview {
+            webview.set_bounds(rect)?;
+        }
+        Ok(())
+    }
+
+    /// Send message to WebView via evaluate_script
+    fn send_to_webview(&self, msg: &serde_json::Value) -> anyhow::Result<()> {
+        if let Some(webview) = &self.webview {
+            let script = format!("window.postMessage({}, '*');", msg);
+            webview.evaluate_script(&script)?;
+        }
         Ok(())
     }
 
@@ -132,7 +301,13 @@ impl EguiWebGlTerminal {
                 "type": "write",
                 "data": data
             });
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
+            if let Err(e) = self.send_to_webview(&msg) {
+                warn!("Failed to write to WebView: {}", e);
+                // Queue for retry
+                if let Ok(mut queue) = self.pending_output.lock() {
+                    queue.push(data.to_string());
+                }
+            }
         } else {
             // Queue for later
             if let Ok(mut queue) = self.pending_output.lock() {
@@ -151,18 +326,18 @@ impl EguiWebGlTerminal {
 
     /// Clear terminal
     pub fn clear(&mut self) {
-        if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({"type": "clear"});
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
+        let msg = serde_json::json!({"type": "clear"});
+        if let Err(e) = self.send_to_webview(&msg) {
+            warn!("Failed to clear WebView: {}", e);
         }
         self.terminal.lock().unwrap().clear();
     }
 
     /// Reset terminal
     pub fn reset(&mut self) {
-        if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({"type": "reset"});
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
+        let msg = serde_json::json!({"type": "reset"});
+        if let Err(e) = self.send_to_webview(&msg) {
+            warn!("Failed to reset WebView: {}", e);
         }
         self.terminal.lock().unwrap().reset();
     }
@@ -170,32 +345,42 @@ impl EguiWebGlTerminal {
     /// Focus terminal
     pub fn focus(&mut self) {
         if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({"type": "focus"});
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
+            if let Err(e) = webview.focus() {
+                warn!("Failed to focus WebView: {}", e);
+            }
         }
+        let msg = serde_json::json!({"type": "focus"});
+        let _ = self.send_to_webview(&msg);
     }
 
     /// Blur terminal (remove focus)
     pub fn blur(&mut self) {
-        if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({"type": "blur"});
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
-        }
+        let msg = serde_json::json!({"type": "blur"});
+        let _ = self.send_to_webview(&msg);
     }
 
     /// Scroll to bottom
     pub fn scroll_to_bottom(&mut self) {
-        if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({"type": "scrollToBottom"});
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
-        }
+        let msg = serde_json::json!({"type": "scrollToBottom"});
+        let _ = self.send_to_webview(&msg);
+    }
+
+    /// Scroll to top
+    pub fn scroll_to_top(&mut self) {
+        let msg = serde_json::json!({"type": "scrollToTop"});
+        let _ = self.send_to_webview(&msg);
+    }
+
+    /// Scroll by specific lines
+    pub fn scroll_lines(&mut self, lines: i32) {
+        let msg = serde_json::json!({"type": "scrollLines", "data": {"lines": lines}});
+        let _ = self.send_to_webview(&msg);
     }
 
     /// Get all pending messages from terminal
     pub fn poll_messages(&mut self) -> Vec<TerminalMessage> {
         if let Ok(mut queue) = self.message_queue.lock() {
-            let messages = queue.drain(..).collect();
-            messages
+            queue.drain(..).collect()
         } else {
             Vec::new()
         }
@@ -208,10 +393,8 @@ impl EguiWebGlTerminal {
 
     /// Select all text in terminal
     pub fn select_all(&mut self) {
-        if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({"type": "selectAll"});
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
-        }
+        let msg = serde_json::json!({"type": "selectAll"});
+        let _ = self.send_to_webview(&msg);
     }
 
     /// Copy current selection to clipboard
@@ -219,7 +402,7 @@ impl EguiWebGlTerminal {
         if self.selection.is_empty() {
             // If no local selection, request from webview
             self.request_selection_from_webview();
-            return Err("No selection available".to_string());
+            return Err("No selection available - requesting from WebView".to_string());
         }
 
         self.clipboard.copy(&self.selection)
@@ -240,21 +423,16 @@ impl EguiWebGlTerminal {
 
     /// Request selection from webview (for copy)
     fn request_selection_from_webview(&self) {
-        if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({"type": "getSelection"});
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
-        }
+        let msg = serde_json::json!({"type": "getSelection"});
+        let _ = self.send_to_webview(&msg);
     }
 
-    /// Send input to terminal
+    /// Send input to terminal (from SSH or paste)
     fn send_input(&mut self, data: &str) {
-        if let Some(webview) = &self.webview {
-            // Use term.paste() for proper input handling
-            let script = format!(
-                "if (window.term) {{ window.term.paste({}); }}",
-                serde_json::Value::String(data.to_string())
-            );
-            let _ = webview.evaluate_script(&script);
+        // Use paste method for proper input handling
+        let msg = serde_json::json!({"type": "paste", "data": data});
+        if let Err(e) = self.send_to_webview(&msg) {
+            warn!("Failed to send input to WebView: {}", e);
         }
         debug!("Sent input to terminal: {} bytes", data.len());
     }
@@ -274,24 +452,19 @@ impl EguiWebGlTerminal {
         self.clipboard.is_available()
     }
 
-    /// Resize terminal
+    /// Resize terminal dimensions
     pub fn resize(&mut self, cols: usize, rows: usize) {
         self.dimensions = (cols, rows);
         self.terminal.lock().unwrap().resize(cols, rows);
 
-        if let Some(webview) = &self.webview {
-            let msg = serde_json::json!({
-                "type": "resize",
-                "data": {
-                    "cols": cols,
-                    "rows": rows
-                }
-            });
-            let _ = webview.evaluate_script(&format!("window.postMessage({}, '*');", msg));
-        }
+        let msg = serde_json::json!({
+            "type": "resize",
+            "data": {"cols": cols, "rows": rows}
+        });
+        let _ = self.send_to_webview(&msg);
     }
 
-    /// Flush any pending output
+    /// Flush any pending output that was queued before WebView was ready
     fn flush_pending(&mut self) {
         let pending: Vec<String> = {
             if let Ok(mut queue) = self.pending_output.lock() {
@@ -524,6 +697,7 @@ impl WebGlTerminalWidget {
                 TerminalMessage::Ready { cols, rows } => {
                     term.ready = true;
                     term.dimensions = (cols, rows);
+                    info!("WebView terminal ready: {} cols x {} rows", cols, rows);
                 }
                 TerminalMessage::Selection(text) => {
                     // Selection received from webview, copy to clipboard
@@ -533,6 +707,21 @@ impl WebGlTerminalWidget {
                     } else {
                         info!("Copied selection from webview: {} chars", text.len());
                     }
+                }
+                TerminalMessage::WebGLContextLost => {
+                    warn!("WebGL context lost in terminal");
+                    // Could trigger fallback here if needed
+                }
+                TerminalMessage::FallbackModeActivated => {
+                    warn!("Terminal switched to fallback rendering mode");
+                }
+                TerminalMessage::Input(data) => {
+                    // Input from terminal - this should be forwarded to SSH session
+                    debug!("Terminal input: {} bytes", data.len());
+                }
+                TerminalMessage::Resize { cols, rows } => {
+                    debug!("Terminal resize request: {} x {}", cols, rows);
+                    term.dimensions = (cols, rows);
                 }
                 _ => {}
             }

@@ -2,10 +2,6 @@
 //!
 //! This example demonstrates how to use the EasySSH telemetry system.
 
-use std::collections::HashMap;
-use std::time::Duration;
-use tokio::time::sleep;
-
 // Note: This would use the actual easyssh_core crate in production
 // use easyssh_core::telemetry::*;
 
@@ -174,6 +170,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Example: Integration with UI
+#[allow(dead_code)]
 async fn show_consent_dialog_example() {
     // In production:
     // let model = telemetry.consent().get_dialog_model();
@@ -190,7 +187,8 @@ async fn show_consent_dialog_example() {
 }
 
 /// Example: Integration with feature rollout
-async fn feature_rollout_example(user_id: &str) {
+#[allow(dead_code)]
+async fn feature_rollout_example(_user_id: &str) {
     // In production:
     // if telemetry.is_feature_enabled("experimental_feature") {
     //     show_new_feature_ui();
@@ -200,6 +198,7 @@ async fn feature_rollout_example(user_id: &str) {
 }
 
 /// Example: Performance tracking
+#[allow(dead_code)]
 async fn track_operation_performance<F, Fut, T>(operation_name: &str, f: F) -> T
 where
     F: FnOnce() -> Fut,

@@ -1996,6 +1996,808 @@ pub enum MasterPasswordDialogResult {
     Cancel,
 }
 
+/// Parsed SSH config host entry for preview
+#[derive(Debug, Clone)]
+pub struct ParsedSshHost {
+    pub name: String,
+    pub host: String,
+    pub port: i64,
+    pub username: String,
+    pub auth_type: String,
+    pub identity_file: Option<String>,
+    pub group_name: Option<String>,
+    pub selected: bool,
+    pub exists: bool,
+    pub warnings: Vec<String>,
+}
+
+/// Import state for the dialog
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportState {
+    Idle,
+    Loading,
+    Parsing,
+    Previewing,
+    Importing,
+    Completed,
+    Error,
+}
+
+/// Import Config Dialog for importing ~/.ssh/config files
+pub struct ImportConfigDialog {
+    pub open: bool,
+    pub file_path: Option<std::path::PathBuf>,
+    pub parsed_hosts: Vec<ParsedSshHost>,
+    pub import_state: ImportState,
+    pub conflict_resolution: easyssh_core::ConfigConflictResolution,
+    pub error_message: Option<String>,
+    pub import_result: Option<easyssh_core::ImportResult>,
+    pub progress: f32,
+    pub search_filter: String,
+    pub show_existing_only: bool,
+    pub show_conflicts_only: bool,
+}
+
+impl Default for ImportConfigDialog {
+    fn default() -> Self {
+        Self {
+            open: false,
+            file_path: None,
+            parsed_hosts: Vec::new(),
+            import_state: ImportState::Idle,
+            conflict_resolution: easyssh_core::ConfigConflictResolution::Skip,
+            error_message: None,
+            import_result: None,
+            progress: 0.0,
+            search_filter: String::new(),
+            show_existing_only: false,
+            show_conflicts_only: false,
+        }
+    }
+}
+
+impl ImportConfigDialog {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Open the dialog, optionally with a pre-selected file path
+    pub fn open(&mut self) {
+        self.open = true;
+        self.reset_state();
+        // Auto-load default SSH config path
+        self.load_default_ssh_config();
+    }
+
+    /// Open with a specific file path
+    pub fn open_with_path(&mut self, path: std::path::PathBuf) {
+        self.open = true;
+        self.reset_state();
+        self.file_path = Some(path);
+    }
+
+    /// Reset all state
+    fn reset_state(&mut self) {
+        self.file_path = None;
+        self.parsed_hosts.clear();
+        self.import_state = ImportState::Idle;
+        self.error_message = None;
+        self.import_result = None;
+        self.progress = 0.0;
+        self.search_filter.clear();
+        self.show_existing_only = false;
+        self.show_conflicts_only = false;
+    }
+
+    /// Close the dialog
+    pub fn close(&mut self) {
+        self.open = false;
+        self.reset_state();
+    }
+
+    /// Load the default SSH config path (~/.ssh/config)
+    fn load_default_ssh_config(&mut self) {
+        if let Some(home) = dirs::home_dir() {
+            let ssh_config = home.join(".ssh").join("config");
+            if ssh_config.exists() {
+                self.file_path = Some(ssh_config);
+            }
+        }
+    }
+
+    /// Parse the SSH config file content
+    fn parse_ssh_config(&mut self, content: &str) {
+        self.parsed_hosts.clear();
+        let mut current_host: Option<ParsedSshHost> = None;
+
+        for line in content.lines() {
+            let line = line.trim();
+
+            // Skip comments and empty lines
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+
+            // Parse key-value pairs
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 2 {
+                continue;
+            }
+
+            let key = parts[0].to_lowercase();
+            let value = parts[1..].join(" ");
+
+            match key.as_str() {
+                "host" => {
+                    // Save previous host if exists
+                    if let Some(host) = current_host.take() {
+                        if !host.name.starts_with('*') {
+                            // Skip wildcard patterns
+                            self.parsed_hosts.push(host);
+                        }
+                    }
+
+                    // Start new host
+                    current_host = Some(ParsedSshHost {
+                        name: value.clone(),
+                        host: value.clone(), // Will be updated if HostName is present
+                        port: 22,
+                        username: String::from("root"),
+                        auth_type: String::from("password"),
+                        identity_file: None,
+                        group_name: None,
+                        selected: true, // Default to selected
+                        exists: false,  // Will be checked later
+                        warnings: Vec::new(),
+                    });
+                }
+                "hostname" => {
+                    if let Some(ref mut host) = current_host {
+                        host.host = value;
+                    }
+                }
+                "port" => {
+                    if let Some(ref mut host) = current_host {
+                        host.port = value.parse().unwrap_or(22);
+                    }
+                }
+                "user" => {
+                    if let Some(ref mut host) = current_host {
+                        host.username = value;
+                    }
+                }
+                "identityfile" => {
+                    if let Some(ref mut host) = current_host {
+                        let expanded_path = if value.starts_with('~') {
+                            if let Some(home) = dirs::home_dir() {
+                                value.replacen('~', &home.to_string_lossy(), 1)
+                            } else {
+                                value.clone()
+                            }
+                        } else {
+                            value.clone()
+                        };
+                        host.identity_file = Some(expanded_path);
+                        host.auth_type = String::from("key");
+
+                        // Add warning if identity file doesn't exist
+                        if !std::path::Path::new(&host.identity_file.as_ref().unwrap()).exists() {
+                            host.warnings.push("Identity file not found".to_string());
+                        }
+                    }
+                }
+                "forwardagent" => {
+                    if let Some(ref mut host) = current_host {
+                        if value.to_lowercase() == "yes" {
+                            host.auth_type = String::from("agent");
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Don't forget the last host
+        if let Some(host) = current_host {
+            if !host.name.starts_with('*') {
+                self.parsed_hosts.push(host);
+            }
+        }
+    }
+
+    /// Check existing servers and mark conflicts
+    fn check_existing_servers(&mut self, existing_servers: &[crate::viewmodels::ServerViewModel]) {
+        // Build a lookup map by (host, username)
+        let existing_map: std::collections::HashMap<(String, String), bool> = existing_servers
+            .iter()
+            .map(|s| ((s.host.clone(), s.username.clone()), true))
+            .collect();
+
+        // Also check by name
+        let existing_names: std::collections::HashSet<String> = existing_servers
+            .iter()
+            .map(|s| s.name.clone())
+            .collect();
+
+        for host in &mut self.parsed_hosts {
+            // Check if exists by host+username or by name
+            host.exists = existing_map.contains_key(&(host.host.clone(), host.username.clone()))
+                || existing_names.contains(&host.name);
+
+            if host.exists {
+                host.warnings.push("Already exists".to_string());
+                // Default: skip existing servers
+                if self.conflict_resolution == easyssh_core::ConfigConflictResolution::Skip {
+                    host.selected = false;
+                }
+            }
+        }
+    }
+
+    /// Select all hosts
+    pub fn select_all(&mut self) {
+        for host in &mut self.parsed_hosts {
+            host.selected = true;
+        }
+    }
+
+    /// Deselect all hosts
+    pub fn deselect_all(&mut self) {
+        for host in &mut self.parsed_hosts {
+            host.selected = false;
+        }
+    }
+
+    /// Select only new (non-existing) hosts
+    pub fn select_new_only(&mut self) {
+        for host in &mut self.parsed_hosts {
+            host.selected = !host.exists;
+        }
+    }
+
+    /// Get filtered hosts for display
+    fn get_filtered_hosts(&self) -> Vec<&ParsedSshHost> {
+        self.parsed_hosts
+            .iter()
+            .filter(|h| {
+                // Search filter
+                if !self.search_filter.is_empty() {
+                    let filter = self.search_filter.to_lowercase();
+                    if !h.name.to_lowercase().contains(&filter)
+                        && !h.host.to_lowercase().contains(&filter)
+                        && !h.username.to_lowercase().contains(&filter)
+                    {
+                        return false;
+                    }
+                }
+
+                // Show existing only filter
+                if self.show_existing_only && !h.exists {
+                    return false;
+                }
+
+                // Show conflicts only filter
+                if self.show_conflicts_only && !h.exists {
+                    return false;
+                }
+
+                true
+            })
+            .collect()
+    }
+
+    /// Get count statistics
+    fn get_stats(&self) -> (usize, usize, usize, usize) {
+        let total = self.parsed_hosts.len();
+        let selected = self.parsed_hosts.iter().filter(|h| h.selected).count();
+        let new_count = self.parsed_hosts.iter().filter(|h| !h.exists).count();
+        let existing_count = self.parsed_hosts.iter().filter(|h| h.exists).count();
+        (total, selected, new_count, existing_count)
+    }
+
+    /// Show the dialog
+    pub fn show(
+        &mut self,
+        ctx: &egui::Context,
+        view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>,
+    ) -> ImportConfigDialogResult {
+        if !self.open {
+            return ImportConfigDialogResult::None;
+        }
+
+        let mut result = ImportConfigDialogResult::None;
+        let mut should_close = false;
+
+        // Calculate window size based on content
+        let window_width = 700.0;
+        let window_height = 550.0;
+
+        Window::new("Import SSH Configuration")
+            .collapsible(false)
+            .resizable(true)
+            .default_size([window_width, window_height])
+            .min_size([500.0, 400.0])
+            .frame(egui::Frame {
+                fill: egui::Color32::from_rgb(42, 48, 58),
+                stroke: egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 70, 85)),
+                ..Default::default()
+            })
+            .show(ctx, |ui| {
+                self.render_content(ui, view_model, &mut result, &mut should_close);
+            });
+
+        // Handle state transitions
+        if self.import_state == ImportState::Loading && self.file_path.is_some() {
+            self.load_and_parse_file(view_model);
+        }
+
+        if should_close {
+            self.close();
+        }
+
+        result
+    }
+
+    /// Render the dialog content
+    fn render_content(
+        &mut self,
+        ui: &mut Ui,
+        view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>,
+        result: &mut ImportConfigDialogResult,
+        should_close: &mut bool,
+    ) {
+        ui.spacing_mut().item_spacing.y = 10.0;
+
+        // Header with file selection
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("SSH Config File:").strong());
+
+                if let Some(ref path) = self.file_path {
+                    ui.label(path.display().to_string());
+                } else {
+                    ui.label("No file selected");
+                }
+
+                if ui
+                    .add(Button::new("📁 Browse...").min_size([80.0, 28.0].into()))
+                    .clicked()
+                {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("SSH Config", &["config", "", "*"])
+                        .add_filter("All Files", &["*"])
+                        .set_title("Select SSH Config File")
+                        .pick_file()
+                    {
+                        self.file_path = Some(path);
+                        self.import_state = ImportState::Loading;
+                    }
+                }
+
+                // Quick load default button
+                if self.file_path.is_none() || !self.is_default_path() {
+                    if ui.button("Load ~/.ssh/config").clicked() {
+                        self.load_default_ssh_config();
+                        if self.file_path.is_some() {
+                            self.import_state = ImportState::Loading;
+                        }
+                    }
+                }
+            });
+        });
+
+        // Progress indicator
+        if self.import_state == ImportState::Loading
+            || self.import_state == ImportState::Parsing
+            || self.import_state == ImportState::Importing
+        {
+            ui.add_space(5.0);
+            ui.horizontal(|ui| {
+                let state_text = match self.import_state {
+                    ImportState::Loading => "Loading file...",
+                    ImportState::Parsing => "Parsing hosts...",
+                    ImportState::Importing => "Importing...",
+                    _ => "",
+                };
+                ui.label(RichText::new(state_text).color(egui::Color32::from_rgb(100, 180, 255)));
+
+                // Progress bar
+                let progress_bar = egui::ProgressBar::new(self.progress)
+                    .desired_width(200.0)
+                    .animate(self.import_state == ImportState::Importing);
+                ui.add(progress_bar);
+            });
+            ui.add_space(5.0);
+        }
+
+        // Error message
+        if let Some(ref error) = self.error_message {
+            ui.add_space(5.0);
+            ui.colored_label(egui::Color32::RED, error);
+            ui.add_space(5.0);
+        }
+
+        // Preview section (when parsed hosts are available)
+        if self.import_state == ImportState::Previewing || self.import_state == ImportState::Completed {
+            self.render_preview_section(ui, result, should_close);
+        }
+
+        // Import result section
+        if self.import_state == ImportState::Completed && self.import_result.is_some() {
+            self.render_result_section(ui, should_close);
+        }
+
+        // Bottom buttons (when idle or previewing)
+        if self.import_state == ImportState::Idle || self.import_state == ImportState::Previewing {
+            ui.separator();
+            ui.horizontal(|ui| {
+                // Cancel button
+                if ui.button("Cancel").clicked() {
+                    *should_close = true;
+                    *result = ImportConfigDialogResult::Cancel;
+                }
+
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    // Import button
+                    let can_import = self.import_state == ImportState::Previewing
+                        && self.parsed_hosts.iter().any(|h| h.selected);
+
+                    let import_button = Button::new("Import Selected")
+                        .min_size([120.0, 36.0].into())
+                        .fill(if can_import {
+                            egui::Color32::from_rgb(64, 156, 255)
+                        } else {
+                            egui::Color32::from_rgb(80, 80, 80)
+                        });
+
+                    if ui.add_enabled(can_import, import_button).clicked() {
+                        self.perform_import(view_model);
+                    }
+                });
+            });
+        }
+    }
+
+    /// Check if current path is the default ~/.ssh/config
+    fn is_default_path(&self) -> bool {
+        if let Some(ref path) = self.file_path {
+            if let Some(home) = dirs::home_dir() {
+                let default_path = home.join(".ssh").join("config");
+                return *path == default_path;
+            }
+        }
+        false
+    }
+
+    /// Load and parse the SSH config file
+    fn load_and_parse_file(&mut self, view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>) {
+        if let Some(ref path) = self.file_path {
+            self.import_state = ImportState::Loading;
+            self.progress = 0.0;
+
+            // Read file content
+            match std::fs::read_to_string(path) {
+                Ok(content) => {
+                    self.progress = 0.5;
+                    self.import_state = ImportState::Parsing;
+
+                    // Parse SSH config
+                    self.parse_ssh_config(&content);
+
+                    // Get existing servers to check for conflicts
+                    let existing_servers = view_model.lock().unwrap().get_servers();
+                    self.check_existing_servers(&existing_servers);
+
+                    self.progress = 1.0;
+                    self.import_state = ImportState::Previewing;
+
+                    if self.parsed_hosts.is_empty() {
+                        self.error_message = Some("No hosts found in SSH config file".to_string());
+                        self.import_state = ImportState::Error;
+                    }
+                }
+                Err(e) => {
+                    self.error_message = Some(format!("Failed to read file: {}", e));
+                    self.import_state = ImportState::Error;
+                }
+            }
+        }
+    }
+
+    /// Render the preview section with hosts table
+    fn render_preview_section(
+        &mut self,
+        ui: &mut Ui,
+        result: &mut ImportConfigDialogResult,
+        _should_close: &mut bool,
+    ) {
+        let (total, selected, new_count, existing_count) = self.get_stats();
+
+        // Statistics header
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("Found:").strong());
+                ui.label(format!("{} hosts", total));
+                ui.label(RichText::new("|").color(egui::Color32::GRAY));
+                ui.label(RichText::new("New:").color(egui::Color32::GREEN));
+                ui.label(format!("{}", new_count));
+                ui.label(RichText::new("|").color(egui::Color32::GRAY));
+                ui.label(RichText::new("Existing:").color(egui::Color32::YELLOW));
+                ui.label(format!("{}", existing_count));
+                ui.label(RichText::new("|").color(egui::Color32::GRAY));
+                ui.label(RichText::new("Selected:").color(egui::Color32::from_rgb(100, 180, 255)));
+                ui.label(format!("{}", selected));
+            });
+
+            ui.add_space(5.0);
+
+            // Conflict resolution options
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("Conflict Resolution:").strong());
+                ui.radio_value(
+                    &mut self.conflict_resolution,
+                    easyssh_core::ConfigConflictResolution::Skip,
+                    "Skip existing",
+                );
+                ui.radio_value(
+                    &mut self.conflict_resolution,
+                    easyssh_core::ConfigConflictResolution::Overwrite,
+                    "Overwrite",
+                );
+                ui.radio_value(
+                    &mut self.conflict_resolution,
+                    easyssh_core::ConfigConflictResolution::Merge,
+                    "Merge",
+                );
+            });
+        });
+
+        ui.add_space(5.0);
+
+        // Filter controls
+        ui.horizontal(|ui| {
+            ui.label("Filter:");
+            ui.add(TextEdit::singleline(&mut self.search_filter).desired_width(150.0).hint_text("Search..."));
+
+            ui.checkbox(&mut self.show_existing_only, "Existing only");
+            ui.checkbox(&mut self.show_conflicts_only, "Conflicts only");
+
+            ui.separator();
+
+            // Bulk selection buttons
+            if ui.button("Select All").clicked() {
+                self.select_all();
+            }
+            if ui.button("Select None").clicked() {
+                self.deselect_all();
+            }
+            if ui.button("Select New").clicked() {
+                self.select_new_only();
+            }
+        });
+
+        ui.add_space(5.0);
+
+        // Hosts table
+        egui::ScrollArea::vertical().max_height(280.0).show(ui, |ui| {
+            use egui_extras::{Column, TableBuilder};
+
+            TableBuilder::new(ui)
+                .striped(true)
+                .resizable(true)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::initial(40.0).at_least(30.0)) // Checkbox
+                .column(Column::initial(100.0).at_least(80.0)) // Name
+                .column(Column::initial(120.0).at_least(100.0)) // Hostname
+                .column(Column::initial(50.0).at_least(40.0)) // Port
+                .column(Column::initial(80.0).at_least(60.0)) // User
+                .column(Column::initial(80.0).at_least(60.0)) // Auth
+                .column(Column::remainder().at_least(100.0)) // Warnings
+                .header(25.0, |mut header| {
+                    header.col(|ui| { ui.strong("Sel"); });
+                    header.col(|ui| { ui.strong("Name"); });
+                    header.col(|ui| { ui.strong("Hostname"); });
+                    header.col(|ui| { ui.strong("Port"); });
+                    header.col(|ui| { ui.strong("User"); });
+                    header.col(|ui| { ui.strong("Auth"); });
+                    header.col(|ui| { ui.strong("Status"); });
+                })
+                .body(|mut body| {
+                    // Pre-compute filtered indices to avoid borrow conflict
+                    let filtered_indices: Vec<usize> = self.parsed_hosts
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, host)| {
+                            // Search filter
+                            if !self.search_filter.is_empty() {
+                                let filter = self.search_filter.to_lowercase();
+                                if !host.name.to_lowercase().contains(&filter)
+                                    && !host.host.to_lowercase().contains(&filter)
+                                    && !host.username.to_lowercase().contains(&filter)
+                                {
+                                    return false;
+                                }
+                            }
+
+                            // Show existing only filter
+                            if self.show_existing_only && !host.exists {
+                                return false;
+                            }
+
+                            // Show conflicts only filter
+                            if self.show_conflicts_only && !host.exists {
+                                return false;
+                            }
+
+                            true
+                        })
+                        .map(|(idx, _)| idx)
+                        .collect();
+
+                    for host_idx in filtered_indices {
+                        body.row(20.0, |mut row| {
+                            let host = &mut self.parsed_hosts[host_idx];
+
+                            row.col(|ui| {
+                                // Checkbox for selection
+                                let checkbox_response = ui.checkbox(&mut host.selected, "");
+                                if checkbox_response.clicked() {
+                                    *result = ImportConfigDialogResult::SelectionChanged;
+                                }
+                            });
+
+                            row.col(|ui| {
+                                // Name (with color based on status)
+                                let name_color = if host.exists {
+                                    egui::Color32::YELLOW
+                                } else {
+                                    egui::Color32::WHITE
+                                };
+                                ui.label(RichText::new(&host.name).color(name_color));
+                            });
+
+                            row.col(|ui| {
+                                ui.label(&host.host);
+                            });
+
+                            row.col(|ui| {
+                                ui.label(host.port.to_string());
+                            });
+
+                            row.col(|ui| {
+                                ui.label(&host.username);
+                            });
+
+                            row.col(|ui| {
+                                let auth_text = match host.auth_type.as_str() {
+                                    "key" => "Key",
+                                    "agent" => "Agent",
+                                    _ => "Password",
+                                };
+                                ui.label(auth_text);
+                            });
+
+                            row.col(|ui| {
+                                // Status/warnings
+                                if host.exists {
+                                    ui.colored_label(egui::Color32::YELLOW, "Exists");
+                                } else if !host.warnings.is_empty() {
+                                    ui.colored_label(egui::Color32::from_rgb(255, 150, 0), host.warnings.join(", "));
+                                } else {
+                                    ui.colored_label(egui::Color32::GREEN, "OK");
+                                }
+                            });
+                        });
+                    }
+                });
+        });
+    }
+
+    /// Render the import result section
+    fn render_result_section(&mut self, ui: &mut Ui, should_close: &mut bool) {
+        ui.separator();
+        ui.add_space(10.0);
+
+        ui.group(|ui| {
+            ui.heading(RichText::new("Import Complete!").color(egui::Color32::GREEN).strong());
+            ui.add_space(10.0);
+
+            if let Some(ref import_result) = self.import_result {
+                ui.horizontal(|ui| {
+                    ui.label(format!("Servers imported: {}", import_result.servers_imported));
+                });
+                ui.horizontal(|ui| {
+                    ui.label(format!("Servers skipped: {}", import_result.servers_skipped));
+                });
+                if import_result.groups_imported > 0 {
+                    ui.label(format!("Groups imported: {}", import_result.groups_imported));
+                }
+                if import_result.identities_imported > 0 {
+                    ui.label(format!("Identities imported: {}", import_result.identities_imported));
+                }
+
+                if !import_result.errors.is_empty() {
+                    ui.add_space(5.0);
+                    ui.separator();
+                    ui.label(RichText::new("Errors:").color(egui::Color32::RED).strong());
+                    for error in &import_result.errors {
+                        ui.colored_label(egui::Color32::RED, format!("• {}", error));
+                    }
+                }
+            }
+        });
+
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if ui.button("Close").clicked() {
+                    *should_close = true;
+                }
+            });
+        });
+    }
+
+    /// Perform the import
+    fn perform_import(&mut self, view_model: &std::sync::Arc<std::sync::Mutex<crate::viewmodels::AppViewModel>>) {
+        self.import_state = ImportState::Importing;
+        self.progress = 0.0;
+
+        // Build SSH config content from selected hosts
+        let mut config_content = String::new();
+        let selected_hosts: Vec<_> = self.parsed_hosts.iter().filter(|h| h.selected).collect();
+        let total_hosts = selected_hosts.len();
+
+        for (i, host) in selected_hosts.iter().enumerate() {
+            config_content.push_str(&format!("Host {}\n", host.name));
+            config_content.push_str(&format!("    HostName {}\n", host.host));
+            config_content.push_str(&format!("    Port {}\n", host.port));
+            config_content.push_str(&format!("    User {}\n", host.username));
+
+            if let Some(ref identity_file) = host.identity_file {
+                config_content.push_str(&format!("    IdentityFile {}\n", identity_file));
+            }
+
+            if host.auth_type == "agent" {
+                config_content.push_str("    ForwardAgent yes\n");
+            }
+
+            config_content.push('\n');
+            self.progress = (i + 1) as f32 / total_hosts as f32;
+        }
+
+        // Perform import using the view model
+        let import_result = view_model.lock().unwrap().import_config(
+            &config_content,
+            easyssh_core::ImportFormat::SshConfig,
+            self.conflict_resolution.clone(),
+        );
+
+        match import_result {
+            Ok(result) => {
+                self.import_result = Some(result);
+                self.import_state = ImportState::Completed;
+                self.progress = 1.0;
+            }
+            Err(e) => {
+                self.error_message = Some(format!("Import failed: {}", e));
+                self.import_state = ImportState::Error;
+            }
+        }
+    }
+}
+
+/// Import config dialog result
+#[derive(Debug, Clone)]
+pub enum ImportConfigDialogResult {
+    None,
+    ImportCompleted {
+        servers_imported: usize,
+        servers_skipped: usize,
+    },
+    SelectionChanged,
+    Cancel,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2062,6 +2864,225 @@ mod tests {
                 assert_eq!(name, "Updated");
             }
             _ => panic!("Expected Update variant"),
+        }
+    }
+
+    #[test]
+    fn test_import_config_dialog_creation() {
+        let dialog = ImportConfigDialog::new();
+        assert!(!dialog.open);
+        assert!(dialog.file_path.is_none());
+        assert!(dialog.parsed_hosts.is_empty());
+        assert_eq!(dialog.import_state, ImportState::Idle);
+    }
+
+    #[test]
+    fn test_import_config_dialog_open() {
+        let mut dialog = ImportConfigDialog::new();
+        dialog.open();
+        assert!(dialog.open);
+        assert_eq!(dialog.import_state, ImportState::Idle);
+    }
+
+    #[test]
+    fn test_import_config_dialog_parse_ssh_config() {
+        let mut dialog = ImportConfigDialog::new();
+        let config_content = r#"
+# My servers
+Host myserver
+    HostName 192.168.1.100
+    Port 2222
+    User admin
+    IdentityFile ~/.ssh/id_rsa
+
+Host production
+    HostName prod.example.com
+    User root
+    ForwardAgent yes
+"#;
+
+        dialog.parse_ssh_config(config_content);
+
+        assert_eq!(dialog.parsed_hosts.len(), 2);
+
+        // First host
+        assert_eq!(dialog.parsed_hosts[0].name, "myserver");
+        assert_eq!(dialog.parsed_hosts[0].host, "192.168.1.100");
+        assert_eq!(dialog.parsed_hosts[0].port, 2222);
+        assert_eq!(dialog.parsed_hosts[0].username, "admin");
+        assert_eq!(dialog.parsed_hosts[0].auth_type, "key");
+        assert!(dialog.parsed_hosts[0].identity_file.is_some());
+        assert!(dialog.parsed_hosts[0].selected);
+
+        // Second host
+        assert_eq!(dialog.parsed_hosts[1].name, "production");
+        assert_eq!(dialog.parsed_hosts[1].host, "prod.example.com");
+        assert_eq!(dialog.parsed_hosts[1].port, 22);
+        assert_eq!(dialog.parsed_hosts[1].username, "root");
+        assert_eq!(dialog.parsed_hosts[1].auth_type, "agent");
+    }
+
+    #[test]
+    fn test_import_config_dialog_select_all() {
+        let mut dialog = ImportConfigDialog::new();
+        dialog.parsed_hosts = vec![
+            ParsedSshHost {
+                name: "server1".to_string(),
+                host: "host1".to_string(),
+                port: 22,
+                username: "user".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_name: None,
+                selected: false,
+                exists: false,
+                warnings: vec![],
+            },
+            ParsedSshHost {
+                name: "server2".to_string(),
+                host: "host2".to_string(),
+                port: 22,
+                username: "user".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_name: None,
+                selected: false,
+                exists: true,
+                warnings: vec!["Already exists".to_string()],
+            },
+        ];
+
+        dialog.select_all();
+        assert!(dialog.parsed_hosts.iter().all(|h| h.selected));
+
+        dialog.deselect_all();
+        assert!(dialog.parsed_hosts.iter().all(|h| !h.selected));
+
+        dialog.select_new_only();
+        assert!(dialog.parsed_hosts[0].selected);
+        assert!(!dialog.parsed_hosts[1].selected);
+    }
+
+    #[test]
+    fn test_import_config_dialog_stats() {
+        let mut dialog = ImportConfigDialog::new();
+        dialog.parsed_hosts = vec![
+            ParsedSshHost {
+                name: "server1".to_string(),
+                host: "host1".to_string(),
+                port: 22,
+                username: "user".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_name: None,
+                selected: true,
+                exists: false,
+                warnings: vec![],
+            },
+            ParsedSshHost {
+                name: "server2".to_string(),
+                host: "host2".to_string(),
+                port: 22,
+                username: "user".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_name: None,
+                selected: false,
+                exists: true,
+                warnings: vec!["Already exists".to_string()],
+            },
+            ParsedSshHost {
+                name: "server3".to_string(),
+                host: "host3".to_string(),
+                port: 22,
+                username: "user".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_name: None,
+                selected: true,
+                exists: false,
+                warnings: vec![],
+            },
+        ];
+
+        let (total, selected, new_count, existing_count) = dialog.get_stats();
+        assert_eq!(total, 3);
+        assert_eq!(selected, 2);
+        assert_eq!(new_count, 2);
+        assert_eq!(existing_count, 1);
+    }
+
+    #[test]
+    fn test_import_config_dialog_filter() {
+        let mut dialog = ImportConfigDialog::new();
+        dialog.parsed_hosts = vec![
+            ParsedSshHost {
+                name: "myserver".to_string(),
+                host: "192.168.1.100".to_string(),
+                port: 22,
+                username: "admin".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_name: None,
+                selected: true,
+                exists: false,
+                warnings: vec![],
+            },
+            ParsedSshHost {
+                name: "production".to_string(),
+                host: "prod.example.com".to_string(),
+                port: 22,
+                username: "root".to_string(),
+                auth_type: "password".to_string(),
+                identity_file: None,
+                group_name: None,
+                selected: true,
+                exists: true,
+                warnings: vec!["Already exists".to_string()],
+            },
+        ];
+
+        // Test search filter
+        dialog.search_filter = "myserver".to_string();
+        let filtered = dialog.get_filtered_hosts();
+        assert_eq!(filtered.len(), 1);
+
+        // Test existing only filter
+        dialog.search_filter.clear();
+        dialog.show_existing_only = true;
+        let filtered = dialog.get_filtered_hosts();
+        assert_eq!(filtered.len(), 1);
+
+        // Test conflicts only filter
+        dialog.show_existing_only = false;
+        dialog.show_conflicts_only = true;
+        let filtered = dialog.get_filtered_hosts();
+        assert_eq!(filtered.len(), 1);
+    }
+
+    #[test]
+    fn test_import_state() {
+        assert_eq!(ImportState::Idle, ImportState::Idle);
+        assert_ne!(ImportState::Idle, ImportState::Loading);
+        assert_ne!(ImportState::Previewing, ImportState::Importing);
+    }
+
+    #[test]
+    fn test_import_config_dialog_result() {
+        let result = ImportConfigDialogResult::ImportCompleted {
+            servers_imported: 5,
+            servers_skipped: 2,
+        };
+
+        match result {
+            ImportConfigDialogResult::ImportCompleted {
+                servers_imported,
+                servers_skipped,
+            } => {
+                assert_eq!(servers_imported, 5);
+                assert_eq!(servers_skipped, 2);
+            }
+            _ => panic!("Expected ImportCompleted variant"),
         }
     }
 }

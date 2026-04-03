@@ -1,0 +1,149 @@
+name: Bug Report
+description: Report a bug to help us improve EasySSH
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        Please fill in as much detail as possible to help us diagnose and fix the issue.
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: EasySSH Edition
+      description: Which edition of EasySSH are you using?
+      options:
+        - Lite
+        - Standard
+        - Pro
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which operating system are you running?
+      options:
+        - Windows
+        - macOS
+        - Linux
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: |
+        What version of EasySSH are you running?
+        You can find this in the app under **Help > About** or run `easyssh --version`
+      placeholder: "e.g., v0.3.0-beta.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "Describe what happened and what you expected to happen..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: |
+        Detailed steps to reproduce the behavior.
+        The more precise your steps, the faster we can fix it.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: "I expected that..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: |
+        If applicable, add screenshots to help explain your problem.
+        You can drag and drop images directly into this field.
+      placeholder: "Drag and drop screenshots here..."
+
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: |
+        Please paste any relevant log output.
+
+        **Where to find logs:**
+        - Windows: `%APPDATA%\easyssh\logs\`
+        - macOS: `~/Library/Application Support/easyssh/logs/`
+        - Linux: `~/.local/share/easyssh/logs/`
+
+        **Note:** Do not paste sensitive information like passwords or SSH keys!
+      placeholder: |
+        [2026-04-03 10:30:45] ERROR: Connection failed...
+        [2026-04-03 10:30:46] INFO: Retrying...
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Additional environment information that might be relevant
+      placeholder: |
+        - OS Version: Windows 11 Pro Education 10.0.26200
+        - Display Scaling: 125%
+        - Terminal: Windows Terminal / iTerm2 / GNOME Terminal
+        - Remote SSH Server: OpenSSH_8.9p1 Ubuntu
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: pre-submission
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched the existing issues to make sure this bug has not already been reported
+          required: true
+        - label: I have provided all the required information above
+          required: true
+        - label: I have removed any sensitive information (passwords, SSH keys, etc.) from logs and screenshots
+          required: true
+        - label: I am willing to provide additional information if needed
+          required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to submit a pull request to fix this issue
+          required: false

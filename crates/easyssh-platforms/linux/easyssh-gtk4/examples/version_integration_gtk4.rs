@@ -2,7 +2,8 @@
 //!
 //! 本模块展示如何在Linux GTK4应用中集成版本显示
 
-use easyssh_core::version::{BuildType, Edition, FullVersionInfo};
+use easyssh_core::edition::{BuildType, Edition};
+use easyssh_core::version::FullBuildInfo;
 use gtk4::prelude::*;
 use gtk4::{AboutDialog, Box as GtkBox, Label, Orientation, Picture, ScrolledWindow, Window};
 
@@ -12,12 +13,12 @@ pub struct VersionInfoDialog;
 impl VersionInfoDialog {
     /// 创建并显示关于对话框
     pub fn show(parent: &impl IsA<Window>) {
-        let info = FullVersionInfo::current();
+        let info = FullBuildInfo::current();
 
         let dialog = AboutDialog::builder()
             .program_name("EasySSH")
-            .version(&info.version)
-            .comments(&info.edition.description())
+            .version(&info.version_info.version)
+            .comments(info.version_info.edition.tagline())
             .website("https://easyssh.dev")
             .website_label("访问官网")
             .copyright("© 2024 EasySSH Team")
@@ -27,7 +28,7 @@ impl VersionInfoDialog {
             .build();
 
         // 设置版本特定的样式类
-        let style_class = match info.edition {
+        let style_class = match info.version_info.edition {
             Edition::Lite => "edition-lite",
             Edition::Standard => "edition-standard",
             Edition::Pro => "edition-pro",
@@ -42,15 +43,15 @@ impl VersionInfoDialog {
     }
 
     /// 构建详细信息字符串
-    fn build_info_string(info: &FullVersionInfo) -> String {
+    fn build_info_string(info: &FullBuildInfo) -> String {
         let mut lines = vec![
-            format!("版本类型: {}", info.edition.name()),
-            format!("版本号: {}", info.version),
+            format!("版本类型: {}", info.version_info.edition.name()),
+            format!("版本号: {}", info.version_info.version),
             format!("构建日期: {}", info.build_date),
             format!("平台: {}", info.platform.display()),
         ];
 
-        if let Some(ref hash) = info.git_hash {
+        if let Some(ref hash) = info.version_info.git_hash {
             let branch_info = info
                 .git_branch
                 .as_ref()
@@ -67,18 +68,18 @@ impl VersionInfoDialog {
             lines.push(format!("编译器: {}", rustc));
         }
 
-        if info.build_type == BuildType::Dev {
+        if info.version_info.build_type == BuildType::Dev {
             lines.push(String::from("构建类型: 开发版本"));
         }
 
-        lines.push(format!("启用的功能: {}", info.features.join(", ")));
+        lines.push(format!("启用的功能: {}", info.version_info.features.join(", ")));
 
         lines.join("\n")
     }
 
     /// 创建自定义版本详情对话框（更详细的版本信息）
     pub fn show_detailed(parent: &impl IsA<Window>) {
-        let info = FullVersionInfo::current();
+        let info = FullBuildInfo::current();
 
         let window = Window::builder()
             .title("版本信息")
@@ -104,12 +105,12 @@ impl VersionInfoDialog {
         vbox.append(&edition_label);
 
         // 版本号
-        let version_label = Label::new(Some(&format!("版本 {}", info.version)));
+        let version_label = Label::new(Some(&format!("版本 {}", info.version_info.version)));
         version_label.add_css_class("monospace");
         vbox.append(&version_label);
 
         // 开发标记
-        if info.build_type == BuildType::Dev {
+        if info.version_info.build_type == BuildType::Dev {
             let dev_label = Label::new(Some("⚠ 开发版本"));
             dev_label.add_css_class("warning");
             vbox.append(&dev_label);
@@ -130,10 +131,10 @@ impl VersionInfoDialog {
         details_box.set_margin_end(6);
 
         // 详细信息网格
-        Self::add_detail_row(&details_box, "版本类型:", info.edition.name());
+        Self::add_detail_row(&details_box, "版本类型:", info.version_info.edition.name());
         Self::add_detail_row(&details_box, "构建日期:", &info.build_date);
 
-        if let Some(ref hash) = info.git_hash {
+        if let Some(ref hash) = info.version_info.git_hash {
             let branch_info = info
                 .git_branch
                 .as_ref()
@@ -153,7 +154,7 @@ impl VersionInfoDialog {
             Self::add_detail_row(&details_box, "编译器:", rustc);
         }
 
-        if info.build_type == BuildType::Dev {
+        if info.version_info.build_type == BuildType::Dev {
             Self::add_detail_row(&details_box, "构建类型:", "开发版本");
         }
 
@@ -161,7 +162,7 @@ impl VersionInfoDialog {
         vbox.append(&scrolled);
 
         // 功能列表
-        let features_label = Label::new(Some(&format!("启用的功能: {}", info.features.join(", "))));
+        let features_label = Label::new(Some(&format!("启用的功能: {}", info.version_info.features.join(", "))));
         features_label.set_wrap(true);
         features_label.set_max_width_chars(60);
         vbox.append(&features_label);
@@ -171,19 +172,19 @@ impl VersionInfoDialog {
     }
 
     /// 创建版本徽章标签
-    fn create_edition_badge(info: &FullVersionInfo) -> Label {
-        let (bg_color, text_color) = match info.edition {
+    fn create_edition_badge(info: &FullBuildInfo) -> Label {
+        let (bg_color, text_color) = match info.version_info.edition {
             Edition::Lite => ("#E0F2F1", "#00695C"),
             Edition::Standard => ("#E3F2FD", "#0D47A1"),
             Edition::Pro => ("#F3E5F5", "#6A1B9A"),
         };
 
-        let label = Label::new(Some(&format!("{} Edition", info.edition.name())));
+        let label = Label::new(Some(&format!("{} Edition", info.version_info.edition.name())));
         label.set_markup(&format!(
             "<span background=\"{}\" foreground=\"{}\" font_weight=\"bold\"> {} Edition </span>",
             bg_color,
             text_color,
-            info.edition.name()
+            info.version_info.edition.name()
         ));
 
         label
@@ -217,19 +218,19 @@ pub struct HeaderBarVersionBadge;
 impl HeaderBarVersionBadge {
     /// 创建标题栏版本标签
     pub fn create() -> Label {
-        let info = FullVersionInfo::current();
+        let info = FullBuildInfo::current();
 
-        let text = if info.build_type == BuildType::Dev {
-            format!("{} [Dev]", info.edition.code())
+        let text = if info.version_info.build_type == BuildType::Dev {
+            format!("{} [Dev]", info.version_info.edition.short_identifier())
         } else {
-            info.edition.code().to_string()
+            info.version_info.edition.short_identifier().to_string()
         };
 
         let label = Label::new(Some(&text));
         label.add_css_class("version-badge");
 
         // 添加CSS类用于样式
-        let edition_class = match info.edition {
+        let edition_class = match info.version_info.edition {
             Edition::Lite => "edition-lite",
             Edition::Standard => "edition-standard",
             Edition::Pro => "edition-pro",
@@ -283,7 +284,8 @@ impl EditionChecker {
     pub fn check_requirement(required: Edition) -> Result<(), String> {
         let current = Edition::current();
 
-        if current.meets_requirement(required) {
+        // Use tier comparison instead of meets_requirement
+        if current.tier() >= required.tier() {
             Ok(())
         } else {
             Err(format!(
@@ -298,7 +300,8 @@ impl EditionChecker {
     pub fn show_upgrade_dialog(parent: &impl IsA<Window>, required: Edition) {
         let current = Edition::current();
 
-        if current.meets_requirement(required) {
+        // Use tier comparison instead of meets_requirement
+        if current.tier() >= required.tier() {
             return;
         }
 
@@ -330,11 +333,11 @@ mod tests {
 
     #[test]
     fn test_build_info_string() {
-        let info = FullVersionInfo::current();
+        let info = FullBuildInfo::current();
         let build_info = VersionInfoDialog::build_info_string(&info);
 
-        assert!(build_info.contains(&info.version));
-        assert!(build_info.contains(info.edition.name()));
+        assert!(build_info.contains(&info.version_info.version));
+        assert!(build_info.contains(info.version_info.edition.name()));
     }
 
     #[test]
@@ -345,4 +348,24 @@ mod tests {
         // 当前版本应该满足自身要求
         assert!(EditionChecker::check_requirement(Edition::current()).is_ok());
     }
+}
+
+fn main() {
+    // This is an example library showing how to integrate version display
+    // in a GTK4 application. It's not meant to be run as a standalone
+    // executable but rather used as a reference for integration.
+    println!("EasySSH GTK4 Version Integration Example");
+    println!("==========================================");
+    println!();
+    println!("This example demonstrates how to integrate version display");
+    println!("in a GTK4 application.");
+    println!();
+    println!("To use this code, integrate the VersionInfoDialog struct into");
+    println!("your GTK4 application's UI code.");
+    println!();
+
+    let info = FullBuildInfo::current();
+    println!("Current version: {} {}", info.version_info.edition.name(), info.version_info.version);
+    println!("Build date: {}", info.build_date);
+    println!("Platform: {}", info.platform.display());
 }

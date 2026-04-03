@@ -2,15 +2,33 @@
 //!
 //! 本模块展示如何在TUI应用中集成版本显示
 
-use crossterm::style::{Color, Print, ResetColor, SetForegroundColor};
+use crossterm::style::{Color, ResetColor, SetForegroundColor};
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, ExecutableCommand};
-use easyssh_core::version::{BuildType, Edition, FullVersionInfo};
+use easyssh_core::edition::{BuildType, Edition};
+use easyssh_core::version::FullBuildInfo;
 use std::io::{self, Write};
+
+fn main() -> io::Result<()> {
+    println!("EasySSH TUI Version Integration Demo");
+    println!("=====================================\n");
+
+    // Display splash banner
+    render_splash_banner()?;
+
+    println!("\nPress Enter to continue to about dialog...");
+    let _ = std::io::stdin().read_line(&mut String::new());
+
+    // Display about dialog
+    render_about_dialog()?;
+
+    println!("\nDemo completed!");
+    Ok(())
+}
 
 /// 渲染启动横幅
 pub fn render_splash_banner() -> io::Result<()> {
-    let info = FullVersionInfo::current();
+    let info = FullBuildInfo::current();
     let mut stdout = io::stdout();
 
     // 清屏
@@ -28,7 +46,7 @@ pub fn render_splash_banner() -> io::Result<()> {
     "#;
 
     // 选择颜色
-    let color = match info.edition {
+    let color = match info.version_info.edition {
         Edition::Lite => Color::Cyan,
         Edition::Standard => Color::Blue,
         Edition::Pro => Color::Magenta,
@@ -39,7 +57,7 @@ pub fn render_splash_banner() -> io::Result<()> {
     writeln!(stdout, "{}", logo)?;
 
     // 版本信息横幅
-    let banner = format!("  {} Edition v{}  ", info.edition.name(), info.version);
+    let banner = format!("  {} Edition v{}  ", info.version_info.edition.name(), info.version_info.version);
 
     stdout.execute(SetForegroundColor(color))?;
     writeln!(stdout, "{}", "═".repeat(banner.len()))?;
@@ -50,7 +68,7 @@ pub fn render_splash_banner() -> io::Result<()> {
     writeln!(stdout, "{}", "═".repeat(banner.len()))?;
 
     // 开发版本标记
-    if info.build_type == BuildType::Dev {
+    if info.version_info.build_type == BuildType::Dev {
         stdout.execute(SetForegroundColor(Color::Yellow))?;
         writeln!(stdout, "\n  ⚠  开发版本 - 仅供测试使用")?;
     }
@@ -59,7 +77,7 @@ pub fn render_splash_banner() -> io::Result<()> {
     stdout.execute(SetForegroundColor(Color::DarkGrey))?;
     writeln!(stdout, "\n  构建日期: {}", info.build_date)?;
 
-    if let Some(ref hash) = info.git_hash {
+    if let Some(ref hash) = info.version_info.git_hash {
         let branch_info = info
             .git_branch
             .as_ref()
@@ -79,7 +97,7 @@ pub fn render_splash_banner() -> io::Result<()> {
 
     // 功能提示
     writeln!(stdout, "\n  可用功能:")?;
-    let features = info.features;
+    let features = &info.version_info.features;
     let chunks: Vec<_> = features.chunks(4).collect();
     for chunk in chunks {
         let line = chunk
@@ -98,16 +116,16 @@ pub fn render_splash_banner() -> io::Result<()> {
 
 /// 渲染精简版本行（用于提示符等场景）
 pub fn render_version_line() -> io::Result<()> {
-    let info = FullVersionInfo::current();
+    let info = FullBuildInfo::current();
     let mut stdout = io::stdout();
 
-    let color = match info.edition {
+    let color = match info.version_info.edition {
         Edition::Lite => Color::Cyan,
         Edition::Standard => Color::Blue,
         Edition::Pro => Color::Magenta,
     };
 
-    let dev_marker = if info.build_type == BuildType::Dev {
+    let dev_marker = if info.version_info.build_type == BuildType::Dev {
         " [Dev]"
     } else {
         ""
@@ -117,8 +135,8 @@ pub fn render_version_line() -> io::Result<()> {
     write!(
         stdout,
         "EasySSH {} {}{}",
-        info.edition.code(),
-        info.version,
+        info.version_info.edition.short_identifier(),
+        info.version_info.version,
         dev_marker
     )?;
     stdout.execute(ResetColor)?;
@@ -129,7 +147,7 @@ pub fn render_version_line() -> io::Result<()> {
 
 /// 渲染状态栏版本信息
 pub fn render_status_bar_version() -> io::Result<()> {
-    let info = FullVersionInfo::current();
+    let info = FullBuildInfo::current();
     let mut stdout = io::stdout();
 
     // 移动光标到最后一行
@@ -140,7 +158,7 @@ pub fn render_status_bar_version() -> io::Result<()> {
     stdout.execute(Clear(ClearType::CurrentLine))?;
 
     // 版本信息
-    let dev_marker = if info.build_type == BuildType::Dev {
+    let dev_marker = if info.version_info.build_type == BuildType::Dev {
         " [Dev]"
     } else {
         ""
@@ -148,8 +166,8 @@ pub fn render_status_bar_version() -> io::Result<()> {
 
     let version_text = format!(
         " {} {} {} | {} | {} ",
-        info.edition.name(),
-        info.version,
+        info.version_info.edition.name(),
+        info.version_info.version,
         dev_marker,
         info.platform.display(),
         &info.build_date
@@ -160,7 +178,7 @@ pub fn render_status_bar_version() -> io::Result<()> {
     let padding = cols as usize - version_text.len();
 
     stdout.execute(SetForegroundColor(Color::White))?;
-    stdout.execute(SetForegroundColor(match info.edition {
+    stdout.execute(SetForegroundColor(match info.version_info.edition {
         Edition::Lite => Color::DarkCyan,
         Edition::Standard => Color::DarkBlue,
         Edition::Pro => Color::DarkMagenta,
@@ -177,7 +195,7 @@ pub fn render_status_bar_version() -> io::Result<()> {
 
 /// 渲染关于对话框
 pub fn render_about_dialog() -> io::Result<()> {
-    let info = FullVersionInfo::current();
+    let info = FullBuildInfo::current();
     let mut stdout = io::stdout();
 
     // 清屏
@@ -191,8 +209,7 @@ pub fn render_about_dialog() -> io::Result<()> {
     writeln!(stdout, "  ║          E a s y S S H                 ║")?;
     writeln!(stdout, "  ║                                        ║")?;
 
-    let edition_text = format!("{} Edition", info.edition.name());
-    let padding = (40 - edition_text.len()) / 2;
+    let edition_text = format!("{} Edition", info.version_info.edition.name());
     writeln!(stdout, "  ║{}║", format!("{:^40}", edition_text))?;
 
     writeln!(stdout, "  ║                                        ║")?;
@@ -204,11 +221,11 @@ pub fn render_about_dialog() -> io::Result<()> {
     writeln!(stdout, "  版本信息")?;
     stdout.execute(ResetColor)?;
     writeln!(stdout, "  ────────────────────────────────────────")?;
-    writeln!(stdout, "  版本:        {}", info.version)?;
-    writeln!(stdout, "  版本类型:    {}", info.edition.name())?;
+    writeln!(stdout, "  版本:        {}", info.version_info.version)?;
+    writeln!(stdout, "  版本类型:    {}", info.version_info.edition.name())?;
     writeln!(stdout, "  构建日期:    {}", info.build_date)?;
 
-    if let Some(ref hash) = info.git_hash {
+    if let Some(ref hash) = info.version_info.git_hash {
         let branch_info = info
             .git_branch
             .as_ref()
@@ -224,7 +241,7 @@ pub fn render_about_dialog() -> io::Result<()> {
 
     writeln!(stdout, "  平台:        {}", info.platform.display())?;
 
-    if info.build_type == BuildType::Dev {
+    if info.version_info.build_type == BuildType::Dev {
         stdout.execute(SetForegroundColor(Color::Yellow))?;
         writeln!(stdout, "  构建类型:    开发版本")?;
         stdout.execute(ResetColor)?;
@@ -237,7 +254,7 @@ pub fn render_about_dialog() -> io::Result<()> {
     stdout.execute(ResetColor)?;
     writeln!(stdout, "  ────────────────────────────────────────")?;
 
-    for feature in &info.features {
+    for feature in &info.version_info.features {
         writeln!(stdout, "    ✓ {}", feature)?;
     }
 
@@ -344,7 +361,8 @@ impl UpgradePrompt {
     pub fn render(&self) -> io::Result<()> {
         let current = Edition::current();
 
-        if current.meets_requirement(self.required) {
+        // Use tier comparison to check if current edition meets requirement
+        if current.tier() >= self.required.tier() {
             return Ok(());
         }
 
@@ -401,8 +419,8 @@ mod tests {
 
     #[test]
     fn test_version_info() {
-        let info = FullVersionInfo::current();
-        assert!(!info.version.is_empty());
+        let info = FullBuildInfo::current();
+        assert!(!info.version_info.version.is_empty());
         assert!(!info.build_date.is_empty());
     }
 }
