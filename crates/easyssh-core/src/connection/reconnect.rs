@@ -40,6 +40,7 @@
 //!     interval: Duration::from_secs(15),
 //!     timeout: Duration::from_secs(5),
 //!     failure_threshold: 3,
+//!     recovery_threshold: 2,
 //! };
 //! let orchestrator = ReconnectOrchestrator::new(config).with_heartbeat(heartbeat);
 //! ```
@@ -414,7 +415,7 @@ pub struct ReconnectEvent {
 /// # Example
 ///
 /// ```rust
-/// use easyssh_core::connection::{ReconnectOrchestrator, ReconnectConfig};
+/// use easyssh_core::connection::{ReconnectOrchestrator, ReconnectConfig, ReconnectTrigger};
 /// use std::sync::Arc;
 ///
 /// // Create orchestrator
@@ -426,8 +427,8 @@ pub struct ReconnectEvent {
 /// // Start monitoring a connection
 /// orchestrator.start_monitoring("conn-123");
 ///
-/// // Handle disconnect
-/// orchestrator.handle_disconnect("conn-123", false); // false = not user-initiated
+/// // Handle disconnect (trigger, error message)
+/// orchestrator.handle_disconnect("conn-123", false, ReconnectTrigger::NetworkError { error: "Connection reset".to_string() }, None);
 ///
 /// // Get current state
 /// let state = orchestrator.get_state("conn-123");

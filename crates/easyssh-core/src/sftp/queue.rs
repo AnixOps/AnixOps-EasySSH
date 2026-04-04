@@ -1,8 +1,15 @@
 //! 传输队列模块
 //!
 //! 管理批量文件传输任务
+//!
+//! # 约束遵守 (SYSTEM_INVARIANTS.md §3.1)
+//!
+//! - 传输必须支持断点续传（记录 offset）
+//! - 传输取消时必须清理临时文件
+//! - 传输超时后必须重试（最多 3 次）
 
 use crate::error::LiteError;
+use crate::sftp::path_utils::{comprehensive_path_check, PathError};
 use crate::sftp::types::{
     TransferDirection, TransferOptions, TransferResult, TransferStatus, TransferTask,
 };
@@ -151,6 +158,237 @@ pub struct QueueStats {
     pub current_speed: f64,
     /// 整体进度（0-100）
     pub overall_progress: f64,
+}
+
+/// 队列状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum QueueState {
+    /// 空闲（无任务）
+    Idle,
+    /// 运行中
+    Running,
+    /// 已暂停
+    Paused,
+    /// 已完成
+    Completed,
+    /// 有错误
+    HasErrors,
+}
+
+impl Default for QueueState {
+    fn default() -> Self {
+        Self::Idle
+    }
+}
+
+impl QueueState {
+    /// 检查是否可以添加新任务
+    pub fn can_add_task(&self) -> bool {
+        !matches!(self, QueueState::Completed)
+    }
+
+    /// 检查是否活跃
+    pub fn is_active(&self) -> bool {
+        matches!(self, QueueState::Running)
+    }
+}
+
+/// 传输项（用于批量传输）
+///
+/// 包含传输源和目标的完整信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransferItem {
+    /// 任务唯一标识
+    pub id: String,
+    /// 传输源
+    pub source: TransferSource,
+    /// 传输目标
+    pub destination: TransferDestination,
+    /// 优先级（0-255，数值越小优先级越高）
+    pub priority: u8,
+    /// 当前重试次数
+    pub retry_count: u32,
+    /// 最大重试次数（默认 3）
+    pub max_retries: u32,
+    /// 传输选项
+    pub options: TransferOptions,
+    /// 客户端ID
+    pub client_id: String,
+}
+
+impl TransferItem {
+    /// 创建新的传输项
+    pub fn new(
+        source: TransferSource,
+        destination: TransferDestination,
+        client_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            source,
+            destination,
+            priority: 128, // 默认中等优先级
+            retry_count: 0,
+            max_retries: 3,
+            options: TransferOptions::default(),
+            client_id: client_id.into(),
+        }
+    }
+
+    /// 设置优先级
+    pub fn with_priority(mut self, priority: u8) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    /// 设置最大重试次数
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
+    /// 设置传输选项
+    pub fn with_options(mut self, options: TransferOptions) -> Self {
+        self.options = options;
+        self
+    }
+
+    /// 设置为高优先级
+    pub fn high_priority(mut self) -> Self {
+        self.priority = 0;
+        self
+    }
+
+    /// 设置为低优先级
+    pub fn low_priority(mut self) -> Self {
+        self.priority = 255;
+        self
+    }
+
+    /// 检查是否可以重试
+    pub fn can_retry(&self) -> bool {
+        self.retry_count < self.max_retries
+    }
+
+    /// 增加重试计数
+    pub fn increment_retry(&mut self) {
+        self.retry_count += 1;
+    }
+
+    /// 转换为 TransferTask
+    pub fn to_task(&self) -> TransferTask {
+        TransferTask::new(
+            self.source.path.clone(),
+            self.destination.path.clone(),
+            self.source.direction,
+            &self.client_id,
+        )
+        .with_options(self.options.clone())
+    }
+
+    /// 验证路径安全性
+    ///
+    /// # 约束遵守
+    /// - 所有路径必须经过规范化
+    pub fn validate_paths(&self, allowed_dirs: &[&str]) -> Result<(), PathError> {
+        comprehensive_path_check(&self.source.path.to_string_lossy(), allowed_dirs)?;
+        comprehensive_path_check(&self.destination.path.to_string_lossy(), allowed_dirs)?;
+        Ok(())
+    }
+}
+
+/// 传输源
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransferSource {
+    /// 文件路径
+    pub path: PathBuf,
+    /// 传输方向（Upload: 本地为源，Download: 远程为源）
+    pub direction: TransferDirection,
+}
+
+impl TransferSource {
+    /// 创建本地源（用于上传）
+    pub fn local(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            direction: TransferDirection::Upload,
+        }
+    }
+
+    /// 创建远程源（用于下载）
+    pub fn remote(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            direction: TransferDirection::Download,
+        }
+    }
+}
+
+/// 传输目标
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransferDestination {
+    /// 文件路径
+    pub path: PathBuf,
+    /// 传输方向（Upload: 远程为目标，Download: 本地为目标）
+    pub direction: TransferDirection,
+}
+
+impl TransferDestination {
+    /// 创建本地目标（用于下载）
+    pub fn local(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            direction: TransferDirection::Download,
+        }
+    }
+
+    /// 创建远程目标（用于上传）
+    pub fn remote(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            direction: TransferDirection::Upload,
+        }
+    }
+}
+
+/// 队列进度信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueueProgress {
+    /// 队列状态
+    pub state: QueueState,
+    /// 统计信息
+    pub stats: QueueStats,
+    /// 队列容量
+    pub max_concurrent: usize,
+    /// 预计完成时间
+    pub estimated_completion: Option<Duration>,
+}
+
+impl QueueProgress {
+    /// 创建新的队列进度
+    pub fn new(state: QueueState, stats: QueueStats, max_concurrent: usize) -> Self {
+        Self {
+            state,
+            stats,
+            max_concurrent,
+            estimated_completion: None,
+        }
+    }
+
+    /// 计算预计完成时间
+    pub fn calculate_eta(&mut self) {
+        if self.stats.current_speed > 0.0 && self.stats.total_bytes > 0 {
+            let remaining_bytes = self.stats.total_bytes
+                - (self.stats.completed as u64 * 1024 * 1024); // 简化估算
+
+            if remaining_bytes > 0 {
+                let eta_secs = remaining_bytes as f64 / self.stats.current_speed;
+                self.estimated_completion = Some(Duration::from_secs_f64(eta_secs));
+            } else {
+                self.estimated_completion = Some(Duration::ZERO);
+            }
+        }
+    }
 }
 
 impl TransferQueue {
@@ -862,5 +1100,162 @@ mod tests {
         assert_eq!(queue.stats().await.total, 5);
         queue.clear().await;
         assert_eq!(queue.stats().await.total, 0);
+    }
+
+    // 新增类型测试
+
+    #[test]
+    fn test_queue_state() {
+        assert!(QueueState::Idle.can_add_task());
+        assert!(QueueState::Running.can_add_task());
+        assert!(QueueState::Paused.can_add_task());
+        assert!(!QueueState::Completed.can_add_task());
+
+        assert!(QueueState::Running.is_active());
+        assert!(!QueueState::Idle.is_active());
+        assert!(!QueueState::Paused.is_active());
+    }
+
+    #[test]
+    fn test_transfer_item_new() {
+        let item = TransferItem::new(
+            TransferSource::remote("/remote/file.txt"),
+            TransferDestination::local("/local/file.txt"),
+            "client-1",
+        );
+
+        assert!(!item.id.is_empty());
+        assert_eq!(item.priority, 128);
+        assert_eq!(item.max_retries, 3);
+        assert_eq!(item.retry_count, 0);
+    }
+
+    #[test]
+    fn test_transfer_item_priority() {
+        let high = TransferItem::new(
+            TransferSource::remote("/remote/file.txt"),
+            TransferDestination::local("/local/file.txt"),
+            "client-1",
+        )
+        .high_priority();
+
+        assert_eq!(high.priority, 0);
+
+        let low = TransferItem::new(
+            TransferSource::remote("/remote/file.txt"),
+            TransferDestination::local("/local/file.txt"),
+            "client-1",
+        )
+        .low_priority();
+
+        assert_eq!(low.priority, 255);
+    }
+
+    #[test]
+    fn test_transfer_item_retry() {
+        let mut item = TransferItem::new(
+            TransferSource::remote("/remote/file.txt"),
+            TransferDestination::local("/local/file.txt"),
+            "client-1",
+        )
+        .with_max_retries(3);
+
+        assert!(item.can_retry());
+
+        item.increment_retry();
+        item.increment_retry();
+        item.increment_retry();
+
+        assert!(!item.can_retry());
+    }
+
+    #[test]
+    fn test_transfer_source() {
+        let local = TransferSource::local("/local/file.txt");
+        assert_eq!(local.direction, TransferDirection::Upload);
+
+        let remote = TransferSource::remote("/remote/file.txt");
+        assert_eq!(remote.direction, TransferDirection::Download);
+    }
+
+    #[test]
+    fn test_transfer_destination() {
+        let local = TransferDestination::local("/local/file.txt");
+        assert_eq!(local.direction, TransferDirection::Download);
+
+        let remote = TransferDestination::remote("/remote/file.txt");
+        assert_eq!(remote.direction, TransferDirection::Upload);
+    }
+
+    #[test]
+    fn test_transfer_item_to_task() {
+        let item = TransferItem::new(
+            TransferSource::remote("/remote/file.txt"),
+            TransferDestination::local("/local/file.txt"),
+            "client-1",
+        );
+
+        let task = item.to_task();
+        assert_eq!(task.direction, TransferDirection::Download);
+        assert_eq!(task.client_id, "client-1");
+    }
+
+    #[test]
+    fn test_queue_progress() {
+        let stats = QueueStats {
+            total: 10,
+            pending: 5,
+            active: 2,
+            completed: 3,
+            failed: 0,
+            cancelled: 0,
+            paused: 0,
+            total_bytes: 1024 * 1024 * 100,
+            current_speed: 1024.0,
+            overall_progress: 30.0,
+        };
+
+        let mut progress = QueueProgress::new(QueueState::Running, stats, 3);
+        progress.calculate_eta();
+
+        assert!(progress.estimated_completion.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_batch_transfer() {
+        let config = QueueConfig {
+            auto_start: false,
+            ..Default::default()
+        };
+        let queue = TransferQueue::new().with_config(config);
+        let mut batch = BatchTransfer::new(queue);
+
+        batch
+            .add_download("/remote/file1.txt", "/local/file1.txt", "client-1")
+            .await
+            .add_download("/remote/file2.txt", "/local/file2.txt", "client-1")
+            .await;
+
+        // 由于 auto_start = false，任务应该在 pending 状态
+        let queue_ref = &batch.queue;
+        let stats = queue_ref.stats().await;
+        assert_eq!(stats.pending, 2);
+    }
+
+    #[test]
+    fn test_transfer_item_path_validation() {
+        let item = TransferItem::new(
+            TransferSource::remote("/home/user/file.txt"),
+            TransferDestination::local("/home/user/local/file.txt"),
+            "client-1",
+        );
+
+        // 允许的目录
+        let allowed = &["/home/user"];
+        assert!(item.validate_paths(allowed).is_ok());
+
+        // 不允许的目录
+        let not_allowed = &["/tmp"];
+        assert!(item.validate_paths(not_allowed).is_err());
     }
 }

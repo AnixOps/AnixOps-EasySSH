@@ -7,6 +7,10 @@ license.workspace = true
 description = "EasySSH GTK4 native client for Linux"
 rust-version.workspace = true
 
+[lib]
+name = "easyssh_gtk4"
+path = "src/lib.rs"
+
 [[bin]]
 name = "easyssh"
 path = "src/main.rs"
@@ -31,6 +35,9 @@ gtk4 = { version = "0.8", features = ["v4_12"] }
 libadwaita = { version = "0.6", features = ["v1_5"] }
 cairo-rs = { version = "0.19", features = ["png"] }
 
+# Regex support for terminal search
+regex = { workspace = true }
+
 # System integration
 open = "5"
 
@@ -41,6 +48,10 @@ tempfile = { workspace = true }
 [[test]]
 name = "integration_tests"
 path = "tests/integration_tests.rs"
+
+[[test]]
+name = "terminal_tests"
+path = "tests/terminal_tests.rs"
 
 [features]
 default = ["standard"]

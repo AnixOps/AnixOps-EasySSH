@@ -767,6 +767,18 @@ pub mod services;
 #[cfg(feature = "sftp")]
 pub mod sftp;
 pub mod ssh;
+
+// Russh-based SSH implementation (pure Rust, no OpenSSL)
+// Available when russh-backend feature is enabled
+#[cfg(feature = "russh-backend")]
+pub mod russh_impl;
+#[cfg(feature = "russh-backend")]
+pub use russh_impl::{
+    RusshAuthMethod, RusshChannel, RusshClient, RusshConfig, RusshError, RusshExecResult,
+    RusshKnownHostsPolicy, RusshPoolStats, RusshResult, RusshSession, RusshSessionManager,
+    RusshSessionState, RusshShellChannel, RusshTimeout,
+};
+
 #[cfg(feature = "sso")]
 pub mod sso;
 #[cfg(feature = "team")]

@@ -6,38 +6,68 @@
 //! - 断点续传
 //! - 批量传输队列
 //! - 实时进度追踪
+//! - 路径安全验证
+//!
+//! # 约束遵守 (SYSTEM_INVARIANTS.md §3)
+//!
+//! - 传输必须支持断点续传（记录 offset）
+//! - 传输取消时必须清理临时文件
+//! - 传输超时后必须重试（最多 3 次）
+//! - 所有路径必须经过规范化（禁止 `..` 路径穿越）
 //!
 //! # 模块结构
 //!
 //! - `types`: 核心数据类型 (FileInfo, TransferTask, 等)
 //! - `client`: SFTP客户端连接管理
-//! - `transfer`: 文件传输实现
+//! - `transfer`: 文件传输实现（断点续传、进度回调）
 //! - `remote_fs`: 远程文件系统操作
 //! - `queue`: 传输队列管理
 //! - `progress`: 进度追踪
+//! - `path_utils`: 路径安全工具
 
 pub mod client;
+pub mod path_utils;
 pub mod progress;
 pub mod queue;
 pub mod remote_fs;
 pub mod transfer;
 pub mod types;
 
-// 公共导出
+// 公共导出 - 类型
 pub use types::{
     FileInfo, FilePermission, FileType, SftpEntry, TransferDirection, TransferOptions,
     TransferResult, TransferStats, TransferStatus, TransferTask,
 };
 
+// 公共导出 - 客户端
 pub use client::{ConnectionState, Sftp, SftpClient, SftpClientConfig};
 
-pub use transfer::{ChunkConfig, FileTransfer, TransferError, TransferHandle};
+// 公共导出 - 传输
+pub use transfer::{
+    ChunkConfig, ChecksumAlgorithm, DetailedTransferResult, FileTransfer, NullProgressCallback,
+    ResumableTransfer, TransferError, TransferHandle, TransferProgressCallback,
+    TransferProgressInfo, TransferState,
+};
 
+// 公共导出 - 远程文件系统
 pub use remote_fs::{ContentType, FileSystemWatcher, RemoteDir, RemoteFile, RemoteFs};
 
-pub use queue::{QueueConfig, QueueEvent, QueueStats, TransferQueue};
+// 公共导出 - 队列
+pub use queue::{
+    BatchTransfer, QueueConfig, QueueEvent, QueueProgress, QueueState, QueueStats, TransferDestination,
+    TransferItem, TransferQueue, TransferSource,
+};
 
+// 公共导出 - 进度
 pub use progress::{ProgressCallback, ProgressSnapshot, ProgressTracker, SpeedCalculator};
+
+// 公共导出 - 路径工具
+pub use path_utils::{
+    comprehensive_path_check, ensure_trailing_slash, get_extension, get_filename, get_parent_path,
+    is_absolute_path, is_path_safe, is_sensitive_path, join_paths, normalize_path,
+    remove_trailing_slash, resolve_symlink_local, to_absolute_path, validate_path,
+    validate_remote_path, PathError, SymlinkResolution, SENSITIVE_PATHS,
+};
 
 use crate::error::LiteError;
 use std::sync::Arc;

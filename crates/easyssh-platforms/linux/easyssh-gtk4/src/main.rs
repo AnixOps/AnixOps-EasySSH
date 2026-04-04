@@ -13,6 +13,7 @@ mod server_detail;
 mod server_list;
 mod settings;
 mod sidebar;
+mod terminal;
 mod terminal_launcher;
 mod theme;
 mod tray;

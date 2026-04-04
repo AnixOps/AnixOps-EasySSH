@@ -108,9 +108,15 @@ sys-locale = { workspace = true }
 
 # SSH
 ssh2 = { workspace = true }
+russh = { workspace = true, optional = true }
+russh-keys = { workspace = true, optional = true }
+russh-sftp = { workspace = true, optional = true }
 
 # Terminal
 portable-pty = { workspace = true, optional = true }
+
+# Native PTY implementations
+nix = { workspace = true, optional = true }
 
 # Kubernetes dependencies (optional)
 kube = { workspace = true, optional = true }
@@ -130,10 +136,22 @@ redis = { workspace = true, optional = true }
 # Windows-specific (always needed on Windows, optional for cross-platform)
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, optional = true }
-windows = { workspace = true }
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_Threading",
+    "Win32_System_SystemInformation",
+] }
 
 [features]
-default = ["lite"]
+default = ["lite", "ssh2-backend"]
+
+# ===== SSH Backend Features =====
+# ssh2: Original libssh2-based implementation (OpenSSL dependency)
+ssh2-backend = []
+# russh: Pure Rust implementation (no OpenSSL, recommended for security)
+russh-backend = ["dep:russh", "dep:russh-keys", "dep:russh-sftp", "dep:async-trait"]
 
 # ===== Version Features =====
 # Lite: SSH配置保险箱 - 基础SSH连接和配置管理
@@ -174,7 +192,8 @@ config-crypto = []
 update-checker = ["dep:reqwest"]
 
 # Terminal features
-embedded-terminal = ["dep:portable-pty", "dep:async-trait"]
+embedded-terminal = ["dep:portable-pty", "dep:async-trait", "dep:nix"]
+native-pty = ["dep:nix"]
 split-screen = []
 
 # File transfer

@@ -52,7 +52,7 @@
 //! ```
 
 use std::collections::VecDeque;
-use std::instant::Instant;
+use std::time::Instant;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -464,30 +464,32 @@ impl ScrollBuffer {
     /// ```
     pub fn search(&self, pattern: &str, use_regex: bool, context_lines: usize) -> Vec<SearchMatch> {
         // Use word index for fast plain text search if available
-        if !use_regex && let Some(ref index) = self.search_index {
-            let candidate_lines = index.word_search(pattern);
-            if candidate_lines.is_empty() {
-                // Fall back to line-by-line search
-                return self.line_search(pattern, false, context_lines);
-            }
+        if !use_regex {
+            if let Some(ref index) = self.search_index {
+                let candidate_lines = index.word_search(pattern);
+                if candidate_lines.is_empty() {
+                    // Fall back to line-by-line search
+                    return self.line_search(pattern, false, context_lines);
+                }
 
-            // Check candidates for exact match
-            let mut matches = Vec::new();
-            for line_idx in candidate_lines {
-                if let Some(line) = self.lines.get(line_idx) {
-                    if let Some(start) = line.content.find(pattern) {
-                        let match_result = self.create_match(
-                            line_idx,
-                            start,
-                            start + pattern.len(),
-                            pattern,
-                            context_lines,
-                        );
-                        matches.push(match_result);
+                // Check candidates for exact match
+                let mut matches = Vec::new();
+                for line_idx in candidate_lines {
+                    if let Some(line) = self.lines.get(line_idx) {
+                        if let Some(start) = line.content.find(pattern) {
+                            let match_result = self.create_match(
+                                line_idx,
+                                start,
+                                start + pattern.len(),
+                                pattern,
+                                context_lines,
+                            );
+                            matches.push(match_result);
+                        }
                     }
                 }
+                return matches;
             }
-            return matches;
         }
 
         // Regex or fallback to line-by-line search

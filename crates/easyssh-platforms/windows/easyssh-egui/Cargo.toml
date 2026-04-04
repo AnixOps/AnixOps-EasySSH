@@ -1,0 +1,71 @@
+[package]
+name = "easyssh-egui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "EasySSH Standard Edition - egui-based embedded terminal UI for Windows"
+
+[features]
+default = ["embedded-terminal"]
+embedded-terminal = []
+standard = ["embedded-terminal"]
+pro = ["embedded-terminal"]
+
+[dependencies]
+# egui framework
+egui = "0.29"
+eframe = { version = "0.29", features = ["persistence", "glow"] }
+egui_extras = { version = "0.29", features = ["image", "svg"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+# UUID for terminal IDs
+uuid = { workspace = true, features = ["v4", "serde"] }
+
+# Collections
+parking_lot = { workspace = true }
+
+# Clipboard
+arboard = "3.4"
+
+# Terminal emulation
+vte = "0.13"
+
+# Time
+chrono = { workspace = true }
+
+# Regex for search
+regex = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[[bin]]
+name = "easyssh-egui"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "warn"
+missing_docs = "warn"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+nursery = "warn"

@@ -4,6 +4,7 @@ members = [
     "crates/easyssh-core",
     "crates/easyssh-tui",
     "crates/easyssh-platforms/windows/easyssh-winui",
+    "crates/easyssh-platforms/windows/easyssh-egui",
     "crates/easyssh-platforms/linux/easyssh-gtk4",
     "crates/easyssh-platforms/shared-ui",
     "crates/easyssh-pro-server",
@@ -70,12 +71,18 @@ redis = { version = "0.25", features = ["tokio-comp"] }
 
 # SSH & networking
 ssh2 = "0.9"
+russh = { version = "0.54", default-features = false, features = ["ring", "rsa", "flate2"] }
+russh-keys = "0.49"
+russh-sftp = "2"
 tokio-tungstenite = "0.24"
 
 # System utilities
 sysinfo = "0.30"
 sys-locale = "0.3"
 portable-pty = "0.8"
+
+# PTY native implementations
+nix = { version = "0.29", features = ["term", "poll", "signal", "process"] }
 
 # Keychain
 keyring = "3"

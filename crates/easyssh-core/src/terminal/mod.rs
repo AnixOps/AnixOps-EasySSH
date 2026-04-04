@@ -85,6 +85,21 @@ pub mod xterm_compat;
 // Native terminal launcher (available for all editions)
 pub mod launcher;
 
+// Terminal core modules (always available for Standard/Pro)
+#[cfg(feature = "embedded-terminal")]
+pub mod pty;
+
+// Platform-specific PTY implementations
+#[cfg(all(feature = "embedded-terminal", windows))]
+pub mod pty_windows;
+
+#[cfg(feature = "embedded-terminal")]
+pub mod scroll_buffer;
+#[cfg(feature = "embedded-terminal")]
+pub mod search;
+#[cfg(feature = "embedded-terminal")]
+pub mod types;
+
 // Export launcher types
 pub use launcher::{
     generate_ssh_command, DetectedTerminal, TerminalLauncher, TerminalPreference, TerminalType,
@@ -115,6 +130,39 @@ pub use coordinator::{
     ConnectionState, CoordinatorConfig, CoordinatorEvent, CoordinatorStats, SessionCoordinator,
     SessionTabMapping,
 };
+
+// Export new terminal core types
+#[cfg(feature = "embedded-terminal")]
+pub use pty::{
+    PtyBackend, PtyConfig, PtyError, PtyHandle, PtySize, PtyState, PtyStats,
+};
+// Note: PtyManager conflicts with embedded::PtyManager, use pty::PtyManager directly if needed
+#[cfg(feature = "embedded-terminal")]
+pub use pty::PtyManager as TerminalPtyManager;
+
+// Export platform-specific PTY types
+#[cfg(all(feature = "embedded-terminal", windows))]
+pub use pty_windows::{WindowsPtyBackend, WindowsPtyHandle, WindowsPtyManager, is_conpty_supported};
+
+#[cfg(feature = "embedded-terminal")]
+pub use scroll_buffer::{
+    Line, ScrollBuffer, ScrollBufferStats, SearchMatch, SearchIndex,
+    DEFAULT_MAX_LINES, LITE_MAX_LINES, PRO_MAX_LINES,
+};
+#[cfg(feature = "embedded-terminal")]
+pub use search::{
+    global_search, SearchHistoryEntry, SearchOptions, SearchResult, SearchStats, TerminalSearch,
+};
+#[cfg(feature = "embedded-terminal")]
+pub use types::{
+    check_can_create_pty, check_connection_ready,
+    TerminalConfig, TerminalEvent, TerminalLimits, TerminalLine, TerminalPerformance,
+    TerminalPosition, TerminalSelection, TerminalSession as TerminalSessionEx, TerminalSessionInfo,
+    TerminalSessionStats, TerminalState,
+};
+// Note: ConnectionState conflicts with coordinator::ConnectionState
+// Note: CursorStyle conflicts with theme::CursorStyle
+// Use types::ConnectionState and types::CursorStyle directly if needed
 
 // ============ Native Terminal Launch (Lite Version) ============
 
