@@ -101,7 +101,7 @@ urlencoding = { workspace = true }
 
 # i18n dependencies
 fluent = { workspace = true }
-fluent-bundle = "0.15"
+fluent-bundle = "0.16"
 unic-langid = { workspace = true }
 intl-memoizer = "0.5"
 sys-locale = { workspace = true }
