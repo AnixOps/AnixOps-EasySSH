@@ -562,7 +562,7 @@ jobs:
           cargo doc -p easyssh-core --features pro --no-deps 2>&1 | tee doc-warnings-pro.txt || true
 
       - name: Check dead links
-        uses: lycheeverse/lychee-action@v1
+        uses: lycheeverse/lychee-action@v2
         with:
           args: --timeout 30 --max-retries 3 docs/ *.md
           fail: false
