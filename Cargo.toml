@@ -224,7 +224,7 @@ xml-rs = "0.8"
 whoami = "1.5"
 
 # Windows
-windows = { version = "0.59", features = ["Win32_Foundation"] }
+windows = { version = "0.62", features = ["Win32_Foundation"] }
 windows-sys = { version = "0.59", features = ["Win32_Foundation"] }
 
 # ============================================================================
