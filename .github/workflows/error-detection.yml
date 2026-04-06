@@ -646,7 +646,7 @@ jobs:
           path: report
 
       - name: Send Email
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v16
         with:
           server_address: ${{ secrets.EMAIL_SERVER }}
           server_port: ${{ secrets.EMAIL_PORT }}
