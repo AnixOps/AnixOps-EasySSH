@@ -18,7 +18,7 @@ pro = ["embedded-terminal"]
 # egui framework
 egui = "0.29"
 eframe = { version = "0.29", features = ["persistence", "glow"] }
-egui_extras = { version = "0.29", features = ["image", "svg"] }
+egui_extras = { version = "0.34", features = ["image", "svg"] }
 
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
