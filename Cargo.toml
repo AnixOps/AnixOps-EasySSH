@@ -71,7 +71,7 @@ redis = { version = "0.25", features = ["tokio-comp"] }
 
 # SSH & networking
 ssh2 = "0.9"
-russh = { version = "0.54", default-features = false, features = ["ring", "rsa", "flate2"] }
+russh = { version = "0.60", default-features = false, features = ["ring", "rsa", "flate2"] }
 russh-keys = "0.49"
 russh-sftp = "2"
 tokio-tungstenite = "0.24"
