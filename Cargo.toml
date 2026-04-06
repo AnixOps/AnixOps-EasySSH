@@ -135,7 +135,7 @@ urlencoding = "2.1"
 # Cloud SDKs (optional)
 aws-config = "1"
 aws-sdk-s3 = "1"
-google-cloud-storage = { version = "=0.22" }
+google-cloud-storage = { version = "=1.10" }
 azure_storage = { version = "0.21" }
 azure_storage_blobs = { version = "0.21" }
 
