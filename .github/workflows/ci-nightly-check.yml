@@ -38,7 +38,7 @@ jobs:
       open_issues: ${{ steps.stats.outputs.open_issues }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -49,7 +49,7 @@ jobs:
 
       - name: Repository Statistics
         id: stats
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // Get commits in last 24 hours
@@ -88,7 +88,7 @@ jobs:
       outdated_count: ${{ steps.outdated.outputs.count }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -127,7 +127,7 @@ jobs:
           fi
 
       - name: Upload Audit Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-audit
           path: |
@@ -183,7 +183,7 @@ jobs:
             profile: release-standard
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -231,7 +231,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Build Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-build-${{ matrix.os }}-${{ matrix.version }}
@@ -253,7 +253,7 @@ jobs:
         version: [lite, standard, pro]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -276,7 +276,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Test Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-test-${{ matrix.os }}-${{ matrix.version }}
@@ -297,16 +297,16 @@ jobs:
       has_errors: ${{ steps.analyze.outputs.has_errors }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download All Build Logs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: "nightly-build-*"
 
       - name: Download Test Logs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: "nightly-test-*"
@@ -349,7 +349,7 @@ jobs:
           EOF
 
       - name: Upload Analysis
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: error-analysis
           path: analysis-report/
@@ -367,7 +367,7 @@ jobs:
       binary_size_pro: ${{ steps.size.outputs.pro_size }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -413,10 +413,10 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download All Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: all-artifacts
 
@@ -518,7 +518,7 @@ jobs:
           cat nightly-report/nightly-check-report.md
 
       - name: Upload Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nightly-check-report
           path: nightly-report/
@@ -530,7 +530,7 @@ jobs:
 
       - name: Create Issue if Errors Found
         if: ${{ needs.error-analysis.outputs.has_errors == 'true' || needs.dependency-check.outputs.has_vulnerabilities == 'true' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -603,7 +603,7 @@ jobs:
 
     steps:
       - name: Download Report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nightly-check-report
           path: report

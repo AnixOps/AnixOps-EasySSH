@@ -48,7 +48,7 @@ jobs:
       rust: ${{ steps.changes.outputs.rust }}
       typescript: ${{ steps.changes.outputs.typescript }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: changes
         with:
@@ -81,7 +81,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -240,7 +240,7 @@ jobs:
 
       # Upload logs and reports
       - name: Upload Build Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: build-logs-${{ matrix.os }}-${{ matrix.version }}
@@ -270,10 +270,10 @@ jobs:
       total_errors: ${{ steps.parse_ts.outputs.total_errors }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -312,7 +312,7 @@ jobs:
           echo "has_errors=$([ $total -gt 0 ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
 
       - name: Upload TypeScript Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: typescript-logs
@@ -333,16 +333,16 @@ jobs:
       report_path: ${{ steps.aggregate.outputs.report_path }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download All Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: "*-logs-*"
 
       - name: Download TypeScript Logs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           name: typescript-logs
@@ -460,7 +460,7 @@ jobs:
           echo "report_path=final-report/error-detection-report.json" >> $GITHUB_OUTPUT
 
       - name: Upload Final Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: error-detection-report
           path: final-report/
@@ -483,13 +483,13 @@ jobs:
 
     steps:
       - name: Download Report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: error-detection-report
           path: report
 
       - name: Create Error Issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -570,7 +570,7 @@ jobs:
 
     steps:
       - name: Download Report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: error-detection-report
           path: report
@@ -640,7 +640,7 @@ jobs:
 
     steps:
       - name: Download Report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: error-detection-report
           path: report
