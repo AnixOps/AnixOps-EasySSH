@@ -12,10 +12,10 @@ jobs:
   sign-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-build-${{ inputs.version }}
           path: ./artifacts
@@ -39,7 +39,7 @@ jobs:
           }
 
       - name: Upload signed artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-signed-${{ inputs.version }}
           path: ./artifacts
@@ -47,10 +47,10 @@ jobs:
   sign-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-build-${{ inputs.version }}
           path: ./artifacts
@@ -77,7 +77,7 @@ jobs:
           xcrun stapler staple ./artifacts/EasySSH.app
 
       - name: Upload signed artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-signed-${{ inputs.version }}
           path: ./artifacts
