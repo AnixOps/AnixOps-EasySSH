@@ -7,12 +7,15 @@
 pub mod config;
 pub mod domain;
 pub mod openssh;
-pub mod pty;
 pub mod security;
+pub mod sync;
 pub mod transfer;
 
 pub use config::{ConfigStore, MigrationReport};
-pub use domain::{AppConfig, Connection, ConnectionTarget, Group, TerminalPreferences, Theme};
-pub use openssh::{AgentDiagnostics, OpenSsh, OpenSshError, SshInvocation};
-pub use pty::TerminalSession;
+pub use domain::{
+    AppConfig, CommandSnippet, Connection, ConnectionTarget, DisplayDensity, Group, SessionRecord,
+    SidebarNavigation, SidebarPreferences, TerminalPreferences, Theme, Workspace,
+};
+pub use openssh::{AgentDiagnostics, ExternalTerminal, OpenSsh, OpenSshError, SshInvocation};
+pub use sync::{GitSync, SyncError, SyncFile, SyncStatus};
 pub use transfer::{ScpInvocation, Transfer, TransferDirection, TransferStatus};

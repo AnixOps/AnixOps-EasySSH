@@ -16,4 +16,5 @@ chrono.workspace = true
 easyssh-core = { path = "../easyssh-core" }
 eframe.workspace = true
 egui.workspace = true
+egui-phosphor.workspace = true
 uuid.workspace = true

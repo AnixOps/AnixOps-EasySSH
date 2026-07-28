@@ -10,21 +10,55 @@ pub struct AppConfig {
     pub groups: Vec<Group>,
     pub recent_connection_ids: Vec<String>,
     pub snippets: Vec<CommandSnippet>,
+    #[serde(default)]
+    pub sessions: Vec<SessionRecord>,
+    #[serde(default)]
+    pub workspace: Workspace,
     pub theme: Theme,
+    #[serde(default)]
+    pub display_density: DisplayDensity,
     pub locale: Locale,
+    #[serde(default)]
+    pub sidebar: SidebarPreferences,
+    #[serde(default)]
+    pub sync: SyncPreferences,
 }
 
 impl AppConfig {
-    pub const SCHEMA_VERSION: u32 = 2;
+    pub const SCHEMA_VERSION: u32 = 5;
 
     pub fn new() -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
             theme: Theme::System,
             locale: Locale::System,
+            workspace: Workspace::Hosts,
             ..Self::default()
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DisplayDensity {
+    Compact,
+    #[default]
+    Comfortable,
+    Large,
+}
+
+/// Local-only Git metadata sync configuration. Credentials are intentionally
+/// absent: system Git and its configured credential helper own authentication.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct SyncPreferences {
+    pub display_name: String,
+    pub repository_path: Option<String>,
+    pub remote_url: Option<String>,
+    pub branch: Option<String>,
+    pub last_success_at: Option<DateTime<Utc>>,
+    pub last_error: Option<String>,
+    pub last_snapshot_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,6 +138,40 @@ pub struct Group {
     pub id: String,
     pub name: String,
     pub color: Option<String>,
+    #[serde(default)]
+    pub parent_id: Option<String>,
+}
+
+/// Non-sensitive presentation state persisted alongside connection metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SidebarPreferences {
+    pub width: f32,
+    pub collapsed_group_ids: Vec<String>,
+    pub selected_navigation: SidebarNavigation,
+    pub selected_tag: Option<String>,
+}
+
+impl Default for SidebarPreferences {
+    fn default() -> Self {
+        Self {
+            width: 300.0,
+            collapsed_group_ids: Vec::new(),
+            selected_navigation: SidebarNavigation::All,
+            selected_tag: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SidebarNavigation {
+    #[default]
+    All,
+    Favorites,
+    Recent,
+    OpenSshConfig,
+    Ungrouped,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +179,31 @@ pub struct CommandSnippet {
     pub id: String,
     pub name: String,
     pub content: String,
+}
+
+/// A local record of an external terminal launch. It intentionally contains no
+/// command line, terminal output, authentication material, or SSH diagnostics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SessionRecord {
+    pub id: String,
+    pub connection_id: Option<String>,
+    pub name: String,
+    pub target: String,
+    pub launched_at: DateTime<Utc>,
+    pub verbose: bool,
+    pub launched: bool,
+    #[serde(default)]
+    pub hidden: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Workspace {
+    #[default]
+    Hosts,
+    Snippets,
+    Forwarding,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,6 +1,8 @@
 use crate::domain::{Connection, ConnectionTarget};
 use crate::security::{validate_alias, validate_connection, validate_host, ValidationError};
 use std::env;
+#[cfg(windows)]
+use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 use thiserror::Error;
@@ -28,8 +30,21 @@ impl SshInvocation {
         openssh: &OpenSsh,
         connection: &Connection,
     ) -> Result<Self, OpenSshError> {
+        Self::for_connection_with_verbosity(openssh, connection, false)
+    }
+
+    /// Builds a one-shot diagnostic invocation when `verbose` is requested.
+    /// Normal sessions deliberately keep OpenSSH output quiet.
+    pub fn for_connection_with_verbosity(
+        openssh: &OpenSsh,
+        connection: &Connection,
+        verbose: bool,
+    ) -> Result<Self, OpenSshError> {
         validate_connection(connection)?;
         let mut args = Vec::new();
+        if verbose {
+            args.push("-vvv".to_owned());
+        }
         match &connection.target {
             ConnectionTarget::Alias { alias } => args.push(alias.clone()),
             ConnectionTarget::Endpoint {
@@ -126,6 +141,63 @@ impl OpenSsh {
     }
 }
 
+/// Launches a system terminal host, which then runs the system OpenSSH binary.
+/// The app never renders or intermediates terminal input/output in this mode.
+#[derive(Debug, Clone, Default)]
+pub struct ExternalTerminal;
+
+impl ExternalTerminal {
+    pub fn launch(name: &str, invocation: &SshInvocation) -> Result<(), OpenSshError> {
+        #[cfg(windows)]
+        {
+            if let Some(windows_terminal) = find_on_path("wt") {
+                Command::new(windows_terminal)
+                    .args(["new-tab", "--title", &format!("SSH: {name}"), "--"])
+                    .arg(&invocation.executable)
+                    .args(&invocation.args)
+                    .spawn()?;
+                return Ok(());
+            }
+            return launch_powershell(invocation);
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let terminal = find_on_path("x-terminal-emulator")
+                .ok_or(OpenSshError::NotFound("x-terminal-emulator"))?;
+            Command::new(terminal)
+                .arg("--")
+                .arg(&invocation.executable)
+                .args(&invocation.args)
+                .spawn()?;
+            return Ok(());
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (name, invocation);
+            return Err(OpenSshError::Failed(
+                "macOS external terminal launching requires a configured terminal adapter"
+                    .to_owned(),
+            ));
+        }
+        #[allow(unreachable_code)]
+        Err(OpenSshError::Failed("unsupported platform".to_owned()))
+    }
+}
+
+#[cfg(windows)]
+fn launch_powershell(invocation: &SshInvocation) -> Result<(), OpenSshError> {
+    let script_path = std::env::temp_dir().join(format!("easyssh-{}.ps1", uuid::Uuid::new_v4()));
+    // The script receives executable and arguments separately; no user value is embedded in it.
+    fs::write(&script_path, "param([string]$SshExecutable, [Parameter(ValueFromRemainingArguments=$true)][string[]]$SshArguments)\n& $SshExecutable @SshArguments\n")?;
+    Command::new("powershell.exe")
+        .args(["-NoExit", "-File"])
+        .arg(&script_path)
+        .arg(&invocation.executable)
+        .args(&invocation.args)
+        .spawn()?;
+    Ok(())
+}
+
 fn version(path: &PathBuf) -> Option<String> {
     let output = Command::new(path).arg("-V").output().ok()?;
     Some(
@@ -139,6 +211,25 @@ fn version(path: &PathBuf) -> Option<String> {
     )
 }
 fn find_on_path(name: &str) -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        // 1Password's Windows SSH agent listens on the Microsoft OpenSSH named
+        // pipe. Prefer the system client over a Git/MSYS client earlier on PATH.
+        if matches!(name, "ssh" | "scp") {
+            if let Some(path) = env::var_os("WINDIR")
+                .map(PathBuf::from)
+                .map(|directory| {
+                    directory
+                        .join("System32")
+                        .join("OpenSSH")
+                        .join(format!("{name}.exe"))
+                })
+                .filter(|path| path.is_file())
+            {
+                return Some(path);
+            }
+        }
+    }
     let paths = env::var_os("PATH")?;
     let candidates = if cfg!(windows) {
         vec![format!("{name}.exe"), name.into()]
@@ -197,5 +288,12 @@ mod tests {
         let c = Connection::alias("Prod", "production");
         let invocation = SshInvocation::for_connection(&OpenSsh, &c);
         assert!(invocation.is_err() || invocation.unwrap().args == vec!["production"]);
+    }
+
+    #[test]
+    fn verbose_invocation_only_adds_debug_flag_on_request() {
+        let c = Connection::alias("Prod", "production");
+        let invocation = SshInvocation::for_connection_with_verbosity(&OpenSsh, &c, true);
+        assert!(invocation.is_err() || invocation.unwrap().args == vec!["-vvv", "production"]);
     }
 }

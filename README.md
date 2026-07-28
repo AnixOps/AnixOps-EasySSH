@@ -1,7 +1,8 @@
 # EasySSH
 
-EasySSH is a modern cross-platform desktop session manager for system OpenSSH
-and the system SSH Agent, including the 1Password SSH Agent.
+EasySSH is a modern cross-platform session manager for system OpenSSH and the
+system SSH Agent, including the 1Password SSH Agent. It opens sessions in the
+platform terminal instead of embedding a terminal emulator.
 
 It launches `ssh` for terminals and `scp` for file transfers. EasySSH does not
 implement an SSH protocol, keep passwords, import private keys, invoke the
@@ -16,7 +17,9 @@ cargo test --workspace
 cargo run -p easyssh-desktop
 ```
 
-Configure OpenSSH and your SSH Agent before opening EasySSH. Prefer an
+Configure OpenSSH and your SSH Agent before opening EasySSH. On Windows the
+app opens Windows Terminal when available, with PowerShell as the system
+terminal fallback. Prefer an
 OpenSSH config alias such as `production`; EasySSH will run `ssh production`.
 
 ## Security Boundary

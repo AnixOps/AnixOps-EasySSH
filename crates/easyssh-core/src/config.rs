@@ -41,11 +41,20 @@ impl ConfigStore {
             return Ok(AppConfig::new());
         }
         let value: serde_json::Value = serde_json::from_slice(&fs::read(&self.path)?)?;
+        // A workbench schema is intentionally a clean start. Older versions are
+        // left untouched on disk and are neither imported nor displayed.
+        if value
+            .get("schema_version")
+            .and_then(serde_json::Value::as_u64)
+            != Some(AppConfig::SCHEMA_VERSION as u64)
+        {
+            return Ok(AppConfig::new());
+        }
         if serialized_has_sensitive_keys(&value) {
             return Err(ConfigError::SensitiveFields);
         }
         let mut config: AppConfig = serde_json::from_value(value)?;
-        config.schema_version = AppConfig::SCHEMA_VERSION;
+        config.sessions.truncate(20);
         Ok(config)
     }
     pub fn save(&self, config: &AppConfig) -> Result<(), ConfigError> {
@@ -151,6 +160,30 @@ mod tests {
         assert!(!serialized_has_sensitive_keys(
             &serde_json::to_value(config).unwrap()
         ));
+    }
+
+    #[test]
+    fn sidebar_preferences_are_non_sensitive_metadata() {
+        let value = serde_json::to_value(AppConfig::new()).unwrap();
+        assert!(value.get("sidebar").is_some());
+        assert!(!serialized_has_sensitive_keys(&value));
+    }
+
+    #[test]
+    fn old_schema_is_ignored_instead_of_migrated() {
+        let directory =
+            std::env::temp_dir().join(format!("easyssh-schema-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("connections.json");
+        fs::write(
+            &path,
+            r#"{"schema_version":3,"connections":[{"id":"old","password":"not imported"}]}"#,
+        )
+        .unwrap();
+        let config = ConfigStore::at(&path).load().unwrap();
+        assert!(config.connections.is_empty());
+        assert_eq!(config.schema_version, AppConfig::SCHEMA_VERSION);
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
