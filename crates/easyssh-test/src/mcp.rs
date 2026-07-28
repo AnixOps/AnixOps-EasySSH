@@ -1,4 +1,5 @@
 use easyssh_test::{
+    app::{launch_ui_test, ManagedApp},
     inspect, run_with_cancellation, validate_options, workspace_root, CancellationToken,
     Diagnostic, ResultDocument, RunOptions,
 };
@@ -43,6 +44,7 @@ struct Task {
 #[derive(Default)]
 struct Server {
     tasks: Mutex<HashMap<String, Task>>,
+    app: Mutex<Option<ManagedApp>>,
     build_lock: Mutex<()>,
     sequence: AtomicU64,
 }
@@ -140,6 +142,26 @@ fn tools() -> Vec<Value> {
             "Cancel a task started by this MCP server",
             json!({"type":"object","properties":{"task_id":{"type":"string","minLength":1}},"required":["task_id"],"additionalProperties":false}),
         ),
+        tool(
+            "launch_app",
+            "Launch an isolated feature-gated EasySSH UI test instance",
+            json!({"type":"object","properties":{"timeout_seconds":{"type":"integer","minimum":1,"maximum":600}},"additionalProperties":false}),
+        ),
+        tool(
+            "get_app_status",
+            "Get status for the app launched by this MCP server",
+            json!({"type":"object","additionalProperties":false}),
+        ),
+        tool(
+            "get_app_logs",
+            "Get the redacted UI test application log",
+            json!({"type":"object","additionalProperties":false}),
+        ),
+        tool(
+            "stop_app",
+            "Gracefully stop the app launched by this MCP server",
+            json!({"type":"object","properties":{"timeout_seconds":{"type":"integer","minimum":1,"maximum":60}},"additionalProperties":false}),
+        ),
     ]
 }
 
@@ -236,6 +258,82 @@ fn call_tool(server: &Arc<Server>, params: Option<&Value>) -> Result<Value, (i32
             }
             Ok(task_result(task.snapshot.clone()))
         }
+        "launch_app" => {
+            reject_unknown(&arguments, &["timeout_seconds"])?;
+            let root = workspace_root().map_err(internal)?;
+            let timeout = parse_timeout(&arguments)?.min(Duration::from_secs(600));
+            let mut app = server
+                .app
+                .lock()
+                .map_err(|_| (-32603, "app manager lock failed".into()))?;
+            if let Some(existing) = app.as_mut() {
+                if matches!(
+                    existing.get_status().map_err(internal)?.state.as_str(),
+                    "starting" | "ready"
+                ) {
+                    return Err((
+                        -32602,
+                        "an app is already managed by this MCP server".into(),
+                    ));
+                }
+                *app = None;
+            }
+            let launched = launch_ui_test(&root, timeout).map_err(internal)?;
+            let result = launched.status.clone();
+            *app = Some(launched);
+            Ok(
+                json!({"isError":!result.success,"content":[{"type":"text","text":result.summary}],"structuredContent":result}),
+            )
+        }
+        "get_app_status" => {
+            reject_unknown(&arguments, &[])?;
+            let mut app = server
+                .app
+                .lock()
+                .map_err(|_| (-32603, "app manager lock failed".into()))?;
+            let result = app
+                .as_mut()
+                .ok_or((-32602, "no app launched by this MCP server".into()))?
+                .get_status()
+                .map_err(internal)?;
+            Ok(
+                json!({"isError":!result.success,"content":[{"type":"text","text":result.summary}],"structuredContent":result}),
+            )
+        }
+        "get_app_logs" => {
+            reject_unknown(&arguments, &[])?;
+            let app = server
+                .app
+                .lock()
+                .map_err(|_| (-32603, "app manager lock failed".into()))?;
+            let status = app
+                .as_ref()
+                .ok_or((-32602, "no app launched by this MCP server".into()))?
+                .status
+                .clone();
+            let root = workspace_root().map_err(internal)?;
+            let log = root.join(status.log_file.replace('/', "\\"));
+            let text = std::fs::read_to_string(log).unwrap_or_default();
+            Ok(
+                json!({"content":[{"type":"text","text":easyssh_test::redact(&text)}],"structuredContent":{"log_file":status.log_file}}),
+            )
+        }
+        "stop_app" => {
+            reject_unknown(&arguments, &["timeout_seconds"])?;
+            let timeout = parse_timeout(&arguments)?.min(Duration::from_secs(60));
+            let mut app = server
+                .app
+                .lock()
+                .map_err(|_| (-32603, "app manager lock failed".into()))?;
+            let result = app
+                .as_mut()
+                .ok_or((-32602, "no app launched by this MCP server".into()))?
+                .stop(timeout)
+                .map_err(internal)?;
+            Ok(
+                json!({"isError":!result.success,"content":[{"type":"text","text":result.summary}],"structuredContent":result}),
+            )
+        }
         _ => Err((-32601, "tool not allowed".into())),
     }
 }
@@ -325,6 +423,11 @@ fn shutdown(server: &Server) {
         }
         thread::sleep(Duration::from_millis(20));
     }
+    if let Ok(mut app) = server.app.lock() {
+        if let Some(app) = app.as_mut() {
+            let _ = app.stop(Duration::from_secs(2));
+        }
+    }
 }
 
 fn finish_from_document(task: &mut Task, document: ResultDocument) {
@@ -380,7 +483,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tool_discovery_exposes_exact_p1_surface() {
+    fn tool_discovery_exposes_p1_and_p2_surface() {
         let listed_tools = tools();
         let names = listed_tools
             .iter()
@@ -395,7 +498,11 @@ mod tests {
                 "run_unit_tests",
                 "build_app",
                 "get_task_status",
-                "cancel_task"
+                "cancel_task",
+                "launch_app",
+                "get_app_status",
+                "get_app_logs",
+                "stop_app"
             ]
         );
     }

@@ -10,6 +10,9 @@ description = "Cross-platform OpenSSH session manager"
 name = "easyssh"
 path = "src/main.rs"
 
+[features]
+ui-test = []
+
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
@@ -17,4 +20,5 @@ easyssh-core = { path = "../easyssh-core" }
 eframe.workspace = true
 egui.workspace = true
 egui-phosphor.workspace = true
+serde_json.workspace = true
 uuid.workspace = true

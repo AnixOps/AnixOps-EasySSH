@@ -1,19 +1,38 @@
 use chrono::{DateTime, Utc};
 use easyssh_core::{
-    AppConfig, CommandSnippet, ConfigStore, Connection, ConnectionTarget, DisplayDensity,
-    ExternalTerminal, GitSync, OpenSsh, SessionRecord, SshInvocation, SyncStatus, Theme, Workspace,
+    cancel, AppConfig, CommandSnippet, ConfigStore, Connection, ConnectionTarget, DisplayDensity,
+    ExternalTerminal, GitSync, OpenSsh, ScpInvocation, SessionRecord, SshInvocation, SyncStatus,
+    Theme, Transfer, TransferDirection, TransferStatus, Workspace,
 };
 use eframe::egui;
 use egui_phosphor::regular as icon;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::process::Child;
+
+mod ui;
+#[cfg(feature = "ui-test")]
+mod ui_test;
 
 const BLUE: egui::Color32 = egui::Color32::from_rgb(111, 124, 255);
-const GREEN: egui::Color32 = egui::Color32::from_rgb(78, 194, 132);
-const AMBER: egui::Color32 = egui::Color32::from_rgb(225, 171, 72);
-const RED: egui::Color32 = egui::Color32::from_rgb(223, 91, 101);
+const GREEN: egui::Color32 = crate::ui::tokens::DARK.success;
+const AMBER: egui::Color32 = crate::ui::tokens::DARK.warning;
+const RED: egui::Color32 = crate::ui::tokens::DARK.danger;
 
 fn main() -> eframe::Result<()> {
+    #[cfg(feature = "ui-test")]
+    let test_mode = ui_test::UiTestMode::from_args()
+        .map_err(|error| eframe::Error::AppCreation(Box::new(std::io::Error::other(error))))?;
+    #[cfg(feature = "ui-test")]
+    let title = if test_mode.is_some() {
+        "EasySSH [UI Test]"
+    } else {
+        "EasySSH"
+    };
+    #[cfg(not(feature = "ui-test"))]
+    let title = "EasySSH";
     eframe::run_native(
-        "EasySSH",
+        title,
         eframe::NativeOptions {
             // Hosts uses a permanent three-column layout (navigation, object
             // list, inspector). Keep enough room for targets and toolbar
@@ -21,11 +40,18 @@ fn main() -> eframe::Result<()> {
             viewport: egui::ViewportBuilder::default().with_min_inner_size([1200.0, 760.0]),
             ..Default::default()
         },
-        Box::new(|cc| {
+        Box::new(move |cc| {
             let mut fonts = egui::FontDefinitions::default();
             egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
             cc.egui_ctx.set_fonts(fonts);
-            Ok(Box::<EasySshApp>::default())
+            #[cfg(feature = "ui-test")]
+            let app = test_mode
+                .clone()
+                .map(EasySshApp::ui_test)
+                .unwrap_or_default();
+            #[cfg(not(feature = "ui-test"))]
+            let app = EasySshApp::default();
+            Ok(Box::new(app))
         }),
     )
 }
@@ -52,16 +78,37 @@ struct EasySshApp {
     agent_available: Option<bool>,
     copy_text: Option<String>,
     status: String,
+    transfers: Vec<Transfer>,
+    transfer_children: HashMap<String, Child>,
+    transfer_connection: Option<String>,
+    transfer_local_path: String,
+    transfer_remote_path: String,
+    transfer_recursive: bool,
+    transfer_direction: TransferDirection,
+    #[cfg(feature = "ui-test")]
+    test_mode: Option<ui_test::UiTestMode>,
+    #[cfg(feature = "ui-test")]
+    test_ready: bool,
 }
 
 impl Default for EasySshApp {
     fn default() -> Self {
         let store = ConfigStore::default_path().expect("configuration path");
+        Self::from_store(store, true)
+    }
+}
+
+impl EasySshApp {
+    fn from_store(store: ConfigStore, inspect_agent: bool) -> Self {
         let config = store.load().unwrap_or_else(|_| AppConfig::new());
-        let agent_available = OpenSsh
-            .diagnostics(None)
-            .agent_keys
-            .map(|keys| keys.available);
+        let agent_available = inspect_agent
+            .then(|| {
+                OpenSsh
+                    .diagnostics(None)
+                    .agent_keys
+                    .map(|keys| keys.available)
+            })
+            .flatten();
         Self {
             store,
             config,
@@ -84,11 +131,30 @@ impl Default for EasySshApp {
             agent_available,
             copy_text: None,
             status: String::new(),
+            transfers: Vec::new(),
+            transfer_children: HashMap::new(),
+            transfer_connection: None,
+            transfer_local_path: String::new(),
+            transfer_remote_path: String::new(),
+            transfer_recursive: false,
+            transfer_direction: TransferDirection::Upload,
+            #[cfg(feature = "ui-test")]
+            test_mode: None,
+            #[cfg(feature = "ui-test")]
+            test_ready: false,
         }
     }
-}
 
-impl EasySshApp {
+    #[cfg(feature = "ui-test")]
+    fn ui_test(mode: ui_test::UiTestMode) -> Self {
+        let store = ConfigStore::at(mode.root.join("config").join("connections.json"));
+        let mut app = Self::from_store(store, false);
+        app.config.theme = Theme::Dark;
+        app.config.workspace = Workspace::Hosts;
+        app.status = "UI TEST MODE - isolated configuration".into();
+        app.test_mode = Some(mode);
+        app
+    }
     fn save(&mut self) {
         self.status = match self.store.save(&self.config) {
             Ok(()) => "Workbench saved".into(),
@@ -153,6 +219,95 @@ impl EasySshApp {
         };
         self.snippet_editor = Some(item.id.clone());
         self.config.snippets.push(item);
+    }
+
+    fn start_transfer(&mut self) {
+        let Some(connection) = self
+            .transfer_connection
+            .as_ref()
+            .and_then(|id| self.config.connections.iter().find(|item| &item.id == id))
+            .cloned()
+        else {
+            self.status = "Select a host before starting a transfer.".into();
+            return;
+        };
+        let mut transfer = Transfer::new(
+            self.transfer_direction,
+            PathBuf::from(self.transfer_local_path.trim()),
+            self.transfer_remote_path.trim().to_owned(),
+            self.transfer_recursive,
+        );
+        transfer.status = TransferStatus::Authorizing;
+        transfer.started_at = Some(Utc::now());
+        match ScpInvocation::build(&self.openssh, &connection, &transfer)
+            .and_then(|invocation| invocation.spawn())
+        {
+            Ok(child) => {
+                self.transfer_children.insert(transfer.id.clone(), child);
+                self.transfers.insert(0, transfer);
+                self.status = "Transfer started in the system OpenSSH environment.".into();
+            }
+            Err(error) => {
+                transfer.status = TransferStatus::Failed;
+                transfer.finished_at = Some(Utc::now());
+                transfer.output = error.to_string();
+                self.status = transfer.output.clone();
+                self.transfers.insert(0, transfer);
+            }
+        }
+    }
+
+    fn poll_transfers(&mut self, ctx: &egui::Context) {
+        let active: Vec<String> = self.transfer_children.keys().cloned().collect();
+        for id in active {
+            let result = self.transfer_children.get_mut(&id).map(Child::try_wait);
+            match result {
+                Some(Ok(Some(exit))) => {
+                    self.transfer_children.remove(&id);
+                    if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
+                        transfer.finished_at = Some(Utc::now());
+                        transfer.status = if exit.success() {
+                            TransferStatus::Completed
+                        } else {
+                            TransferStatus::Failed
+                        };
+                        transfer.output = if exit.success() {
+                            "Completed".into()
+                        } else {
+                            "The system scp process exited unsuccessfully.".into()
+                        };
+                    }
+                }
+                Some(Ok(None)) => {
+                    if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
+                        transfer.status = TransferStatus::Transferring;
+                    }
+                }
+                Some(Err(error)) => {
+                    self.transfer_children.remove(&id);
+                    if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
+                        transfer.status = TransferStatus::Failed;
+                        transfer.finished_at = Some(Utc::now());
+                        transfer.output = error.to_string();
+                    }
+                }
+                None => {}
+            }
+        }
+        if !self.transfer_children.is_empty() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(250));
+        }
+    }
+
+    fn cancel_transfer(&mut self, id: &str) {
+        if let Some(mut child) = self.transfer_children.remove(id) {
+            let _ = cancel(&mut child);
+        }
+        if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
+            transfer.status = TransferStatus::Cancelled;
+            transfer.finished_at = Some(Utc::now());
+            transfer.output = "Cancelled by user.".into();
+        }
     }
 
     fn workspace_button(
@@ -322,6 +477,12 @@ impl EasySshApp {
                     Workspace::Forwarding,
                     icon::ARROWS_LEFT_RIGHT,
                     "Port forwarding",
+                );
+                self.workspace_button(
+                    ui,
+                    Workspace::Transfers,
+                    icon::ARROW_FAT_LINES_UP,
+                    "Transfers",
                 );
                 ui.add_space(12.0);
                 ui.separator();
@@ -648,6 +809,154 @@ impl EasySshApp {
         });
     }
 
+    fn transfers(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                ui.heading("Transfers");
+                ui.label(
+                    egui::RichText::new("System scp with your existing SSH authentication").weak(),
+                );
+            });
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.radio_value(
+                    &mut self.transfer_direction,
+                    TransferDirection::Upload,
+                    "Upload",
+                );
+                ui.radio_value(
+                    &mut self.transfer_direction,
+                    TransferDirection::Download,
+                    "Download",
+                );
+                ui.checkbox(&mut self.transfer_recursive, "Recursive");
+            });
+            egui::ComboBox::from_label("Host")
+                .selected_text(
+                    self.transfer_connection
+                        .as_ref()
+                        .and_then(|id| self.config.connections.iter().find(|item| &item.id == id))
+                        .map(|item| item.name.as_str())
+                        .unwrap_or("Select a host"),
+                )
+                .show_ui(ui, |ui| {
+                    for host in &self.config.connections {
+                        ui.selectable_value(
+                            &mut self.transfer_connection,
+                            Some(host.id.clone()),
+                            &host.name,
+                        );
+                    }
+                });
+            ui.label("Local path");
+            ui.text_edit_singleline(&mut self.transfer_local_path);
+            ui.label("Remote path");
+            ui.text_edit_singleline(&mut self.transfer_remote_path);
+            let ready = self.transfer_connection.is_some()
+                && !self.transfer_local_path.trim().is_empty()
+                && !self.transfer_remote_path.trim().is_empty();
+            if ui
+                .add_enabled(
+                    ready,
+                    egui::Button::new(format!("{} Start transfer", icon::PLAY)),
+                )
+                .clicked()
+            {
+                self.start_transfer();
+            }
+            ui.add_space(12.0);
+            ui.separator();
+            if self.transfers.is_empty() {
+                ui.add_space(36.0);
+                ui.vertical_centered(|ui| {
+                    ui.label(
+                        egui::RichText::new(icon::ARROW_FAT_LINES_UP)
+                            .size(36.0)
+                            .color(BLUE),
+                    );
+                    ui.label("No transfers yet");
+                    ui.label(
+                        egui::RichText::new(
+                            "Transfer records are kept only while this app is open.",
+                        )
+                        .small()
+                        .weak(),
+                    );
+                });
+                return;
+            }
+            let mut cancel_id = None;
+            let mut retry_id = None;
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                for transfer in self.transfers.clone() {
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            ui.label(
+                                egui::RichText::new(match transfer.direction {
+                                    TransferDirection::Upload => "Upload",
+                                    TransferDirection::Download => "Download",
+                                })
+                                .strong(),
+                            );
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "{}  <->  {}",
+                                    transfer.local_path.display(),
+                                    transfer.remote_path
+                                ))
+                                .monospace()
+                                .small()
+                                .weak(),
+                            );
+                            if !transfer.output.is_empty() {
+                                ui.label(egui::RichText::new(&transfer.output).small().weak());
+                            }
+                        });
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            match transfer.status {
+                                TransferStatus::Pending
+                                | TransferStatus::Authorizing
+                                | TransferStatus::Transferring => {
+                                    if icon_button(ui, icon::X, "Cancel transfer").clicked() {
+                                        cancel_id = Some(transfer.id.clone());
+                                    }
+                                }
+                                TransferStatus::Failed | TransferStatus::Cancelled => {
+                                    if icon_button(
+                                        ui,
+                                        icon::ARROW_CLOCKWISE,
+                                        "Retry with the same paths",
+                                    )
+                                    .clicked()
+                                    {
+                                        retry_id = Some(transfer.id.clone());
+                                    }
+                                }
+                                TransferStatus::Completed => {}
+                            }
+                            let (label, color) = transfer_status_badge(transfer.status);
+                            crate::ui::components::status_badge(ui, label, color);
+                        });
+                    });
+                    ui.separator();
+                }
+            });
+            if let Some(id) = cancel_id {
+                self.cancel_transfer(&id);
+            }
+            if let Some(id) = retry_id {
+                if let Some(item) = self.transfers.iter().find(|item| item.id == id) {
+                    self.transfer_local_path = item.local_path.to_string_lossy().into_owned();
+                    self.transfer_remote_path = item.remote_path.clone();
+                    self.transfer_recursive = item.recursive;
+                    self.transfer_direction = item.direction;
+                }
+                self.status = "Review the transfer form and start the retry.".into();
+            }
+        });
+    }
+
     fn command_panel(&mut self, ctx: &egui::Context) {
         if !self.command_open {
             return;
@@ -711,6 +1020,7 @@ impl EasySshApp {
             CommandAction::Switch(Workspace::Hosts),
             CommandAction::Switch(Workspace::Snippets),
             CommandAction::Switch(Workspace::Forwarding),
+            CommandAction::Switch(Workspace::Transfers),
             CommandAction::OpenSync,
         ];
         for host in self.config.connections.iter().filter(|h| {
@@ -1119,7 +1429,6 @@ impl EasySshApp {
                         } else {
                             "No metadata file exists on the remote branch.".into()
                         };
-                        ()
                     })
                     .map_err(|e| e.to_string()),
                 _ => GitSync::push(&mut self.config).map_err(|e| e.to_string()),
@@ -1164,10 +1473,27 @@ impl EasySshApp {
 
 impl eframe::App for EasySshApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        #[cfg(feature = "ui-test")]
+        if !self.test_ready {
+            if let Some(mode) = &self.test_mode {
+                mode.mark_ready();
+                self.test_ready = true;
+            }
+        }
+        #[cfg(feature = "ui-test")]
+        if self
+            .test_mode
+            .as_ref()
+            .is_some_and(ui_test::UiTestMode::stop_requested)
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            return;
+        }
         if let Some(text) = self.copy_text.take() {
             ctx.output_mut(|output| output.copied_text = text);
         }
-        apply_theme(ctx, self.config.theme, self.config.display_density);
+        crate::ui::theme::apply(ctx, self.config.theme, self.config.display_density);
+        self.poll_transfers(ctx);
         self.shortcuts(ctx);
         self.topbar(ctx);
         self.navigation(ctx);
@@ -1175,6 +1501,7 @@ impl eframe::App for EasySshApp {
             Workspace::Hosts => self.hosts(ctx),
             Workspace::Snippets => self.snippets(ctx),
             Workspace::Forwarding => self.forwarding(ctx),
+            Workspace::Transfers => self.transfers(ctx),
         };
         self.command_panel(ctx);
         self.host_editor(ctx);
@@ -1204,6 +1531,7 @@ impl CommandAction {
             Self::Switch(Workspace::Hosts) => "Go to Hosts".into(),
             Self::Switch(Workspace::Snippets) => "Go to Snippets".into(),
             Self::Switch(Workspace::Forwarding) => "Go to Port forwarding".into(),
+            Self::Switch(Workspace::Transfers) => "Go to Transfers".into(),
             Self::Host(_, name) => format!("Open host: {name}"),
             Self::Connect(_, name, false) => format!("Connect: {name}"),
             Self::Connect(_, name, true) => format!("Detailed log: {name}"),
@@ -1214,11 +1542,7 @@ impl CommandAction {
 }
 
 fn icon_button(ui: &mut egui::Ui, glyph: &str, tooltip: &str) -> egui::Response {
-    ui.add_sized(
-        [34.0, 33.0],
-        egui::Button::new(egui::RichText::new(glyph).size(19.0)),
-    )
-    .on_hover_text(tooltip)
+    crate::ui::components::icon_button(ui, glyph, tooltip)
 }
 fn section(ui: &mut egui::Ui, label: &str) {
     ui.add_space(10.0);
@@ -1311,6 +1635,18 @@ fn sync_status_label(status: SyncStatus) -> &'static str {
     }
 }
 
+fn transfer_status_badge(status: TransferStatus) -> (&'static str, egui::Color32) {
+    match status {
+        TransferStatus::Pending => ("Pending", AMBER),
+        TransferStatus::Authorizing => ("Authorizing", AMBER),
+        TransferStatus::Transferring => ("Transferring", BLUE),
+        TransferStatus::Completed => ("Completed", GREEN),
+        TransferStatus::Failed => ("Failed", RED),
+        TransferStatus::Cancelled => ("Cancelled", AMBER),
+    }
+}
+
+#[allow(dead_code)]
 fn apply_theme(ctx: &egui::Context, theme: Theme, density: DisplayDensity) {
     let scale = match density {
         DisplayDensity::Compact => 0.9,

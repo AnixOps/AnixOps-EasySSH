@@ -45,7 +45,18 @@
 
 ## P2
 
-- Status: not_started
+- Status: verified
+- Completed work: `ui-test` feature, isolated run directories, isolated config,
+  feature-gated ready metadata, app logs, token validation, graceful stop
+  request, MCP application lifecycle tools, and child-only cleanup.
+- Commands executed: feature-on and feature-off desktop checks; direct MCP
+  launch/status/log/stop session; ten consecutive launch/stop cycles; complete
+  P0 Rust verification sequence.
+- Test results: all ten native cycles returned `ready/stopped`; ready metadata
+  reported `EasySSH [UI Test]` at 1280x800; no MCP stderr output.
+- Artifacts: `artifacts/runs/run-*/` with config, data, logs, screenshots, and
+  metadata directories/files.
+- Known limitations: native UI tree, input, and screenshots are P3 work.
 
 ## P3
 
@@ -66,4 +77,4 @@
 
 ## Next action
 
-- Commit the verified P1 server, then implement P2 isolated application mode.
+- Commit the verified P2 lifecycle, then implement P3 UI Test Bridge.
