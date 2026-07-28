@@ -16,7 +16,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - run: cargo fmt --check
-      - run: cargo clippy --workspace -- -D warnings
-      - run: cargo test --workspace
-      - run: cargo build -p easyssh-desktop --release
+      - run: cargo run -p easyssh-test -- fmt
+      - run: cargo run -p easyssh-test -- clippy
+      - run: cargo run -p easyssh-test -- test
+      - run: cargo run -p easyssh-test -- build --profile release
