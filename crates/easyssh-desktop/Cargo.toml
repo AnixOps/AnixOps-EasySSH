@@ -1,0 +1,19 @@
+[package]
+name = "easyssh-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Cross-platform OpenSSH session manager"
+
+[[bin]]
+name = "easyssh"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+easyssh-core = { path = "../easyssh-core" }
+eframe.workspace = true
+egui.workspace = true
+uuid.workspace = true
