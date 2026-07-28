@@ -31,7 +31,17 @@
 
 ## P1
 
-- Status: not_started
+- Status: verified
+- Completed work: stdio JSON-RPC server with strict schemas; seven P1 tools;
+  queued task state, cancellation, timeout, serialized Cargo execution,
+  structured diagnostics, stdout isolation, and graceful EOF cancellation.
+- Commands executed: `cargo test -p easyssh-test`; direct `easyssh-mcp.exe`
+  stdio tests for discovery, queued formatting, status polling, invalid input,
+  cancellation, and shutdown; complete P0 Rust verification sequence.
+- Test results: seven `easyssh-test` tests passed. Direct MCP task completion
+  and cancellation both passed with empty server stderr.
+- Artifacts: redacted task logs under `artifacts/`.
+- Known limitations: native UI lifecycle and UI automation begin at P2.
 
 ## P2
 
@@ -56,4 +66,4 @@
 
 ## Next action
 
-- Commit the verified P0 foundation, then begin P1 MCP task management.
+- Commit the verified P1 server, then implement P2 isolated application mode.

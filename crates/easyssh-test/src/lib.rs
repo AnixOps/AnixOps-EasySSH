@@ -6,6 +6,8 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -39,6 +41,19 @@ pub struct RunOptions {
     pub json: bool,
     pub timeout: Duration,
     pub artifact_dir: PathBuf,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CancellationToken(Arc<AtomicBool>);
+
+impl CancellationToken {
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
 }
 
 impl RunOptions {
@@ -126,6 +141,14 @@ pub fn inspect(options: &RunOptions) -> Result<ResultDocument> {
 }
 
 pub fn run(operation: &str, options: &RunOptions) -> Result<ResultDocument> {
+    run_with_cancellation(operation, options, None)
+}
+
+pub fn run_with_cancellation(
+    operation: &str,
+    options: &RunOptions,
+    cancellation: Option<&CancellationToken>,
+) -> Result<ResultDocument> {
     let root = workspace_root()?;
     let (args, cargo_json) = match operation {
         "format_check" => (vec!["fmt", "--all", "--check"], false),
@@ -171,7 +194,7 @@ pub fn run(operation: &str, options: &RunOptions) -> Result<ResultDocument> {
         _ => bail!("operation is not allowlisted"),
     };
     let started = Instant::now();
-    let output = execute_cargo(&root, &args, options.timeout)?;
+    let output = execute_cargo(&root, &args, options.timeout, cancellation)?;
     let log = write_log(
         &options.artifact_dir,
         operation,
@@ -184,13 +207,22 @@ pub fn run(operation: &str, options: &RunOptions) -> Result<ResultDocument> {
         parse_plain_failure(&String::from_utf8_lossy(&output.stderr))
     };
     let timed_out = output.timed_out;
+    let cancelled = output.cancelled;
     Ok(ResultDocument {
-        success: output.success && !timed_out,
+        success: output.success && !timed_out && !cancelled,
         operation: operation.into(),
-        exit_code: if timed_out { 124 } else { output.exit_code },
+        exit_code: if timed_out {
+            124
+        } else if cancelled {
+            130
+        } else {
+            output.exit_code
+        },
         duration_ms: started.elapsed().as_millis(),
         summary: if timed_out {
             format!("{operation} timed out")
+        } else if cancelled {
+            format!("{operation} cancelled")
         } else if output.success {
             format!("{operation} completed")
         } else {
@@ -200,6 +232,8 @@ pub fn run(operation: &str, options: &RunOptions) -> Result<ResultDocument> {
         artifacts: vec![safe_path(&root, &log)],
         warnings: if timed_out {
             vec!["subprocess terminated after timeout".into()]
+        } else if cancelled {
+            vec!["subprocess terminated by cancellation".into()]
         } else {
             vec![]
         },
@@ -212,9 +246,15 @@ struct ProcessOutput {
     success: bool,
     exit_code: i32,
     timed_out: bool,
+    cancelled: bool,
 }
 
-fn execute_cargo(root: &Path, args: &[&str], timeout: Duration) -> Result<ProcessOutput> {
+fn execute_cargo(
+    root: &Path,
+    args: &[&str],
+    timeout: Duration,
+    cancellation: Option<&CancellationToken>,
+) -> Result<ProcessOutput> {
     let child = Command::new("cargo")
         .args(args)
         .current_dir(root)
@@ -228,10 +268,14 @@ fn execute_cargo(root: &Path, args: &[&str], timeout: Duration) -> Result<Proces
         .stderr(Stdio::piped())
         .spawn()
         .context("failed to start allowlisted cargo command")?;
-    wait_for_child(child, timeout)
+    wait_for_child(child, timeout, cancellation)
 }
 
-fn wait_for_child(mut child: Child, timeout: Duration) -> Result<ProcessOutput> {
+fn wait_for_child(
+    mut child: Child,
+    timeout: Duration,
+    cancellation: Option<&CancellationToken>,
+) -> Result<ProcessOutput> {
     let mut stdout = child.stdout.take().context("child stdout unavailable")?;
     let mut stderr = child.stderr.take().context("child stderr unavailable")?;
     let stdout_reader = thread::spawn(move || {
@@ -246,12 +290,18 @@ fn wait_for_child(mut child: Child, timeout: Duration) -> Result<ProcessOutput> 
     });
     let started = Instant::now();
     let mut timed_out = false;
+    let mut cancelled = false;
     let status = loop {
         if let Some(status) = child.try_wait()? {
             break status;
         }
         if started.elapsed() >= timeout {
             timed_out = true;
+            terminate_child(&mut child)?;
+            break child.wait()?;
+        }
+        if cancellation.is_some_and(CancellationToken::is_cancelled) {
+            cancelled = true;
             terminate_child(&mut child)?;
             break child.wait()?;
         }
@@ -263,6 +313,7 @@ fn wait_for_child(mut child: Child, timeout: Duration) -> Result<ProcessOutput> 
         success: status.success(),
         exit_code: status.code().unwrap_or(1),
         timed_out,
+        cancelled,
     })
 }
 
@@ -432,7 +483,7 @@ mod tests {
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        let output = wait_for_child(child, Duration::from_millis(50)).unwrap();
+        let output = wait_for_child(child, Duration::from_millis(50), None).unwrap();
         assert!(output.timed_out);
     }
 
