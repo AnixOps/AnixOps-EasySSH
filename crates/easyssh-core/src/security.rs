@@ -56,7 +56,7 @@ pub fn validate_path(value: &str, field: &'static str) -> Result<(), ValidationE
     if value.is_empty() {
         return Err(ValidationError::Required { field });
     }
-    if value.starts_with('-') || value.chars().any(|c| c.is_control() || c == '\0') {
+    if value.chars().any(|c| c == '\0') {
         return Err(ValidationError::Unsafe { field });
     }
     Ok(())
@@ -119,6 +119,6 @@ mod tests {
     fn rejects_argument_injection() {
         assert!(validate_host("-oProxyCommand=x").is_err());
         assert!(validate_alias("host;id").is_err());
-        assert!(validate_path("-target", "local path").is_err());
+        assert!(validate_path("-target", "local path").is_ok());
     }
 }

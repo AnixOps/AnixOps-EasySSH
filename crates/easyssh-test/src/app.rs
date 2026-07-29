@@ -114,6 +114,49 @@ pub fn launch_ui_test(workspace: &Path, timeout: Duration) -> Result<ManagedApp>
 }
 
 impl ManagedApp {
+    pub fn bridge(&mut self, mut request: Value, timeout: Duration) -> Result<Value> {
+        if self.child.try_wait()?.is_some() {
+            bail!("application is not running");
+        }
+        let response = self.root.join("bridge.response.json");
+        let _ = fs::remove_file(&response);
+        request["token"] = Value::String(self.token.clone());
+        fs::write(
+            self.root.join("bridge.request.json"),
+            serde_json::to_vec(&request)?,
+        )?;
+        let started = Instant::now();
+        while started.elapsed() < timeout {
+            if response.is_file() {
+                return Ok(serde_json::from_slice(&fs::read(&response)?)?);
+            }
+            if self.child.try_wait()?.is_some() {
+                bail!("application exited while handling bridge request");
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+        bail!("UI bridge request timed out")
+    }
+
+    pub fn take_screenshot(&mut self, name: &str, timeout: Duration) -> Result<String> {
+        let result = self.bridge(
+            serde_json::json!({"operation":"screenshot","name":name}),
+            timeout,
+        )?;
+        if !result["success"].as_bool().unwrap_or(false) {
+            bail!("screenshot request rejected");
+        }
+        let path = self.root.join("screenshots").join(format!("{name}.png"));
+        let started = Instant::now();
+        while started.elapsed() < timeout {
+            if path.is_file() && fs::metadata(&path)?.len() > 0 {
+                return Ok(relative(&crate::workspace_root()?, &path));
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+        bail!("window screenshot was not produced before timeout")
+    }
+
     pub fn get_status(&mut self) -> Result<AppStatus> {
         if self.child.try_wait()?.is_some() && self.status.state == "ready" {
             self.status.success = false;

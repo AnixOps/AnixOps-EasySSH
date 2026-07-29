@@ -85,6 +85,40 @@ impl SshInvocation {
             args,
         })
     }
+
+    /// Builds an invocation for a core-owned, fixed remote command. This path
+    /// deliberately excludes a connection's interactive remote command.
+    pub fn for_fixed_remote_command(
+        openssh: &OpenSsh,
+        connection: &Connection,
+        command: &'static str,
+    ) -> Result<Self, OpenSshError> {
+        validate_connection(connection)?;
+        let mut args = Vec::new();
+        match &connection.target {
+            ConnectionTarget::Alias { alias } => args.push(alias.clone()),
+            ConnectionTarget::Endpoint {
+                hostname,
+                username,
+                port,
+            } => {
+                args.extend(["-p".into(), port.to_string()]);
+                if let Some(username) = username {
+                    args.extend(["-l".into(), username.clone()]);
+                }
+                args.push(hostname.clone());
+            }
+        }
+        if let Some(jump) = &connection.proxy_jump {
+            validate_alias(jump)?;
+            args.splice(0..0, ["-J".to_owned(), jump.clone()]);
+        }
+        args.push(command.to_owned());
+        Ok(Self {
+            executable: openssh.ssh_path()?,
+            args,
+        })
+    }
 }
 
 fn validate_forward(value: &str) -> Result<String, OpenSshError> {
@@ -104,6 +138,9 @@ impl OpenSsh {
     }
     pub fn scp_path(&self) -> Result<PathBuf, OpenSshError> {
         find_on_path("scp").ok_or(OpenSshError::NotFound("scp"))
+    }
+    pub fn sftp_path(&self) -> Result<PathBuf, OpenSshError> {
+        find_on_path("sftp").ok_or(OpenSshError::NotFound("sftp"))
     }
     pub fn output(&self, invocation: &SshInvocation) -> Result<Output, OpenSshError> {
         Ok(Command::new(&invocation.executable)

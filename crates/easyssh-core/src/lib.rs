@@ -7,9 +7,11 @@
 pub mod config;
 pub mod domain;
 pub mod openssh;
+pub mod remote;
 pub mod security;
 pub mod sync;
 pub mod transfer;
+pub mod workspace;
 
 pub use config::{ConfigStore, MigrationReport};
 pub use domain::{
@@ -17,5 +19,16 @@ pub use domain::{
     SidebarNavigation, SidebarPreferences, TerminalPreferences, Theme, Workspace,
 };
 pub use openssh::{AgentDiagnostics, ExternalTerminal, OpenSsh, OpenSshError, SshInvocation};
+pub use remote::{
+    PosixRemoteAdapter, RemoteCapabilities, RemoteEntry, RemoteEntryType, RemoteFileError,
+    RemoteFileService, RemoteFileState, RemotePlatformAdapter, RemotePlatformKind,
+    UnsupportedRemoteAdapter, WindowsRemoteAdapter,
+};
 pub use sync::{GitSync, SyncError, SyncFile, SyncStatus};
-pub use transfer::{ScpInvocation, Transfer, TransferDirection, TransferStatus};
+pub use transfer::{
+    cancel, ScpInvocation, SftpListingInvocation, Transfer, TransferDirection, TransferStatus,
+};
+pub use workspace::{
+    inspect_text, remote_state_changed, EditSession, LineEnding, LocalFileInfo,
+    WorkspaceTempManager,
+};

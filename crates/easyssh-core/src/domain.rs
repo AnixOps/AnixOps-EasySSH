@@ -1,3 +1,4 @@
+use crate::transfer::Transfer;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,6 +13,8 @@ pub struct AppConfig {
     pub snippets: Vec<CommandSnippet>,
     #[serde(default)]
     pub sessions: Vec<SessionRecord>,
+    #[serde(default)]
+    pub transfer_history: Vec<Transfer>,
     #[serde(default)]
     pub workspace: Workspace,
     pub theme: Theme,
@@ -202,8 +205,10 @@ pub struct SessionRecord {
 pub enum Workspace {
     #[default]
     Hosts,
+    Files,
     Snippets,
     Forwarding,
+    Transfers,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

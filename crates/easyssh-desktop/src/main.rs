@@ -1,14 +1,21 @@
 use chrono::{DateTime, Utc};
 use easyssh_core::{
     cancel, AppConfig, CommandSnippet, ConfigStore, Connection, ConnectionTarget, DisplayDensity,
-    ExternalTerminal, GitSync, OpenSsh, ScpInvocation, SessionRecord, SshInvocation, SyncStatus,
-    Theme, Transfer, TransferDirection, TransferStatus, Workspace,
+    EditSession, ExternalTerminal, GitSync, LineEnding, OpenSsh, RemoteCapabilities, RemoteEntry,
+    RemoteEntryType, RemoteFileService, ScpInvocation, SessionRecord, SshInvocation, SyncStatus,
+    Theme, Transfer, TransferDirection, TransferStatus, Workspace, WorkspaceTempManager,
 };
 use eframe::egui;
 use egui_phosphor::regular as icon;
+#[cfg(feature = "ui-test")]
+use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::process::Child;
+use std::fs;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command};
+use std::thread::JoinHandle;
+use std::time::SystemTime;
 
 mod ui;
 #[cfg(feature = "ui-test")]
@@ -18,6 +25,90 @@ const BLUE: egui::Color32 = egui::Color32::from_rgb(111, 124, 255);
 const GREEN: egui::Color32 = crate::ui::tokens::DARK.success;
 const AMBER: egui::Color32 = crate::ui::tokens::DARK.warning;
 const RED: egui::Color32 = crate::ui::tokens::DARK.danger;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FileEditorStatus {
+    LocalModified,
+    SavedLocally,
+    CheckingRemote,
+    Uploading,
+    SavedRemotely,
+    Conflict,
+    UploadFailed,
+}
+
+#[derive(Debug, Clone)]
+struct LocalEntry {
+    path: PathBuf,
+    name: String,
+    is_directory: bool,
+    size: u64,
+}
+
+struct RunningTransfer {
+    child: Child,
+    stdout: JoinHandle<String>,
+    stderr: JoinHandle<String>,
+}
+
+fn read_scp_output(mut reader: impl Read + Send + 'static) -> JoinHandle<String> {
+    std::thread::spawn(move || {
+        const LIMIT: usize = 16 * 1024;
+        let mut bytes = Vec::new();
+        let _ = reader.by_ref().take(LIMIT as u64).read_to_end(&mut bytes);
+        String::from_utf8_lossy(&bytes).trim().to_owned()
+    })
+}
+
+fn running_transfer(mut child: Child) -> RunningTransfer {
+    let stdout = child.stdout.take().expect("scp stdout is piped");
+    let stderr = child.stderr.take().expect("scp stderr is piped");
+    RunningTransfer {
+        child,
+        stdout: read_scp_output(stdout),
+        stderr: read_scp_output(stderr),
+    }
+}
+
+fn finished_transfer_output(process: RunningTransfer) -> String {
+    let stdout = process.stdout.join().unwrap_or_default();
+    let stderr = process.stderr.join().unwrap_or_default();
+    match (stdout.is_empty(), stderr.is_empty()) {
+        (true, true) => String::new(),
+        (false, true) => stdout,
+        (true, false) => stderr,
+        (false, false) => format!("{stdout}\n{stderr}"),
+    }
+}
+
+fn wait_for_scp(child: Child) -> Result<(), easyssh_core::OpenSshError> {
+    let mut process = running_transfer(child);
+    let status = process.child.wait()?;
+    let output = finished_transfer_output(process);
+    if status.success() {
+        Ok(())
+    } else if output.is_empty() {
+        Err(easyssh_core::OpenSshError::Failed(
+            "system scp exited unsuccessfully".into(),
+        ))
+    } else {
+        Err(easyssh_core::OpenSshError::Failed(output))
+    }
+}
+
+impl FileEditorStatus {
+    fn label(self) -> &'static str {
+        match self {
+            Self::LocalModified => "Local modified",
+            Self::SavedLocally => "Saved to local working copy",
+            Self::CheckingRemote => "Checking remote",
+            Self::Uploading => "Uploading",
+            Self::SavedRemotely => "Saved remotely",
+            Self::Conflict => "Conflict: remote file changed",
+            Self::UploadFailed => "Upload failed",
+        }
+    }
+}
 
 fn main() -> eframe::Result<()> {
     #[cfg(feature = "ui-test")]
@@ -31,13 +122,21 @@ fn main() -> eframe::Result<()> {
     };
     #[cfg(not(feature = "ui-test"))]
     let title = "EasySSH";
+    #[cfg(feature = "ui-test")]
+    let mut viewport = egui::ViewportBuilder::default().with_min_inner_size([1200.0, 760.0]);
+    #[cfg(not(feature = "ui-test"))]
+    let viewport = egui::ViewportBuilder::default().with_min_inner_size([1200.0, 760.0]);
+    #[cfg(feature = "ui-test")]
+    if test_mode.is_some() {
+        viewport = viewport.with_inner_size([1280.0, 800.0]);
+    }
     eframe::run_native(
         title,
         eframe::NativeOptions {
             // Hosts uses a permanent three-column layout (navigation, object
             // list, inspector). Keep enough room for targets and toolbar
             // actions instead of allowing panels to collapse into each other.
-            viewport: egui::ViewportBuilder::default().with_min_inner_size([1200.0, 760.0]),
+            viewport,
             ..Default::default()
         },
         Box::new(move |cc| {
@@ -79,16 +178,55 @@ struct EasySshApp {
     copy_text: Option<String>,
     status: String,
     transfers: Vec<Transfer>,
-    transfer_children: HashMap<String, Child>,
+    transfer_children: HashMap<String, RunningTransfer>,
     transfer_connection: Option<String>,
     transfer_local_path: String,
     transfer_remote_path: String,
     transfer_recursive: bool,
     transfer_direction: TransferDirection,
+    remote_files: RemoteFileService,
+    files_connection: Option<String>,
+    files_path: String,
+    files_path_input: String,
+    files_filter: String,
+    files_hidden: bool,
+    files_entries: Vec<RemoteEntry>,
+    files_selected: Option<String>,
+    files_capabilities: Option<RemoteCapabilities>,
+    files_history: Vec<String>,
+    files_history_index: usize,
+    files_status: String,
+    temporary_workspace: Option<WorkspaceTempManager>,
+    file_edit_session: Option<EditSession>,
+    file_editor_text: String,
+    file_editor_status: FileEditorStatus,
+    file_editor_find: String,
+    file_editor_replace: String,
+    file_editor_match_index: usize,
+    file_editor_go_to_line: usize,
+    file_editor_cursor_line: usize,
+    file_editor_pending_selection: Option<(usize, usize)>,
+    file_editor_last_modified: Option<SystemTime>,
+    file_editor_external_change: Option<String>,
+    file_conflict_open: bool,
+    file_conflict_remote: Option<String>,
+    file_preview_image: Option<(String, egui::ColorImage)>,
+    file_preview_texture: Option<egui::TextureHandle>,
+    files_dual_pane: bool,
+    local_path: PathBuf,
+    local_entries: Vec<LocalEntry>,
+    local_selected: Option<PathBuf>,
+    files_create_dir_open: bool,
+    files_new_dir_name: String,
+    files_rename_open: bool,
+    files_rename_name: String,
+    files_delete_open: bool,
     #[cfg(feature = "ui-test")]
     test_mode: Option<ui_test::UiTestMode>,
     #[cfg(feature = "ui-test")]
     test_ready: bool,
+    #[cfg(feature = "ui-test")]
+    test_screenshot_path: Option<PathBuf>,
 }
 
 impl Default for EasySshApp {
@@ -100,7 +238,24 @@ impl Default for EasySshApp {
 
 impl EasySshApp {
     fn from_store(store: ConfigStore, inspect_agent: bool) -> Self {
-        let config = store.load().unwrap_or_else(|_| AppConfig::new());
+        let mut config = store.load().unwrap_or_else(|_| AppConfig::new());
+        let mut interrupted = 0usize;
+        for transfer in &mut config.transfer_history {
+            if matches!(
+                transfer.status,
+                TransferStatus::Queued
+                    | TransferStatus::Pending
+                    | TransferStatus::Authorizing
+                    | TransferStatus::Transferring
+            ) {
+                transfer.status = TransferStatus::Interrupted;
+                transfer.finished_at = Some(Utc::now());
+                transfer.output = "Interrupted because EasySSH was closed.".into();
+                interrupted += 1;
+            }
+        }
+        config.transfer_history.truncate(100);
+        let transfers = config.transfer_history.clone();
         let agent_available = inspect_agent
             .then(|| {
                 OpenSsh
@@ -130,18 +285,61 @@ impl EasySshApp {
             sync_open: false,
             agent_available,
             copy_text: None,
-            status: String::new(),
-            transfers: Vec::new(),
+            status: if interrupted == 0 {
+                String::new()
+            } else {
+                format!("{interrupted} active transfer(s) marked interrupted.")
+            },
+            transfers,
             transfer_children: HashMap::new(),
             transfer_connection: None,
             transfer_local_path: String::new(),
             transfer_remote_path: String::new(),
             transfer_recursive: false,
             transfer_direction: TransferDirection::Upload,
+            remote_files: RemoteFileService::new(OpenSsh),
+            files_connection: None,
+            files_path: "/".into(),
+            files_path_input: "/".into(),
+            files_filter: String::new(),
+            files_hidden: false,
+            files_entries: Vec::new(),
+            files_selected: None,
+            files_capabilities: None,
+            files_history: vec!["/".into()],
+            files_history_index: 0,
+            files_status: "Select a host to browse files.".into(),
+            temporary_workspace: None,
+            file_edit_session: None,
+            file_editor_text: String::new(),
+            file_editor_status: FileEditorStatus::SavedLocally,
+            file_editor_find: String::new(),
+            file_editor_replace: String::new(),
+            file_editor_match_index: 0,
+            file_editor_go_to_line: 1,
+            file_editor_cursor_line: 1,
+            file_editor_pending_selection: None,
+            file_editor_last_modified: None,
+            file_editor_external_change: None,
+            file_conflict_open: false,
+            file_conflict_remote: None,
+            file_preview_image: None,
+            file_preview_texture: None,
+            files_dual_pane: false,
+            local_path: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            local_entries: Vec::new(),
+            local_selected: None,
+            files_create_dir_open: false,
+            files_new_dir_name: String::new(),
+            files_rename_open: false,
+            files_rename_name: String::new(),
+            files_delete_open: false,
             #[cfg(feature = "ui-test")]
             test_mode: None,
             #[cfg(feature = "ui-test")]
             test_ready: false,
+            #[cfg(feature = "ui-test")]
+            test_screenshot_path: None,
         }
     }
 
@@ -222,48 +420,85 @@ impl EasySshApp {
     }
 
     fn start_transfer(&mut self) {
-        let Some(connection) = self
-            .transfer_connection
-            .as_ref()
-            .and_then(|id| self.config.connections.iter().find(|item| &item.id == id))
-            .cloned()
-        else {
+        if self.transfer_connection.is_none() {
             self.status = "Select a host before starting a transfer.".into();
             return;
-        };
+        }
         let mut transfer = Transfer::new(
             self.transfer_direction,
             PathBuf::from(self.transfer_local_path.trim()),
             self.transfer_remote_path.trim().to_owned(),
             self.transfer_recursive,
         );
-        transfer.status = TransferStatus::Authorizing;
+        transfer.status = TransferStatus::Queued;
         transfer.started_at = Some(Utc::now());
-        match ScpInvocation::build(&self.openssh, &connection, &transfer)
-            .and_then(|invocation| invocation.spawn())
-        {
-            Ok(child) => {
-                self.transfer_children.insert(transfer.id.clone(), child);
-                self.transfers.insert(0, transfer);
-                self.status = "Transfer started in the system OpenSSH environment.".into();
-            }
-            Err(error) => {
+        self.transfers.insert(0, transfer);
+        self.pump_transfers();
+        self.persist_transfer_history();
+    }
+
+    fn persist_transfer_history(&mut self) {
+        self.transfers.truncate(100);
+        self.config.transfer_history = self.transfers.clone();
+        self.save();
+    }
+
+    fn pump_transfers(&mut self) {
+        while self.transfer_children.len() < 2 {
+            let Some(index) = self
+                .transfers
+                .iter()
+                .position(|item| item.status == TransferStatus::Queued)
+            else {
+                break;
+            };
+            let mut transfer = self.transfers[index].clone();
+            let Some(connection) = self
+                .transfer_connection
+                .as_ref()
+                .and_then(|id| self.config.connections.iter().find(|item| &item.id == id))
+                .cloned()
+            else {
                 transfer.status = TransferStatus::Failed;
-                transfer.finished_at = Some(Utc::now());
-                transfer.output = error.to_string();
-                self.status = transfer.output.clone();
-                self.transfers.insert(0, transfer);
+                transfer.output = "Select a host before starting a transfer.".into();
+                self.transfers[index] = transfer;
+                continue;
+            };
+            transfer.status = TransferStatus::Authorizing;
+            match ScpInvocation::build(&self.openssh, &connection, &transfer)
+                .and_then(|invocation| invocation.spawn())
+            {
+                Ok(child) => {
+                    self.transfer_children
+                        .insert(transfer.id.clone(), running_transfer(child));
+                    self.transfers[index] = transfer;
+                    self.status = "Waiting for system SSH Agent authorization.".into();
+                }
+                Err(error) => {
+                    transfer.status = TransferStatus::Failed;
+                    transfer.finished_at = Some(Utc::now());
+                    transfer.output = error.to_string();
+                    self.transfers[index] = transfer;
+                }
             }
         }
     }
 
     fn poll_transfers(&mut self, ctx: &egui::Context) {
         let active: Vec<String> = self.transfer_children.keys().cloned().collect();
+        let mut changed = false;
         for id in active {
-            let result = self.transfer_children.get_mut(&id).map(Child::try_wait);
+            let result = self
+                .transfer_children
+                .get_mut(&id)
+                .map(|process| process.child.try_wait());
             match result {
                 Some(Ok(Some(exit))) => {
-                    self.transfer_children.remove(&id);
+                    let output = self
+                        .transfer_children
+                        .remove(&id)
+                        .map(finished_transfer_output)
+                        .unwrap_or_default();
                     if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
                         transfer.finished_at = Some(Utc::now());
                         transfer.status = if exit.success() {
@@ -271,12 +506,18 @@ impl EasySshApp {
                         } else {
                             TransferStatus::Failed
                         };
-                        transfer.output = if exit.success() {
+                        transfer.output = if exit.success() && output.is_empty() {
                             "Completed".into()
-                        } else {
+                        } else if exit.success() {
+                            output
+                        } else if output.is_empty() {
                             "The system scp process exited unsuccessfully.".into()
+                        } else {
+                            output
                         };
                     }
+                    self.pump_transfers();
+                    changed = true;
                 }
                 Some(Ok(None)) => {
                     if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
@@ -284,12 +525,22 @@ impl EasySshApp {
                     }
                 }
                 Some(Err(error)) => {
-                    self.transfer_children.remove(&id);
+                    let output = self
+                        .transfer_children
+                        .remove(&id)
+                        .map(finished_transfer_output)
+                        .unwrap_or_default();
                     if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
                         transfer.status = TransferStatus::Failed;
                         transfer.finished_at = Some(Utc::now());
-                        transfer.output = error.to_string();
+                        transfer.output = if output.is_empty() {
+                            error.to_string()
+                        } else {
+                            output
+                        };
                     }
+                    self.pump_transfers();
+                    changed = true;
                 }
                 None => {}
             }
@@ -297,16 +548,681 @@ impl EasySshApp {
         if !self.transfer_children.is_empty() {
             ctx.request_repaint_after(std::time::Duration::from_millis(250));
         }
+        if changed {
+            self.persist_transfer_history();
+        }
     }
 
     fn cancel_transfer(&mut self, id: &str) {
-        if let Some(mut child) = self.transfer_children.remove(id) {
-            let _ = cancel(&mut child);
+        if let Some(mut process) = self.transfer_children.remove(id) {
+            let _ = cancel(&mut process.child);
+            let _ = finished_transfer_output(process);
         }
         if let Some(transfer) = self.transfers.iter_mut().find(|item| item.id == id) {
             transfer.status = TransferStatus::Cancelled;
             transfer.finished_at = Some(Utc::now());
             transfer.output = "Cancelled by user.".into();
+        }
+        self.persist_transfer_history();
+    }
+
+    fn files_connection_record(&self) -> Option<Connection> {
+        self.files_connection
+            .as_ref()
+            .and_then(|id| self.config.connections.iter().find(|item| &item.id == id))
+            .cloned()
+    }
+
+    fn refresh_files(&mut self, record_history: bool) {
+        let Some(connection) = self.files_connection_record() else {
+            self.files_status = "Select a host to browse files.".into();
+            return;
+        };
+        let capabilities = match self.files_capabilities.clone() {
+            Some(value) => value,
+            None => match self.remote_files.detect_capabilities(&connection) {
+                Ok(value) => {
+                    self.files_capabilities = Some(value.clone());
+                    value
+                }
+                Err(error) => {
+                    self.files_status = format!("Capability detection failed: {error}");
+                    return;
+                }
+            },
+        };
+        match self.remote_files.list_dir(
+            &connection,
+            &capabilities,
+            &self.files_path,
+            self.files_hidden,
+        ) {
+            Ok(entries) => {
+                self.files_entries = entries;
+                self.files_status = format!("{} entries", self.files_entries.len());
+                if record_history {
+                    self.files_history.truncate(self.files_history_index + 1);
+                    if self.files_history.last() != Some(&self.files_path) {
+                        self.files_history.push(self.files_path.clone());
+                    }
+                    self.files_history_index = self.files_history.len().saturating_sub(1);
+                }
+            }
+            Err(error) => self.files_status = error.to_string(),
+        }
+    }
+
+    fn open_files_path(&mut self, path: String) {
+        self.files_path = path;
+        self.files_path_input = self.files_path.clone();
+        self.files_selected = None;
+        self.refresh_files(true);
+    }
+
+    fn files_go_up(&mut self) {
+        let path = self.files_path.trim_end_matches('/');
+        let parent = path
+            .rsplit_once('/')
+            .map(|(prefix, _)| prefix)
+            .unwrap_or("");
+        self.open_files_path(if parent.is_empty() {
+            "/".into()
+        } else {
+            parent.into()
+        });
+    }
+
+    fn files_select_host(&mut self, id: String) {
+        self.files_connection = Some(id);
+        self.files_capabilities = None;
+        self.files_path = "/".into();
+        self.files_path_input = "/".into();
+        self.files_history = vec!["/".into()];
+        self.files_history_index = 0;
+        self.refresh_files(false);
+    }
+
+    fn refresh_local_files(&mut self) {
+        let entries = fs::read_dir(&self.local_path)
+            .map(|items| {
+                items
+                    .filter_map(Result::ok)
+                    .filter_map(|item| {
+                        let metadata = item.metadata().ok()?;
+                        Some(LocalEntry {
+                            name: item.file_name().to_string_lossy().into_owned(),
+                            path: item.path(),
+                            is_directory: metadata.is_dir(),
+                            size: metadata.len(),
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        self.local_entries = entries;
+        self.local_entries
+            .sort_by_cached_key(|entry| (!entry.is_directory, entry.name.to_lowercase()));
+    }
+
+    fn queue_local_upload(&mut self, path: &Path) {
+        if self.files_connection.is_none() {
+            self.files_status = "Select a remote host before uploading.".into();
+            return;
+        }
+        self.transfer_connection = self.files_connection.clone();
+        self.transfer_local_path = path.to_string_lossy().into_owned();
+        self.transfer_remote_path = self.files_path.clone();
+        self.transfer_direction = TransferDirection::Upload;
+        self.transfer_recursive = path.is_dir();
+        self.config.workspace = Workspace::Transfers;
+    }
+
+    fn queue_remote_download(&mut self, remote_path: String) {
+        self.transfer_connection = self.files_connection.clone();
+        self.transfer_local_path = self.local_path.to_string_lossy().into_owned();
+        self.transfer_remote_path = remote_path;
+        self.transfer_direction = TransferDirection::Download;
+        self.transfer_recursive = false;
+        self.config.workspace = Workspace::Transfers;
+    }
+
+    fn remote_operation_context(&self) -> Option<(Connection, RemoteCapabilities)> {
+        Some((
+            self.files_connection_record()?,
+            self.files_capabilities.clone()?,
+        ))
+    }
+
+    fn create_remote_directory(&mut self) {
+        let name = self.files_new_dir_name.trim();
+        if name.is_empty() || name.contains(['/', '\\', '\0']) || name == "." || name == ".." {
+            self.files_status = "Enter a single directory name without path separators.".into();
+            return;
+        }
+        let Some((connection, capabilities)) = self.remote_operation_context() else {
+            self.files_status = "Select and refresh a host before creating a directory.".into();
+            return;
+        };
+        let path = remote_child_path(&self.files_path, name);
+        match self
+            .remote_files
+            .create_dir(&connection, &capabilities, &path)
+        {
+            Ok(()) => {
+                self.files_create_dir_open = false;
+                self.files_new_dir_name.clear();
+                self.refresh_files(false);
+            }
+            Err(error) => self.files_status = error.to_string(),
+        }
+    }
+
+    fn rename_selected_remote(&mut self) {
+        let name = self.files_rename_name.trim();
+        if name.is_empty() || name.contains(['/', '\\', '\0']) || name == "." || name == ".." {
+            self.files_status = "Enter a single new name without path separators.".into();
+            return;
+        }
+        let Some(source) = self.files_selected.clone() else {
+            return;
+        };
+        let Some((connection, capabilities)) = self.remote_operation_context() else {
+            self.files_status = "Select and refresh a host before renaming.".into();
+            return;
+        };
+        let destination = remote_child_path(&self.files_path, name);
+        match self
+            .remote_files
+            .rename(&connection, &capabilities, &source, &destination)
+        {
+            Ok(()) => {
+                self.files_rename_open = false;
+                self.files_selected = None;
+                self.refresh_files(false);
+            }
+            Err(error) => self.files_status = error.to_string(),
+        }
+    }
+
+    fn delete_selected_remote(&mut self) {
+        let Some(entry) = self
+            .files_selected
+            .as_ref()
+            .and_then(|path| self.files_entries.iter().find(|entry| &entry.path == path))
+            .cloned()
+        else {
+            return;
+        };
+        let Some((connection, capabilities)) = self.remote_operation_context() else {
+            self.files_status = "Select and refresh a host before deleting.".into();
+            return;
+        };
+        let result = if entry.entry_type == RemoteEntryType::Directory {
+            self.remote_files
+                .remove_dir(&connection, &capabilities, &entry.path)
+        } else {
+            self.remote_files
+                .remove_file(&connection, &capabilities, &entry.path)
+        };
+        match result {
+            Ok(()) => {
+                self.files_delete_open = false;
+                self.files_selected = None;
+                self.refresh_files(false);
+            }
+            Err(error) => self.files_status = error.to_string(),
+        }
+    }
+
+    fn open_remote_text_file(&mut self, path: String) {
+        let Some(connection) = self.files_connection_record() else {
+            self.files_status = "Select a host to open a file.".into();
+            return;
+        };
+        let Some(capabilities) = self.files_capabilities.clone() else {
+            self.files_status = "Refresh the directory before opening a file.".into();
+            return;
+        };
+        let mut initial_remote = match self.remote_files.stat(&connection, &capabilities, &path) {
+            Ok(state) => state,
+            Err(error) => {
+                self.files_status = error.to_string();
+                return;
+            }
+        };
+        if capabilities.has_sha256 {
+            initial_remote.sha256 = self
+                .remote_files
+                .calculate_hash(&connection, &capabilities, &path)
+                .ok();
+        }
+        let workspace = match self.temporary_workspace.as_ref() {
+            Some(workspace) => workspace,
+            None => match WorkspaceTempManager::create() {
+                Ok(workspace) => {
+                    self.temporary_workspace = Some(workspace);
+                    self.temporary_workspace
+                        .as_ref()
+                        .expect("workspace inserted")
+                }
+                Err(error) => {
+                    self.files_status = format!("Unable to create local working copy: {error}");
+                    return;
+                }
+            },
+        };
+        let mut session = match workspace.create_session(&path, initial_remote) {
+            Ok(session) => session,
+            Err(error) => {
+                self.files_status = format!("Unable to create local working copy: {error}");
+                return;
+            }
+        };
+        let transfer = Transfer::new(
+            TransferDirection::Download,
+            session.local_path.clone(),
+            path,
+            false,
+        );
+        let result = ScpInvocation::build(&self.openssh, &connection, &transfer)
+            .and_then(|invocation| invocation.spawn())
+            .and_then(wait_for_scp);
+        if let Err(error) = result {
+            self.files_status = format!("Download failed: {error}");
+            return;
+        }
+        let bytes = match fs::read(&session.local_path) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.files_status = format!("Unable to read downloaded working copy: {error}");
+                return;
+            }
+        };
+        if bytes.len() > 2 * 1024 * 1024 {
+            self.files_status = "File is larger than the 2 MiB editor protection limit.".into();
+            return;
+        }
+        session.file_info = easyssh_core::inspect_text(&bytes);
+        if session.file_info.is_binary {
+            self.files_status = "Binary file downloaded but not opened in the text editor.".into();
+            return;
+        }
+        let content = match String::from_utf8(bytes) {
+            Ok(content) => content,
+            Err(_) => {
+                self.files_status = "The file is not UTF-8 text; use Download instead.".into();
+                return;
+            }
+        };
+        self.file_editor_text = content;
+        if let Err(error) = fs::copy(&session.local_path, &session.base_path) {
+            self.files_status = format!("Unable to preserve initial working copy: {error}");
+            return;
+        }
+        self.file_edit_session = Some(session);
+        self.file_editor_status = FileEditorStatus::SavedLocally;
+        self.file_editor_find.clear();
+        self.file_editor_replace.clear();
+        self.file_editor_match_index = 0;
+        self.file_editor_go_to_line = 1;
+        self.file_editor_cursor_line = 1;
+        self.file_editor_pending_selection = None;
+        self.file_editor_external_change = None;
+        self.file_editor_last_modified = self
+            .file_edit_session
+            .as_ref()
+            .and_then(|session| fs::metadata(&session.local_path).ok())
+            .and_then(|metadata| metadata.modified().ok());
+        self.files_status = "Opened a local working copy downloaded with system scp.".into();
+    }
+
+    fn open_remote_image_preview(&mut self, path: String) {
+        let Some(connection) = self.files_connection_record() else {
+            self.files_status = "Select a host to preview a file.".into();
+            return;
+        };
+        let Some(capabilities) = self.files_capabilities.clone() else {
+            self.files_status = "Refresh the directory before previewing a file.".into();
+            return;
+        };
+        let state = match self.remote_files.stat(&connection, &capabilities, &path) {
+            Ok(state) => state,
+            Err(error) => {
+                self.files_status = error.to_string();
+                return;
+            }
+        };
+        if state.size > 5 * 1024 * 1024 {
+            self.files_status = "Image preview is limited to files smaller than 5 MiB.".into();
+            return;
+        }
+        let workspace = match self.temporary_workspace.as_ref() {
+            Some(workspace) => workspace,
+            None => match WorkspaceTempManager::create() {
+                Ok(workspace) => {
+                    self.temporary_workspace = Some(workspace);
+                    self.temporary_workspace
+                        .as_ref()
+                        .expect("workspace inserted")
+                }
+                Err(error) => {
+                    self.files_status = format!("Unable to create preview copy: {error}");
+                    return;
+                }
+            },
+        };
+        let session = match workspace.create_session(&path, state) {
+            Ok(session) => session,
+            Err(error) => {
+                self.files_status = format!("Unable to create preview copy: {error}");
+                return;
+            }
+        };
+        let transfer = Transfer::new(
+            TransferDirection::Download,
+            session.local_path.clone(),
+            path.clone(),
+            false,
+        );
+        let result = ScpInvocation::build(&self.openssh, &connection, &transfer)
+            .and_then(|invocation| invocation.spawn())
+            .and_then(wait_for_scp);
+        if let Err(error) = result {
+            self.files_status = format!("Preview download failed: {error}");
+            return;
+        }
+        let bytes = match fs::read(&session.local_path) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.files_status = format!("Unable to read preview copy: {error}");
+                return;
+            }
+        };
+        match image::load_from_memory(&bytes) {
+            Ok(image) => {
+                let image = image.to_rgba8();
+                let dimensions = [image.width() as usize, image.height() as usize];
+                self.file_preview_image = Some((
+                    path,
+                    egui::ColorImage::from_rgba_unmultiplied(dimensions, image.as_raw()),
+                ));
+                self.file_preview_texture = None;
+                self.files_status = "Image preview downloaded with system scp.".into();
+            }
+            Err(error) => self.files_status = format!("Unsupported image: {error}"),
+        }
+    }
+
+    fn open_editor_in_system_app(&mut self) {
+        let Some(session) = &self.file_edit_session else {
+            return;
+        };
+        let result = if cfg!(windows) {
+            Command::new("explorer.exe")
+                .arg(&session.local_path)
+                .spawn()
+        } else if cfg!(target_os = "macos") {
+            Command::new("open").arg(&session.local_path).spawn()
+        } else {
+            Command::new("xdg-open").arg(&session.local_path).spawn()
+        };
+        if let Err(error) = result {
+            self.files_status = format!("Unable to open the local working copy: {error}");
+        }
+    }
+
+    fn save_editor_locally(&mut self) -> bool {
+        let Some(session) = &self.file_edit_session else {
+            return false;
+        };
+        let text = match session.file_info.line_ending {
+            LineEnding::Lf => self.file_editor_text.clone(),
+            LineEnding::Crlf => self
+                .file_editor_text
+                .replace("\r\n", "\n")
+                .replace('\n', "\r\n"),
+        };
+        match fs::write(&session.local_path, text) {
+            Ok(()) => {
+                self.file_editor_status = FileEditorStatus::SavedLocally;
+                self.file_editor_last_modified = fs::metadata(&session.local_path)
+                    .ok()
+                    .and_then(|metadata| metadata.modified().ok());
+                true
+            }
+            Err(error) => {
+                self.file_editor_status = FileEditorStatus::UploadFailed;
+                self.files_status = format!("Unable to save local working copy: {error}");
+                false
+            }
+        }
+    }
+
+    fn editor_text_for_local_copy(&self) -> String {
+        let line_ending = self
+            .file_edit_session
+            .as_ref()
+            .map(|session| session.file_info.line_ending)
+            .unwrap_or(LineEnding::Lf);
+        match line_ending {
+            LineEnding::Lf => self.file_editor_text.clone(),
+            LineEnding::Crlf => self
+                .file_editor_text
+                .replace("\r\n", "\n")
+                .replace('\n', "\r\n"),
+        }
+    }
+
+    fn find_editor_matches(&self) -> Vec<(usize, usize)> {
+        if self.file_editor_find.is_empty() {
+            return Vec::new();
+        }
+        self.file_editor_text
+            .match_indices(&self.file_editor_find)
+            .map(|(start, matched)| {
+                let start = self.file_editor_text[..start].chars().count();
+                (start, start + matched.chars().count())
+            })
+            .collect()
+    }
+
+    fn select_editor_match(&mut self, backwards: bool) {
+        let matches = self.find_editor_matches();
+        if matches.is_empty() {
+            self.file_editor_match_index = 0;
+            self.files_status = "No matching text in this working copy.".into();
+            return;
+        }
+        if backwards {
+            self.file_editor_match_index = if self.file_editor_match_index == 0 {
+                matches.len() - 1
+            } else {
+                self.file_editor_match_index - 1
+            };
+        } else {
+            self.file_editor_match_index = (self.file_editor_match_index + 1) % matches.len();
+        }
+        self.file_editor_pending_selection = Some(matches[self.file_editor_match_index]);
+    }
+
+    fn replace_all_editor_matches(&mut self) {
+        if self.file_editor_find.is_empty() {
+            return;
+        }
+        let count = self
+            .file_editor_text
+            .matches(&self.file_editor_find)
+            .count();
+        if count == 0 {
+            self.files_status = "No matching text to replace.".into();
+            return;
+        }
+        self.file_editor_text = self
+            .file_editor_text
+            .replace(&self.file_editor_find, &self.file_editor_replace);
+        self.file_editor_status = FileEditorStatus::LocalModified;
+        self.file_editor_match_index = 0;
+        self.files_status = format!("Replaced {count} match(es) in the local working copy.");
+    }
+
+    fn go_to_editor_line(&mut self) {
+        let line_count = self.file_editor_text.lines().count().max(1);
+        let target_line = self.file_editor_go_to_line.clamp(1, line_count);
+        self.file_editor_go_to_line = target_line;
+        let character_index = self
+            .file_editor_text
+            .split_inclusive('\n')
+            .take(target_line.saturating_sub(1))
+            .map(|line| line.chars().count())
+            .sum();
+        self.file_editor_pending_selection = Some((character_index, character_index));
+    }
+
+    fn check_external_editor_change(&mut self) {
+        let Some(session) = self.file_edit_session.as_ref() else {
+            return;
+        };
+        let Some(modified) = fs::metadata(&session.local_path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok())
+        else {
+            return;
+        };
+        if self.file_editor_last_modified == Some(modified) {
+            return;
+        }
+        self.file_editor_last_modified = Some(modified);
+        let Ok(bytes) = fs::read(&session.local_path) else {
+            return;
+        };
+        let info = easyssh_core::inspect_text(&bytes);
+        if info.is_binary {
+            self.files_status =
+                "External editor wrote unsupported non-UTF-8 or binary content.".into();
+            return;
+        }
+        let Ok(text) = String::from_utf8(bytes) else {
+            self.files_status =
+                "External editor wrote unsupported non-UTF-8 or binary content.".into();
+            return;
+        };
+        if text == self.editor_text_for_local_copy() {
+            return;
+        }
+        if self.file_editor_status == FileEditorStatus::LocalModified {
+            self.file_editor_external_change = Some(text);
+            self.files_status =
+                "External editor changed the working copy; choose which local version to keep."
+                    .into();
+        } else {
+            self.file_editor_text = text;
+            self.file_editor_status = FileEditorStatus::SavedLocally;
+            self.files_status =
+                "External editor saved the local working copy. Upload changes when ready.".into();
+        }
+    }
+
+    fn download_remote_text_for_conflict(
+        &mut self,
+        connection: &Connection,
+        remote_path: &str,
+        state: easyssh_core::RemoteFileState,
+    ) -> Option<String> {
+        let workspace = self.temporary_workspace.as_ref()?;
+        let session = workspace.create_session(remote_path, state).ok()?;
+        let transfer = Transfer::new(
+            TransferDirection::Download,
+            session.local_path.clone(),
+            remote_path.to_owned(),
+            false,
+        );
+        ScpInvocation::build(&self.openssh, connection, &transfer)
+            .and_then(|invocation| invocation.spawn())
+            .and_then(wait_for_scp)
+            .ok()?;
+        let bytes = fs::read(session.local_path).ok()?;
+        if bytes.len() > 2 * 1024 * 1024 || easyssh_core::inspect_text(&bytes).is_binary {
+            return None;
+        }
+        String::from_utf8(bytes).ok()
+    }
+
+    fn upload_editor_changes(&mut self) {
+        let Some(session) = self.file_edit_session.clone() else {
+            return;
+        };
+        let Some(connection) = self.files_connection_record() else {
+            self.file_editor_status = FileEditorStatus::UploadFailed;
+            return;
+        };
+        let Some(capabilities) = self.files_capabilities.clone() else {
+            self.file_editor_status = FileEditorStatus::UploadFailed;
+            return;
+        };
+        if !self.save_editor_locally() {
+            return;
+        }
+        self.file_editor_status = FileEditorStatus::CheckingRemote;
+        let mut current =
+            match self
+                .remote_files
+                .stat(&connection, &capabilities, &session.remote_path)
+            {
+                Ok(state) => state,
+                Err(error) => {
+                    self.file_editor_status = FileEditorStatus::Conflict;
+                    self.files_status =
+                        format!("Remote file is no longer safe to overwrite: {error}");
+                    return;
+                }
+            };
+        if session.initial_remote.sha256.is_some() {
+            current.sha256 = self
+                .remote_files
+                .calculate_hash(&connection, &capabilities, &session.remote_path)
+                .ok();
+        }
+        if easyssh_core::remote_state_changed(&session.initial_remote, &current) {
+            self.file_editor_status = FileEditorStatus::Conflict;
+            self.file_conflict_remote =
+                self.download_remote_text_for_conflict(&connection, &session.remote_path, current);
+            self.file_conflict_open = true;
+            self.files_status =
+                "Remote file changed since it was downloaded. Local changes were preserved.".into();
+            return;
+        }
+        let temporary_path = remote_temporary_sibling(&session.remote_path, &session.id);
+        let transfer = Transfer::new(
+            TransferDirection::Upload,
+            session.local_path.clone(),
+            temporary_path.clone(),
+            false,
+        );
+        self.file_editor_status = FileEditorStatus::Uploading;
+        let result = ScpInvocation::build(&self.openssh, &connection, &transfer)
+            .and_then(|invocation| invocation.spawn())
+            .and_then(wait_for_scp)
+            .and_then(|_| {
+                self.remote_files
+                    .atomic_replace(
+                        &connection,
+                        &capabilities,
+                        &temporary_path,
+                        &session.remote_path,
+                    )
+                    .map_err(|error| easyssh_core::OpenSshError::Failed(error.to_string()))
+            });
+        match result {
+            Ok(()) => {
+                self.file_editor_status = FileEditorStatus::SavedRemotely;
+                self.files_status = "Saved remotely using a same-directory temporary file.".into();
+                self.refresh_files(false);
+            }
+            Err(error) => {
+                self.file_editor_status = FileEditorStatus::UploadFailed;
+                self.files_status =
+                    format!("Upload failed; the local working copy was retained: {error}");
+            }
         }
     }
 
@@ -471,6 +1387,7 @@ impl EasySshApp {
                 ui.label(egui::RichText::new("WORKSPACES").small().weak());
                 ui.add_space(4.0);
                 self.workspace_button(ui, Workspace::Hosts, icon::COMPUTER_TOWER, "Hosts");
+                self.workspace_button(ui, Workspace::Files, icon::FOLDER_OPEN, "Files");
                 self.workspace_button(ui, Workspace::Snippets, icon::CODE, "Snippets");
                 self.workspace_button(
                     ui,
@@ -877,11 +1794,9 @@ impl EasySshApp {
                     );
                     ui.label("No transfers yet");
                     ui.label(
-                        egui::RichText::new(
-                            "Transfer records are kept only while this app is open.",
-                        )
-                        .small()
-                        .weak(),
+                        egui::RichText::new("Transfer history is kept locally on this device.")
+                            .small()
+                            .weak(),
                     );
                 });
                 return;
@@ -915,6 +1830,7 @@ impl EasySshApp {
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             match transfer.status {
+                                TransferStatus::Queued => {}
                                 TransferStatus::Pending
                                 | TransferStatus::Authorizing
                                 | TransferStatus::Transferring => {
@@ -922,7 +1838,9 @@ impl EasySshApp {
                                         cancel_id = Some(transfer.id.clone());
                                     }
                                 }
-                                TransferStatus::Failed | TransferStatus::Cancelled => {
+                                TransferStatus::Failed
+                                | TransferStatus::Cancelled
+                                | TransferStatus::Interrupted => {
                                     if icon_button(
                                         ui,
                                         icon::ARROW_CLOCKWISE,
@@ -954,6 +1872,432 @@ impl EasySshApp {
                 }
                 self.status = "Review the transfer form and start the retry.".into();
             }
+        });
+    }
+
+    fn files(&mut self, ctx: &egui::Context) {
+        self.check_external_editor_change();
+        egui::SidePanel::left("files_sources")
+            .resizable(true)
+            .default_width(220.0)
+            .show(ctx, |ui| {
+                ui.heading("Files");
+                ui.label(egui::RichText::new("HOSTS").small().weak());
+                let hosts = self.config.connections.clone();
+                for host in hosts {
+                    let selected = self.files_connection.as_deref() == Some(&host.id);
+                    if ui
+                        .selectable_label(selected, format!("{}  {}", icon::HARD_DRIVES, host.name))
+                        .clicked()
+                    {
+                        self.files_select_host(host.id);
+                    }
+                }
+                ui.separator();
+                ui.label(egui::RichText::new("FAVORITES").small().weak());
+                ui.label(
+                    egui::RichText::new("No favorite directories")
+                        .small()
+                        .weak(),
+                );
+                ui.separator();
+                ui.label(egui::RichText::new("RECENT").small().weak());
+                for path in self.files_history.iter().rev().take(5) {
+                    ui.label(egui::RichText::new(path).small().monospace());
+                }
+            });
+        egui::SidePanel::right("files_inspector")
+            .resizable(true)
+            .default_width(260.0)
+            .show(ctx, |ui| {
+                if self.files_dual_pane {
+                    ui.heading("Local files");
+                    ui.label(
+                        egui::RichText::new(self.local_path.to_string_lossy())
+                            .small()
+                            .monospace(),
+                    );
+                    ui.horizontal(|ui| {
+                        if icon_button(ui, icon::ARROW_UP, "Parent directory").clicked() {
+                            if let Some(parent) = self.local_path.parent() {
+                                self.local_path = parent.to_path_buf();
+                                self.refresh_local_files();
+                            }
+                        }
+                        if icon_button(ui, icon::ARROW_CLOCKWISE, "Refresh local files").clicked() {
+                            self.refresh_local_files();
+                        }
+                        if let Some(selected) = self.local_selected.clone() {
+                            if ui.button("Upload").clicked() {
+                                self.queue_local_upload(&selected);
+                            }
+                        }
+                    });
+                    ui.separator();
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for entry in self.local_entries.clone() {
+                            let glyph = if entry.is_directory {
+                                icon::FOLDER
+                            } else {
+                                icon::FILE
+                            };
+                            let selected = self.local_selected.as_ref() == Some(&entry.path);
+                            let response = ui.selectable_label(
+                                selected,
+                                format!("{}  {}  {}", glyph, entry.name, format_bytes(entry.size)),
+                            );
+                            if response.clicked() {
+                                self.local_selected = Some(entry.path.clone());
+                            }
+                            if response.double_clicked() && entry.is_directory {
+                                self.local_path = entry.path;
+                                self.local_selected = None;
+                                self.refresh_local_files();
+                            }
+                        }
+                    });
+                } else {
+                    ui.heading("Properties");
+                    if let Some(selected) = self.files_selected.as_ref().and_then(|path| {
+                        self.files_entries.iter().find(|entry| &entry.path == path)
+                    }) {
+                        ui.label(egui::RichText::new(&selected.name).strong());
+                        detail(ui, "Type", format!("{:?}", selected.entry_type));
+                        detail(ui, "Size", format_bytes(selected.size));
+                        detail(ui, "Permissions", selected.permissions.clone());
+                        detail(
+                            ui,
+                            "Owner",
+                            format!("{}:{}", selected.owner, selected.group),
+                        );
+                        if let Some(target) = &selected.link_target {
+                            detail(ui, "Link", target.clone());
+                        }
+                    } else {
+                        ui.label(egui::RichText::new("Select an entry").weak());
+                    }
+                }
+                ui.separator();
+                ui.label(egui::RichText::new(&self.files_status).small().weak());
+            });
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if let Some((path, image)) = self.file_preview_image.clone() {
+                if self.file_preview_texture.is_none() {
+                    self.file_preview_texture = Some(ctx.load_texture(
+                        format!("remote-preview-{path}"),
+                        image,
+                        egui::TextureOptions::LINEAR,
+                    ));
+                }
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    if ui.button(format!("{} Files", icon::ARROW_LEFT)).clicked() {
+                        self.file_preview_image = None;
+                        self.file_preview_texture = None;
+                    }
+                    ui.heading(&path);
+                    ui.label(
+                        egui::RichText::new("Temporary local preview")
+                            .small()
+                            .weak(),
+                    );
+                });
+                ui.separator();
+                if let Some(texture) = &self.file_preview_texture {
+                    let available = ui.available_size();
+                    let original = texture.size_vec2();
+                    let scale = (available.x / original.x)
+                        .min(available.y / original.y)
+                        .min(1.0);
+                    ui.image((texture.id(), original * scale));
+                }
+                return;
+            }
+            if let Some(session) = self.file_edit_session.clone() {
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    if ui.button(format!("{} Files", icon::ARROW_LEFT)).clicked() {
+                        self.file_edit_session = None;
+                        self.file_editor_text.clear();
+                    }
+                    ui.heading(
+                        std::path::Path::new(&session.remote_path)
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or(&session.remote_path),
+                    );
+                    ui.label(
+                        egui::RichText::new(self.file_editor_status.label())
+                            .small()
+                            .weak(),
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .button(format!("{} Upload changes", icon::UPLOAD_SIMPLE))
+                            .clicked()
+                        {
+                            self.upload_editor_changes();
+                        }
+                        if ui.button("Save local copy").clicked() {
+                            self.save_editor_locally();
+                        }
+                        if ui.button("Open externally").clicked() {
+                            self.open_editor_in_system_app();
+                        }
+                    });
+                });
+                ui.separator();
+                if let Some(external_text) = self.file_editor_external_change.clone() {
+                    ui.horizontal(|ui| {
+                        ui.label("External editor changed the local working copy.");
+                        if ui.button("Load external change").clicked() {
+                            self.file_editor_text = external_text;
+                            self.file_editor_external_change = None;
+                            self.file_editor_status = FileEditorStatus::SavedLocally;
+                        }
+                        if ui.button("Keep editor text").clicked() {
+                            self.file_editor_external_change = None;
+                        }
+                    });
+                }
+                ui.horizontal_wrapped(|ui| {
+                    ui.label("Find");
+                    let find_changed = ui
+                        .add(
+                            egui::TextEdit::singleline(&mut self.file_editor_find)
+                                .hint_text("Text")
+                                .desired_width(150.0),
+                        )
+                        .changed();
+                    if find_changed {
+                        self.file_editor_match_index = 0;
+                    }
+                    if ui.button("Previous").clicked() {
+                        self.select_editor_match(true);
+                    }
+                    if ui.button("Next").clicked() {
+                        self.select_editor_match(false);
+                    }
+                    let match_count = self.find_editor_matches().len();
+                    if !self.file_editor_find.is_empty() {
+                        ui.label(format!("{match_count} match(es)"));
+                    }
+                    ui.separator();
+                    ui.label("Replace");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.file_editor_replace)
+                            .hint_text("Replacement")
+                            .desired_width(150.0),
+                    );
+                    if ui.button("Replace all").clicked() {
+                        self.replace_all_editor_matches();
+                    }
+                    ui.separator();
+                    ui.label("Go to line");
+                    ui.add(
+                        egui::DragValue::new(&mut self.file_editor_go_to_line)
+                            .range(1..=self.file_editor_text.lines().count().max(1))
+                            .speed(1),
+                    );
+                    if ui.button("Go").clicked() {
+                        self.go_to_editor_line();
+                    }
+                    ui.label(format!(
+                        "Line {} / {}",
+                        self.file_editor_cursor_line,
+                        self.file_editor_text.lines().count().max(1)
+                    ));
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("#").small().weak());
+                        egui::ScrollArea::vertical()
+                            .id_salt("file-editor-line-numbers")
+                            .max_height(ui.available_height() - 12.0)
+                            .show(ui, |ui| {
+                                for line in 1..=self.file_editor_text.lines().count().max(1) {
+                                    let text = if line == self.file_editor_cursor_line {
+                                        egui::RichText::new(line.to_string()).strong()
+                                    } else {
+                                        egui::RichText::new(line.to_string()).weak()
+                                    };
+                                    ui.label(text);
+                                }
+                            });
+                    });
+                    let output = egui::TextEdit::multiline(&mut self.file_editor_text)
+                        .id_source("file-editor")
+                        .font(egui::TextStyle::Monospace)
+                        .desired_width(ui.available_width())
+                        .desired_rows(32)
+                        .code_editor()
+                        .show(ui);
+                    if output.response.changed() {
+                        self.file_editor_status = FileEditorStatus::LocalModified;
+                    }
+                    if let Some(range) = output.state.cursor.char_range() {
+                        self.file_editor_cursor_line = self.file_editor_text[..]
+                            .chars()
+                            .take(range.primary.index)
+                            .filter(|character| *character == '\n')
+                            .count()
+                            + 1;
+                    }
+                    if let Some((start, end)) = self.file_editor_pending_selection.take() {
+                        let mut state = output.state;
+                        state
+                            .cursor
+                            .set_char_range(Some(egui::text::CCursorRange::two(
+                                egui::text::CCursor::new(start),
+                                egui::text::CCursor::new(end),
+                            )));
+                        state.store(ui.ctx(), output.response.id);
+                        output.response.request_focus();
+                    }
+                });
+                return;
+            }
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if icon_button(ui, icon::ARROW_LEFT, "Back").clicked()
+                    && self.files_history_index > 0
+                {
+                    self.files_history_index -= 1;
+                    self.files_path = self.files_history[self.files_history_index].clone();
+                    self.files_path_input = self.files_path.clone();
+                    self.refresh_files(false);
+                }
+                if icon_button(ui, icon::ARROW_RIGHT, "Forward").clicked()
+                    && self.files_history_index + 1 < self.files_history.len()
+                {
+                    self.files_history_index += 1;
+                    self.files_path = self.files_history[self.files_history_index].clone();
+                    self.files_path_input = self.files_path.clone();
+                    self.refresh_files(false);
+                }
+                if icon_button(ui, icon::ARROW_UP, "Parent directory").clicked() {
+                    self.files_go_up();
+                }
+                let path_response = ui.add(
+                    egui::TextEdit::singleline(&mut self.files_path_input)
+                        .desired_width(ui.available_width() * 0.52)
+                        .hint_text("Remote path"),
+                );
+                if path_response.lost_focus()
+                    && ui.input(|input| input.key_pressed(egui::Key::Enter))
+                {
+                    self.open_files_path(self.files_path_input.trim().to_owned());
+                }
+                if icon_button(ui, icon::ARROW_CLOCKWISE, "Refresh").clicked() {
+                    self.refresh_files(false);
+                }
+                if icon_button(ui, icon::UPLOAD_SIMPLE, "Upload").clicked() {
+                    self.config.workspace = Workspace::Transfers;
+                }
+                if ui.button("New folder").clicked() {
+                    self.files_new_dir_name.clear();
+                    self.files_create_dir_open = true;
+                }
+                if self.files_selected.is_some() && ui.button("Rename").clicked() {
+                    self.files_rename_name = self
+                        .files_selected
+                        .as_ref()
+                        .and_then(|path| {
+                            self.files_entries.iter().find(|entry| &entry.path == path)
+                        })
+                        .map(|entry| entry.name.clone())
+                        .unwrap_or_default();
+                    self.files_rename_open = true;
+                }
+                if self.files_selected.is_some() && ui.button("Delete").clicked() {
+                    self.files_delete_open = true;
+                }
+                ui.checkbox(&mut self.files_hidden, "Hidden");
+                if ui
+                    .checkbox(&mut self.files_dual_pane, "Two panes")
+                    .changed()
+                    && self.files_dual_pane
+                {
+                    self.refresh_local_files();
+                }
+                if self.files_dual_pane {
+                    if let Some(path) = self.files_selected.clone() {
+                        if ui.button("Download selected").clicked() {
+                            self.queue_remote_download(path);
+                        }
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Filter").small().weak());
+                ui.add(egui::TextEdit::singleline(&mut self.files_filter).desired_width(240.0));
+                if let Some(capabilities) = &self.files_capabilities {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{} / {:?}",
+                            capabilities.uname, capabilities.platform
+                        ))
+                        .small()
+                        .weak(),
+                    );
+                }
+            });
+            ui.separator();
+            let mut entries = self.files_entries.clone();
+            entries.sort_by_cached_key(|entry| entry.name.to_lowercase());
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                if self.files_connection.is_none() {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(80.0);
+                        ui.label(
+                            egui::RichText::new(icon::FOLDER_OPEN)
+                                .size(42.0)
+                                .color(BLUE),
+                        );
+                        ui.heading("Select a host");
+                        ui.label("Remote browsing uses system ssh.");
+                    });
+                }
+                for entry in entries {
+                    if !contains(&entry.name, &self.files_filter) {
+                        continue;
+                    }
+                    let selected = self.files_selected.as_deref() == Some(&entry.path);
+                    let glyph = match entry.entry_type {
+                        RemoteEntryType::Directory => icon::FOLDER,
+                        RemoteEntryType::Symlink => icon::LINK,
+                        RemoteEntryType::File => icon::FILE,
+                        RemoteEntryType::Other => icon::FILE,
+                    };
+                    let response = ui.selectable_label(
+                        selected,
+                        format!(
+                            "{}  {:<32}  {:>10}  {}",
+                            glyph,
+                            entry.name,
+                            format_bytes(entry.size),
+                            entry.permissions
+                        ),
+                    );
+                    if response.clicked() {
+                        self.files_selected = Some(entry.path.clone());
+                    }
+                    if response.double_clicked() {
+                        match entry.entry_type {
+                            RemoteEntryType::Directory => self.open_files_path(entry.path.clone()),
+                            RemoteEntryType::File if is_previewable_image(&entry.name) => {
+                                self.open_remote_image_preview(entry.path.clone())
+                            }
+                            RemoteEntryType::File => self.open_remote_text_file(entry.path.clone()),
+                            _ => {
+                                self.files_status =
+                                    "This entry is not supported by the text editor.".into()
+                            }
+                        }
+                    }
+                }
+            });
         });
     }
 
@@ -1018,6 +2362,7 @@ impl EasySshApp {
         let mut items = vec![
             CommandAction::NewHost,
             CommandAction::Switch(Workspace::Hosts),
+            CommandAction::Switch(Workspace::Files),
             CommandAction::Switch(Workspace::Snippets),
             CommandAction::Switch(Workspace::Forwarding),
             CommandAction::Switch(Workspace::Transfers),
@@ -1468,6 +2813,313 @@ impl EasySshApp {
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) && !self.command_open {
             self.search.clear();
         }
+        if self.config.workspace == Workspace::Files {
+            if self.file_edit_session.is_none()
+                && self.files_selected.is_some()
+                && ctx.input(|i| i.key_pressed(egui::Key::F2))
+            {
+                self.files_rename_name = self
+                    .files_selected
+                    .as_ref()
+                    .and_then(|path| self.files_entries.iter().find(|entry| &entry.path == path))
+                    .map(|entry| entry.name.clone())
+                    .unwrap_or_default();
+                self.files_rename_open = true;
+            }
+            if self.file_edit_session.is_none()
+                && self.files_selected.is_some()
+                && ctx.input(|i| i.key_pressed(egui::Key::Delete))
+            {
+                self.files_delete_open = true;
+            }
+            if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S))
+                && self.file_edit_session.is_some()
+            {
+                self.upload_editor_changes();
+            }
+            if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::R)) {
+                self.refresh_files(false);
+            }
+            if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::U)) {
+                self.config.workspace = Workspace::Transfers;
+                self.transfer_connection = self.files_connection.clone();
+                self.transfer_remote_path = self.files_path.clone();
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::Backspace)) {
+                self.files_go_up();
+            }
+            let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+            if let Some(file) = dropped.first().and_then(|file| file.path.clone()) {
+                self.transfer_connection = self.files_connection.clone();
+                self.transfer_local_path = file.to_string_lossy().into_owned();
+                self.transfer_remote_path = self.files_path.clone();
+                self.transfer_direction = TransferDirection::Upload;
+                self.config.workspace = Workspace::Transfers;
+                self.status = "Local file queued for upload review.".into();
+            }
+        }
+    }
+
+    fn file_conflict_dialog(&mut self, ctx: &egui::Context) {
+        if !self.file_conflict_open {
+            return;
+        }
+        let mut open = true;
+        egui::Window::new("Remote file changed")
+            .collapsible(false)
+            .resizable(true)
+            .open(&mut open)
+            .show(ctx, |ui| {
+                ui.label("The remote file changed after this working copy was downloaded.");
+                ui.label("EasySSH kept your local working copy and did not overwrite the server.");
+                if let Some(session) = &self.file_edit_session {
+                    ui.label(egui::RichText::new(&session.remote_path).monospace());
+                }
+                ui.separator();
+                let initial = self
+                    .file_edit_session
+                    .as_ref()
+                    .and_then(|session| fs::read_to_string(&session.base_path).ok())
+                    .unwrap_or_else(|| "Initial version is unavailable.".into());
+                let remote = self
+                    .file_conflict_remote
+                    .clone()
+                    .unwrap_or_else(|| "Current remote version could not be downloaded for preview.".into());
+                let local = self.file_editor_text.clone();
+                ui.columns(3, |columns| {
+                    for (column, (title, value)) in columns.iter_mut().zip([
+                        ("My local version", local),
+                        ("Initially downloaded", initial),
+                        ("Current remote version", remote),
+                    ]) {
+                        column.label(egui::RichText::new(title).strong());
+                        let mut display = value;
+                        column.add_enabled(
+                            false,
+                            egui::TextEdit::multiline(&mut display)
+                                .font(egui::TextStyle::Monospace)
+                                .desired_rows(12),
+                        );
+                    }
+                });
+                ui.label("You can keep the local copy, close the editor, or manually compare it with a new download.");
+                if ui.button("Keep local copy and close").clicked() {
+                    self.file_edit_session = None;
+                    self.file_editor_text.clear();
+                    self.file_conflict_remote = None;
+                    self.file_conflict_open = false;
+                }
+                if ui.button("Continue editing local copy").clicked() {
+                    self.file_conflict_open = false;
+                }
+            });
+        if !open {
+            self.file_conflict_open = false;
+        }
+    }
+
+    fn file_operation_dialogs(&mut self, ctx: &egui::Context) {
+        if self.files_create_dir_open {
+            let mut open = true;
+            egui::Window::new("New remote folder")
+                .collapsible(false)
+                .resizable(false)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.label(egui::RichText::new(&self.files_path).monospace());
+                    ui.text_edit_singleline(&mut self.files_new_dir_name);
+                    if ui.button("Create folder").clicked() {
+                        self.create_remote_directory();
+                    }
+                });
+            if !open {
+                self.files_create_dir_open = false;
+            }
+        }
+        if self.files_rename_open {
+            let mut open = true;
+            egui::Window::new("Rename remote entry")
+                .collapsible(false)
+                .resizable(false)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.text_edit_singleline(&mut self.files_rename_name);
+                    if ui.button("Rename").clicked() {
+                        self.rename_selected_remote();
+                    }
+                });
+            if !open {
+                self.files_rename_open = false;
+            }
+        }
+        if self.files_delete_open {
+            let selected = self
+                .files_selected
+                .as_ref()
+                .and_then(|path| self.files_entries.iter().find(|entry| &entry.path == path))
+                .cloned();
+            let mut open = true;
+            egui::Window::new("Delete remote entry")
+                .collapsible(false)
+                .resizable(false)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    if let Some(entry) = selected {
+                        ui.colored_label(RED, format!("Delete {}?", entry.name));
+                        if entry.entry_type == RemoteEntryType::Directory {
+                            ui.label("This permanently deletes the directory and its contents.");
+                        }
+                        if ui.button("Delete permanently").clicked() {
+                            self.delete_selected_remote();
+                        }
+                    }
+                });
+            if !open {
+                self.files_delete_open = false;
+            }
+        }
+    }
+
+    #[cfg(feature = "ui-test")]
+    fn handle_ui_test_bridge(&mut self, ctx: &egui::Context) {
+        let Some(mode) = self.test_mode.clone() else {
+            return;
+        };
+        let Some(request) = mode.take_bridge_request() else {
+            return;
+        };
+        let response = match request["operation"].as_str() {
+            Some("get_ui_tree") => json!({"success":true,"tree":self.ui_test_tree()}),
+            Some("click") if request["element_id"].as_str() == Some("navigation.files") => {
+                self.config.workspace = Workspace::Files;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("files.toggle_dual_pane") => {
+                self.files_dual_pane = !self.files_dual_pane;
+                if self.files_dual_pane {
+                    self.refresh_local_files();
+                }
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("files.new_folder") => {
+                self.files_new_dir_name.clear();
+                self.files_create_dir_open = true;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("navigation.transfers") => {
+                self.config.workspace = Workspace::Transfers;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("double_click")
+                if request["element_id"].as_str() == Some("navigation.transfers") =>
+            {
+                self.config.workspace = Workspace::Transfers;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("type") if request["element_id"].as_str() == Some("transfers.local_path") => {
+                if let Some(text) = request["text"].as_str() {
+                    self.transfer_local_path = text.into();
+                    json!({"success":true,"tree":self.ui_test_tree()})
+                } else {
+                    json!({"success":false,"error":"text is required"})
+                }
+            }
+            Some("resize") => match (request["width"].as_f64(), request["height"].as_f64()) {
+                (Some(width), Some(height)) if width >= 320.0 && height >= 320.0 => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+                        width as f32,
+                        height as f32,
+                    )));
+                    json!({"success":true,"width":width,"height":height})
+                }
+                _ => json!({"success":false,"error":"invalid window dimensions"}),
+            },
+            Some("send_key") if request["key"].as_str() == Some("Escape") => {
+                self.search.clear();
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("drag") => {
+                json!({"success":false,"error":"no drag target is registered in the current Transfers view"})
+            }
+            Some("screenshot") => {
+                let name = request["name"]
+                    .as_str()
+                    .filter(|name| {
+                        !name.is_empty()
+                            && name
+                                .chars()
+                                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+                    })
+                    .unwrap_or("window");
+                let path = mode.root.join("screenshots").join(format!("{name}.png"));
+                self.test_screenshot_path = Some(path.clone());
+                ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                ctx.request_repaint();
+                json!({"success":true,"path":format!("screenshots/{name}.png")})
+            }
+            _ => json!({"success":false,"error":"bridge operation is not allowed"}),
+        };
+        mode.write_bridge_response(&response);
+    }
+
+    #[cfg(feature = "ui-test")]
+    fn save_ui_test_screenshot(&mut self, ctx: &egui::Context) {
+        let Some(path) = self.test_screenshot_path.take() else {
+            return;
+        };
+        let image = ctx.input(|input| {
+            input.events.iter().find_map(|event| match event {
+                egui::Event::Screenshot { image, .. } => Some(image.clone()),
+                _ => None,
+            })
+        });
+        let Some(image) = image else {
+            self.test_screenshot_path = Some(path);
+            return;
+        };
+        let bytes = image
+            .pixels
+            .iter()
+            .flat_map(|pixel| pixel.to_array())
+            .collect::<Vec<_>>();
+        let _ = image::save_buffer(
+            path,
+            &bytes,
+            image.size[0] as u32,
+            image.size[1] as u32,
+            image::ColorType::Rgba8,
+        );
+    }
+
+    #[cfg(feature = "ui-test")]
+    fn ui_test_tree(&self) -> Value {
+        let visible = self.config.workspace == Workspace::Transfers;
+        let files_visible = self.config.workspace == Workspace::Files;
+        json!({"id":"app.root","role":"window","text":"EasySSH [UI Test]","visible":true,"enabled":true,"state":{"ui.is_idle":true,"ui.animation_count":0,"ui.pending_task_count":self.transfer_children.len()},"children":[
+          {"id":"navigation.files","role":"button","text":"Files","visible":true,"enabled":true,"selected":files_visible},
+          {"id":"files.page","role":"page","text":"Files","visible":files_visible,"enabled":true,"children":[
+            {"id":"files.hosts","role":"list","text":"Hosts","visible":files_visible,"enabled":true},
+            {"id":"files.path","role":"textbox","text":"Remote path","value":self.files_path,"visible":files_visible,"enabled":true},
+            {"id":"files.filter","role":"textbox","text":"Filter","value":self.files_filter,"visible":files_visible,"enabled":true},
+            {"id":"files.refresh","role":"button","text":"Refresh","visible":files_visible,"enabled":true},
+            {"id":"files.new_folder","role":"button","text":"New folder","visible":files_visible,"enabled":true},
+            {"id":"files.toggle_dual_pane","role":"checkbox","text":"Two panes","visible":files_visible,"enabled":true,"checked":self.files_dual_pane},
+            {"id":"files.entries","role":"list","text":"Remote entries","visible":files_visible,"enabled":true},
+            {"id":"files.properties","role":"complementary","text":"Properties","visible":files_visible,"enabled":true}
+          ]},
+          {"id":"files.create_folder_dialog","role":"dialog","text":"New remote folder","visible":self.files_create_dir_open,"enabled":true},
+          {"id":"navigation.transfers","role":"button","text":"Transfers","visible":true,"enabled":true,"selected":visible},
+          {"id":"transfers.page","role":"page","text":"Transfers","visible":visible,"enabled":true,"children":[
+            {"id":"transfers.host_selector","role":"combobox","text":"Host","visible":visible,"enabled":true},
+            {"id":"transfers.connection_status","role":"status","text":"Disconnected","visible":visible,"enabled":true},
+            {"id":"transfers.local_path","role":"textbox","text":"Local path","value":self.transfer_local_path,"visible":visible,"enabled":true},
+            {"id":"transfers.remote_path","role":"textbox","text":"Remote path","value":self.transfer_remote_path,"visible":visible,"enabled":true},
+            {"id":"transfers.upload_button","role":"button","text":"Upload","visible":visible,"enabled":true},
+            {"id":"transfers.download_button","role":"button","text":"Download","visible":visible,"enabled":true},
+            {"id":"transfers.transfer_queue","role":"list","text":"Transfer queue","visible":visible,"enabled":true},
+            {"id":"transfers.empty_state","role":"status","text":"No transfers yet","visible":visible,"enabled":true}
+          ]}
+        ]})
     }
 }
 
@@ -1489,6 +3141,14 @@ impl eframe::App for EasySshApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             return;
         }
+        #[cfg(feature = "ui-test")]
+        self.handle_ui_test_bridge(ctx);
+        #[cfg(feature = "ui-test")]
+        self.save_ui_test_screenshot(ctx);
+        #[cfg(feature = "ui-test")]
+        if self.test_mode.is_some() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(25));
+        }
         if let Some(text) = self.copy_text.take() {
             ctx.output_mut(|output| output.copied_text = text);
         }
@@ -1499,6 +3159,7 @@ impl eframe::App for EasySshApp {
         self.navigation(ctx);
         match self.config.workspace {
             Workspace::Hosts => self.hosts(ctx),
+            Workspace::Files => self.files(ctx),
             Workspace::Snippets => self.snippets(ctx),
             Workspace::Forwarding => self.forwarding(ctx),
             Workspace::Transfers => self.transfers(ctx),
@@ -1510,6 +3171,8 @@ impl eframe::App for EasySshApp {
         self.confirmation_dialogs(ctx);
         self.diagnostics(ctx);
         self.sync_panel(ctx);
+        self.file_conflict_dialog(ctx);
+        self.file_operation_dialogs(ctx);
     }
 }
 
@@ -1529,6 +3192,7 @@ impl CommandAction {
             Self::NewHost => format!("{} New host", icon::PLUS),
             Self::OpenSync => format!("{} Open Git metadata sync", icon::ARROWS_CLOCKWISE),
             Self::Switch(Workspace::Hosts) => "Go to Hosts".into(),
+            Self::Switch(Workspace::Files) => "Go to Files".into(),
             Self::Switch(Workspace::Snippets) => "Go to Snippets".into(),
             Self::Switch(Workspace::Forwarding) => "Go to Port forwarding".into(),
             Self::Switch(Workspace::Transfers) => "Go to Transfers".into(),
@@ -1624,6 +3288,47 @@ fn count_forwards(values: &[String]) -> String {
     }
 }
 
+fn format_bytes(size: u64) -> String {
+    const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
+    let mut value = size as f64;
+    let mut index = 0;
+    while value >= 1024.0 && index + 1 < UNITS.len() {
+        value /= 1024.0;
+        index += 1;
+    }
+    if index == 0 {
+        format!("{} {}", size, UNITS[index])
+    } else {
+        format!("{value:.1} {}", UNITS[index])
+    }
+}
+
+fn remote_temporary_sibling(path: &str, session_id: &str) -> String {
+    let (directory, name) = path.rsplit_once('/').unwrap_or((".", path));
+    let directory = if directory.is_empty() { "/" } else { directory };
+    format!("{directory}/.easyssh-{name}-{session_id}.tmp")
+}
+
+fn remote_child_path(directory: &str, name: &str) -> String {
+    if directory == "/" {
+        format!("/{name}")
+    } else {
+        format!("{}/{}", directory.trim_end_matches('/'), name)
+    }
+}
+
+fn is_previewable_image(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp"
+            )
+        })
+}
+
 fn sync_status_label(status: SyncStatus) -> &'static str {
     match status {
         SyncStatus::Unconfigured => "Sync: not configured",
@@ -1637,12 +3342,14 @@ fn sync_status_label(status: SyncStatus) -> &'static str {
 
 fn transfer_status_badge(status: TransferStatus) -> (&'static str, egui::Color32) {
     match status {
+        TransferStatus::Queued => ("Queued", AMBER),
         TransferStatus::Pending => ("Pending", AMBER),
         TransferStatus::Authorizing => ("Authorizing", AMBER),
         TransferStatus::Transferring => ("Transferring", BLUE),
         TransferStatus::Completed => ("Completed", GREEN),
         TransferStatus::Failed => ("Failed", RED),
         TransferStatus::Cancelled => ("Cancelled", AMBER),
+        TransferStatus::Interrupted => ("Interrupted", RED),
     }
 }
 

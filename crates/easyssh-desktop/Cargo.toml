@@ -20,5 +20,6 @@ easyssh-core = { path = "../easyssh-core" }
 eframe.workspace = true
 egui.workspace = true
 egui-phosphor.workspace = true
+image.workspace = true
 serde_json.workspace = true
 uuid.workspace = true

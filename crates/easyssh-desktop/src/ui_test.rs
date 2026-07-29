@@ -1,3 +1,4 @@
+use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
@@ -57,6 +58,22 @@ impl UiTestMode {
 
     pub fn stop_requested(&self) -> bool {
         self.root.join("stop.request").is_file()
+    }
+
+    pub fn take_bridge_request(&self) -> Option<Value> {
+        let path = self.root.join("bridge.request.json");
+        let bytes = fs::read(&path).ok()?;
+        let _ = fs::remove_file(path);
+        let value = serde_json::from_slice::<Value>(&bytes).ok()?;
+        (value["token"].as_str() == Some(&self.token)).then_some(value)
+    }
+
+    pub fn write_bridge_response(&self, value: &Value) {
+        let temporary = self.root.join("bridge.response.tmp");
+        let response = self.root.join("bridge.response.json");
+        if fs::write(&temporary, serde_json::to_vec(value).unwrap_or_default()).is_ok() {
+            let _ = fs::rename(temporary, response);
+        }
     }
 
     fn log(&self, event: &str) {

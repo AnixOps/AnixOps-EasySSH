@@ -162,6 +162,41 @@ fn tools() -> Vec<Value> {
             "Gracefully stop the app launched by this MCP server",
             json!({"type":"object","properties":{"timeout_seconds":{"type":"integer","minimum":1,"maximum":60}},"additionalProperties":false}),
         ),
+        tool(
+            "get_ui_tree",
+            "Get the stable-ID UI tree",
+            json!({"type":"object","additionalProperties":false}),
+        ),
+        tool(
+            "find_ui_element",
+            "Find a UI element by stable ID",
+            json!({"type":"object","properties":{"element_id":{"type":"string","minLength":1}},"required":["element_id"],"additionalProperties":false}),
+        ),
+        tool(
+            "wait_for_ui_condition",
+            "Wait for an ID-based UI condition",
+            json!({"type":"object","properties":{"element_id":{"type":"string","minLength":1},"condition":{"enum":["exists","not_exists","visible","hidden","enabled","disabled","text_equals","text_contains","value_equals"]},"value":{"type":"string"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":60}},"required":["element_id","condition"],"additionalProperties":false}),
+        ),
+        tool(
+            "click_ui_element",
+            "Click an enabled element by stable ID",
+            json!({"type":"object","properties":{"element_id":{"type":"string","minLength":1}},"required":["element_id"],"additionalProperties":false}),
+        ),
+        tool(
+            "type_into_ui_element",
+            "Replace text through a stable element ID",
+            json!({"type":"object","properties":{"element_id":{"type":"string","minLength":1},"text":{"type":"string"}},"required":["element_id","text"],"additionalProperties":false}),
+        ),
+        tool(
+            "resize_app_window",
+            "Resize the running test window",
+            json!({"type":"object","properties":{"width":{"type":"integer","minimum":320},"height":{"type":"integer","minimum":320}},"required":["width","height"],"additionalProperties":false}),
+        ),
+        tool(
+            "take_app_screenshot",
+            "Capture only the EasySSH test window",
+            json!({"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":64}},"additionalProperties":false}),
+        ),
     ]
 }
 
@@ -334,6 +369,104 @@ fn call_tool(server: &Arc<Server>, params: Option<&Value>) -> Result<Value, (i32
                 json!({"isError":!result.success,"content":[{"type":"text","text":result.summary}],"structuredContent":result}),
             )
         }
+        "get_ui_tree" | "click_ui_element" | "type_into_ui_element" | "resize_app_window" => {
+            let allowed = match name {
+                "get_ui_tree" => &[][..],
+                "click_ui_element" => &["element_id"][..],
+                "type_into_ui_element" => &["element_id", "text"][..],
+                _ => &["width", "height"][..],
+            };
+            reject_unknown(&arguments, allowed)?;
+            let mut app = server
+                .app
+                .lock()
+                .map_err(|_| (-32603, "app manager lock failed".into()))?;
+            let app = app
+                .as_mut()
+                .ok_or((-32602, "no app launched by this MCP server".into()))?;
+            let request = match name {
+                "get_ui_tree" => json!({"operation":"get_ui_tree"}),
+                "click_ui_element" => {
+                    json!({"operation":"click","element_id":arguments["element_id"]})
+                }
+                "type_into_ui_element" => {
+                    json!({"operation":"type","element_id":arguments["element_id"],"text":arguments["text"]})
+                }
+                _ => {
+                    json!({"operation":"resize","width":arguments["width"],"height":arguments["height"]})
+                }
+            };
+            let result = app
+                .bridge(request, Duration::from_secs(10))
+                .map_err(internal)?;
+            Ok(
+                json!({"isError":!result["success"].as_bool().unwrap_or(false),"content":[{"type":"text","text":result["error"].as_str().unwrap_or("UI bridge completed")}],"structuredContent":result}),
+            )
+        }
+        "find_ui_element" => {
+            reject_unknown(&arguments, &["element_id"])?;
+            let id = arguments["element_id"]
+                .as_str()
+                .ok_or((-32602, "element_id is required".into()))?;
+            let tree = request_ui_tree(server)?;
+            let element = find_element(&tree, id).ok_or((-32602, "UI element not found".into()))?;
+            Ok(
+                json!({"content":[{"type":"text","text":"UI element found"}],"structuredContent":element}),
+            )
+        }
+        "wait_for_ui_condition" => {
+            reject_unknown(
+                &arguments,
+                &["element_id", "condition", "value", "timeout_seconds"],
+            )?;
+            let id = arguments["element_id"]
+                .as_str()
+                .ok_or((-32602, "element_id is required".into()))?;
+            let condition = arguments["condition"]
+                .as_str()
+                .ok_or((-32602, "condition is required".into()))?;
+            let value = arguments["value"].as_str();
+            let timeout = parse_timeout(&arguments)?.min(Duration::from_secs(60));
+            let started = std::time::Instant::now();
+            loop {
+                let tree = request_ui_tree(server)?;
+                let element = find_element(&tree, id);
+                if ui_condition(element, condition, value) {
+                    return Ok(
+                        json!({"content":[{"type":"text","text":"UI condition met"}],"structuredContent":element}),
+                    );
+                }
+                if started.elapsed() >= timeout {
+                    return Err((-32602, "UI condition timed out".into()));
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+        }
+        "take_app_screenshot" => {
+            reject_unknown(&arguments, &["name"])?;
+            let mut app = server
+                .app
+                .lock()
+                .map_err(|_| (-32603, "app manager lock failed".into()))?;
+            let name = arguments["name"].as_str().unwrap_or("window");
+            if !name
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+            {
+                return Err((
+                    -32602,
+                    "screenshot name contains unsupported characters".into(),
+                ));
+            }
+            let path = app
+                .as_mut()
+                .ok_or((-32602, "no app launched by this MCP server".into()))?
+                .take_screenshot(name, Duration::from_secs(10))
+                .map_err(internal)?;
+            Ok(
+                json!({"content":[{"type":"text","text":"window screenshot captured"}],"structuredContent":{"path":path,"format":"png"}}),
+            )
+        }
         _ => Err((-32601, "tool not allowed".into())),
     }
 }
@@ -400,6 +533,51 @@ fn enqueue(server: &Arc<Server>, operation: &str, timeout: Duration) -> TaskSnap
         });
     });
     snapshot
+}
+
+fn request_ui_tree(server: &Arc<Server>) -> Result<Value, (i32, String)> {
+    let mut app = server
+        .app
+        .lock()
+        .map_err(|_| (-32603, "app manager lock failed".into()))?;
+    let result = app
+        .as_mut()
+        .ok_or((-32602, "no app launched by this MCP server".into()))?
+        .bridge(json!({"operation":"get_ui_tree"}), Duration::from_secs(10))
+        .map_err(internal)?;
+    result["tree"]
+        .clone()
+        .as_object()
+        .map(|_| result["tree"].clone())
+        .ok_or((-32603, "UI bridge returned no tree".into()))
+}
+
+fn find_element<'a>(node: &'a Value, id: &str) -> Option<&'a Value> {
+    if node["id"].as_str() == Some(id) {
+        return Some(node);
+    }
+    node["children"]
+        .as_array()?
+        .iter()
+        .find_map(|child| find_element(child, id))
+}
+
+fn ui_condition(element: Option<&Value>, condition: &str, value: Option<&str>) -> bool {
+    match condition {
+        "exists" => element.is_some(),
+        "not_exists" => element.is_none(),
+        "visible" => element.and_then(|item| item["visible"].as_bool()) == Some(true),
+        "hidden" => element.and_then(|item| item["visible"].as_bool()) == Some(false),
+        "enabled" => element.and_then(|item| item["enabled"].as_bool()) == Some(true),
+        "disabled" => element.and_then(|item| item["enabled"].as_bool()) == Some(false),
+        "text_equals" => element.and_then(|item| item["text"].as_str()) == value,
+        "text_contains" => element
+            .and_then(|item| item["text"].as_str())
+            .zip(value)
+            .is_some_and(|(text, expected)| text.contains(expected)),
+        "value_equals" => element.and_then(|item| item["value"].as_str()) == value,
+        _ => false,
+    }
 }
 
 fn shutdown(server: &Server) {
@@ -483,7 +661,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tool_discovery_exposes_p1_and_p2_surface() {
+    fn tool_discovery_exposes_p1_to_p3_surface() {
         let listed_tools = tools();
         let names = listed_tools
             .iter()
@@ -502,7 +680,14 @@ mod tests {
                 "launch_app",
                 "get_app_status",
                 "get_app_logs",
-                "stop_app"
+                "stop_app",
+                "get_ui_tree",
+                "find_ui_element",
+                "wait_for_ui_condition",
+                "click_ui_element",
+                "type_into_ui_element",
+                "resize_app_window",
+                "take_app_screenshot"
             ]
         );
     }
