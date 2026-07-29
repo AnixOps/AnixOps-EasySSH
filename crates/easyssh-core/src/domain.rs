@@ -48,6 +48,10 @@ impl AppConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct ExperimentalFeatures {
+    /// Enables browsing remote directories and all related file operations.
+    /// This stays opt-in because it exposes a larger remote-data surface.
+    #[serde(default)]
+    pub remote_file_browser: bool,
     pub remote_text_editing: bool,
     pub image_preview: bool,
     pub dual_pane_file_browsing: bool,
@@ -277,6 +281,7 @@ mod tests {
     #[test]
     fn experimental_features_default_to_off() {
         let features = ExperimentalFeatures::default();
+        assert!(!features.remote_file_browser);
         assert!(!features.remote_text_editing);
         assert!(!features.image_preview);
         assert!(!features.dual_pane_file_browsing);

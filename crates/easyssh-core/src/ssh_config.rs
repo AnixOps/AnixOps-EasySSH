@@ -54,8 +54,8 @@ fn scan(
     };
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     for raw in text.lines() {
-        let line = raw.split('#').next().unwrap_or("").trim();
-        let mut parts = line.split_whitespace();
+        let parts = ssh_words(raw);
+        let mut parts = parts.iter().map(String::as_str);
         let Some(keyword) = parts.next() else {
             continue;
         };
@@ -67,7 +67,7 @@ fn scan(
             }
         } else if keyword.eq_ignore_ascii_case("include") {
             for item in parts {
-                let include = PathBuf::from(item);
+                let include = expand_path_token(item);
                 let pattern = if include.is_absolute() {
                     include
                 } else {
@@ -86,6 +86,68 @@ fn scan(
             }
         }
     }
+}
+
+/// Parses the deliberately small OpenSSH grammar needed for `Host` and
+/// `Include`: quoted paths are one token, and comments start outside quotes.
+fn ssh_words(line: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for ch in line.chars() {
+        if escaped {
+            word.push(ch);
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else if let Some(delimiter) = quote {
+            if ch == delimiter {
+                quote = None;
+            } else {
+                word.push(ch);
+            }
+        } else if matches!(ch, '\'' | '\"') {
+            quote = Some(ch);
+        } else if ch == '#' {
+            break;
+        } else if ch.is_whitespace() {
+            if !word.is_empty() {
+                words.push(std::mem::take(&mut word));
+            }
+        } else {
+            word.push(ch);
+        }
+    }
+    if escaped {
+        word.push('\\');
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
+}
+
+fn expand_path_token(token: &str) -> PathBuf {
+    let mut value = token.to_owned();
+    if let Some(home) = dirs::home_dir() {
+        if value == "~" {
+            return home;
+        }
+        if let Some(rest) = value
+            .strip_prefix("~/")
+            .or_else(|| value.strip_prefix("~\\"))
+        {
+            return home.join(rest);
+        }
+    }
+    for (name, replacement) in [("%USERPROFILE%", std::env::var("USERPROFILE").ok())] {
+        if let Some(replacement) = replacement {
+            value = value.replace(name, &replacement);
+            value = value.replace(&name.to_ascii_lowercase(), &replacement);
+        }
+    }
+    PathBuf::from(value)
 }
 
 fn expand_glob(pattern: &Path) -> Vec<PathBuf> {
@@ -172,5 +234,27 @@ mod tests {
         assert_eq!(found.aliases, ["usable"]);
         assert_eq!(found.warnings.len(), 1);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn quoted_include_paths_are_scanned() {
+        let root = std::env::temp_dir().join(format!("easyssh-config-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("with spaces")).unwrap();
+        fs::write(root.join("config"), "Include \"with spaces/hosts.conf\"\n").unwrap();
+        fs::write(root.join("with spaces/hosts.conf"), "Host quoted\n").unwrap();
+        assert_eq!(scan_ssh_config(&root.join("config")).aliases, ["quoted"]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn path_tokens_expand_home_and_userprofile() {
+        let home = dirs::home_dir().expect("test environment has a home directory");
+        assert_eq!(expand_path_token("~/ssh/config"), home.join("ssh/config"));
+        if let Ok(profile) = std::env::var("USERPROFILE") {
+            assert_eq!(
+                expand_path_token("%USERPROFILE%/ssh/config"),
+                PathBuf::from(profile).join("ssh/config")
+            );
+        }
     }
 }

@@ -1,5 +1,6 @@
 pub mod diagnostics {
     use easyssh_core::{AgentDiagnostics, OpenSsh};
+    use eframe::egui;
     use std::sync::mpsc::{self, Receiver};
 
     #[derive(Debug, Clone)]
@@ -22,17 +23,19 @@ pub mod diagnostics {
         }
     }
     impl State {
-        pub fn request(&mut self) -> bool {
+        pub fn request(&mut self, ctx: &egui::Context) -> bool {
             if matches!(self.status, Status::Loading) {
                 return false;
             }
             let (sender, receiver) = mpsc::channel();
             self.receiver = Some(receiver);
             self.status = Status::Loading;
+            let repaint = ctx.clone();
             std::thread::spawn(move || {
                 let result = std::panic::catch_unwind(|| OpenSsh.diagnostics(None))
                     .map_err(|_| "Diagnostics worker failed.".to_owned());
                 let _ = sender.send(result);
+                repaint.request_repaint();
             });
             true
         }
@@ -66,8 +69,9 @@ pub mod diagnostics {
         #[test]
         fn only_one_request_can_be_in_flight() {
             let mut state = State::default();
-            assert!(state.request());
-            assert!(!state.request());
+            let ctx = egui::Context::default();
+            assert!(state.request(&ctx));
+            assert!(!state.request(&ctx));
         }
         #[test]
         fn failure_text_is_redacted() {
@@ -84,7 +88,7 @@ pub mod host_form {
     use easyssh_core::Connection;
     #[derive(Debug, Clone)]
     pub struct State {
-        pub original: Option<Connection>,
+        pub initial: Connection,
         pub draft: Connection,
         pub validation: Option<String>,
         pub confirm_discard: bool,
@@ -93,23 +97,21 @@ pub mod host_form {
         pub fn existing(connection: Connection) -> Self {
             Self {
                 draft: connection.clone(),
-                original: Some(connection),
+                initial: connection,
                 validation: None,
                 confirm_discard: false,
             }
         }
         pub fn new(connection: Connection) -> Self {
             Self {
-                original: None,
+                initial: connection.clone(),
                 draft: connection,
                 validation: None,
                 confirm_discard: false,
             }
         }
         pub fn dirty(&self) -> bool {
-            self.original
-                .as_ref()
-                .is_some_and(|original| original != &self.draft)
+            self.initial != self.draft
         }
         pub fn validate(&mut self) -> Result<(), ValidationError> {
             let result = validate_connection(&self.draft).map_err(|error| {
@@ -132,12 +134,14 @@ pub mod host_form {
             let mut form = State::existing(original.clone());
             form.draft.name = "Changed".into();
             assert!(form.dirty());
-            assert_eq!(form.original.expect("original").name, "Original");
+            assert_eq!(form.initial.name, "Original");
         }
 
         #[test]
-        fn new_draft_closes_without_a_discard_confirmation() {
-            assert!(!State::new(Connection::alias("New", "new")).dirty());
+        fn new_draft_tracks_unsaved_changes() {
+            let mut form = State::new(Connection::alias("New", "new"));
+            form.draft.name = "Changed".into();
+            assert!(form.dirty());
         }
     }
 }
