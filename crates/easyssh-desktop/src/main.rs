@@ -160,6 +160,7 @@ struct EasySshApp {
     config: AppConfig,
     openssh: OpenSsh,
     selected: Option<String>,
+    inspector_open: bool,
     search: String,
     command_query: String,
     command_open: bool,
@@ -169,6 +170,8 @@ struct EasySshApp {
     quick_user: String,
     quick_port: u16,
     editor_open: bool,
+    draft_host_id: Option<String>,
+    editor_test_status: Option<String>,
     snippet_editor: Option<String>,
     delete_host: Option<String>,
     delete_snippet: Option<String>,
@@ -269,6 +272,7 @@ impl EasySshApp {
             config,
             openssh: OpenSsh,
             selected: None,
+            inspector_open: false,
             search: String::new(),
             command_query: String::new(),
             command_open: false,
@@ -278,6 +282,8 @@ impl EasySshApp {
             quick_user: String::new(),
             quick_port: 22,
             editor_open: false,
+            draft_host_id: None,
+            editor_test_status: None,
             snippet_editor: None,
             delete_host: None,
             delete_snippet: None,
@@ -348,7 +354,7 @@ impl EasySshApp {
         let store = ConfigStore::at(mode.root.join("config").join("connections.json"));
         let mut app = Self::from_store(store, false);
         app.config.theme = Theme::Dark;
-        app.config.workspace = Workspace::Hosts;
+        app.config.workspace = Workspace::Home;
         app.status = "UI TEST MODE - isolated configuration".into();
         app.test_mode = Some(mode);
         app
@@ -405,8 +411,19 @@ impl EasySshApp {
             port: 22,
         };
         self.selected = Some(host.id.clone());
+        self.draft_host_id = Some(host.id.clone());
         self.config.connections.push(host);
+        self.editor_test_status = None;
         self.editor_open = true;
+    }
+
+    fn discard_draft_host(&mut self) {
+        if let Some(id) = self.draft_host_id.take() {
+            self.config.connections.retain(|host| host.id != id);
+            if self.selected.as_deref() == Some(&id) {
+                self.selected = None;
+            }
+        }
     }
 
     fn add_snippet(&mut self) {
@@ -1386,42 +1403,19 @@ impl EasySshApp {
                 ui.add_space(10.0);
                 ui.label(egui::RichText::new("WORKSPACES").small().weak());
                 ui.add_space(4.0);
+                self.workspace_button(ui, Workspace::Home, icon::HOUSE, "Home");
                 self.workspace_button(ui, Workspace::Hosts, icon::COMPUTER_TOWER, "Hosts");
-                self.workspace_button(ui, Workspace::Files, icon::FOLDER_OPEN, "Files");
-                self.workspace_button(ui, Workspace::Snippets, icon::CODE, "Snippets");
-                self.workspace_button(
-                    ui,
-                    Workspace::Forwarding,
-                    icon::ARROWS_LEFT_RIGHT,
-                    "Port forwarding",
-                );
                 self.workspace_button(
                     ui,
                     Workspace::Transfers,
                     icon::ARROW_FAT_LINES_UP,
                     "Transfers",
                 );
+                self.workspace_button(ui, Workspace::Keys, icon::KEY, "Keys");
+                self.workspace_button(ui, Workspace::Settings, icon::GEAR, "Settings");
                 ui.add_space(12.0);
                 ui.separator();
                 ui.add_space(8.0);
-                ui.label(egui::RichText::new("TOOLS").small().weak());
-                if ui.button(format!("{}  Agent", icon::PLUG)).clicked() {
-                    self.diagnostics_open = true;
-                }
-                if ui
-                    .button(format!("{}  Sync", icon::ARROWS_CLOCKWISE))
-                    .clicked()
-                {
-                    self.sync_open = true;
-                }
-                ui.add_enabled(
-                    false,
-                    egui::Button::new(format!("{}  Known Hosts", icon::SHIELD_CHECK)),
-                );
-                ui.add_enabled(
-                    false,
-                    egui::Button::new(format!("{}  Logs", icon::FILE_TEXT)),
-                );
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                     ui.label(egui::RichText::new(&self.status).small().weak().italics());
                 });
@@ -1429,11 +1423,21 @@ impl EasySshApp {
     }
 
     fn hosts(&mut self, ctx: &egui::Context) {
-        egui::SidePanel::right("inspector")
-            .exact_width(330.0)
-            .show(ctx, |ui| {
-                self.inspector(ui);
-            });
+        if self.inspector_open {
+            egui::SidePanel::right("inspector")
+                .exact_width(330.0)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("HOST INSPECTOR").small().weak());
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if icon_button(ui, icon::X, "Close inspector").clicked() {
+                                self.inspector_open = false;
+                            }
+                        });
+                    });
+                    self.inspector(ui);
+                });
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(12.0);
             ui.horizontal(|ui| {
@@ -1442,6 +1446,9 @@ impl EasySshApp {
                     egui::RichText::new(format!("{} hosts", self.config.connections.len())).weak(),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if icon_button(ui, icon::SIDEBAR_SIMPLE, "Open host inspector").clicked() {
+                        self.inspector_open = true;
+                    }
                     if ui.button(format!("{} Add host", icon::PLUS)).clicked() {
                         self.add_host();
                     }
@@ -1506,6 +1513,145 @@ impl EasySshApp {
         });
     }
 
+    fn home(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add_space(22.0);
+            ui.heading("Home");
+            ui.label(egui::RichText::new("Local-first SSH workspace").weak());
+            ui.add_space(14.0);
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("Quick connect").strong());
+                ui.horizontal(|ui| {
+                    ui.add_sized(
+                        [360.0, 32.0],
+                        egui::TextEdit::singleline(&mut self.quick_host)
+                            .hint_text("user@example.com:22"),
+                    );
+                    if ui.button(format!("{} Connect", icon::LIGHTNING)).clicked() {
+                        self.quick_open = true;
+                    }
+                });
+                ui.label(
+                    egui::RichText::new("Uses the system OpenSSH configuration and agent.").small(),
+                );
+            });
+            ui.add_space(16.0);
+            ui.columns(2, |columns| {
+                columns[0].heading("Favorites");
+                let favorites: Vec<Connection> = self
+                    .config
+                    .connections
+                    .iter()
+                    .filter(|c| c.favorite)
+                    .cloned()
+                    .collect();
+                if favorites.is_empty() {
+                    columns[0].label("No favorite hosts yet.");
+                }
+                for host in favorites {
+                    if columns[0]
+                        .button(format!("{}  {}", icon::STAR, host.name))
+                        .clicked()
+                    {
+                        self.selected = Some(host.id.clone());
+                        self.config.workspace = Workspace::Hosts;
+                        self.inspector_open = true;
+                    }
+                }
+                columns[1].heading("Recent connections");
+                let recent: Vec<SessionRecord> = self
+                    .config
+                    .sessions
+                    .iter()
+                    .filter(|s| !s.hidden)
+                    .take(5)
+                    .cloned()
+                    .collect();
+                if recent.is_empty() {
+                    columns[1].label("No sessions recorded yet.");
+                }
+                for session in recent {
+                    if columns[1]
+                        .button(format!("{}  {}", icon::ARROW_SQUARE_OUT, session.name))
+                        .clicked()
+                    {
+                        self.reconnect_session(&session);
+                    }
+                }
+            });
+            ui.add_space(16.0);
+            if ui
+                .button(format!("{} Import SSH Config", icon::UPLOAD_SIMPLE))
+                .clicked()
+            {
+                self.status = "SSH Config import uses system OpenSSH metadata only.".into();
+            }
+        });
+    }
+
+    fn keys(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add_space(22.0);
+            ui.heading("Keys");
+            ui.label(egui::RichText::new("SSH Agent and system OpenSSH diagnostics").weak());
+            ui.add_space(12.0);
+            let report = self.openssh.diagnostics(None);
+            detail(
+                ui,
+                "OpenSSH",
+                report
+                    .ssh_path
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "Not found".into()),
+            );
+            detail(
+                ui,
+                "Agent",
+                if report.agent_socket_configured {
+                    "Configured".into()
+                } else {
+                    "Not configured".into()
+                },
+            );
+            detail(
+                ui,
+                "Discovered identities",
+                report
+                    .agent_keys
+                    .as_ref()
+                    .map(|k| k.fingerprints.len().to_string())
+                    .unwrap_or_else(|| "Unavailable".into()),
+            );
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new(
+                    "Passwords, private key contents, and key paths are never stored by EasySSH.",
+                )
+                .small()
+                .weak(),
+            );
+            if ui
+                .button(format!("{} Refresh diagnostics", icon::ARROWS_CLOCKWISE))
+                .clicked()
+            {
+                self.agent_available = report.agent_keys.as_ref().map(|k| k.available);
+            }
+        });
+    }
+
+    fn settings(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add_space(22.0); ui.heading("Settings");
+            ui.collapsing("Appearance", |ui| { ui.horizontal(|ui| { ui.label("Theme"); ui.selectable_value(&mut self.config.theme, Theme::System, "System"); ui.selectable_value(&mut self.config.theme, Theme::Light, "Light"); ui.selectable_value(&mut self.config.theme, Theme::Dark, "Dark"); }); ui.horizontal(|ui| { ui.label("Density"); ui.selectable_value(&mut self.config.display_density, DisplayDensity::Compact, "Compact"); ui.selectable_value(&mut self.config.display_density, DisplayDensity::Comfortable, "Comfortable"); ui.selectable_value(&mut self.config.display_density, DisplayDensity::Large, "Large"); }); });
+            ui.collapsing("Terminal", |ui| { ui.label("External terminals are launched through the system OpenSSH command."); });
+            ui.collapsing("SSH", |ui| { ui.label("Authentication remains delegated to OpenSSH and SSH Agent."); });
+            ui.collapsing("File Transfers", |ui| { ui.label("Transfers are tracked in the Transfers workspace with cancel and retry controls."); });
+            ui.collapsing("Shortcuts", |ui| { ui.label("Ctrl/Cmd+K opens the command palette."); });
+            ui.collapsing("Data & Backup", |ui| { ui.label("Git metadata sync is explicit and limited to the non-sensitive allowlist."); if ui.button(format!("{} Open sync settings", icon::ARROWS_CLOCKWISE)).clicked() { self.sync_open = true; } });
+            if ui.button("Save settings").clicked() { self.save(); }
+        });
+    }
+
     fn host_row(&mut self, ui: &mut egui::Ui, host: &Connection) {
         let selected = self.selected.as_deref() == Some(&host.id);
         let recent = self
@@ -1535,6 +1681,7 @@ impl EasySshApp {
         );
         if response.clicked() {
             self.selected = Some(host.id.clone());
+            self.inspector_open = true;
         }
         if response.double_clicked() {
             self.connect(host, false);
@@ -1572,6 +1719,10 @@ impl EasySshApp {
         ui.horizontal(|ui| {
             if ui.button(format!("{} Connect", icon::PLAY)).clicked() {
                 self.connect(&host, false);
+            }
+            if icon_button(ui, icon::FOLDER_OPEN, "Open files for this host").clicked() {
+                self.files_connection = Some(host.id.clone());
+                self.config.workspace = Workspace::Files;
             }
             if icon_button(ui, icon::WARNING, "Connect with detailed OpenSSH log").clicked() {
                 self.connect(&host, true);
@@ -2361,11 +2512,11 @@ impl EasySshApp {
         let query = &self.command_query;
         let mut items = vec![
             CommandAction::NewHost,
+            CommandAction::Switch(Workspace::Home),
             CommandAction::Switch(Workspace::Hosts),
-            CommandAction::Switch(Workspace::Files),
-            CommandAction::Switch(Workspace::Snippets),
-            CommandAction::Switch(Workspace::Forwarding),
             CommandAction::Switch(Workspace::Transfers),
+            CommandAction::Switch(Workspace::Keys),
+            CommandAction::Switch(Workspace::Settings),
             CommandAction::OpenSync,
         ];
         for host in self.config.connections.iter().filter(|h| {
@@ -2433,7 +2584,6 @@ impl EasySshApp {
                     self.status = "Snippet copied. Commands are never sent to a terminal.".into();
                     self.copy_text = Some(item.content.clone());
                 }
-                self.config.workspace = Workspace::Snippets;
             }
             CommandAction::Session(id, _) => {
                 if let Some(session) = self.config.sessions.iter().find(|s| s.id == id).cloned() {
@@ -2458,6 +2608,7 @@ impl EasySshApp {
         };
         let mut open = self.editor_open;
         let mut save = false;
+        let mut save_and_connect = false;
         egui::Window::new("Edit host")
             .open(&mut open)
             .resizable(true)
@@ -2508,29 +2659,42 @@ impl EasySshApp {
                         });
                     }
                 }
-                ui.label("Tags (comma separated)");
-                let mut tags = host.tags.join(", ");
-                if ui.text_edit_singleline(&mut tags).changed() {
-                    host.tags = tags
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(str::to_owned)
-                        .collect();
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut host.favorite, "Favorite");
+                    if ui.button("Validate setup").clicked() {
+                        self.editor_test_status = Some(match SshInvocation::for_connection(&self.openssh, host) {
+                            Ok(_) => "Parsed successfully. TCP and authentication occur only when the external terminal launches.".into(),
+                            Err(error) => format!("Fix connection details: {error}"),
+                        });
+                    }
+                });
+                if let Some(status) = &self.editor_test_status {
+                    ui.label(egui::RichText::new(status).small().weak());
                 }
-                ui.label("Local forwards (one per line)");
-                edit_lines(ui, &mut host.local_forwards);
-                ui.label("Remote forwards (one per line)");
-                edit_lines(ui, &mut host.remote_forwards);
-                ui.label("Dynamic forwards (one per line)");
-                edit_lines(ui, &mut host.dynamic_forwards);
-                ui.label("Notes");
-                ui.add_sized(
-                    [ui.available_width(), 70.0],
-                    egui::TextEdit::multiline(&mut host.notes),
-                );
-                ui.checkbox(&mut host.favorite, "Favorite");
+                ui.collapsing("Advanced", |ui| {
+                    ui.label("Tags (comma separated)");
+                    let mut tags = host.tags.join(", ");
+                    if ui.text_edit_singleline(&mut tags).changed() {
+                        host.tags = tags.split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned).collect();
+                    }
+                    ui.label("Jump host");
+                    ui.text_edit_singleline(host.proxy_jump.get_or_insert_with(String::new));
+                    ui.label("Startup command");
+                    ui.text_edit_singleline(host.remote_command.get_or_insert_with(String::new));
+                    ui.label("Local forwards (one per line)");
+                    edit_lines(ui, &mut host.local_forwards);
+                    ui.label("Remote forwards (one per line)");
+                    edit_lines(ui, &mut host.remote_forwards);
+                    ui.label("Dynamic forwards (one per line)");
+                    edit_lines(ui, &mut host.dynamic_forwards);
+                    ui.label("Notes");
+                    ui.add_sized([ui.available_width(), 70.0], egui::TextEdit::multiline(&mut host.notes));
+                });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Save and connect").clicked() {
+                        save = true;
+                        save_and_connect = true;
+                    }
                     if ui.button("Save").clicked() {
                         save = true;
                     }
@@ -2539,8 +2703,16 @@ impl EasySshApp {
         if save {
             self.save();
             open = false;
+            self.draft_host_id = None;
+        } else if !open {
+            self.discard_draft_host();
         }
         self.editor_open = open;
+        if save_and_connect {
+            if let Some(host) = self.config.connections.get(index).cloned() {
+                self.connect(&host, false);
+            }
+        }
     }
 
     fn snippet_editor(&mut self, ctx: &egui::Context) {
@@ -2596,11 +2768,13 @@ impl EasySshApp {
                 }
             });
         if launch {
-            let mut host = Connection::alias(&self.quick_host, &self.quick_host);
+            let (user, hostname, port) =
+                parse_quick_target(&self.quick_host, &self.quick_user, self.quick_port);
+            let mut host = Connection::alias(&hostname, &hostname);
             host.target = ConnectionTarget::Endpoint {
-                hostname: self.quick_host.clone(),
-                username: (!self.quick_user.is_empty()).then(|| self.quick_user.clone()),
-                port: self.quick_port,
+                hostname,
+                username: user,
+                port,
             };
             self.connect(&host, false);
             open = false;
@@ -2990,8 +3164,17 @@ impl EasySshApp {
         };
         let response = match request["operation"].as_str() {
             Some("get_ui_tree") => json!({"success":true,"tree":self.ui_test_tree()}),
-            Some("click") if request["element_id"].as_str() == Some("navigation.files") => {
-                self.config.workspace = Workspace::Files;
+            Some("click") if request["element_id"].as_str() == Some("navigation.home") => {
+                self.config.workspace = Workspace::Home;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("navigation.hosts") => {
+                self.config.workspace = Workspace::Hosts;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("hosts.add") => {
+                self.config.workspace = Workspace::Hosts;
+                self.add_host();
                 json!({"success":true,"tree":self.ui_test_tree()})
             }
             Some("click") if request["element_id"].as_str() == Some("files.toggle_dual_pane") => {
@@ -3008,6 +3191,22 @@ impl EasySshApp {
             }
             Some("click") if request["element_id"].as_str() == Some("navigation.transfers") => {
                 self.config.workspace = Workspace::Transfers;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("navigation.keys") => {
+                self.config.workspace = Workspace::Keys;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("navigation.settings") => {
+                self.config.workspace = Workspace::Settings;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("settings.theme.light") => {
+                self.config.theme = Theme::Light;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("settings.theme.dark") => {
+                self.config.theme = Theme::Dark;
                 json!({"success":true,"tree":self.ui_test_tree()})
             }
             Some("double_click")
@@ -3035,7 +3234,12 @@ impl EasySshApp {
                 _ => json!({"success":false,"error":"invalid window dimensions"}),
             },
             Some("send_key") if request["key"].as_str() == Some("Escape") => {
-                self.search.clear();
+                if self.editor_open {
+                    self.editor_open = false;
+                    self.discard_draft_host();
+                } else {
+                    self.search.clear();
+                }
                 json!({"success":true,"tree":self.ui_test_tree()})
             }
             Some("drag") => {
@@ -3095,8 +3299,33 @@ impl EasySshApp {
     fn ui_test_tree(&self) -> Value {
         let visible = self.config.workspace == Workspace::Transfers;
         let files_visible = self.config.workspace == Workspace::Files;
-        json!({"id":"app.root","role":"window","text":"EasySSH [UI Test]","visible":true,"enabled":true,"state":{"ui.is_idle":true,"ui.animation_count":0,"ui.pending_task_count":self.transfer_children.len()},"children":[
-          {"id":"navigation.files","role":"button","text":"Files","visible":true,"enabled":true,"selected":files_visible},
+        let home_visible = self.config.workspace == Workspace::Home;
+        let hosts_visible = self.config.workspace == Workspace::Hosts;
+        let keys_visible = self.config.workspace == Workspace::Keys;
+        let settings_visible = self.config.workspace == Workspace::Settings;
+        json!({"id":"app.root","role":"window","text":"EasySSH [UI Test]","visible":true,"enabled":true,"state":{"ui.is_idle":true,"ui.animation_count":0,"ui.pending_task_count":self.transfer_children.len(),"host_count":self.config.connections.len()},"children":[
+          {"id":"navigation.home","role":"button","text":"Home","visible":true,"enabled":true,"selected":home_visible},
+          {"id":"navigation.hosts","role":"button","text":"Hosts","visible":true,"enabled":true,"selected":hosts_visible},
+          {"id":"navigation.transfers","role":"button","text":"Transfers","visible":true,"enabled":true,"selected":visible},
+          {"id":"navigation.keys","role":"button","text":"Keys","visible":true,"enabled":true,"selected":keys_visible},
+          {"id":"navigation.settings","role":"button","text":"Settings","visible":true,"enabled":true,"selected":settings_visible},
+          {"id":"home.page","role":"page","text":"Home","visible":home_visible,"enabled":true,"children":[
+            {"id":"home.quick_connect","role":"textbox","text":"Quick connect","value":self.quick_host,"visible":home_visible,"enabled":true},
+            {"id":"home.favorites","role":"list","text":"Favorites","visible":home_visible,"enabled":true},
+            {"id":"home.recent_sessions","role":"list","text":"Recent connections","visible":home_visible,"enabled":true}
+          ]},
+          {"id":"hosts.page","role":"page","text":"Hosts","visible":hosts_visible,"enabled":true,"children":[
+            {"id":"hosts.search","role":"textbox","text":"Search hosts","value":self.search,"visible":hosts_visible,"enabled":true},
+            {"id":"hosts.add","role":"button","text":"Add host","visible":hosts_visible,"enabled":true},
+            {"id":"hosts.list","role":"list","text":"Hosts","visible":hosts_visible,"enabled":true},
+            {"id":"hosts.inspector","role":"complementary","text":"Host inspector","visible":hosts_visible && self.inspector_open,"enabled":true}
+          ]},
+          {"id":"hosts.editor","role":"dialog","text":"Edit host","visible":self.editor_open,"enabled":true},
+          {"id":"keys.page","role":"page","text":"Keys","visible":keys_visible,"enabled":true},
+          {"id":"settings.page","role":"page","text":"Settings","visible":settings_visible,"enabled":true,"children":[
+            {"id":"settings.theme.light","role":"button","text":"Light","visible":settings_visible,"enabled":true},
+            {"id":"settings.theme.dark","role":"button","text":"Dark","visible":settings_visible,"enabled":true}
+          ]},
           {"id":"files.page","role":"page","text":"Files","visible":files_visible,"enabled":true,"children":[
             {"id":"files.hosts","role":"list","text":"Hosts","visible":files_visible,"enabled":true},
             {"id":"files.path","role":"textbox","text":"Remote path","value":self.files_path,"visible":files_visible,"enabled":true},
@@ -3108,7 +3337,6 @@ impl EasySshApp {
             {"id":"files.properties","role":"complementary","text":"Properties","visible":files_visible,"enabled":true}
           ]},
           {"id":"files.create_folder_dialog","role":"dialog","text":"New remote folder","visible":self.files_create_dir_open,"enabled":true},
-          {"id":"navigation.transfers","role":"button","text":"Transfers","visible":true,"enabled":true,"selected":visible},
           {"id":"transfers.page","role":"page","text":"Transfers","visible":visible,"enabled":true,"children":[
             {"id":"transfers.host_selector","role":"combobox","text":"Host","visible":visible,"enabled":true},
             {"id":"transfers.connection_status","role":"status","text":"Disconnected","visible":visible,"enabled":true},
@@ -3158,11 +3386,14 @@ impl eframe::App for EasySshApp {
         self.topbar(ctx);
         self.navigation(ctx);
         match self.config.workspace {
+            Workspace::Home => self.home(ctx),
             Workspace::Hosts => self.hosts(ctx),
             Workspace::Files => self.files(ctx),
             Workspace::Snippets => self.snippets(ctx),
             Workspace::Forwarding => self.forwarding(ctx),
             Workspace::Transfers => self.transfers(ctx),
+            Workspace::Keys => self.keys(ctx),
+            Workspace::Settings => self.settings(ctx),
         };
         self.command_panel(ctx);
         self.host_editor(ctx);
@@ -3191,11 +3422,14 @@ impl CommandAction {
         match self {
             Self::NewHost => format!("{} New host", icon::PLUS),
             Self::OpenSync => format!("{} Open Git metadata sync", icon::ARROWS_CLOCKWISE),
+            Self::Switch(Workspace::Home) => "Go to Home".into(),
             Self::Switch(Workspace::Hosts) => "Go to Hosts".into(),
             Self::Switch(Workspace::Files) => "Go to Files".into(),
             Self::Switch(Workspace::Snippets) => "Go to Snippets".into(),
             Self::Switch(Workspace::Forwarding) => "Go to Port forwarding".into(),
             Self::Switch(Workspace::Transfers) => "Go to Transfers".into(),
+            Self::Switch(Workspace::Keys) => "Go to Keys".into(),
+            Self::Switch(Workspace::Settings) => "Go to Settings".into(),
             Self::Host(_, name) => format!("Open host: {name}"),
             Self::Connect(_, name, false) => format!("Connect: {name}"),
             Self::Connect(_, name, true) => format!("Detailed log: {name}"),
@@ -3249,6 +3483,39 @@ fn target_text(host: &Connection) -> String {
             None => format!("{hostname}:{port}"),
         },
     }
+}
+
+/// Parses the common `user@host:port` form without retaining raw command text.
+fn parse_quick_target(
+    value: &str,
+    fallback_user: &str,
+    fallback_port: u16,
+) -> (Option<String>, String, u16) {
+    let value = value.trim();
+    let (user, endpoint) = value
+        .rsplit_once('@')
+        .map_or((None, value), |(user, endpoint)| {
+            (
+                (!user.trim().is_empty()).then(|| user.trim().to_owned()),
+                endpoint,
+            )
+        });
+    let (hostname, port) = endpoint
+        .rsplit_once(':')
+        .and_then(|(host, port)| {
+            port.parse::<u16>()
+                .ok()
+                .filter(|port| *port > 0)
+                .map(|port| (host, port))
+        })
+        .unwrap_or((endpoint, fallback_port));
+    (
+        user.or_else(|| {
+            (!fallback_user.trim().is_empty()).then(|| fallback_user.trim().to_owned())
+        }),
+        hostname.trim().to_owned(),
+        port,
+    )
 }
 fn relative_time(time: DateTime<Utc>) -> String {
     let seconds = (Utc::now() - time).num_seconds().max(0);
@@ -3437,5 +3704,17 @@ mod tests {
     #[test]
     fn relative_time_is_compact() {
         assert_eq!(relative_time(Utc::now()), "now");
+    }
+
+    #[test]
+    fn quick_connect_parses_user_host_and_port() {
+        assert_eq!(
+            parse_quick_target("ops@example.com:2200", "", 22),
+            (Some("ops".into()), "example.com".into(), 2200)
+        );
+        assert_eq!(
+            parse_quick_target("example.com", "ops", 22),
+            (Some("ops".into()), "example.com".into(), 22)
+        );
     }
 }

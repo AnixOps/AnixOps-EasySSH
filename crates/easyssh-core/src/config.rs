@@ -41,19 +41,21 @@ impl ConfigStore {
             return Ok(AppConfig::new());
         }
         let value: serde_json::Value = serde_json::from_slice(&fs::read(&self.path)?)?;
-        // A workbench schema is intentionally a clean start. Older versions are
-        // left untouched on disk and are neither imported nor displayed.
-        if value
+        let Some(version) = value
             .get("schema_version")
             .and_then(serde_json::Value::as_u64)
-            != Some(AppConfig::SCHEMA_VERSION as u64)
-        {
+        else {
+            return Ok(AppConfig::new());
+        };
+        if version > AppConfig::SCHEMA_VERSION as u64 {
             return Ok(AppConfig::new());
         }
         if serialized_has_sensitive_keys(&value) {
             return Err(ConfigError::SensitiveFields);
         }
         let mut config: AppConfig = serde_json::from_value(value)?;
+        config.schema_version = AppConfig::SCHEMA_VERSION;
+        config.workspace = config.workspace.migrated();
         config.sessions.truncate(20);
         Ok(config)
     }
@@ -170,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn old_schema_is_ignored_instead_of_migrated() {
+    fn old_schema_is_migrated_without_sensitive_fields() {
         let directory =
             std::env::temp_dir().join(format!("easyssh-schema-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&directory).unwrap();
@@ -180,9 +182,23 @@ mod tests {
             r#"{"schema_version":3,"connections":[{"id":"old","password":"not imported"}]}"#,
         )
         .unwrap();
+        assert!(matches!(
+            ConfigStore::at(&path).load(),
+            Err(ConfigError::SensitiveFields)
+        ));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn schema_five_migrates_legacy_workspace_to_hosts() {
+        let directory =
+            std::env::temp_dir().join(format!("easyssh-schema-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("connections.json");
+        fs::write(&path, r#"{"schema_version":5,"workspace":"files","connections":[],"groups":[],"recent_connection_ids":[],"snippets":[],"theme":"system","locale":"system"}"#).unwrap();
         let config = ConfigStore::at(&path).load().unwrap();
-        assert!(config.connections.is_empty());
         assert_eq!(config.schema_version, AppConfig::SCHEMA_VERSION);
+        assert_eq!(config.workspace, crate::domain::Workspace::Hosts);
         fs::remove_dir_all(directory).unwrap();
     }
 

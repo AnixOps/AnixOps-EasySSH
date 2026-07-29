@@ -28,14 +28,14 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub const SCHEMA_VERSION: u32 = 5;
+    pub const SCHEMA_VERSION: u32 = 6;
 
     pub fn new() -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
             theme: Theme::System,
             locale: Locale::System,
-            workspace: Workspace::Hosts,
+            workspace: Workspace::Home,
             ..Self::default()
         }
     }
@@ -204,11 +204,25 @@ pub struct SessionRecord {
 #[serde(rename_all = "snake_case")]
 pub enum Workspace {
     #[default]
+    Home,
     Hosts,
+    Transfers,
+    Keys,
+    Settings,
+    /// Legacy workspaces are retained solely so schema 5 metadata can be
+    /// deserialized and migrated without data loss. They are not navigable.
     Files,
     Snippets,
     Forwarding,
-    Transfers,
+}
+
+impl Workspace {
+    pub fn migrated(self) -> Self {
+        match self {
+            Self::Files | Self::Snippets | Self::Forwarding => Self::Hosts,
+            workspace => workspace,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -227,7 +241,7 @@ impl Default for TerminalPreferences {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Theme {
     Light,

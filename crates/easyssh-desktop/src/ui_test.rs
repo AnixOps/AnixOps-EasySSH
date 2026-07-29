@@ -71,6 +71,9 @@ impl UiTestMode {
     pub fn write_bridge_response(&self, value: &Value) {
         let temporary = self.root.join("bridge.response.tmp");
         let response = self.root.join("bridge.response.json");
+        // Windows rename does not replace an existing destination. Both paths
+        // are fixed children of the isolated UI-test root.
+        let _ = fs::remove_file(&response);
         if fs::write(&temporary, serde_json::to_vec(value).unwrap_or_default()).is_ok() {
             let _ = fs::rename(temporary, response);
         }
