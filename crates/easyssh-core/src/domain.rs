@@ -25,10 +25,12 @@ pub struct AppConfig {
     pub sidebar: SidebarPreferences,
     #[serde(default)]
     pub sync: SyncPreferences,
+    #[serde(default)]
+    pub experimental: ExperimentalFeatures,
 }
 
 impl AppConfig {
-    pub const SCHEMA_VERSION: u32 = 6;
+    pub const SCHEMA_VERSION: u32 = 7;
 
     pub fn new() -> Self {
         Self {
@@ -39,6 +41,17 @@ impl AppConfig {
             ..Self::default()
         }
     }
+}
+
+/// Opt-in features which may expose a larger remote-data surface. They are
+/// deliberately disabled for both new and migrated configurations.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub struct ExperimentalFeatures {
+    pub remote_text_editing: bool,
+    pub image_preview: bool,
+    pub dual_pane_file_browsing: bool,
+    pub git_metadata_sync_ui: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -64,7 +77,7 @@ pub struct SyncPreferences {
     pub last_snapshot_hash: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum ConnectionTarget {
     Alias {
@@ -85,7 +98,7 @@ impl Default for ConnectionTarget {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Connection {
     pub id: String,
@@ -225,7 +238,7 @@ impl Workspace {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TerminalPreferences {
     pub font_size: f32,
     pub scrollback_lines: usize,
@@ -249,11 +262,24 @@ pub enum Theme {
     #[default]
     System,
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Locale {
     En,
     ZhCn,
     #[default]
     System,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn experimental_features_default_to_off() {
+        let features = ExperimentalFeatures::default();
+        assert!(!features.remote_text_editing);
+        assert!(!features.image_preview);
+        assert!(!features.dual_pane_file_browsing);
+        assert!(!features.git_metadata_sync_ui);
+    }
 }

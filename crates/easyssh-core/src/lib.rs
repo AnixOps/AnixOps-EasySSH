@@ -9,14 +9,16 @@ pub mod domain;
 pub mod openssh;
 pub mod remote;
 pub mod security;
+pub mod ssh_config;
 pub mod sync;
 pub mod transfer;
 pub mod workspace;
 
 pub use config::{ConfigStore, MigrationReport};
 pub use domain::{
-    AppConfig, CommandSnippet, Connection, ConnectionTarget, DisplayDensity, Group, SessionRecord,
-    SidebarNavigation, SidebarPreferences, TerminalPreferences, Theme, Workspace,
+    AppConfig, CommandSnippet, Connection, ConnectionTarget, DisplayDensity, ExperimentalFeatures,
+    Group, Locale, SessionRecord, SidebarNavigation, SidebarPreferences, TerminalPreferences,
+    Theme, Workspace,
 };
 pub use openssh::{AgentDiagnostics, ExternalTerminal, OpenSsh, OpenSshError, SshInvocation};
 pub use remote::{
@@ -24,6 +26,7 @@ pub use remote::{
     RemoteFileService, RemoteFileState, RemotePlatformAdapter, RemotePlatformKind,
     UnsupportedRemoteAdapter, WindowsRemoteAdapter,
 };
+pub use ssh_config::{scan_default_ssh_config, scan_ssh_config, SshConfigDiscovery};
 pub use sync::{GitSync, SyncError, SyncFile, SyncStatus};
 pub use transfer::{
     cancel, ScpInvocation, SftpListingInvocation, Transfer, TransferDirection, TransferStatus,
