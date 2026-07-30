@@ -25,6 +25,11 @@ impl EasySshApp {
                 self.add_host();
                 json!({"success":true,"tree":self.ui_test_tree()})
             }
+            Some("click") if request["element_id"].as_str() == Some("hosts.groups") => {
+                self.config.workspace = Workspace::Hosts;
+                self.group_settings_open = true;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
             Some("click")
                 if request["element_id"].as_str() == Some("files.toggle_dual_pane")
                     && self.remote_file_browser_enabled() =>

@@ -35,6 +35,11 @@ impl EasySshApp {
             {
                 self.upload_editor_changes();
             }
+            if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::A))
+                && self.file_edit_session.is_some()
+            {
+                self.select_all_editor_text();
+            }
             if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::R)) {
                 self.refresh_files(false);
             }

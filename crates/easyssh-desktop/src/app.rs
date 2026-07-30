@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 use easyssh_core::{
     cancel, scan_default_ssh_config, AppConfig, CommandSnippet, ConfigStore, Connection,
-    ConnectionTarget, DisplayDensity, EditSession, ExternalTerminal, GitSync, LineEnding, Locale,
-    OpenSsh, RemoteCapabilities, RemoteEntry, RemoteEntryType, RemoteFileService, ScpInvocation,
-    SessionRecord, SshInvocation, SyncStatus, Theme, Transfer, TransferDirection, TransferStatus,
-    Workspace, WorkspaceTempManager,
+    ConnectionTarget, DisplayDensity, EditSession, ExternalTerminal, GitSync, Group, LineEnding,
+    Locale, OpenSsh, RemoteCapabilities, RemoteEntry, RemoteEntryType, RemoteFileService,
+    ScpInvocation, SessionRecord, SshInvocation, SyncStatus, Theme, Transfer, TransferDirection,
+    TransferStatus, Workspace, WorkspaceTempManager,
 };
 use eframe::egui;
 use egui_phosphor::regular as icon;
@@ -283,6 +283,8 @@ struct EasySshApp {
     snippet_editor: Option<String>,
     delete_host: Option<String>,
     delete_snippet: Option<String>,
+    group_settings_open: bool,
+    new_group_name: String,
     diagnostics_open: bool,
     sync_open: bool,
     diagnostics_state: state::diagnostics::State,
@@ -315,6 +317,8 @@ struct EasySshApp {
     temporary_workspace: Option<WorkspaceTempManager>,
     file_edit_session: Option<EditSession>,
     file_editor_text: String,
+    file_editor_font_size: f32,
+    file_editor_word_wrap: bool,
     file_editor_status: FileEditorStatus,
     file_editor_find: String,
     file_editor_replace: String,
@@ -393,6 +397,8 @@ impl EasySshApp {
             snippet_editor: None,
             delete_host: None,
             delete_snippet: None,
+            group_settings_open: false,
+            new_group_name: String::new(),
             diagnostics_open: false,
             sync_open: false,
             diagnostics_state,
@@ -429,6 +435,8 @@ impl EasySshApp {
             temporary_workspace: None,
             file_edit_session: None,
             file_editor_text: String::new(),
+            file_editor_font_size: 14.0,
+            file_editor_word_wrap: true,
             file_editor_status: FileEditorStatus::SavedLocally,
             file_editor_find: String::new(),
             file_editor_replace: String::new(),
@@ -812,6 +820,11 @@ impl eframe::App for EasySshApp {
         }
         if let Some(toast) = &self.toast {
             let toast = toast.clone();
+            let lifetime = match toast.kind {
+                ToastKind::Success | ToastKind::Info => Duration::from_secs(3),
+                ToastKind::Error => Duration::from_secs(7),
+            };
+            ctx.request_repaint_after(lifetime.saturating_sub(toast.created_at.elapsed()));
             let mut close = false;
             egui::Area::new(egui::Id::new("save-toast"))
                 .anchor(egui::Align2::RIGHT_BOTTOM, [-16.0, -16.0])

@@ -1,6 +1,11 @@
 use super::*;
 
 impl EasySshApp {
+    pub(super) fn select_all_editor_text(&mut self) {
+        let end = self.file_editor_text.chars().count();
+        self.file_editor_pending_selection = Some((0, end));
+    }
+
     pub(super) fn open_remote_text_file(&mut self, path: String) {
         if !self.config.experimental.remote_text_editing {
             self.files_status = "Remote editing is disabled in Experimental settings.".into();

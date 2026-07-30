@@ -75,6 +75,7 @@ impl EasySshApp {
           {"id":"hosts.page","role":"page","text":strings.text(crate::ui::localization::Key::Hosts),"visible":hosts_visible,"enabled":true,"children":[
             {"id":"hosts.search","role":"textbox","text":"Search hosts","value":self.search,"visible":hosts_visible,"enabled":true},
             {"id":"hosts.add","role":"button","text":"Add host","visible":hosts_visible,"enabled":true},
+            {"id":"hosts.groups","role":"button","text":"Groups","visible":hosts_visible,"enabled":true},
             {"id":"hosts.list","role":"list","text":"Hosts","visible":hosts_visible,"enabled":true},
             {"id":"hosts.inspector","role":"complementary","text":"Host inspector","visible":hosts_visible && self.inspector_open,"enabled":true}
           ]},
@@ -82,6 +83,7 @@ impl EasySshApp {
           {"id":"hosts.editor.name","role":"textbox","text":"Display name","value":self.host_form.as_ref().map(|form| form.draft.name.clone()).unwrap_or_default(),"visible":self.editor_open,"enabled":true},
           {"id":"hosts.editor.close","role":"button","text":"Close editor","visible":self.editor_open,"enabled":true},
           {"id":"hosts.editor.discard","role":"button","text":"Discard changes","visible":self.host_form.as_ref().is_some_and(|form| form.confirm_discard),"enabled":true},
+          {"id":"hosts.group_settings","role":"dialog","text":"Group settings","visible":self.group_settings_open,"enabled":true},
           {"id":"keys.page","role":"page","text":"Keys","visible":keys_visible,"enabled":true,"children":[{"id":"keys.refresh","role":"button","text":"Refresh diagnostics","visible":keys_visible,"enabled":!matches!(self.diagnostics_state.status, state::diagnostics::Status::Loading)}]},
           {"id":"settings.page","role":"page","text":strings.text(crate::ui::localization::Key::Settings),"visible":settings_visible,"enabled":true,"children":[
             {"id":"settings.theme.light","role":"button","text":"Light","visible":settings_visible,"enabled":true},

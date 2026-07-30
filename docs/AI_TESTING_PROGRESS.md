@@ -60,7 +60,16 @@
 
 ## P3
 
-- Status: not_started
+- Status: verified
+- Completed work: stable-ID UI tree, element lookup and condition waits,
+  click/type/resize operations, window screenshots, locale and workspace
+  controls, deterministic Toast probes, redacted logs, and graceful stop.
+- Commands executed: `cargo build -p easyssh-test --bin easyssh-mcp`; isolated
+  MCP launch/tree/navigation/locale/Files/Toast/screenshot/log/stop checks.
+- Test results: Hosts, Settings, Transfers, Keys and Files states were
+  observed; Chinese and English tree labels were observed; success Toasts
+  disappeared automatically and error Toasts closed through their stable ID.
+- Artifacts: `artifacts/runs/run-*/` screenshots, logs, and metadata.
 
 ## P4
 
@@ -77,4 +86,5 @@
 
 ## Next action
 
-- Commit the verified P2 lifecycle, then implement P3 UI Test Bridge.
+- Expand visual coverage across additional window sizes and native dialogs as
+  new UI surfaces land.

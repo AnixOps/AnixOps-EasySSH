@@ -218,6 +218,35 @@ impl EasySshApp {
                         validate = true;
                     }
                 });
+                let selected_group = host
+                    .group_id
+                    .as_ref()
+                    .and_then(|id| self.config.groups.iter().find(|group| &group.id == id))
+                    .map(|group| group.name.as_str())
+                    .unwrap_or("Ungrouped");
+                egui::ComboBox::from_id_salt("host-group")
+                    .selected_text(selected_group)
+                    .show_ui(ui, |ui| {
+                        if ui
+                            .selectable_label(host.group_id.is_none(), "Ungrouped")
+                            .clicked()
+                        {
+                            host.group_id = None;
+                            ui.close_menu();
+                        }
+                        for group in &self.config.groups {
+                            if ui
+                                .selectable_label(
+                                    host.group_id.as_deref() == Some(group.id.as_str()),
+                                    &group.name,
+                                )
+                                .clicked()
+                            {
+                                host.group_id = Some(group.id.clone());
+                                ui.close_menu();
+                            }
+                        }
+                    });
                 if let Some(status) = &self.editor_test_status {
                     ui.label(egui::RichText::new(status).small().weak());
                 }

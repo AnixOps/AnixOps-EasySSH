@@ -173,6 +173,19 @@ impl EasySshApp {
                     });
                 });
                 ui.separator();
+                ui.horizontal(|ui| {
+                    if icon_button(ui, icon::CHECK, "Select all editor text").clicked() {
+                        self.select_all_editor_text();
+                    }
+                    ui.checkbox(&mut self.file_editor_word_wrap, "Wrap lines");
+                    ui.label("Font size");
+                    ui.add(
+                        egui::DragValue::new(&mut self.file_editor_font_size)
+                            .range(8.0..=32.0)
+                            .speed(0.5),
+                    );
+                });
+                ui.separator();
                 if let Some(external_text) = self.file_editor_external_change.clone() {
                     ui.horizontal(|ui| {
                         ui.label("External editor changed the local working copy.");
@@ -254,8 +267,12 @@ impl EasySshApp {
                     });
                     let output = egui::TextEdit::multiline(&mut self.file_editor_text)
                         .id_source("file-editor")
-                        .font(egui::TextStyle::Monospace)
-                        .desired_width(ui.available_width())
+                        .font(egui::FontId::monospace(self.file_editor_font_size))
+                        .desired_width(if self.file_editor_word_wrap {
+                            ui.available_width()
+                        } else {
+                            f32::INFINITY
+                        })
                         .desired_rows(32)
                         .code_editor()
                         .show(ui);

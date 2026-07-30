@@ -34,6 +34,9 @@ impl EasySshApp {
                     if icon_button(ui, icon::SIDEBAR_SIMPLE, "Open host inspector").clicked() {
                         self.inspector_open = true;
                     }
+                    if ui.button("Groups").clicked() {
+                        self.group_settings_open = true;
+                    }
                     if ui
                         .button(format!(
                             "{} {}",
@@ -118,6 +121,53 @@ impl EasySshApp {
                 .default_width(360.0)
                 .show(ctx, |ui| self.inspector(ui));
             self.inspector_open = open;
+        }
+        if self.group_settings_open {
+            let mut open = true;
+            let mut changed = false;
+            egui::Window::new("Group settings")
+                .open(&mut open)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.text_edit_singleline(&mut self.new_group_name);
+                        if ui.button("Add group").clicked()
+                            && !self.new_group_name.trim().is_empty()
+                        {
+                            self.config.groups.push(Group {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                name: self.new_group_name.trim().to_owned(),
+                                color: None,
+                                parent_id: None,
+                            });
+                            self.new_group_name.clear();
+                            changed = true;
+                        }
+                    });
+                    ui.separator();
+                    let mut remove = None;
+                    for group in &mut self.config.groups {
+                        ui.horizontal(|ui| {
+                            changed |= ui.text_edit_singleline(&mut group.name).changed();
+                            if ui.button("Delete").clicked() {
+                                remove = Some(group.id.clone());
+                            }
+                        });
+                    }
+                    if let Some(id) = remove {
+                        self.config.groups.retain(|group| group.id != id);
+                        for host in &mut self.config.connections {
+                            if host.group_id.as_deref() == Some(id.as_str()) {
+                                host.group_id = None;
+                            }
+                        }
+                        changed = true;
+                    }
+                });
+            if changed {
+                self.save();
+            }
+            self.group_settings_open = open;
         }
     }
 }
