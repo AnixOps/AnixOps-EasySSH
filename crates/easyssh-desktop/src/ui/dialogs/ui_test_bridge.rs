@@ -65,6 +65,18 @@ impl EasySshApp {
                 self.save();
                 json!({"success":true,"tree":self.ui_test_tree()})
             }
+            Some("click") if request["element_id"].as_str() == Some("settings.locale.system") => {
+                self.config.locale = Locale::System;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("settings.locale.en") => {
+                self.config.locale = Locale::En;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("settings.locale.zh_cn") => {
+                self.config.locale = Locale::ZhCn;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
             Some("click") if request["element_id"].as_str() == Some("keys.refresh") => {
                 self.diagnostics_state.request(ctx);
                 json!({"success":true,"tree":self.ui_test_tree()})
@@ -75,6 +87,79 @@ impl EasySshApp {
                 self.config.experimental.git_metadata_sync_ui =
                     !self.config.experimental.git_metadata_sync_ui;
                 self.save();
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click")
+                if request["element_id"].as_str()
+                    == Some("settings.experimental.remote_file_browser") =>
+            {
+                self.config.experimental.remote_file_browser =
+                    !self.config.experimental.remote_file_browser;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("click") if request["element_id"].as_str() == Some("toast.close") => {
+                if self
+                    .toast
+                    .as_ref()
+                    .is_some_and(|toast| toast.kind == ToastKind::Error)
+                {
+                    self.toast = None;
+                }
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("set_locale") => match request["locale"].as_str() {
+                Some("system") => {
+                    self.config.locale = Locale::System;
+                    json!({"success":true,"tree":self.ui_test_tree()})
+                }
+                Some("en") => {
+                    self.config.locale = Locale::En;
+                    json!({"success":true,"tree":self.ui_test_tree()})
+                }
+                Some("zh-CN") => {
+                    self.config.locale = Locale::ZhCn;
+                    json!({"success":true,"tree":self.ui_test_tree()})
+                }
+                _ => json!({"success":false,"error":"locale must be system, en, or zh-CN"}),
+            },
+            Some("set_workspace") => {
+                let workspace = match request["workspace"].as_str() {
+                    Some("home") => Workspace::Home,
+                    Some("hosts") => Workspace::Hosts,
+                    Some("transfers") => Workspace::Transfers,
+                    Some("keys") => Workspace::Keys,
+                    Some("settings") => Workspace::Settings,
+                    Some("files") => {
+                        self.config.experimental.remote_file_browser = true;
+                        Workspace::Files
+                    }
+                    _ => {
+                        return mode.write_bridge_response(&json!({
+                            "success":false,
+                            "error":"workspace must be home, hosts, transfers, keys, settings, or files"
+                        }));
+                    }
+                };
+                self.config.workspace = workspace;
+                json!({"success":true,"tree":self.ui_test_tree()})
+            }
+            Some("show_toast") => match (request["kind"].as_str(), request["message"].as_str()) {
+                (Some("success"), Some(message)) => {
+                    self.show_toast(message, ToastKind::Success);
+                    json!({"success":true,"tree":self.ui_test_tree()})
+                }
+                (Some("info"), Some(message)) => {
+                    self.show_toast(message, ToastKind::Info);
+                    json!({"success":true,"tree":self.ui_test_tree()})
+                }
+                (Some("error"), Some(message)) => {
+                    self.show_toast(message, ToastKind::Error);
+                    json!({"success":true,"tree":self.ui_test_tree()})
+                }
+                _ => json!({"success":false,"error":"kind and message are required"}),
+            },
+            Some("dismiss_toast") => {
+                self.toast = None;
                 json!({"success":true,"tree":self.ui_test_tree()})
             }
             Some("click") if request["element_id"].as_str() == Some("hosts.editor.discard") => {

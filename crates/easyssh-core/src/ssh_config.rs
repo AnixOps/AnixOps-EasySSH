@@ -22,6 +22,7 @@ pub fn scan_ssh_config(path: &Path) -> SshConfigDiscovery {
     scan(
         path,
         false,
+        0,
         &mut BTreeSet::new(),
         &mut aliases,
         &mut warnings,
@@ -35,11 +36,19 @@ pub fn scan_ssh_config(path: &Path) -> SshConfigDiscovery {
 fn scan(
     path: &Path,
     include: bool,
+    depth: usize,
     visited: &mut BTreeSet<PathBuf>,
     aliases: &mut BTreeSet<String>,
     warnings: &mut Vec<String>,
 ) {
-    let path = path.to_path_buf();
+    if depth > 16 {
+        warnings.push(format!(
+            "SSH config include depth exceeded at {}",
+            path.display()
+        ));
+        return;
+    }
+    let path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     if !visited.insert(path.clone()) {
         return;
     }
@@ -81,7 +90,7 @@ fn scan(
                     ));
                 }
                 for include in matched {
-                    scan(&include, true, visited, aliases, warnings);
+                    scan(&include, true, depth + 1, visited, aliases, warnings);
                 }
             }
         }
@@ -97,9 +106,14 @@ fn ssh_words(line: &str) -> Vec<String> {
     let mut escaped = false;
     for ch in line.chars() {
         if escaped {
-            word.push(ch);
+            if quote.is_some() && matches!(ch, '\\' | '"') {
+                word.push(ch);
+            } else {
+                word.push('\\');
+                word.push(ch);
+            }
             escaped = false;
-        } else if ch == '\\' {
+        } else if ch == '\\' && quote.is_some() {
             escaped = true;
         } else if let Some(delimiter) = quote {
             if ch == delimiter {
@@ -111,6 +125,10 @@ fn ssh_words(line: &str) -> Vec<String> {
             quote = Some(ch);
         } else if ch == '#' {
             break;
+        } else if ch == '='
+            && (word.eq_ignore_ascii_case("host") || word.eq_ignore_ascii_case("include"))
+        {
+            words.push(std::mem::take(&mut word));
         } else if ch.is_whitespace() {
             if !word.is_empty() {
                 words.push(std::mem::take(&mut word));

@@ -34,6 +34,7 @@ impl EasySshApp {
 
     #[cfg(feature = "ui-test")]
     pub(super) fn ui_test_tree(&self) -> Value {
+        let strings = crate::ui::localization::Strings::new(self.config.locale);
         let page: crate::ui::pages::Page = self.config.workspace.into();
         let visible = page == crate::ui::pages::Page::Transfers;
         let navigation_visible = !matches!(
@@ -43,7 +44,8 @@ impl EasySshApp {
         let files_visible =
             self.remote_file_browser_enabled() && self.config.workspace == Workspace::Files;
         let home_visible = page == crate::ui::pages::Page::Home;
-        let hosts_visible = page == crate::ui::pages::Page::Hosts;
+        let hosts_visible =
+            page == crate::ui::pages::Page::Hosts && self.config.workspace != Workspace::Files;
         let keys_visible = page == crate::ui::pages::Page::Keys;
         let settings_visible = page == crate::ui::pages::Page::Settings;
         let open_dialog_count = [
@@ -60,17 +62,17 @@ impl EasySshApp {
         .count();
         let breakpoint = crate::ui::shell::Breakpoint::for_width(self.viewport_width).name();
         json!({"id":"app.root","role":"window","text":"EasySSH [UI Test]","visible":true,"enabled":true,"state":{"ui.is_idle":true,"ui.animation_count":0,"ui.pending_task_count":self.transfer_children.len(),"host_count":self.config.connections.len(),"open_dialog_count":open_dialog_count,"responsive_breakpoint":breakpoint,"diagnostics_loading":matches!(self.diagnostics_state.status, state::diagnostics::Status::Loading)},"children":[
-          {"id":"navigation.home","role":"button","text":"Home","visible":navigation_visible,"enabled":true,"selected":home_visible},
-          {"id":"navigation.hosts","role":"button","text":"Hosts","visible":navigation_visible,"enabled":true,"selected":hosts_visible},
-          {"id":"navigation.transfers","role":"button","text":"Transfers","visible":navigation_visible,"enabled":true,"selected":visible},
-          {"id":"navigation.keys","role":"button","text":"Keys","visible":navigation_visible,"enabled":true,"selected":keys_visible},
-          {"id":"navigation.settings","role":"button","text":"Settings","visible":navigation_visible,"enabled":true,"selected":settings_visible},
-          {"id":"home.page","role":"page","text":"Home","visible":home_visible,"enabled":true,"children":[
-            {"id":"home.quick_connect","role":"textbox","text":"Quick connect","value":self.quick_host,"visible":home_visible,"enabled":true},
-            {"id":"home.favorites","role":"list","text":"Favorites","visible":home_visible,"enabled":true},
-            {"id":"home.recent_sessions","role":"list","text":"Recent connections","visible":home_visible,"enabled":true}
+          {"id":"navigation.home","role":"button","text":strings.text(crate::ui::localization::Key::Home),"visible":navigation_visible,"enabled":true,"selected":home_visible},
+          {"id":"navigation.hosts","role":"button","text":strings.text(crate::ui::localization::Key::Hosts),"visible":navigation_visible,"enabled":true,"selected":hosts_visible},
+          {"id":"navigation.transfers","role":"button","text":strings.text(crate::ui::localization::Key::Transfers),"visible":navigation_visible,"enabled":true,"selected":visible},
+          {"id":"navigation.keys","role":"button","text":strings.text(crate::ui::localization::Key::Keys),"visible":navigation_visible,"enabled":true,"selected":keys_visible},
+          {"id":"navigation.settings","role":"button","text":strings.text(crate::ui::localization::Key::Settings),"visible":navigation_visible,"enabled":true,"selected":settings_visible},
+          {"id":"home.page","role":"page","text":strings.text(crate::ui::localization::Key::Home),"visible":home_visible,"enabled":true,"children":[
+            {"id":"home.quick_connect","role":"textbox","text":strings.text(crate::ui::localization::Key::QuickConnect),"value":self.quick_host,"visible":home_visible,"enabled":true},
+            {"id":"home.favorites","role":"list","text":strings.text(crate::ui::localization::Key::Favorites),"visible":home_visible,"enabled":true},
+            {"id":"home.recent_sessions","role":"list","text":strings.text(crate::ui::localization::Key::RecentConnections),"visible":home_visible,"enabled":true}
           ]},
-          {"id":"hosts.page","role":"page","text":"Hosts","visible":hosts_visible,"enabled":true,"children":[
+          {"id":"hosts.page","role":"page","text":strings.text(crate::ui::localization::Key::Hosts),"visible":hosts_visible,"enabled":true,"children":[
             {"id":"hosts.search","role":"textbox","text":"Search hosts","value":self.search,"visible":hosts_visible,"enabled":true},
             {"id":"hosts.add","role":"button","text":"Add host","visible":hosts_visible,"enabled":true},
             {"id":"hosts.list","role":"list","text":"Hosts","visible":hosts_visible,"enabled":true},
@@ -81,9 +83,13 @@ impl EasySshApp {
           {"id":"hosts.editor.close","role":"button","text":"Close editor","visible":self.editor_open,"enabled":true},
           {"id":"hosts.editor.discard","role":"button","text":"Discard changes","visible":self.host_form.as_ref().is_some_and(|form| form.confirm_discard),"enabled":true},
           {"id":"keys.page","role":"page","text":"Keys","visible":keys_visible,"enabled":true,"children":[{"id":"keys.refresh","role":"button","text":"Refresh diagnostics","visible":keys_visible,"enabled":!matches!(self.diagnostics_state.status, state::diagnostics::Status::Loading)}]},
-          {"id":"settings.page","role":"page","text":"Settings","visible":settings_visible,"enabled":true,"children":[
+          {"id":"settings.page","role":"page","text":strings.text(crate::ui::localization::Key::Settings),"visible":settings_visible,"enabled":true,"children":[
             {"id":"settings.theme.light","role":"button","text":"Light","visible":settings_visible,"enabled":true},
             {"id":"settings.theme.dark","role":"button","text":"Dark","visible":settings_visible,"enabled":true},
+            {"id":"settings.locale.system","role":"button","text":"System","visible":settings_visible,"enabled":true},
+            {"id":"settings.locale.en","role":"button","text":"English","visible":settings_visible,"enabled":true},
+            {"id":"settings.locale.zh_cn","role":"button","text":"Chinese","visible":settings_visible,"enabled":true},
+            {"id":"settings.experimental.remote_file_browser","role":"checkbox","text":strings.text(crate::ui::localization::Key::RemoteFileBrowser),"visible":settings_visible,"enabled":true,"checked":self.config.experimental.remote_file_browser},
             {"id":"settings.experimental.git_sync","role":"checkbox","text":"Git metadata sync","visible":settings_visible,"enabled":true,"checked":self.config.experimental.git_metadata_sync_ui}
           ]},
           {"id":"files.page","role":"page","text":"Files","visible":files_visible,"enabled":true,"children":[
@@ -97,7 +103,7 @@ impl EasySshApp {
             {"id":"files.properties","role":"complementary","text":"Properties","visible":files_visible,"enabled":true}
           ]},
           {"id":"files.create_folder_dialog","role":"dialog","text":"New remote folder","visible":self.files_create_dir_open,"enabled":true},
-          {"id":"transfers.page","role":"page","text":"Transfers","visible":visible,"enabled":true,"children":[
+          {"id":"transfers.page","role":"page","text":strings.text(crate::ui::localization::Key::Transfers),"visible":visible,"enabled":true,"children":[
             {"id":"transfers.host_selector","role":"combobox","text":"Host","visible":visible,"enabled":true},
             {"id":"transfers.connection_status","role":"status","text":"Disconnected","visible":visible,"enabled":true},
             {"id":"transfers.local_path","role":"textbox","text":"Local path","value":self.transfer_local_path,"visible":visible,"enabled":true},
@@ -106,6 +112,9 @@ impl EasySshApp {
             {"id":"transfers.download_button","role":"button","text":"Download","visible":visible,"enabled":true},
             {"id":"transfers.transfer_queue","role":"list","text":"Transfer queue","visible":visible,"enabled":true},
             {"id":"transfers.empty_state","role":"status","text":"No transfers yet","visible":visible,"enabled":true}
+          ]},
+          {"id":"toast","role":"status","text":self.toast.as_ref().map(|toast| toast.message.clone()).unwrap_or_default(),"visible":self.toast.is_some(),"enabled":true,"kind":self.toast.as_ref().map(|toast| format!("{:?}", toast.kind)),"children":[
+            {"id":"toast.close","role":"button","text":"Close","visible":self.toast.as_ref().is_some_and(|toast| toast.kind == ToastKind::Error),"enabled":true}
           ]}
         ]})
     }

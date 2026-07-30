@@ -16,7 +16,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::thread::JoinHandle;
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 #[path = "app/dialogs.rs"]
 mod app_dialogs;
 #[path = "app/shared.rs"]
@@ -85,6 +85,20 @@ struct RunningTransfer {
     child: Child,
     stdout: JoinHandle<String>,
     stderr: JoinHandle<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ToastKind {
+    Success,
+    Info,
+    Error,
+}
+
+#[derive(Debug, Clone)]
+struct Toast {
+    message: String,
+    kind: ToastKind,
+    created_at: Instant,
 }
 
 fn read_scp_output(mut reader: impl Read + Send + 'static) -> JoinHandle<String> {
@@ -217,15 +231,34 @@ pub fn run() -> eframe::Result<()> {
 fn install_system_cjk_fallback(fonts: &mut egui::FontDefinitions) {
     #[cfg(windows)]
     {
-        const FONT_PATH: &str = r"C:\Windows\Fonts\simhei.ttf";
-        if let Ok(bytes) = fs::read(FONT_PATH) {
+        let candidates = [r"C:\Windows\Fonts\msyh.ttc", r"C:\Windows\Fonts\simhei.ttf"];
+        install_first_available(fonts, &candidates);
+    }
+    #[cfg(target_os = "macos")]
+    install_first_available(fonts, &["/System/Library/Fonts/PingFang.ttc"]);
+    #[cfg(target_os = "linux")]
+    install_first_available(
+        fonts,
+        &[
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/source-han-sans/SourceHanSansSC-Regular.otf",
+        ],
+    );
+}
+
+fn install_first_available(fonts: &mut egui::FontDefinitions, candidates: &[&str]) {
+    for path in candidates {
+        if let Ok(bytes) = fs::read(path) {
             let name = "easyssh-system-cjk".to_owned();
             fonts
                 .font_data
                 .insert(name.clone(), egui::FontData::from_owned(bytes));
-            for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-                fonts.families.entry(family).or_default().push(name.clone());
-            }
+            fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default()
+                .push(name);
+            break;
         }
     }
 }
@@ -259,7 +292,7 @@ struct EasySshApp {
     viewport_width: f32,
     copy_text: Option<String>,
     status: String,
-    toast: Option<String>,
+    toast: Option<Toast>,
     transfers: Vec<Transfer>,
     transfer_children: HashMap<String, RunningTransfer>,
     transfer_connection: Option<String>,
@@ -449,10 +482,18 @@ impl EasySshApp {
             }
             Err(error) => {
                 self.status = error.to_string();
-                self.toast = Some(format!("Unable to save changes: {error}"));
+                self.show_toast(format!("Unable to save changes: {error}"), ToastKind::Error);
                 false
             }
         }
+    }
+
+    fn show_toast(&mut self, message: impl Into<String>, kind: ToastKind) {
+        self.toast = Some(Toast {
+            message: message.into(),
+            kind,
+            created_at: Instant::now(),
+        });
     }
 
     fn remote_file_browser_enabled(&self) -> bool {
@@ -460,12 +501,24 @@ impl EasySshApp {
     }
 
     fn import_ssh_config_aliases(&mut self) -> (usize, usize) {
-        let (added, skipped) =
-            import_aliases(&mut self.config.connections, &self.ssh_config_aliases);
-        if added > 0 && self.try_save() {
-            self.toast = Some(format!("Added {added} SSH Config host(s)."));
+        let mut candidate = self.config.clone();
+        let (added, skipped) = import_aliases(&mut candidate.connections, &self.ssh_config_aliases);
+        if added > 0 {
+            if self.store.save(&candidate).is_ok() {
+                self.config = candidate;
+                self.status = "Workbench saved".into();
+                self.show_toast(
+                    format!("Added {added} SSH Config host(s)."),
+                    ToastKind::Success,
+                );
+            } else {
+                self.show_toast(
+                    "Unable to save imported SSH Config hosts.",
+                    ToastKind::Error,
+                );
+            }
         } else if added == 0 {
-            self.toast = Some("All SSH Config hosts are already added.".into());
+            self.show_toast("All SSH Config hosts are already added.", ToastKind::Info);
         }
         (added, skipped)
     }
@@ -690,7 +743,10 @@ impl eframe::App for EasySshApp {
         self.diagnostics_state.poll();
         if self.config.workspace == Workspace::Files && !self.remote_file_browser_enabled() {
             self.config.workspace = Workspace::Hosts;
-            self.toast = Some("Remote file browser is disabled in Experimental settings.".into());
+            self.show_toast(
+                "Remote file browser is disabled in Experimental settings.",
+                ToastKind::Info,
+            );
         }
         self.viewport_width = ctx.input(|input| input.screen_rect().width());
         #[cfg(feature = "ui-test")]
@@ -745,14 +801,31 @@ impl eframe::App for EasySshApp {
         self.sync_panel(ctx);
         self.file_conflict_dialog(ctx);
         self.file_operation_dialogs(ctx);
-        if let Some(message) = &self.toast {
+        if self.toast.as_ref().is_some_and(|toast| {
+            toast.created_at.elapsed()
+                >= match toast.kind {
+                    ToastKind::Success | ToastKind::Info => Duration::from_secs(3),
+                    ToastKind::Error => Duration::from_secs(7),
+                }
+        }) {
+            self.toast = None;
+        }
+        if let Some(toast) = &self.toast {
+            let toast = toast.clone();
+            let mut close = false;
             egui::Area::new(egui::Id::new("save-toast"))
                 .anchor(egui::Align2::RIGHT_BOTTOM, [-16.0, -16.0])
                 .show(ctx, |ui| {
                     egui::Frame::popup(ui.style()).show(ui, |ui| {
-                        ui.label(message);
+                        ui.horizontal(|ui| {
+                            ui.label(&toast.message);
+                            close = toast.kind == ToastKind::Error && ui.button("×").clicked();
+                        });
                     });
                 });
+            if close {
+                self.toast = None;
+            }
         }
     }
 }

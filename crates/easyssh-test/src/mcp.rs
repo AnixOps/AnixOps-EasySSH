@@ -197,6 +197,26 @@ fn tools() -> Vec<Value> {
             "Capture only the EasySSH test window",
             json!({"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":64}},"additionalProperties":false}),
         ),
+        tool(
+            "set_ui_locale",
+            "Set the isolated UI test locale",
+            json!({"type":"object","properties":{"locale":{"enum":["system","en","zh-CN"]}},"required":["locale"],"additionalProperties":false}),
+        ),
+        tool(
+            "set_ui_workspace",
+            "Select a workspace in the isolated UI test app",
+            json!({"type":"object","properties":{"workspace":{"enum":["home","hosts","transfers","keys","settings","files"]}},"required":["workspace"],"additionalProperties":false}),
+        ),
+        tool(
+            "show_ui_toast",
+            "Show a deterministic toast in the isolated UI test app",
+            json!({"type":"object","properties":{"kind":{"enum":["success","info","error"]},"message":{"type":"string","minLength":1,"maxLength":200}},"required":["kind","message"],"additionalProperties":false}),
+        ),
+        tool(
+            "dismiss_ui_toast",
+            "Dismiss the current isolated UI test toast",
+            json!({"type":"object","additionalProperties":false}),
+        ),
     ]
 }
 
@@ -369,12 +389,24 @@ fn call_tool(server: &Arc<Server>, params: Option<&Value>) -> Result<Value, (i32
                 json!({"isError":!result.success,"content":[{"type":"text","text":result.summary}],"structuredContent":result}),
             )
         }
-        "get_ui_tree" | "click_ui_element" | "type_into_ui_element" | "resize_app_window" => {
+        "get_ui_tree"
+        | "click_ui_element"
+        | "type_into_ui_element"
+        | "resize_app_window"
+        | "set_ui_locale"
+        | "set_ui_workspace"
+        | "show_ui_toast"
+        | "dismiss_ui_toast" => {
             let allowed = match name {
                 "get_ui_tree" => &[][..],
                 "click_ui_element" => &["element_id"][..],
                 "type_into_ui_element" => &["element_id", "text"][..],
-                _ => &["width", "height"][..],
+                "resize_app_window" => &["width", "height"][..],
+                "set_ui_locale" => &["locale"][..],
+                "set_ui_workspace" => &["workspace"][..],
+                "show_ui_toast" => &["kind", "message"][..],
+                "dismiss_ui_toast" => &[][..],
+                _ => unreachable!(),
             };
             reject_unknown(&arguments, allowed)?;
             let mut app = server
@@ -392,9 +424,18 @@ fn call_tool(server: &Arc<Server>, params: Option<&Value>) -> Result<Value, (i32
                 "type_into_ui_element" => {
                     json!({"operation":"type","element_id":arguments["element_id"],"text":arguments["text"]})
                 }
-                _ => {
+                "resize_app_window" => {
                     json!({"operation":"resize","width":arguments["width"],"height":arguments["height"]})
                 }
+                "set_ui_locale" => json!({"operation":"set_locale","locale":arguments["locale"]}),
+                "set_ui_workspace" => {
+                    json!({"operation":"set_workspace","workspace":arguments["workspace"]})
+                }
+                "show_ui_toast" => {
+                    json!({"operation":"show_toast","kind":arguments["kind"],"message":arguments["message"]})
+                }
+                "dismiss_ui_toast" => json!({"operation":"dismiss_toast"}),
+                _ => unreachable!(),
             };
             let result = app
                 .bridge(request, Duration::from_secs(10))
@@ -687,7 +728,11 @@ mod tests {
                 "click_ui_element",
                 "type_into_ui_element",
                 "resize_app_window",
-                "take_app_screenshot"
+                "take_app_screenshot",
+                "set_ui_locale",
+                "set_ui_workspace",
+                "show_ui_toast",
+                "dismiss_ui_toast"
             ]
         );
     }
